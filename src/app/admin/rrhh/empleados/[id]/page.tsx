@@ -32,6 +32,8 @@ import { formatTimeLocal } from '@/lib/timezone-utils';
 import { AssetBarcode } from '@/components/admin/assets/AssetBarcode';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { EmployeeFormDialog } from '@/components/admin/hr/EmployeeFormDialog';
+import { PhotoCropDialog } from '@/components/admin/hr/PhotoCropDialog';
+import { BADGE_PHOTO_SOURCE_MAX_MB } from '@/lib/badge-photo';
 import { downloadEmployeeBadgePdf } from '@/lib/generate-employee-badge-pdf';
 import {
   useDeleteEmployeePhoto,
@@ -72,7 +74,11 @@ import {
   type WorkScheduleSummary,
 } from '@/types/hr';
 
-/** Formatos y tamaño que acepta el API para la foto del gafete. */
+/**
+ * Formatos y tamaño que acepta el API para la foto del gafete. El tope de MB
+ * aplica al JPEG YA RECORTADO (lib/badge-photo.ts): el archivo original puede
+ * ser mucho mayor porque nunca se sube tal cual.
+ */
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PHOTO_MAX_MB = 5;
 
@@ -426,25 +432,54 @@ function PhotoBlock({
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadPhoto = useUploadEmployeePhoto();
   const deletePhoto = useDeleteEmployeePhoto();
+  /** Archivo elegido, esperando recorte en el diálogo. */
+  const [pending, setPending] = useState<File | null>(null);
 
-  const pick = async (file: File | null) => {
+  const resetInput = () => {
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  /**
+   * Elegir archivo NO sube nada: abre el recorte. Las fotos de la sesión
+   * llegan apaisadas y de 22 MB; lo que se sube es el marco de la credencial
+   * como JPEG chico, así que aquí solo se valida el formato y que el archivo
+   * sea razonable de abrir en el navegador.
+   */
+  const pick = (file: File | null) => {
     if (!file) return;
     if (!PHOTO_TYPES.includes(file.type)) {
       toast.error('La foto debe ser JPG, PNG o WEBP');
+      resetInput();
       return;
     }
-    if (file.size > PHOTO_MAX_MB * 1024 * 1024) {
-      toast.error(`La foto excede ${PHOTO_MAX_MB} MB`);
+    if (file.size > BADGE_PHOTO_SOURCE_MAX_MB * 1024 * 1024) {
+      toast.error(`La foto es demasiado grande para abrirla aquí (${BADGE_PHOTO_SOURCE_MAX_MB} MB máximo)`);
+      resetInput();
+      return;
+    }
+    setPending(file);
+  };
+
+  const uploadCropped = async (cropped: File) => {
+    if (cropped.size > PHOTO_MAX_MB * 1024 * 1024) {
+      toast.error(`La foto recortada excede ${PHOTO_MAX_MB} MB`);
       return;
     }
     try {
-      await uploadPhoto.mutateAsync({ id: employeeId, file });
+      await uploadPhoto.mutateAsync({ id: employeeId, file: cropped });
       toast.success('Foto actualizada');
+      setPending(null);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'No se pudo subir la foto'));
+      throw err;
     } finally {
-      if (inputRef.current) inputRef.current.value = '';
+      resetInput();
     }
+  };
+
+  const cancelCrop = () => {
+    setPending(null);
+    resetInput();
   };
 
   const remove = async () => {
@@ -470,7 +505,13 @@ function PhotoBlock({
             type="file"
             accept={PHOTO_TYPES.join(',')}
             className="hidden"
-            onChange={(e) => void pick(e.target.files?.[0] ?? null)}
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+          <PhotoCropDialog
+            file={pending}
+            uploading={uploadPhoto.isPending}
+            onCancel={cancelCrop}
+            onConfirm={uploadCropped}
           />
           <div className="flex gap-1">
             <Button
