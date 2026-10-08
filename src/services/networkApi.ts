@@ -7,6 +7,7 @@
 
 import api from '@/lib/axios';
 import { saveBlob } from '@/lib/download';
+import { networkBasePath, type NetworkScope } from '@/lib/network/scope-path';
 import type {
   NetworkMemberDetail,
   RankType,
@@ -61,10 +62,11 @@ const rankCodeToType: Record<string, RankType> = {
 class NetworkApi {
   /**
    * Ficha de un socio de mi red (el servidor verifica que pertenezca a ella).
-   * Backend: GET /distributor/network/member/:customerId
+   * Backend: GET /distributor/network/member/:customerId — o, con alcance de
+   * admin, GET /customers/:id/network/member/:customerId.
    */
-  async getStats(customerId: string): Promise<NetworkMemberDetail> {
-    const { data: member } = await api.get(`/distributor/network/member/${customerId}`);
+  async getStats(customerId: string, scope?: NetworkScope | null): Promise<NetworkMemberDetail> {
+    const { data: member } = await api.get(`${networkBasePath(scope)}/member/${customerId}`);
 
     const rankType = member.rank?.code
       ? rankCodeToType[member.rank.code] || 'distribuidor'
@@ -121,18 +123,19 @@ class NetworkApi {
   // -------------------------------------------------------------------------
   // "Mi red" para redes grandes (contrato /distribuidor/red §4): resumen,
   // explorador por líneas y lista plana con filtros/orden en el servidor.
-  // Todas bajo JWT del distribuidor; el periodo por defecto lo resuelve el
-  // servidor con CURRENT_DATE (26→25).
+  // Bajo JWT del distribuidor (/distributor/network/*) o, con `scope`, desde el
+  // admin sobre un cliente (/customers/:id/network/*, mismas respuestas); el
+  // periodo por defecto lo resuelve el servidor con CURRENT_DATE (26→25).
   // -------------------------------------------------------------------------
 
   /**
    * Resumen del periodo: 6 indicadores + desglose por nivel + "en riesgo".
    * Backend: GET /distributor/network/overview?periodId=
    */
-  async getOverview(periodId?: string | null): Promise<NetworkOverview> {
+  async getOverview(periodId?: string | null, scope?: NetworkScope | null): Promise<NetworkOverview> {
     const params: Record<string, string> = {};
     if (periodId) params.periodId = periodId;
-    const { data } = await api.get<NetworkOverview>(`/distributor/network/overview`, { params });
+    const { data } = await api.get<NetworkOverview>(`${networkBasePath(scope)}/overview`, { params });
     return data;
   }
 
@@ -141,14 +144,14 @@ class NetworkApi {
    * memberId; `parents` (≤ 50) abre varias líneas a la vez y responde byParent.
    * Backend: GET /distributor/network/children
    */
-  async getChildren(query: NetworkChildrenQuery = {}): Promise<NetworkChildren> {
+  async getChildren(query: NetworkChildrenQuery = {}, scope?: NetworkScope | null): Promise<NetworkChildren> {
     const params: Record<string, string> = {};
     if (query.parents && query.parents.length) params.parents = query.parents.join(',');
     else if (query.parent) params.parent = query.parent;
     if (query.periodId) params.periodId = query.periodId;
     if (query.page) params.page = String(query.page);
     if (query.limit) params.limit = String(query.limit);
-    const { data } = await api.get<NetworkChildren>(`/distributor/network/children`, { params });
+    const { data } = await api.get<NetworkChildren>(`${networkBasePath(scope)}/children`, { params });
     return data;
   }
 
@@ -158,7 +161,7 @@ class NetworkApi {
    * el ValidationPipe del API rechaza claves desconocidas.
    * Backend: GET /distributor/network/members
    */
-  async getMembers(query: NetworkMembersQuery = {}): Promise<NetworkMembers> {
+  async getMembers(query: NetworkMembersQuery = {}, scope?: NetworkScope | null): Promise<NetworkMembers> {
     const params: Record<string, string> = {};
     if (query.search) params.search = query.search;
     if (query.level !== undefined) params.level = String(query.level);
@@ -173,7 +176,7 @@ class NetworkApi {
     if (query.page) params.page = String(query.page);
     if (query.limit) params.limit = String(query.limit);
     if (query.periodId) params.periodId = query.periodId;
-    const { data } = await api.get<NetworkMembers>(`/distributor/network/members`, { params });
+    const { data } = await api.get<NetworkMembers>(`${networkBasePath(scope)}/members`, { params });
     return data;
   }
 
@@ -247,11 +250,11 @@ class NetworkApi {
    * Volumen de grupo por línea directa (con tope/rollover) del periodo.
    * Backend: GET /distributor/network/direct-lines
    */
-  async getDirectLines(periodId?: string): Promise<DirectLinesVolumeResponse> {
+  async getDirectLines(periodId?: string, scope?: NetworkScope | null): Promise<DirectLinesVolumeResponse> {
     const params: Record<string, string> = {};
     if (periodId) params.periodId = periodId;
     const { data } = await api.get<DirectLinesVolumeResponse>(
-      `/distributor/network/direct-lines`,
+      `${networkBasePath(scope)}/direct-lines`,
       { params },
     );
     return data;

@@ -23,13 +23,17 @@ interface NetworkHeaderProps {
   /** Id elegido ('' mientras no se conoce el actual). */
   selectedPeriodId: string;
   onPeriodChange: (periodId: string) => void;
-  registerMemberEnabled: boolean;
+  /** Título del encabezado; por defecto "Mi red" (el admin lo cambia por el del cliente). */
+  title?: string;
+  registerMemberEnabled?: boolean;
   /** Texto del gate del piloto (tooltip de los botones de alta). */
-  gateMessage: string;
-  onEnroll: () => void;
-  onPreferred: () => void;
-  onInvite: () => void;
-  onDownload: () => void;
+  gateMessage?: string;
+  // Acciones opcionales: la ficha del admin (solo lectura) no manda ninguna y
+  // el encabezado muestra solo el periodo.
+  onEnroll?: () => void;
+  onPreferred?: () => void;
+  onInvite?: () => void;
+  onDownload?: () => void;
 }
 
 export function NetworkHeader({
@@ -37,14 +41,16 @@ export function NetworkHeader({
   periodOptions,
   selectedPeriodId,
   onPeriodChange,
-  registerMemberEnabled,
-  gateMessage,
+  title,
+  registerMemberEnabled = true,
+  gateMessage = '',
   onEnroll,
   onPreferred,
   onInvite,
   onDownload,
 }: NetworkHeaderProps) {
   const t = useTranslations('distributor.network.header');
+  const hasActions = Boolean(onEnroll || onPreferred || onInvite || onDownload);
   const locale = useLocale();
   const range = period ? fmtPeriodRange(period.startDate, period.endDate, locale) : null;
   const gateTitle = registerMemberEnabled ? undefined : gateMessage;
@@ -59,7 +65,7 @@ export function NetworkHeader({
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <UsersIcon className="h-7 w-7 shrink-0" aria-hidden="true" />
-            <h1 className="text-2xl font-bold leading-tight lg:text-3xl">{t('title')}</h1>
+            <h1 className="text-2xl font-bold leading-tight lg:text-3xl">{title ?? t('title')}</h1>
           </div>
           {period && range ? (
             <p className="mt-1 text-sm text-white/85">
@@ -88,48 +94,58 @@ export function NetworkHeader({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onEnroll}
-              title={gateTitle}
-              aria-disabled={!registerMemberEnabled}
-              className={`bg-white text-[#3E667D] hover:bg-white/90 ${gatedClass}`}
-            >
-              <UserPlusIcon className="h-4 w-4" aria-hidden="true" />
-              {t('enroll')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onPreferred}
-              title={gateTitle}
-              aria-disabled={!registerMemberEnabled}
-              className={`border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white ${gatedClass}`}
-            >
-              <UserPlusIcon className="h-4 w-4" aria-hidden="true" />
-              {t('preferred')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onInvite}
-              className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-            >
-              <ShareIcon className="h-4 w-4" aria-hidden="true" />
-              {t('invite')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onDownload}
-              className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
-              {t('download')}
-            </Button>
-          </div>
+          {hasActions && (
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              {onEnroll && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onEnroll}
+                  title={gateTitle}
+                  aria-disabled={!registerMemberEnabled}
+                  className={`bg-white text-[#3E667D] hover:bg-white/90 ${gatedClass}`}
+                >
+                  <UserPlusIcon className="h-4 w-4" aria-hidden="true" />
+                  {t('enroll')}
+                </Button>
+              )}
+              {onPreferred && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onPreferred}
+                  title={gateTitle}
+                  aria-disabled={!registerMemberEnabled}
+                  className={`border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white ${gatedClass}`}
+                >
+                  <UserPlusIcon className="h-4 w-4" aria-hidden="true" />
+                  {t('preferred')}
+                </Button>
+              )}
+              {onInvite && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onInvite}
+                  className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                >
+                  <ShareIcon className="h-4 w-4" aria-hidden="true" />
+                  {t('invite')}
+                </Button>
+              )}
+              {onDownload && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDownload}
+                  className="border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+                  {t('download')}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

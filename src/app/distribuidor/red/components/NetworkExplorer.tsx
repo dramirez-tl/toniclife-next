@@ -60,9 +60,10 @@ interface NetworkExplorerProps {
   rootMemberId: string;
   /** Periodo del encabezado; undefined = actual. */
   periodId?: string;
-  registerMemberEnabled: boolean;
-  gateMessage: string;
-  onEnroll: () => void;
+  registerMemberEnabled?: boolean;
+  gateMessage?: string;
+  /** Sin `onEnroll` (ficha del admin, solo lectura) la red vacía no ofrece el alta. */
+  onEnroll?: () => void;
   /** Re-enraíza (null = volver a mí). */
   onOpenLine: (memberId: string | null) => void;
   onSeeList: (memberId: string) => void;
@@ -93,8 +94,8 @@ function descendantIds(state: ExplorerState, parentId: string): string[] {
 export function NetworkExplorer({
   rootMemberId,
   periodId,
-  registerMemberEnabled,
-  gateMessage,
+  registerMemberEnabled = true,
+  gateMessage = '',
   onEnroll,
   onOpenLine,
   onSeeList,
@@ -269,7 +270,7 @@ export function NetworkExplorer({
         ) : emptyRoot ? (
           <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center">
             <p className="text-sm text-gray-500">{isMe ? t('explorer.emptyRoot') : t('explorer.noChildren')}</p>
-            {isMe && (
+            {isMe && onEnroll && (
               <Button
                 variant="outline"
                 size="sm"

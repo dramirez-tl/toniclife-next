@@ -7,6 +7,8 @@ import { networkApi } from '@/services/networkApi';
 import { NetworkChildrenQuery, NetworkExportJob, NetworkMembersQuery } from '@/types/network';
 import { createExportPollTracker, pollIntervalFor } from '@/lib/network/export-job';
 import { isHttpStatus } from '@/lib/network/network-error';
+import { networkScopeKey } from '@/lib/network/scope-path';
+import { useNetworkScope } from '@/lib/network/scope';
 
 /** Solo las claves con valor, para que la queryKey sea estable entre renders. */
 const compactQuery = (query: object): Record<string, string | number | boolean> =>
@@ -18,15 +20,22 @@ const compactQuery = (query: object): Record<string, string | number | boolean> 
 
 // Keys para React Query. Todas cuelgan de networkKeys.all: useRegisterMember
 // invalida ['network'] y con eso se refrescan resumen, explorador y lista.
+// Las lecturas llevan el alcance (lib/network/scope-path): 'me' en el panel del
+// distribuidor o el customerId cuando el admin mira la red de un cliente, para
+// no mezclar cachés entre distribuidores.
 export const networkKeys = {
   all: ['network'] as const,
   /** Ficha del socio (MemberSheet) vía network/member/:id. */
-  stats: (userId: string) => [...networkKeys.all, 'stats', userId] as const,
-  directLines: (periodId?: string) => [...networkKeys.all, 'direct-lines', periodId ?? 'current'] as const,
+  stats: (userId: string, scope: string = 'me') => [...networkKeys.all, 'stats', scope, userId] as const,
+  directLines: (periodId?: string, scope: string = 'me') =>
+    [...networkKeys.all, 'direct-lines', scope, periodId ?? 'current'] as const,
   // "Mi red" para redes grandes (contrato §4.1)
-  overview: (periodId?: string | null) => [...networkKeys.all, 'overview', periodId ?? 'current'] as const,
-  children: (query: NetworkChildrenQuery) => [...networkKeys.all, 'children', compactQuery(query)] as const,
-  members: (query: NetworkMembersQuery) => [...networkKeys.all, 'members', compactQuery(query)] as const,
+  overview: (periodId?: string | null, scope: string = 'me') =>
+    [...networkKeys.all, 'overview', scope, periodId ?? 'current'] as const,
+  children: (query: NetworkChildrenQuery, scope: string = 'me') =>
+    [...networkKeys.all, 'children', scope, compactQuery(query)] as const,
+  members: (query: NetworkMembersQuery, scope: string = 'me') =>
+    [...networkKeys.all, 'members', scope, compactQuery(query)] as const,
   exportJobs: () => [...networkKeys.all, 'export-jobs'] as const,
   exportJob: (jobId: string) => [...networkKeys.all, 'export-job', jobId] as const,
 };
@@ -36,9 +45,10 @@ export const networkKeys = {
  * pertenencia en el servidor). La usa MemberSheet.
  */
 export const useNetworkStats = (userId: string, enabled: boolean = true) => {
+  const scope = useNetworkScope();
   return useQuery({
-    queryKey: networkKeys.stats(userId),
-    queryFn: () => networkApi.getStats(userId),
+    queryKey: networkKeys.stats(userId, networkScopeKey(scope)),
+    queryFn: () => networkApi.getStats(userId, scope),
     staleTime: 2 * 60 * 1000, // 2 minutos
     enabled,
   });
@@ -48,9 +58,10 @@ export const useNetworkStats = (userId: string, enabled: boolean = true) => {
  * Hook: volumen de grupo por línea directa (con tope/rollover) del periodo.
  */
 export const useNetworkDirectLines = (periodId?: string, enabled: boolean = true) => {
+  const scope = useNetworkScope();
   return useQuery({
-    queryKey: networkKeys.directLines(periodId),
-    queryFn: () => networkApi.getDirectLines(periodId),
+    queryKey: networkKeys.directLines(periodId, networkScopeKey(scope)),
+    queryFn: () => networkApi.getDirectLines(periodId, scope),
     enabled,
     staleTime: 5 * 60 * 1000,
   });
@@ -69,9 +80,10 @@ const TEN_MIN = 10 * 60 * 1000;
  * anteriores mientras llegan las nuevas (placeholderData).
  */
 export const useNetworkOverview = (periodId?: string | null, enabled: boolean = true) => {
+  const scope = useNetworkScope();
   return useQuery({
-    queryKey: networkKeys.overview(periodId),
-    queryFn: () => networkApi.getOverview(periodId),
+    queryKey: networkKeys.overview(periodId, networkScopeKey(scope)),
+    queryFn: () => networkApi.getOverview(periodId, scope),
     enabled,
     staleTime: FIVE_MIN,
     gcTime: TEN_MIN,
@@ -84,9 +96,10 @@ export const useNetworkOverview = (periodId?: string | null, enabled: boolean = 
  * memberId; `parents` abre varias líneas a la vez (≤ 50).
  */
 export const useNetworkChildren = (query: NetworkChildrenQuery, enabled: boolean = true) => {
+  const scope = useNetworkScope();
   return useQuery({
-    queryKey: networkKeys.children(query),
-    queryFn: () => networkApi.getChildren(query),
+    queryKey: networkKeys.children(query, networkScopeKey(scope)),
+    queryFn: () => networkApi.getChildren(query, scope),
     enabled,
     staleTime: FIVE_MIN,
     gcTime: TEN_MIN,
@@ -99,9 +112,10 @@ export const useNetworkChildren = (query: NetworkChildrenQuery, enabled: boolean
  * `list.updating` con isPlaceholderData).
  */
 export const useNetworkMembers = (query: NetworkMembersQuery, enabled: boolean = true) => {
+  const scope = useNetworkScope();
   return useQuery({
-    queryKey: networkKeys.members(query),
-    queryFn: () => networkApi.getMembers(query),
+    queryKey: networkKeys.members(query, networkScopeKey(scope)),
+    queryFn: () => networkApi.getMembers(query, scope),
     enabled,
     staleTime: FIVE_MIN,
     gcTime: TEN_MIN,
