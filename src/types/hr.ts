@@ -293,6 +293,10 @@ export interface EmployeeDetail extends Employee {
   integratedDailySalary: number | string | null;
   employerRegistration: string | null;
   contractType: string | null;
+  /** Departamento y puesto COMO ESTAN EN LA NOMINA (Aspel NOI); informativos. Opcionales: llegan con la mig. 152. */
+  noiDepartment?: string | null;
+  noiJobPosition?: string | null;
+  bloodType?: string | null;
   workSchedule: WorkScheduleSummary | null;
   supervisor: { id: string; employeeNumber: string; fullName: string | null } | null;
   notes: string | null;

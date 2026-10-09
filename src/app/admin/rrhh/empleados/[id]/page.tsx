@@ -271,6 +271,9 @@ export default function EmployeeDetailPage({
                   <Field label="Sucursal" value={employee.branchName} />
                   <Field label="Departamento" value={employee.departmentName} />
                   <Field label="Puesto" value={employee.jobPositionName} />
+                  {/* Como está en la nómina (Aspel NOI): informativo, puede diferir del real */}
+                  <Field label="Departamento en nómina" value={employee.noiDepartment ?? null} />
+                  <Field label="Puesto en nómina" value={employee.noiJobPosition ?? null} />
                   <Field label="Jefe directo" value={employee.supervisor?.fullName ?? null} />
                   <Field label="Domicilio" value={employee.address} />
                   <Field label="Código postal" value={employee.zipCode} />
@@ -381,6 +384,7 @@ export default function EmployeeDetailPage({
                   <Field label="Fecha de nacimiento" value={formatDateOnly(employee.birthDate)} />
                   <Field label="Sexo" value={employee.gender} />
                   <Field label="Estado civil" value={employee.maritalStatus} />
+                  <Field label="Tipo de sangre" value={employee.bloodType ?? null} />
                   <Field label="Tipo de contrato" value={employee.contractType} />
                   <Field label="Tipo de salario" value={employee.salaryType} />
                   <Field label="Salario diario" value={formatMoney(employee.dailySalary)} />
@@ -390,7 +394,8 @@ export default function EmployeeDetailPage({
                   />
                   <div className="sm:col-span-2">
                     <p className="text-xs text-muted-foreground">
-                      Estos datos se sincronizarán con Aspel NOI; por ahora se capturan aquí.
+                      Estos datos vienen de Aspel NOI (sincronización diaria); lo que se capture aquí
+                      se sobreescribe con lo de la nómina.
                     </p>
                   </div>
                 </CardContent>
