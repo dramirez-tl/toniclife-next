@@ -100,6 +100,9 @@ export default function EmployeeDetailPage({
   const permissions = useAppSelector(selectUserPermissions);
   const roles = useAppSelector(selectUserRoles);
   const canManage = useMemo(() => hasManagePermission(permissions, roles), [permissions, roles]);
+  // El salario solo lo ve el super administrador: el API ya lo manda en null a
+  // los demas (salaryHidden); aqui ademas se pinta borroso.
+  const salaryHidden = !roles.includes('super_admin') || employee?.salaryHidden === true;
 
   const [editOpen, setEditOpen] = useState(false);
 
@@ -420,15 +423,21 @@ export default function EmployeeDetailPage({
                     label="Periodicidad de pago"
                     value={employee.salaryType ? SALARY_TYPE_LABELS[employee.salaryType] ?? employee.salaryType : null}
                   />
-                  <Field label="Salario diario" value={formatMoney(employee.dailySalary)} />
+                  <Field
+                    label="Salario diario"
+                    value={salaryHidden ? '$ 1,234.56' : formatMoney(employee.dailySalary)}
+                    blurred={salaryHidden}
+                  />
                   <Field
                     label="Salario diario integrado"
-                    value={formatMoney(employee.integratedDailySalary)}
+                    value={salaryHidden ? '$ 1,234.56' : formatMoney(employee.integratedDailySalary)}
+                    blurred={salaryHidden}
                   />
                   <div className="sm:col-span-2">
                     <p className="text-xs text-muted-foreground">
                       Estos datos vienen de Aspel NOI (sincronización diaria); lo que se capture aquí
                       se sobreescribe con lo de la nómina.
+                      {salaryHidden ? ' El salario solo es visible para el super administrador.' : ''}
                     </p>
                   </div>
                 </CardContent>
@@ -927,15 +936,24 @@ function Field({
   label,
   value,
   mono,
+  blurred,
 }: {
   label: string;
   value: string | null | undefined;
   mono?: boolean;
+  /** Dato reservado: se pinta borroso y no se puede seleccionar (el valor es un relleno). */
+  blurred?: boolean;
 }) {
   return (
     <div className="flex justify-between gap-4 border-b border-border pb-2">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={`text-right text-sm font-medium ${mono ? 'font-mono' : ''}`}>
+      <span
+        className={`text-right text-sm font-medium ${mono ? 'font-mono' : ''} ${
+          blurred ? 'select-none blur-sm' : ''
+        }`}
+        aria-hidden={blurred || undefined}
+        title={blurred ? 'Solo visible para el super administrador' : undefined}
+      >
         {value || '—'}
       </span>
     </div>

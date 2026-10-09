@@ -323,6 +323,8 @@ export interface EmployeeDetail extends Employee {
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
   salaryType: string | null;
+  /** true = el API no mando los montos: solo el super administrador los ve. */
+  salaryHidden?: boolean;
   /** Postgres numeric llega como string. */
   dailySalary: number | string | null;
   integratedDailySalary: number | string | null;
