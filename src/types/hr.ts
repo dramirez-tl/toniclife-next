@@ -65,6 +65,41 @@ export const EMPLOYMENT_TYPE_VARIANTS: Record<EmploymentType, BadgeVariant> = {
 /** De dónde salió/actualizó el expediente. */
 export type SyncSource = 'manual' | 'csv' | 'noi';
 
+/** Catalogos con CHECK en employees (los llena la sync con Aspel NOI); el valor crudo es el respaldo. */
+export const EMPLOYEE_GENDER_LABELS: Record<string, string> = {
+  male: 'Masculino',
+  female: 'Femenino',
+  other: 'Otro',
+};
+export const MARITAL_STATUS_LABELS: Record<string, string> = {
+  single: 'Soltero(a)',
+  married: 'Casado(a)',
+  divorced: 'Divorciado(a)',
+  widowed: 'Viudo(a)',
+  other: 'Otro',
+};
+export const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  permanent: 'Indeterminado (planta)',
+  temporary: 'Temporal / por obra o tiempo',
+  trial_period: 'Periodo de prueba',
+  initial_training: 'Capacitación inicial',
+};
+export const SALARY_TYPE_LABELS: Record<string, string> = {
+  daily: 'Diario',
+  weekly: 'Semanal',
+  biweekly: 'Quincenal',
+  monthly: 'Mensual',
+};
+export const TERMINATION_REASON_LABELS: Record<string, string> = {
+  resignation: 'Separación voluntaria',
+  termination: 'Rescisión / despido',
+  mutual_agreement: 'Mutuo acuerdo',
+  retirement: 'Jubilación o pensión',
+  death: 'Defunción',
+  contract_end: 'Término de contrato',
+  abandonment: 'Abandono / ausentismo',
+};
+
 export const SYNC_SOURCE_LABELS: Record<SyncSource, string> = {
   manual: 'Captura manual',
   csv: 'Carga CSV',
@@ -297,6 +332,8 @@ export interface EmployeeDetail extends Employee {
   noiDepartment?: string | null;
   noiJobPosition?: string | null;
   bloodType?: string | null;
+  /** Motivo de baja (catalogo con CHECK: resignation, termination, ...). */
+  terminationReason?: string | null;
   workSchedule: WorkScheduleSummary | null;
   supervisor: { id: string; employeeNumber: string; fullName: string | null } | null;
   notes: string | null;

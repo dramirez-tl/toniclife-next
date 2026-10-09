@@ -58,13 +58,18 @@ import {
   todayCdmx,
 } from '../../hr-utils';
 import {
+  CONTRACT_TYPE_LABELS,
+  EMPLOYEE_GENDER_LABELS,
   EMPLOYEE_STATUS_LABELS,
   EMPLOYEE_STATUS_VARIANTS,
   EMPLOYMENT_TYPE_LABELS,
   EMPLOYMENT_TYPE_VARIANTS,
   EVENT_TYPE_LABELS,
   EVENT_TYPE_VARIANTS,
+  MARITAL_STATUS_LABELS,
+  SALARY_TYPE_LABELS,
   SYNC_SOURCE_LABELS,
+  TERMINATION_REASON_LABELS,
   VACATION_STATUS_LABELS,
   VACATION_STATUS_VARIANTS,
   WORK_DAYS,
@@ -247,6 +252,14 @@ export default function EmployeeDetailPage({
                     value={employee.terminationDate ? formatDateOnly(employee.terminationDate) : null}
                   />
                   <Field
+                    label="Motivo de baja"
+                    value={
+                      employee.terminationReason
+                        ? TERMINATION_REASON_LABELS[employee.terminationReason] ?? employee.terminationReason
+                        : null
+                    }
+                  />
+                  <Field
                     label="Origen del expediente"
                     value={
                       employee.syncSource
@@ -382,11 +395,31 @@ export default function EmployeeDetailPage({
                   <Field label="Número de seguro social" value={employee.imssNumber} mono />
                   <Field label="Registro patronal" value={employee.employerRegistration} mono />
                   <Field label="Fecha de nacimiento" value={formatDateOnly(employee.birthDate)} />
-                  <Field label="Sexo" value={employee.gender} />
-                  <Field label="Estado civil" value={employee.maritalStatus} />
+                  <Field
+                    label="Sexo"
+                    value={employee.gender ? EMPLOYEE_GENDER_LABELS[employee.gender] ?? employee.gender : null}
+                  />
+                  <Field
+                    label="Estado civil"
+                    value={
+                      employee.maritalStatus
+                        ? MARITAL_STATUS_LABELS[employee.maritalStatus] ?? employee.maritalStatus
+                        : null
+                    }
+                  />
                   <Field label="Tipo de sangre" value={employee.bloodType ?? null} />
-                  <Field label="Tipo de contrato" value={employee.contractType} />
-                  <Field label="Tipo de salario" value={employee.salaryType} />
+                  <Field
+                    label="Tipo de contrato"
+                    value={
+                      employee.contractType
+                        ? CONTRACT_TYPE_LABELS[employee.contractType] ?? employee.contractType
+                        : null
+                    }
+                  />
+                  <Field
+                    label="Periodicidad de pago"
+                    value={employee.salaryType ? SALARY_TYPE_LABELS[employee.salaryType] ?? employee.salaryType : null}
+                  />
                   <Field label="Salario diario" value={formatMoney(employee.dailySalary)} />
                   <Field
                     label="Salario diario integrado"
