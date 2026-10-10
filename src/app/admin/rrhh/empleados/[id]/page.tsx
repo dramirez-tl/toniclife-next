@@ -250,6 +250,14 @@ export default function EmployeeDetailPage({
                     value={EMPLOYMENT_TYPE_LABELS[employee.employmentType] ?? employee.employmentType}
                   />
                   <Field label="Código de gafete" value={employee.badgeCode} mono />
+                  <Field
+                    label="Nombre en la credencial"
+                    value={
+                      employee.badgeDisplayName
+                        ? `${employee.badgeDisplayName}${employee.badgeName ? '' : ' (propuesto)'}`
+                        : null
+                    }
+                  />
                   <Field label="Fecha de ingreso" value={formatDateOnly(employee.hireDate)} />
                   <Field
                     label="Fecha de baja"

@@ -38,7 +38,12 @@ import {
   useWorkSchedules,
 } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { apiErrorMessage, todayCdmx } from '@/app/admin/rrhh/hr-utils';
+import {
+  apiErrorMessage,
+  badgeNameOptions,
+  defaultBadgeName,
+  todayCdmx,
+} from '@/app/admin/rrhh/hr-utils';
 import {
   EMPLOYEE_STATUSES,
   EMPLOYEE_STATUS_LABELS,
@@ -60,6 +65,9 @@ interface EmployeeFormDialogProps {
   onCreated?: (id: string) => void;
 }
 
+/** Valor del selector cuando el nombre de la credencial no es ninguno de los propuestos. */
+const BADGE_OTRO = '__otro__';
+
 interface FormState {
   employeeNumber: string;
   noiNumber: string;
@@ -68,6 +76,8 @@ interface FormState {
   firstName: string;
   lastName: string;
   secondLastName: string;
+  /** Un nombre + apellido paterno para la credencial; '' = el propuesto. */
+  badgeName: string;
   phone: string;
   personalEmail: string;
   branchId: string;
@@ -92,6 +102,7 @@ function initialState(employee?: EmployeeDetail | null): FormState {
     firstName: employee?.firstName ?? '',
     lastName: employee?.lastName ?? '',
     secondLastName: employee?.secondLastName ?? '',
+    badgeName: employee?.badgeName ?? '',
     phone: employee?.phone ?? '',
     personalEmail: employee?.personalEmail ?? '',
     branchId: employee?.branchId ?? '',
@@ -190,6 +201,13 @@ function EmployeeForm({
 }) {
   const isEdit = !!employee;
   const [form, setForm] = useState<FormState>(() => initialState(employee));
+  // "Escribir otro…": el nombre de la credencial no es ninguno de los propuestos
+  // (un apodo, otra grafía). Arranca encendido si el expediente ya trae uno así.
+  const [badgeOtro, setBadgeOtro] = useState(
+    () =>
+      !!employee?.badgeName &&
+      !badgeNameOptions(employee.firstName, employee.lastName).includes(employee.badgeName),
+  );
 
   const { data: branchesData } = useActiveBranches();
   const branches = branchesData ?? [];
@@ -202,6 +220,19 @@ function EmployeeForm({
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Opciones del nombre de la credencial, recalculadas con lo que se teclea en
+  // nombre y apellido: cada nombre de pila + paterno, ambos nombres + paterno,
+  // lo que ya traía el expediente (si no es ninguna) y "Escribir otro…".
+  const badgeDefault = defaultBadgeName(form.firstName, form.lastName);
+  const badgeCandidates = badgeNameOptions(form.firstName, form.lastName);
+  const badgeOptions = [
+    ...badgeCandidates.map((c) => ({ value: c, label: c })),
+    ...(form.badgeName && !badgeOtro && !badgeCandidates.includes(form.badgeName)
+      ? [{ value: form.badgeName, label: form.badgeName }]
+      : []),
+    { value: BADGE_OTRO, label: 'Escribir otro…' },
+  ];
 
   const submit = async () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {
@@ -234,6 +265,7 @@ function EmployeeForm({
           firstName: opt(form.firstName),
           lastName: opt(form.lastName),
           secondLastName: form.secondLastName.trim(),
+          badgeName: nullable(form.badgeName),
           phone: opt(form.phone),
           personalEmail: nullable(form.personalEmail),
           branchId: nullable(form.branchId),
@@ -259,6 +291,7 @@ function EmployeeForm({
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
           secondLastName: opt(form.secondLastName),
+          badgeName: opt(form.badgeName),
           phone: opt(form.phone),
           personalEmail: opt(form.personalEmail),
           branchId: opt(form.branchId),
@@ -327,6 +360,44 @@ function EmployeeForm({
                 placeholder="Apellido materno"
               />
             </div>
+          </section>
+
+          {/* Nombre en la credencial: un nombre + paterno, como conocen a la persona */}
+          <section className="grid gap-1.5">
+            <Label>Nombre en la credencial</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <SearchableSelect
+                options={badgeOptions}
+                value={badgeOtro ? BADGE_OTRO : form.badgeName}
+                onChange={(v) => {
+                  if (v === BADGE_OTRO) {
+                    setBadgeOtro(true);
+                    set('badgeName', '');
+                  } else {
+                    setBadgeOtro(false);
+                    set('badgeName', v);
+                  }
+                }}
+                allLabel={`Propuesto: ${badgeDefault ?? '—'}`}
+                allValue=""
+                placeholder="Buscar nombre"
+                aria-label="Nombre en la credencial"
+              />
+              {badgeOtro && (
+                <Input
+                  value={form.badgeName}
+                  onChange={(e) => set('badgeName', e.target.value)}
+                  placeholder="Nombre Apellido"
+                  maxLength={80}
+                  aria-label="Otro nombre para la credencial"
+                />
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Al frente de la credencial va un solo nombre y el apellido paterno, como conocen a
+              la persona (p. ej. «Missael Moreno» aunque se llame Jorge Missael). El propuesto es
+              el primer nombre.
+            </p>
           </section>
 
           {/* Números */}

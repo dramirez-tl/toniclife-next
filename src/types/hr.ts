@@ -277,6 +277,10 @@ export interface Employee {
   noiNumber: string | null;
   /** Código del GAFETE (distinto del número de checador). */
   badgeCode: string | null;
+  /** Lo que RRHH eligió para la credencial (null = no eligió). Mig 153. */
+  badgeName?: string | null;
+  /** Lo que se imprime en la credencial: badgeName o primer nombre + paterno. */
+  badgeDisplayName?: string | null;
   employmentType: EmploymentType;
   /** true si el expediente tiene cuenta de usuario ligada. */
   hasSystemAccess: boolean;
@@ -382,6 +386,8 @@ export interface CreateEmployeeDto {
   employeeNumber?: string;
   noiNumber?: string;
   noiCompany?: string;
+  /** Un nombre + apellido paterno para la credencial; vacío = propuesto. */
+  badgeName?: string;
   employmentType?: EmploymentType;
   firstName?: string;
   lastName?: string;
@@ -405,6 +411,8 @@ export interface UpdateEmployeeDto {
   employeeNumber?: string;
   noiNumber?: string | null;
   noiCompany?: string | null;
+  /** null = volver al propuesto (primer nombre + paterno). */
+  badgeName?: string | null;
   employmentType?: EmploymentType;
   firstName?: string;
   lastName?: string;

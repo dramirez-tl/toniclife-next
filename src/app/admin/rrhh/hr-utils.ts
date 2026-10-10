@@ -194,3 +194,60 @@ export function formatMoney(value: number | string | null | undefined): string {
   if (!Number.isFinite(n)) return String(value);
   return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 }
+
+// ---------------------------------------------------------------------------
+// Nombre de la credencial: UN nombre de pila + apellido paterno ("Missael
+// Moreno" aunque se llame Jorge Missael). Misma regla que el API (hr.logic.ts:
+// defaultBadgeName / badgeNameOptions); aquí solo arma las opciones del
+// formulario, lo que se guarda lo decide el API.
+// ---------------------------------------------------------------------------
+
+/** Partículas de apellidos compuestos: "De la Cruz Lopez" → paterno "De la Cruz". */
+const NAME_PARTICLES = new Set([
+  'de', 'del', 'la', 'las', 'los', 'y', 'e', 'da', 'do', 'das', 'dos', 'di',
+  'san', 'santa', 'van', 'von', 'der', 'mac', 'mc',
+]);
+
+const nameTokens = (value?: string | null): string[] =>
+  (value ?? '').trim().split(/\s+/).filter((t) => t !== '');
+
+/** Apellido paterno: las partículas iniciales más la primera palabra "de verdad". */
+export function paternalLastName(lastName?: string | null): string | null {
+  const tokens = nameTokens(lastName);
+  if (tokens.length === 0) return null;
+  const out: string[] = [];
+  for (const token of tokens) {
+    out.push(token);
+    if (!NAME_PARTICLES.has(token.toLowerCase())) break;
+  }
+  return out.join(' ');
+}
+
+/** Nombres de pila sueltos (sin partículas): "Jorge Missael" → ["Jorge", "Missael"]. */
+export function givenNames(firstName?: string | null): string[] {
+  return nameTokens(firstName).filter((t) => !NAME_PARTICLES.has(t.toLowerCase()));
+}
+
+/** Lo que propone el API si RRHH no elige: primer nombre + paterno. */
+export function defaultBadgeName(
+  firstName?: string | null,
+  lastName?: string | null,
+): string | null {
+  const given = givenNames(firstName)[0] ?? nameTokens(firstName)[0] ?? null;
+  const full = [given, paternalLastName(lastName)].filter((p) => p).join(' ');
+  return full === '' ? null : full;
+}
+
+/** Opciones: cada nombre de pila + paterno, y los nombres completos + paterno. */
+export function badgeNameOptions(
+  firstName?: string | null,
+  lastName?: string | null,
+): string[] {
+  const paternal = paternalLastName(lastName);
+  const given = givenNames(firstName);
+  const candidates = [
+    ...given.map((g) => [g, paternal].filter((p) => p).join(' ')),
+    given.length > 1 ? [given.join(' '), paternal].filter((p) => p).join(' ') : '',
+  ].filter((c) => c !== '');
+  return [...new Set(candidates)];
+}
