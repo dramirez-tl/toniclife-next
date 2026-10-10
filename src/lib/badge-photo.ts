@@ -51,22 +51,27 @@ export async function cropToBadgeJpeg(file: File, area: CropArea): Promise<File>
     canvas.height = BADGE_PHOTO_OUTPUT.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('El navegador no pudo preparar el lienzo de la foto');
-    // Fondo blanco: un PNG con transparencia saldría negro en JPEG.
+    // Fondo blanco: un PNG con transparencia saldría negro en JPEG, y el área
+    // puede salirse de la foto (el recortador deja bajarla para dar aire a la
+    // cabeza cuando el cabello viene pegado al borde): ese margen queda blanco,
+    // como el fondo de la sesión.
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(
-      bitmap,
-      Math.max(0, area.x),
-      Math.max(0, area.y),
-      Math.max(1, area.width),
-      Math.max(1, area.height),
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-    );
+    // Solo se dibuja la parte del área que sí cae dentro de la foto, en el lugar
+    // que le toca del lienzo (misma geometría que vio el usuario).
+    const areaW = Math.max(1, area.width);
+    const areaH = Math.max(1, area.height);
+    const sx = Math.max(0, area.x);
+    const sy = Math.max(0, area.y);
+    const sw = Math.min(bitmap.width, area.x + areaW) - sx;
+    const sh = Math.min(bitmap.height, area.y + areaH) - sy;
+    if (sw > 0 && sh > 0) {
+      const kx = canvas.width / areaW;
+      const ky = canvas.height / areaH;
+      ctx.drawImage(bitmap, sx, sy, sw, sh, (sx - area.x) * kx, (sy - area.y) * ky, sw * kx, sh * ky);
+    }
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, 'image/jpeg', BADGE_PHOTO_JPEG_QUALITY),
     );

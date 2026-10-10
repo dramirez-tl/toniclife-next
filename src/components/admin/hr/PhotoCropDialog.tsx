@@ -102,12 +102,12 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
 
-  // La foto nunca puede dejar hueco en el recuadro (restrictPosition), asi que
-  // con el zoom justo para cubrirlo no se puede mover. El minimo se deja un 10 %
-  // mas grande que el recuadro: siempre hay margen para centrar el rostro.
+  // El zoom minimo es el que cubre el recuadro; de ahi en adelante la foto se
+  // puede mover libremente (restrictPosition=false): si el cabello viene pegado
+  // al borde, se baja y el hueco que queda arriba sale blanco, como el fondo.
   const onMediaLoaded = useCallback((media: MediaSize) => {
     const cover = Math.max(CROP_WIDTH / media.width, CROP_HEIGHT / media.height);
-    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.ceil(cover * 1.1 * 100) / 100));
+    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.ceil(cover * 100) / 100));
     setMinZoom(z);
     setZoom(z);
   }, []);
@@ -143,12 +143,13 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
           <DialogTitle>Ajustar la foto</DialogTitle>
           <DialogDescription>
             Mueve la foto y acércala hasta que la cara llene la silueta y los ojos queden sobre la
-            línea: así todas las credenciales salen con el rostro en el mismo lugar y tamaño. Si ya
-            no se deja mover, acércala un poco más (la foto siempre debe cubrir el recuadro).
+            línea: así todas las credenciales salen con el rostro en el mismo lugar y tamaño. Si el
+            cabello queda pegado al borde, baja la foto: el espacio que quede arriba sale blanco.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative h-80 w-full overflow-hidden rounded-lg bg-slate-900">
+        {/* Fondo blanco: lo que no cubra la foto se guarda blanco, y asi se ve igual aqui. */}
+        <div className="relative h-80 w-full overflow-hidden rounded-lg border bg-white">
           {src && (
             <Cropper
               image={src}
@@ -161,6 +162,7 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
               cropShape="rect"
               showGrid={false}
               objectFit="contain"
+              restrictPosition={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
