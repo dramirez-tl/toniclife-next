@@ -40,12 +40,14 @@ const CROP_WIDTH = Math.round(CROP_HEIGHT * BADGE_PHOTO_ASPECT);
 function FaceGuide() {
   const w = CROP_WIDTH;
   const h = CROP_HEIGHT;
+  // Cabeza un poco arriba del centro (como en las fotos de la sesion y en las
+  // credenciales): del 11 % al 61 % del alto, ojos al 34 %, hombros desde el 70 %.
   const headCx = w / 2;
-  const headCy = h * 0.4;
-  const headRx = w * 0.22;
-  const headRy = h * 0.27;
-  const eyesY = h * 0.38;
-  const shoulders = `M ${w * 0.04} ${h} C ${w * 0.08} ${h * 0.8}, ${w * 0.34} ${h * 0.73}, ${w * 0.5} ${h * 0.73} C ${w * 0.66} ${h * 0.73}, ${w * 0.92} ${h * 0.8}, ${w * 0.96} ${h}`;
+  const headCy = h * 0.36;
+  const headRx = w * 0.21;
+  const headRy = h * 0.25;
+  const eyesY = h * 0.34;
+  const shoulders = `M ${w * 0.04} ${h} C ${w * 0.08} ${h * 0.78}, ${w * 0.34} ${h * 0.7}, ${w * 0.5} ${h * 0.7} C ${w * 0.66} ${h * 0.7}, ${w * 0.92} ${h * 0.78}, ${w * 0.96} ${h}`;
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
       <svg
@@ -100,12 +102,12 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
 
-  // Con el recuadro fijo, una foto que de inicio sale mas chica que el recuadro
-  // (p. ej. una vertical) dejaria bordes negros: se acerca lo justo para
-  // cubrirlo y ese es el minimo del control de zoom.
+  // La foto nunca puede dejar hueco en el recuadro (restrictPosition), asi que
+  // con el zoom justo para cubrirlo no se puede mover. El minimo se deja un 10 %
+  // mas grande que el recuadro: siempre hay margen para centrar el rostro.
   const onMediaLoaded = useCallback((media: MediaSize) => {
-    const needed = Math.max(MIN_ZOOM, CROP_WIDTH / media.width, CROP_HEIGHT / media.height);
-    const z = Math.min(MAX_ZOOM, Math.ceil(needed * 100) / 100);
+    const cover = Math.max(CROP_WIDTH / media.width, CROP_HEIGHT / media.height);
+    const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.ceil(cover * 1.1 * 100) / 100));
     setMinZoom(z);
     setZoom(z);
   }, []);
@@ -141,7 +143,8 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
           <DialogTitle>Ajustar la foto</DialogTitle>
           <DialogDescription>
             Mueve la foto y acércala hasta que la cara llene la silueta y los ojos queden sobre la
-            línea: así todas las credenciales salen con el rostro en el mismo lugar y tamaño.
+            línea: así todas las credenciales salen con el rostro en el mismo lugar y tamaño. Si ya
+            no se deja mover, acércala un poco más (la foto siempre debe cubrir el recuadro).
           </DialogDescription>
         </DialogHeader>
 
