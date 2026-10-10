@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { BADGE_PHOTO_ASPECT, cropToBadgeJpeg } from '@/lib/badge-photo';
+import { BADGE_PHOTO_ASPECT, BADGE_PHOTO_OUTPUT, cropToBadgeJpeg } from '@/lib/badge-photo';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -90,6 +90,7 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
   const [zoom, setZoom] = useState(MIN_ZOOM);
   const [minZoom, setMinZoom] = useState(MIN_ZOOM);
   const [area, setArea] = useState<Area | null>(null);
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [encoding, setEncoding] = useState(false);
 
   // Cada archivo empieza centrado y sin acercar.
@@ -98,7 +99,14 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
     setZoom(MIN_ZOOM);
     setMinZoom(MIN_ZOOM);
     setArea(null);
+    setNatural(null);
   }, [file]);
+
+  // La credencial se imprime a 372 × 406 px (300 dpi); si la parte elegida de la
+  // foto trae menos pixeles que eso, se agranda y sale pixelada. Pasa cuando se
+  // sube una copia reducida (WhatsApp, captura) en vez de la original.
+  const lowRes =
+    !!area && (area.width < BADGE_PHOTO_OUTPUT.width / 2 || area.height < BADGE_PHOTO_OUTPUT.height / 2);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
 
@@ -106,6 +114,7 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
   // puede mover libremente (restrictPosition=false): si el cabello viene pegado
   // al borde, se baja y el hueco que queda arriba sale blanco, como el fondo.
   const onMediaLoaded = useCallback((media: MediaSize) => {
+    setNatural({ width: media.naturalWidth, height: media.naturalHeight });
     const cover = Math.max(CROP_WIDTH / media.width, CROP_HEIGHT / media.height);
     const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.ceil(cover * 100) / 100));
     setMinZoom(z);
@@ -189,7 +198,15 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
         <p className="text-xs text-muted-foreground">
           Se guarda solo el recorte, a la proporción de la credencial y reducido a JPEG. La foto
           original no se modifica.
+          {natural ? ` Foto original: ${natural.width} × ${natural.height} px.` : ''}
         </p>
+        {lowRes && area && (
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            La parte elegida tiene solo {Math.round(area.width)} × {Math.round(area.height)} px y la
+            credencial necesita al menos {BADGE_PHOTO_OUTPUT.width / 2} × {BADGE_PHOTO_OUTPUT.height / 2}:
+            saldrá pixelada. Usa la foto original de la sesión (no una copia reducida) o acerca menos.
+          </p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={busy}>

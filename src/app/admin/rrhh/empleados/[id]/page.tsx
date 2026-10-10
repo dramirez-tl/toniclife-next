@@ -24,6 +24,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
@@ -481,6 +482,8 @@ function PhotoBlock({
   const deletePhoto = useDeleteEmployeePhoto();
   /** Archivo elegido, esperando recorte en el diálogo. */
   const [pending, setPending] = useState<File | null>(null);
+  /** Foto a tamaño completo (clic sobre la miniatura). */
+  const [viewOpen, setViewOpen] = useState(false);
 
   const resetInput = () => {
     if (inputRef.current) inputRef.current.value = '';
@@ -544,7 +547,29 @@ function PhotoBlock({
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <EmployeeAvatar photoUrl={photoUrl} name={name} size={84} className="border-2 border-white/60" />
+      {photoUrl ? (
+        <button
+          type="button"
+          onClick={() => setViewOpen(true)}
+          title="Ver la foto completa"
+          className="rounded-full transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        >
+          <EmployeeAvatar photoUrl={photoUrl} name={name} size={84} className="border-2 border-white/60" />
+        </button>
+      ) : (
+        <EmployeeAvatar photoUrl={photoUrl} name={name} size={84} className="border-2 border-white/60" />
+      )}
+      {photoUrl && (
+        <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogTitle>Foto de la credencial</DialogTitle>
+            <DialogDescription className="sr-only">Foto del expediente a tamaño completo</DialogDescription>
+            {/* URL firmada de GCS: <img> directo, igual que la miniatura. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photoUrl} alt={name} className="mx-auto max-h-[75vh] w-auto rounded-lg border" />
+          </DialogContent>
+        </Dialog>
+      )}
       {canManage && (
         <>
           <input
