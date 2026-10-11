@@ -20,6 +20,10 @@ import type {
   LegacySyncSettings,
   LegacySyncStatus,
 } from '@/types/legacySync';
+import type {
+  StartStorageMigrationInput,
+  StorageMigrationStatus,
+} from '@/types/storageMigration';
 
 /** Un distribuidor en BD ausente del archivo maestro (candidato a borrar). */
 export interface ClientesSyncRemoval {
@@ -236,6 +240,36 @@ class MaintenanceService {
     const { data } = await api.put<LegacySyncSettings>(
       '/maintenance/legacy-sync/settings',
       { autoEnabled },
+    );
+    return data;
+  }
+
+  // ── Migración de archivos GCS -> S3 (/maintenance/storage-migration) ──
+  // Lectura: super_admin y sistemas. Arrancar/detener: solo super_admin.
+
+  /** Origen, destino, proveedor activo y progreso de la copia en curso. */
+  async getStorageMigrationStatus(): Promise<StorageMigrationStatus> {
+    const { data } = await api.get<StorageMigrationStatus>(
+      '/maintenance/storage-migration/status',
+    );
+    return data;
+  }
+
+  /** Arranca la copia (o la simulación con dryRun) en segundo plano. */
+  async startStorageMigration(
+    input: StartStorageMigrationInput,
+  ): Promise<StorageMigrationStatus> {
+    const { data } = await api.post<StorageMigrationStatus>(
+      '/maintenance/storage-migration/start',
+      input,
+    );
+    return data;
+  }
+
+  /** Pide detener la copia en curso (termina el archivo actual). */
+  async stopStorageMigration(): Promise<StorageMigrationStatus> {
+    const { data } = await api.post<StorageMigrationStatus>(
+      '/maintenance/storage-migration/stop',
     );
     return data;
   }

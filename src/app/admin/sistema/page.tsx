@@ -59,6 +59,7 @@ import { PilotLiveTab } from './PilotLiveTab';
 import { PilotGatingTab } from './PilotGatingTab';
 import { TreasurySettingsTab } from './TreasurySettingsTab';
 import { LegacySyncTab } from './LegacySyncTab';
+import { StorageMigrationTab } from './StorageMigrationTab';
 import { sistemaRedirectFor } from '@/lib/legacy-sync/access';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
@@ -128,6 +129,7 @@ const SISTEMA_TABS = [
   'sync',
   'reset',
   'tesoreria',
+  'archivos',
 ];
 
 function SistemaContent() {
@@ -210,10 +212,15 @@ function SistemaContent() {
                 <TabsTrigger value="sync">Sincronización legacy</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
                 <TabsTrigger value="tesoreria">Tesorería</TabsTrigger>
+                <TabsTrigger value="archivos">Archivos (S3)</TabsTrigger>
               </TabsList>
 
               <TabsContent value="tesoreria" className="mt-6">
                 <TreasurySettingsTab />
+              </TabsContent>
+
+              <TabsContent value="archivos" className="mt-6">
+                <StorageMigrationTab />
               </TabsContent>
 
               <TabsContent value="sync" className="mt-6">

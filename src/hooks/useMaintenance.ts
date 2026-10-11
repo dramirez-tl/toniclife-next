@@ -10,6 +10,7 @@ import type {
   DecideLegacySyncHoldInput,
   LegacySyncHoldStatus,
 } from '@/types/legacySync';
+import type { StartStorageMigrationInput } from '@/types/storageMigration';
 
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
@@ -25,6 +26,47 @@ export const maintenanceKeys = {
     [...maintenanceKeys.legacySync(), 'run', id] as const,
   legacySyncHolds: (status: LegacySyncHoldStatus | 'all') =>
     [...maintenanceKeys.legacySync(), 'holds', status] as const,
+  storageMigration: () => [...maintenanceKeys.all, 'storage-migration'] as const,
+};
+
+// ── Migración de archivos GCS -> S3 (pestaña ?tab=archivos) ──
+
+/** Mientras corre la copia se consulta cada 3 s; en reposo cada 30 s. */
+export const STORAGE_MIGRATION_POLL_MS = 3_000;
+
+export const useStorageMigrationStatus = () =>
+  useQuery({
+    queryKey: maintenanceKeys.storageMigration(),
+    queryFn: () => maintenanceService.getStorageMigrationStatus(),
+    refetchInterval: (query) => {
+      // Un 403/404 (sin rol o API sin el adaptador) no se insiste.
+      if (query.state.error) return false;
+      return query.state.data?.job?.state === 'running'
+        ? STORAGE_MIGRATION_POLL_MS
+        : 30_000;
+    },
+    refetchIntervalInBackground: false,
+    staleTime: 2_000,
+    retry: false,
+  });
+
+export const useStartStorageMigration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StartStorageMigrationInput) =>
+      maintenanceService.startStorageMigration(input),
+    onSuccess: (data) =>
+      queryClient.setQueryData(maintenanceKeys.storageMigration(), data),
+  });
+};
+
+export const useStopStorageMigration = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => maintenanceService.stopStorageMigration(),
+    onSuccess: (data) =>
+      queryClient.setQueryData(maintenanceKeys.storageMigration(), data),
+  });
 };
 
 // ── Sincronización legacy (/admin/sistema/sync y pestaña ?tab=sync) ──
