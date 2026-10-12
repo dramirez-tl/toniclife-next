@@ -231,12 +231,6 @@ export function ReadinessHeader({
             ['Activas en México', nf.format(branches.activeMx)],
             ['Sin CP', nf.format(branches.missingZip), branches.missingZip > 0],
             ['Sin regla IVA', nf.format(branches.missingTaxRule), branches.missingTaxRule > 0],
-            [
-              'Frontera con 16%',
-              branches.borderWith16.length > 0 ? branches.borderWith16.join(', ') : 'Ninguna',
-              false,
-              branches.borderWith16.length > 0,
-            ],
           ]}
           onGoTo={() => onGoTo('sucursales')}
         />

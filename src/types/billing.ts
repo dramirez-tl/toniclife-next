@@ -992,7 +992,6 @@ export interface ReadinessBranches {
   activeMx: number;
   missingZip: number;
   missingTaxRule: number;
-  borderWith16: string[];
 }
 
 /** GET /billing/readiness */
@@ -1146,7 +1145,9 @@ export interface UpdatePaymentMethodFiscalDto {
 
 // --- Sucursales ---
 
-export type BranchFiscalIssue = 'missing_zip' | 'missing_tax_rule' | 'border_with_16';
+/** Frontera factura igual que el resto de México (16 %): la franja fronteriza
+ *  ya no genera issue; `borderZone` es solo informativo. */
+export type BranchFiscalIssue = 'missing_zip' | 'missing_tax_rule';
 
 export interface ReadinessBranchTaxRule {
   id: string;
@@ -1299,10 +1300,6 @@ export const BRANCH_ISSUE_INFO: Record<BranchFiscalIssue, { label: string; why: 
   missing_tax_rule: {
     label: 'Sin regla IVA',
     why: 'Sin tasa de IVA asignada el POS no puede desglosar impuestos y la factura sale mal.',
-  },
-  border_with_16: {
-    label: 'Frontera con 16%',
-    why: 'La sucursal está en franja fronteriza pero tiene IVA 16%; revisa si aplica el estímulo del 8%.',
   },
 };
 

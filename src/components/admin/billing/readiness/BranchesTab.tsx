@@ -2,8 +2,9 @@
 
 // Pestaña Sucursales (solo México): CP de la sucursal (= lugar de expedición
 // del CFDI) y regla de IVA que aplica. El PATCH deja UNA sola regla IVA activa
-// por sucursal; el aviso "Frontera con 16%" sale cuando el CP cae en franja
-// fronteriza y la regla es 16% (podría aplicar el estímulo del 8%).
+// por sucursal. La columna "Zona" (franja fronteriza) es solo informativa:
+// Frontera factura igual que el resto de México, al 16 % (decisión
+// 12-oct-2026; el país FN existe solo por precios).
 //
 // Fase 2: "Factura en v2 desde" (`branches.v2_invoicing_since`) por sucursal,
 // con confirmación: es el candado de fecha que decide qué sistema factura
@@ -350,7 +351,12 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       header: 'Zona',
       render: (row) =>
         row.borderZone ? (
-          <Badge variant="info">Franja fronteriza</Badge>
+          <Badge
+            variant="info"
+            title="Informativo: factura igual que el resto de México (IVA 16 %)"
+          >
+            Franja fronteriza
+          </Badge>
         ) : (
           <span className="text-xs text-muted-foreground">Interior</span>
         ),
@@ -366,7 +372,7 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
             {row.issues.map((issue) => (
               <Badge
                 key={issue}
-                variant={issue === 'border_with_16' ? 'warning' : 'destructive'}
+                variant="destructive"
                 title={BRANCH_ISSUE_INFO[issue]?.why}
               >
                 {BRANCH_ISSUE_INFO[issue]?.label ?? issue}
