@@ -112,8 +112,18 @@ export function BasicSection() {
         dto.kitPosition = v.productType === 'kit' && v.kitPosition ? (v.kitPosition as KitPosition) : null;
       }
       if (dirty.kitDeductsInventory || (dirty.productType && !hasKitSection)) {
-        dto.kitDeductsInventory =
-          v.productType === 'kit' || v.productType === 'pack' ? v.kitDeductsInventory : false;
+        // Producto que PASA a kit/paquete en edición: siempre PREARMADO. Su
+        // receta (sección Componentes) solo existe cuando ya es kit/paquete, y
+        // el API rechaza "se arma al vender" sin componentes (409
+        // KIT_RECIPE_EMPTY): la ficha quedaba atorada (caso F9019-3, 12-oct).
+        // El modo se cambia después en la sección Paquete/Kit con sus guardas.
+        const becomesKitLike =
+          mode === 'edit' && !hasKitSection && (v.productType === 'kit' || v.productType === 'pack');
+        dto.kitDeductsInventory = becomesKitLike
+          ? false
+          : v.productType === 'kit' || v.productType === 'pack'
+            ? v.kitDeductsInventory
+            : false;
       }
       await patchProduct(dto);
     },
@@ -132,6 +142,10 @@ export function BasicSection() {
 
   const { control } = section.form;
   const productType = useWatch({ control, name: 'productType' });
+  // Edición de un producto que NO es kit/paquete y se cambia a kit/paquete: se
+  // guarda prearmado (ver `save`) y se explica el siguiente paso.
+  const typeBecomesKitLike =
+    mode === 'edit' && !hasKitSection && (productType === 'kit' || productType === 'pack');
 
   const typeOptions = useMemo(() => {
     const codes = [...CREATE_PRODUCT_TYPES];
@@ -311,7 +325,17 @@ export function BasicSection() {
             </div>
           ) : null}
 
-          {!hasKitSection && (productType === 'kit' || productType === 'pack') ? (
+          {typeBecomesKitLike ? (
+            <p
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:col-span-2"
+              role="status"
+            >
+              Se guardará como {productType === 'kit' ? 'kit' : 'paquete'} <strong>prearmado</strong> (con existencia
+              propia). Para que se arme al vender con el stock de sus componentes: guarda esta sección, captura los
+              componentes en «Componentes» y después cambia «Cómo se surte» en la sección «
+              {productType === 'kit' ? 'Kit' : 'Paquete'}».
+            </p>
+          ) : !hasKitSection && (productType === 'kit' || productType === 'pack') ? (
             <SwitchField
               control={control}
               name="kitDeductsInventory"
