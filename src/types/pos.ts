@@ -228,6 +228,11 @@ export interface Sale {
   /** Canal de captura: 'terminal' = caja de la sucursal; 'usuario' = cuenta
    *  personal (modo staff/call center o admin web). */
   capturedVia?: 'terminal' | 'usuario';
+  /** Licencia (terminal POS) que cobró la venta; vacío en modo staff / call
+   *  center y en migradas. Etiqueta y clave vienen del JOIN a pos_licenses. */
+  posLicenseId?: string;
+  posLicenseLabel?: string;
+  posLicenseKey?: string;
   status: PosSaleStatus;
   subtotal: number;
   discountAmount: number;
@@ -297,6 +302,10 @@ export interface SaleQueryParams {
   customerId?: string;
   customerNumber?: string;
   sellerId?: string;
+  /** Terminal (licencia POS) que cobró — separa ventas por caja. */
+  posLicenseId?: string;
+  /** terminal = con licencia POS; usuario = modo staff / call center / admin web. */
+  capturedVia?: 'terminal' | 'usuario';
   status?: PosSaleStatus;
   paymentMethod?: PosPaymentMethod;
   search?: string;
@@ -327,8 +336,25 @@ export interface SalesStatsRow {
   total: number;
 }
 
+/** Ventas por terminal (licencia POS) con los mismos filtros del listado.
+ *  posLicenseId null = sin licencia (modo staff / call center / admin web / migradas). */
+export interface SalesStatsTerminalRow {
+  posLicenseId: string | null;
+  label: string | null;
+  licenseKey: string | null;
+  branchCode: string;
+  branchName: string;
+  currencyCode: string;
+  /** Ventas completadas. */
+  count: number;
+  /** Monto de las completadas. */
+  total: number;
+  cancelledCount: number;
+}
+
 export interface SalesStatsResponse {
   byCurrencyStatus: SalesStatsRow[];
+  byTerminal?: SalesStatsTerminalRow[];
 }
 
 export interface DailySalesSummary {
@@ -348,6 +374,15 @@ export interface DailySalesSummary {
   refundsCount: number;
   averageTicket: number;
   itemsSold: number;
+  /** Desglose del día por terminal (licencia POS). */
+  byTerminal?: Array<{
+    posLicenseId: string | null;
+    label: string | null;
+    licenseKey: string | null;
+    salesCount: number;
+    totalAmount: number;
+    cancelledCount: number;
+  }>;
 }
 
 // ================================

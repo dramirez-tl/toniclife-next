@@ -17,6 +17,8 @@ import {
   LockOpenIcon,
   XCircleIcon,
   ComputerDesktopIcon,
+  PencilSquareIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,6 +28,7 @@ import { confirmAction } from '@/lib/utils';
 import {
   usePosLicensesByBranch,
   useCreatePosLicense,
+  useUpdatePosLicense,
   useRevokePosLicense,
   useUnbindPosLicense,
 } from '@/hooks/usePosLicenses';
@@ -50,9 +53,14 @@ export function PosLicensesModal({
     isOpen ? branchId : undefined,
   );
   const createLicense = useCreatePosLicense();
+  const updateLicense = useUpdatePosLicense();
   const revokeLicense = useRevokePosLicense();
   const unbindLicense = useUnbindPosLicense();
   const [labelInput, setLabelInput] = useState('');
+  // Edición en línea de la etiqueta: con ella se identifica en qué terminal
+  // (caja) se cobró cada venta en sucursales con varias terminales.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Al abrir el modal refrescamos para reflejar activaciones recientes
   // hechas desde la terminal Electron (el admin no se entera por si solo).
@@ -61,6 +69,36 @@ export function PosLicensesModal({
   }, [isOpen, refetch]);
 
   if (!isOpen) return null;
+
+  function startEditLabel(license: PosLicense) {
+    setEditingId(license.id);
+    setEditValue(license.label ?? '');
+  }
+
+  function cancelEditLabel() {
+    setEditingId(null);
+    setEditValue('');
+  }
+
+  async function saveLabel(license: PosLicense) {
+    const label = editValue.trim();
+    if (label === (license.label ?? '')) {
+      cancelEditLabel();
+      return;
+    }
+    try {
+      await updateLicense.mutateAsync({ id: license.id, dto: { label } });
+      toast.success(
+        label
+          ? `Etiqueta guardada: ${label}. La terminal la muestra al reiniciar.`
+          : 'Etiqueta eliminada.',
+      );
+      cancelEditLabel();
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e.response?.data?.message || 'Error al guardar la etiqueta');
+    }
+  }
 
   async function handleGenerate() {
     try {
@@ -129,8 +167,61 @@ export function PosLicensesModal({
       header: 'Etiqueta',
       cellClassName: 'text-gray-700',
       render: (license) =>
-        license.label || (
-          <span className="text-gray-400 italic">sin etiqueta</span>
+        editingId === license.id ? (
+          <div className="flex items-center gap-1">
+            <input
+              type="text"
+              autoFocus
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveLabel(license);
+                if (e.key === 'Escape') cancelEditLabel();
+              }}
+              placeholder="Ej. Caja 1 mostrador"
+              maxLength={100}
+              disabled={updateLicense.isPending}
+              className="w-40 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={() => void saveLabel(license)}
+              disabled={updateLicense.isPending}
+              className="p-1 rounded hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors disabled:opacity-50"
+              title="Guardar etiqueta (Enter)"
+            >
+              {updateLicense.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckIcon className="h-4 w-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={cancelEditLabel}
+              disabled={updateLicense.isPending}
+              className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Cancelar (Esc)"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 group">
+            {license.label || (
+              <span className="text-gray-400 italic">sin etiqueta</span>
+            )}
+            {license.status !== 'revoked' && (
+              <button
+                type="button"
+                onClick={() => startEditLabel(license)}
+                className="p-1 rounded hover:bg-blue-50 text-gray-300 group-hover:text-gray-400 hover:!text-blue-600 transition-colors"
+                title="Editar etiqueta (nombre de la terminal en el corte y en las ventas)"
+              >
+                <PencilSquareIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         ),
     },
     {

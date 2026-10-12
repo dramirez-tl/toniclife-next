@@ -44,7 +44,73 @@ import {
   ArrowDownTrayIcon,
   SparklesIcon,
   PrinterIcon,
+  ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
+import type { SalesStatsTerminalRow } from '@/types/pos';
+
+// ================================
+// Terminal (licencia POS) que cobró la venta
+// ================================
+
+const SIN_TERMINAL_LABEL = 'Sin terminal (call center / corporativo)';
+
+/** Nombre legible de una terminal: su etiqueta o el final de la clave. */
+function terminalDisplayName(r: {
+  posLicenseId: string | null;
+  label: string | null;
+  licenseKey: string | null;
+}): string {
+  if (!r.posLicenseId) return SIN_TERMINAL_LABEL;
+  if (r.label?.trim()) return r.label.trim();
+  return r.licenseKey ? `Terminal ${r.licenseKey.slice(-9)}` : 'Terminal';
+}
+
+/** Texto de la columna/CSV "Terminal" de una venta. */
+function saleTerminalName(sale: Sale): string {
+  if (sale.saleNumber?.startsWith('M-')) return 'Migrada';
+  if (!sale.posLicenseId) return SIN_TERMINAL_LABEL;
+  return terminalDisplayName({
+    posLicenseId: sale.posLicenseId,
+    label: sale.posLicenseLabel ?? null,
+    licenseKey: sale.posLicenseKey ?? null,
+  });
+}
+
+/** Une las filas por terminal (el API agrupa además por moneda). */
+function mergeTerminalRows(rows: SalesStatsTerminalRow[]): SalesStatsTerminalRow[] {
+  const byId = new Map<string, SalesStatsTerminalRow>();
+  for (const r of rows) {
+    const key = r.posLicenseId ?? 'none';
+    const prev = byId.get(key);
+    if (!prev) {
+      byId.set(key, { ...r });
+    } else {
+      prev.count += r.count;
+      prev.total += r.total;
+      prev.cancelledCount += r.cancelledCount;
+    }
+  }
+  return [...byId.values()].filter((r) => r.count > 0 || r.cancelledCount > 0);
+}
+
+function TerminalCell({ sale }: { sale: Sale }) {
+  if (sale.saleNumber?.startsWith('M-')) {
+    return <span className="text-xs text-gray-400">Migrada</span>;
+  }
+  if (!sale.posLicenseId) {
+    return (
+      <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+        Call center / corporativo
+      </span>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5" title={sale.posLicenseKey}>
+      <ComputerDesktopIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+      <span className="text-sm text-gray-900">{saleTerminalName(sale)}</span>
+    </div>
+  );
+}
 
 // ================================
 // Helpers
@@ -178,6 +244,7 @@ function buildCsvRow(sale: Sale, timezone: string = DEFAULT_TIMEZONE): string {
     getTimezoneShortLabel(timezone),
     sale.branchName,
     sale.cashRegisterName,
+    saleTerminalName(sale),
     sale.sellerName,
     sale.customerName ?? 'Público general',
     sale.customerNumber ?? '',
@@ -209,6 +276,7 @@ const CSV_HEADERS = [
   'Zona Horaria',
   'Sucursal',
   'Caja',
+  'Terminal',
   'Vendedor',
   'Cliente',
   'No. Cliente',
@@ -482,6 +550,12 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
                   </span>
                 ) : null}
               </div>
+              {/* Terminal (licencia) que cobró: separa cajas en sucursales con varias. */}
+              {sale.capturedVia === 'terminal' && sale.posLicenseId && (
+                <p className="text-xs text-gray-500 mt-1" title={sale.posLicenseKey}>
+                  Terminal: {saleTerminalName(sale)}
+                </p>
+              )}
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Cliente</p>
@@ -702,6 +776,7 @@ export default function VentasReportesPage() {
 function VentasReportesContent() {
   const { get, getNumber, setParams } = useQueryFilters({
     branch: 'all',
+    terminal: 'all',
     status: 'all',
     paymentMethod: 'all',
     customerNumber: '',
@@ -721,6 +796,16 @@ function VentasReportesContent() {
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
+  // Filtro por terminal (licencia POS): UUID = una caja; 'none' = capturadas
+  // sin licencia (call center / corporativo); 'all' = sin filtro. Solo aplica
+  // con una sucursal elegida (las etiquetas son por sucursal).
+  const selectedTerminal = selectedBranch !== 'all' ? get('terminal') : 'all';
+  const terminalFilter = useMemo<Pick<SaleQueryParams, 'posLicenseId' | 'capturedVia'>>(() => {
+    if (selectedTerminal === 'none') return { capturedVia: 'usuario' };
+    if (selectedTerminal && selectedTerminal !== 'all') return { posLicenseId: selectedTerminal };
+    return {};
+  }, [selectedTerminal]);
+
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -735,6 +820,7 @@ function VentasReportesContent() {
     try {
       const baseParams = {
         branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+        ...terminalFilter,
         status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
         paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
         customerNumber: selectedCustomerNumber || undefined,
@@ -768,7 +854,7 @@ function VentasReportesContent() {
       setIsExporting(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
+  }, [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
     (paymentMethod: string) => {
@@ -793,6 +879,7 @@ function VentasReportesContent() {
 
   const queryParams = useMemo<SaleQueryParams>(() => ({
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+    ...terminalFilter,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
     paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
     customerNumber: selectedCustomerNumber || undefined,
@@ -802,12 +889,14 @@ function VentasReportesContent() {
     limit: pageSize,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
+  }), [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
 
   // Stats server-side (dictamen 3.3.1): SUM/COUNT por moneda y estado con los
   // MISMOS filtros — antes se bajaban hasta 5000 filas y se sumaban en el
   // cliente, subreportando en silencio cuando el filtro excedía el tope.
-  const statsQueryParams = useMemo<SaleQueryParams>(() => ({
+  // `breakdownParams` = los mismos filtros SIN el de terminal: alimenta el
+  // selector de terminales y la tabla "Ventas por terminal" de la sucursal.
+  const breakdownParams = useMemo<SaleQueryParams>(() => ({
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
     paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
@@ -815,9 +904,26 @@ function VentasReportesContent() {
     fromDate: dateFrom,
     toDate: dateTo,
   }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
+  const statsQueryParams = useMemo<SaleQueryParams>(
+    () => ({ ...breakdownParams, ...terminalFilter }),
+    [breakdownParams, terminalFilter],
+  );
 
   const { data: salesData, isLoading, isFetching } = useSales(queryParams);
   const { data: statsData, isLoading: isStatsLoading } = useSalesStats(statsQueryParams);
+  const { data: breakdownData } = useSalesStats(breakdownParams, selectedBranch !== 'all');
+  const terminalRows = useMemo(
+    () => mergeTerminalRows(breakdownData?.byTerminal ?? []),
+    [breakdownData],
+  );
+  const terminalOptions = useMemo(
+    () =>
+      terminalRows.map((r) => ({
+        value: r.posLicenseId ?? 'none',
+        label: `${terminalDisplayName(r)} (${r.count.toLocaleString()})`,
+      })),
+    [terminalRows],
+  );
 
   const sales = salesData?.data ?? [];
   const totalCount = salesData?.total ?? 0;
@@ -898,6 +1004,11 @@ function VentasReportesContent() {
           <span className="text-sm text-gray-900">{sale.branchName}</span>
         </div>
       ),
+    },
+    {
+      key: 'terminal',
+      header: 'Terminal',
+      render: (sale) => <TerminalCell sale={sale} />,
     },
     {
       key: 'customer',
@@ -1128,13 +1239,29 @@ function VentasReportesContent() {
                 <SearchableSelect
                   options={branches.map((b) => ({ value: b.id, label: b.name }))}
                   value={selectedBranch}
-                  onChange={(val) => setParams({ branch: val })}
+                  onChange={(val) => setParams({ branch: val, terminal: null })}
                   placeholder="Buscar sucursal..."
                   allLabel="Todas las Sucursales"
                   allValue="all"
                   className="w-[220px]"
                 />
               </div>
+
+              {/* Terminal (licencia POS) — solo con una sucursal elegida */}
+              {selectedBranch !== 'all' && (
+                <div className="flex items-center gap-2">
+                  <ComputerDesktopIcon className="h-5 w-5 text-gray-400" />
+                  <SearchableSelect
+                    options={terminalOptions}
+                    value={selectedTerminal}
+                    onChange={(val) => setParams({ terminal: val })}
+                    placeholder="Buscar terminal..."
+                    allLabel="Todas las terminales"
+                    allValue="all"
+                    className="w-[240px]"
+                  />
+                </div>
+              )}
 
               {/* Status */}
               <SearchableSelect
@@ -1227,6 +1354,57 @@ function VentasReportesContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Ventas por terminal: sucursales con varias cajas separan sus ventas */}
+        {selectedBranch !== 'all' && terminalRows.length >= 2 && (
+          <Card className="mb-6">
+            <CardContent className="p-0">
+              <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
+                <ComputerDesktopIcon className="h-5 w-5 text-[#3E667D]" />
+                <h2 className="text-sm font-semibold text-gray-900">Ventas por terminal</h2>
+                <span className="text-xs text-gray-500">· clic en una fila para filtrar</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="text-left px-6 py-2 font-medium">Terminal</th>
+                    <th className="text-right px-6 py-2 font-medium">Ventas</th>
+                    <th className="text-right px-6 py-2 font-medium">Canceladas</th>
+                    <th className="text-right px-6 py-2 font-medium">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {terminalRows.map((r) => {
+                    const value = r.posLicenseId ?? 'none';
+                    const active = selectedTerminal === value;
+                    return (
+                      <tr
+                        key={value}
+                        onClick={() => setParams({ terminal: active ? null : value })}
+                        className={`cursor-pointer transition-colors hover:bg-gray-50 ${active ? 'bg-[#3E667D]/5' : ''}`}
+                        title={active ? 'Quitar filtro' : 'Ver solo las ventas de esta terminal'}
+                      >
+                        <td className="px-6 py-2 font-medium text-gray-900">
+                          {terminalDisplayName(r)}
+                          {r.licenseKey && (
+                            <span className="ml-2 font-mono text-[10px] text-gray-400">{r.licenseKey}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-2 text-right tabular-nums text-gray-700">{r.count.toLocaleString()}</td>
+                        <td className="px-6 py-2 text-right tabular-nums text-red-500">
+                          {r.cancelledCount > 0 ? r.cancelledCount.toLocaleString() : ''}
+                        </td>
+                        <td className="px-6 py-2 text-right tabular-nums font-semibold text-gray-900">
+                          {formatCurrency(r.total, r.currencyCode)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales Table */}
         <Card>
