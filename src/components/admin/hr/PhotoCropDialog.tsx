@@ -23,7 +23,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
-import { BADGE_PHOTO_ASPECT, BADGE_PHOTO_OUTPUT, cropToBadgeJpeg } from '@/lib/badge-photo';
+import {
+  BADGE_PHOTO_ASPECT,
+  BADGE_PHOTO_DEFAULT_FILL,
+  BADGE_PHOTO_OUTPUT,
+  cropToBadgeJpeg,
+  detectEdgeFill,
+} from '@/lib/badge-photo';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -92,6 +98,12 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
   const [area, setArea] = useState<Area | null>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [encoding, setEncoding] = useState(false);
+  /**
+   * Color del fondo de la foto (franja superior): con él se pinta lo que la
+   * foto no cubra, aquí y en el JPEG que se guarda. Antes era blanco fijo y en
+   * una foto con fondo gris quedaba una franja blanca arriba.
+   */
+  const [fill, setFill] = useState(BADGE_PHOTO_DEFAULT_FILL);
 
   // Cada archivo empieza centrado y sin acercar.
   useEffect(() => {
@@ -100,6 +112,19 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
     setMinZoom(MIN_ZOOM);
     setArea(null);
     setNatural(null);
+    setFill(BADGE_PHOTO_DEFAULT_FILL);
+    if (!file) return;
+    let vivo = true;
+    detectEdgeFill(file)
+      .then((color) => {
+        if (vivo) setFill(color);
+      })
+      .catch(() => {
+        // Sin muestra se queda el blanco; el recorte en sí lo reintenta.
+      });
+    return () => {
+      vivo = false;
+    };
   }, [file]);
 
   // La credencial se imprime a 372 × 406 px (300 dpi); si la parte elegida de la
@@ -107,6 +132,17 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
   // sube una copia reducida (WhatsApp, captura) en vez de la original.
   const lowRes =
     !!area && (area.width < BADGE_PHOTO_OUTPUT.width / 2 || area.height < BADGE_PHOTO_OUTPUT.height / 2);
+
+  // El recuadro se sale de la foto (se bajó o se movió): lo que no cubra se
+  // rellena con el color del fondo, y conviene decirlo porque sobre un fondo
+  // claro el hueco casi no se distingue.
+  const uncovered =
+    !!area &&
+    !!natural &&
+    (area.x < -0.5 ||
+      area.y < -0.5 ||
+      area.x + area.width > natural.width + 0.5 ||
+      area.y + area.height > natural.height + 0.5);
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
 
@@ -127,7 +163,7 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
     if (!file || !area || busy) return;
     setEncoding(true);
     try {
-      const cropped = await cropToBadgeJpeg(file, area);
+      const cropped = await cropToBadgeJpeg(file, area, fill);
       await onConfirm(cropped);
     } catch (err) {
       // Un error de red lo reporta el padre con su propio toast; aquí solo
@@ -153,12 +189,16 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
           <DialogDescription>
             Mueve la foto y acércala hasta que la cara llene la silueta y los ojos queden sobre la
             línea: así todas las credenciales salen con el rostro en el mismo lugar y tamaño. Si el
-            cabello queda pegado al borde, baja la foto: el espacio que quede arriba sale blanco.
+            cabello queda pegado al borde, baja la foto: el hueco que quede arriba se rellena con
+            el color del fondo de la foto.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Fondo blanco: lo que no cubra la foto se guarda blanco, y asi se ve igual aqui. */}
-        <div className="relative h-80 w-full overflow-hidden rounded-lg border bg-white">
+        {/* El mismo color de relleno que lleva el JPEG: lo que se ve es lo que se guarda. */}
+        <div
+          className="relative h-80 w-full overflow-hidden rounded-lg border"
+          style={{ backgroundColor: fill }}
+        >
           {src && (
             <Cropper
               image={src}
@@ -200,6 +240,17 @@ export function PhotoCropDialog({ file, uploading = false, onCancel, onConfirm }
           original no se modifica.
           {natural ? ` Foto original: ${natural.width} × ${natural.height} px.` : ''}
         </p>
+        {uncovered && (
+          <p className="flex items-center gap-2 rounded-md border px-3 py-2 text-xs text-muted-foreground">
+            <span
+              className="inline-block h-4 w-4 shrink-0 rounded border"
+              style={{ backgroundColor: fill }}
+              aria-hidden
+            />
+            La foto no cubre todo el recuadro: el hueco se rellena con el color del fondo de la
+            foto. Si no quieres relleno, acércala o súbela un poco.
+          </p>
+        )}
         {lowRes && area && (
           <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
             La parte elegida tiene solo {Math.round(area.width)} × {Math.round(area.height)} px y la
