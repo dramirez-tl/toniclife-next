@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { EventStatusBadge } from '@/components/admin/events/EventBadges';
 import { EventForm } from '@/components/admin/events/EventForm';
+import { EventProductsTab } from '@/components/admin/events/EventProductsTab';
 import { EventBranchesTab } from '@/components/admin/events/EventBranchesTab';
 import { EventTicketsTab } from '@/components/admin/events/EventTicketsTab';
 import { EventCheckInTab } from '@/components/admin/events/EventCheckInTab';
@@ -42,7 +43,7 @@ import {
   type EventStatus,
 } from '@/types/events';
 
-const TABS = ['datos', 'sucursales', 'boletos', 'entrada'] as const;
+const TABS = ['datos', 'claves', 'sucursales', 'boletos', 'entrada'] as const;
 type TabId = (typeof TABS)[number];
 const isTab = (v: string): v is TabId => (TABS as readonly string[]).includes(v);
 
@@ -194,6 +195,7 @@ function EventoDetalleContent() {
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })} className="gap-4">
           <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="datos" className="px-4">Datos</TabsTrigger>
+            <TabsTrigger value="claves" className="px-4">Claves</TabsTrigger>
             <TabsTrigger value="sucursales" className="px-4">Sucursales</TabsTrigger>
             <TabsTrigger value="boletos" className="px-4">Boletos</TabsTrigger>
             <TabsTrigger value="entrada" className="px-4">Entrada</TabsTrigger>
@@ -208,6 +210,9 @@ function EventoDetalleContent() {
                 isPending={updateMutation.isPending}
               />
             </div>
+          </TabsContent>
+          <TabsContent value="claves">
+            <EventProductsTab event={event} />
           </TabsContent>
           <TabsContent value="sucursales">
             <EventBranchesTab event={event} />
@@ -315,6 +320,25 @@ function EventHeader({
                   </span>
                   <span>— {event.productName}</span>
                 </p>
+              )}
+              {(event.products?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5" title="Claves que generan boletos">
+                  {event.products.map((p) => (
+                    <span
+                      key={p.productId}
+                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
+                        p.isMain
+                          ? 'border-[#a7c1e2] bg-[#C8DDF2]/30 text-[#2f5165]'
+                          : 'border-gray-200 bg-gray-50 text-gray-600'
+                      } ${p.isActive ? '' : 'opacity-60 line-through'}`}
+                      title={p.productName}
+                    >
+                      <span className="font-mono font-semibold">{p.productCode}</span>
+                      {p.label && <span>· {p.label}</span>}
+                      {p.ticketsPerUnit > 1 && <span className="text-gray-400">×{p.ticketsPerUnit}</span>}
+                    </span>
+                  ))}
+                </div>
               )}
               <p className="mt-1 text-xs text-gray-400">{EVENT_STATUS_HELP[event.status]}</p>
             </div>

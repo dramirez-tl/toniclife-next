@@ -161,6 +161,18 @@ export interface SendTicketEmailInput {
   to?: string;
 }
 
+/**
+ * POST /events/:id/products — clave que genera boletos (mig 155). Upsert:
+ * el mismo productId actualiza boletos por unidad y etiqueta.
+ */
+export interface UpsertEventProductInput {
+  productId: string;
+  /** Boletos que genera cada unidad vendida (1-20, default 1). */
+  ticketsPerUnit?: number;
+  /** Etiqueta del boleto (≤ 60, p. ej. "Invitado"). */
+  label?: string;
+}
+
 // ================================
 // SALIDA
 // ================================
@@ -176,6 +188,25 @@ export interface EventStatsDto {
   ticketsIssued: number;
   ticketsCheckedIn: number;
   ticketsCancelled: number;
+}
+
+/**
+ * Clave (producto) que genera boletos del evento (mig 155). La principal
+ * (`isMain`) es el producto del evento; las demás son Invitado, etc.
+ */
+export interface EventProductDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  productType: string;
+  publicPrice: number | null;
+  ticketsPerUnit: number;
+  /** "Titular" / "Invitado" (se imprime en el boleto). */
+  label: string | null;
+  isMain: boolean;
+  isActive: boolean;
+  availableInPos: boolean;
+  soldUnits: number;
 }
 
 export interface EventDto {
@@ -222,6 +253,8 @@ export interface EventDto {
    * edita en Productos.
    */
   linkedProduct: boolean;
+  /** Claves que generan boletos (la principal `isMain` es el producto del evento). */
+  products: EventProductDto[];
   stats: EventStatsDto;
   createdAt: string;
   updatedAt: string;
@@ -256,6 +289,8 @@ export interface EventTicketDto {
   /** Token del QR (liga pública). */
   token: string;
   publicUrl: string;
+  /** "Titular" / "Invitado": etiqueta de la clave con la que se cobró. */
+  label: string | null;
   status: TicketStatus;
   attendeeName: string | null;
   attendeeEmail: string | null;
@@ -308,6 +343,8 @@ export interface TicketEmailResultDto {
 /** Vista pública del boleto (liga del correo / QR). Sin datos sensibles. */
 export interface PublicTicketDto {
   ticketNumber: string;
+  /** "Titular" / "Invitado". */
+  label: string | null;
   status: TicketStatus;
   attendeeName: string | null;
   /** URL absoluta del PNG del QR. */

@@ -107,7 +107,8 @@ const EVENT_ERROR_LABEL: Record<string, string> = {
   EVENT_LINKED_PRODUCT:
     'Este evento usa un producto existente: se vende donde haya existencia del producto (muévela con traspasos de inventario) y el precio se edita en Productos.',
   EVENT_PRODUCT_NOT_FOUND: 'El producto elegido ya no existe en el catálogo.',
-  EVENT_PRODUCT_LINKED: 'Ese producto ya tiene un evento vinculado.',
+  EVENT_PRODUCT_LINKED: 'Ese producto ya genera boletos de otro evento.',
+  EVENT_MAIN_PRODUCT: 'La clave principal del evento no se puede quitar.',
   EVENT_PRODUCT_IS_EVENT: 'Ese producto ya es un boleto de evento; elige otro.',
   EVENT_CODE_REQUIRED: 'Captura la clave del evento (o vincula un producto existente).',
   EVENT_PRICE_REQUIRED: 'Captura el precio del boleto (o vincula un producto existente).',

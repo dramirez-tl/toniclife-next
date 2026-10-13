@@ -128,7 +128,9 @@ function TicketCard({ ticket }: { ticket: PublicTicketDto }) {
           <p className="text-lg font-semibold text-gray-900">
             {ticket.attendeeName || 'Portador del boleto'}
           </p>
-          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-gray-500">Boleto</p>
+          <p className="mt-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+            Boleto{ticket.label ? ` · ${ticket.label}` : ''}
+          </p>
           <p className="font-mono text-2xl font-bold tracking-wider text-[#3E667D]">
             {ticket.ticketNumber}
           </p>

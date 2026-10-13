@@ -12,6 +12,7 @@ import {
   MagnifyingGlassIcon,
   TicketIcon,
 } from '@heroicons/react/24/outline';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -129,6 +130,18 @@ export function EventTicketsTab({ event }: { event: EventDto }) {
       render: (t) => (
         <span className="font-mono text-sm font-semibold text-[#3E667D]">{t.ticketNumber}</span>
       ),
+    },
+    {
+      key: 'label',
+      header: 'Tipo',
+      render: (t) =>
+        t.label ? (
+          <Badge variant="outline" className="border-gray-200 bg-gray-50 text-gray-700">
+            {t.label}
+          </Badge>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        ),
     },
     {
       key: 'attendee',

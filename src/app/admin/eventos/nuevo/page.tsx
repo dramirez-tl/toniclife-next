@@ -19,8 +19,8 @@ export default function NuevoEventoPage() {
   const handleSubmit = async (values: EventFormValues) => {
     try {
       const ev = await createMutation.mutateAsync(toCreateInput(values));
-      toast.success('Evento creado; asigna sucursales para empezar a vender');
-      router.push(`/admin/eventos/${ev.id}?tab=sucursales`);
+      toast.success('Evento creado; agrega la clave de Invitado si aplica y revisa sucursales');
+      router.push(`/admin/eventos/${ev.id}?tab=claves`);
     } catch (e) {
       toast.error(eventErrorMessage(e, 'No se pudo crear el evento.'));
     }

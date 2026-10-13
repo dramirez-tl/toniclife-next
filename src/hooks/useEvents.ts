@@ -8,6 +8,7 @@ import type {
   EventQuery,
   EventTicketsQuery,
   UpdateEventInput,
+  UpsertEventProductInput,
 } from '@/types/events';
 
 export const eventKeys = {
@@ -16,6 +17,7 @@ export const eventKeys = {
   list: (query: EventQuery) => [...eventKeys.lists(), query] as const,
   detail: (id: string) => [...eventKeys.all, 'detail', id] as const,
   branches: (id: string) => [...eventKeys.all, 'branches', id] as const,
+  products: (id: string) => [...eventKeys.all, 'products', id] as const,
   tickets: (id: string, query: EventTicketsQuery) =>
     [...eventKeys.all, 'tickets', id, query] as const,
   publicTicket: (token: string) => [...eventKeys.all, 'public-ticket', token] as const,
@@ -73,6 +75,41 @@ export const useSetEventBranches = () => {
     onSuccess: (data, { id }) => {
       queryClient.setQueryData(eventKeys.branches(id), data);
       // Las estadísticas del evento (asignados/restantes) cambian con la asignación.
+      queryClient.invalidateQueries({ queryKey: eventKeys.all });
+    },
+  });
+};
+
+// ── Claves que generan boletos (mig 155) ──
+
+export const useEventProducts = (id: string) =>
+  useQuery({
+    queryKey: eventKeys.products(id),
+    queryFn: () => eventsService.getProducts(id),
+    enabled: !!id,
+    staleTime: 15 * 1000,
+  });
+
+export const useUpsertEventProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpsertEventProductInput }) =>
+      eventsService.upsertProduct(id, input),
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(eventKeys.products(id), data);
+      // EventDto.products (ficha y listado) también cambia.
+      queryClient.invalidateQueries({ queryKey: eventKeys.all });
+    },
+  });
+};
+
+export const useRemoveEventProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, productId }: { id: string; productId: string }) =>
+      eventsService.removeProduct(id, productId),
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(eventKeys.products(id), data);
       queryClient.invalidateQueries({ queryKey: eventKeys.all });
     },
   });

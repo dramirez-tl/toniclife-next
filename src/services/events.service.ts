@@ -10,12 +10,14 @@ import type {
   EventBranchDto,
   EventDto,
   EventListResponseDto,
+  EventProductDto,
   EventQuery,
   EventTicketsQuery,
   EventTicketsResponseDto,
   PublicTicketDto,
   TicketEmailResultDto,
   UpdateEventInput,
+  UpsertEventProductInput,
 } from '@/types/events';
 
 /**
@@ -70,6 +72,25 @@ class EventsService {
   /** Reemplazo COMPLETO: las sucursales que no vienen se desactivan. */
   async setBranches(id: string, branches: EventBranchAllotment[]): Promise<EventBranchDto[]> {
     const { data } = await api.put<EventBranchDto[]>(`/events/${id}/branches`, { branches });
+    return data;
+  }
+
+  // ── Claves que generan boletos (mig 155) ──
+
+  async getProducts(id: string): Promise<EventProductDto[]> {
+    const { data } = await api.get<EventProductDto[]>(`/events/${id}/products`);
+    return data;
+  }
+
+  /** Upsert: el mismo productId actualiza boletos por unidad y etiqueta. */
+  async upsertProduct(id: string, input: UpsertEventProductInput): Promise<EventProductDto[]> {
+    const { data } = await api.post<EventProductDto[]>(`/events/${id}/products`, input);
+    return data;
+  }
+
+  /** 400 EVENT_MAIN_PRODUCT si es la clave principal. */
+  async removeProduct(id: string, productId: string): Promise<EventProductDto[]> {
+    const { data } = await api.delete<EventProductDto[]>(`/events/${id}/products/${productId}`);
     return data;
   }
 
