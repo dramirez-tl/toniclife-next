@@ -12,7 +12,7 @@
 //    precios por tipo y existencias por sucursal); se ocultan clave, nombre en
 //    el POS, precio, claves SAT y producto incluido.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { LinkIcon } from '@heroicons/react/24/outline';
@@ -78,9 +78,23 @@ export function EventForm({
   const set = (patch: Partial<EventFormValues>) => setForm((f) => ({ ...f, ...patch }));
 
   // Si la ficha se vuelve a cargar (p. ej. tras guardar), el formulario se
-  // alinea con lo que regresó el API.
+  // alinea con lo que regresó el API. Excepción: con cambios locales sin
+  // guardar y un servidor que solo cambió la imagen (la sube el bloque
+  // "Imagen / flyer", fuera de este formulario), se trae únicamente la imagen
+  // para no perder lo capturado.
+  const initialRef = useRef(initial);
   useEffect(() => {
-    if (initial) setForm(initial);
+    if (!initial) return;
+    const prevInitial = initialRef.current;
+    initialRef.current = initial;
+    setForm((prev) => {
+      if (!prevInitial) return initial;
+      const hasLocalEdits = JSON.stringify(prev) !== JSON.stringify(prevInitial);
+      if (!hasLocalEdits) return initial;
+      const onlyImageChanged =
+        JSON.stringify({ ...prevInitial, imageUrl: '' }) === JSON.stringify({ ...initial, imageUrl: '' });
+      return onlyImageChanged ? { ...prev, imageUrl: initial.imageUrl } : initial;
+    });
   }, [initial]);
 
   const { data: countriesData } = useActiveCountries();
@@ -602,6 +616,11 @@ export function EventForm({
               placeholder="https://…/flyer.jpg"
               maxLength={500}
             />
+            <p className="text-xs text-gray-400">
+              {mode === 'create'
+                ? 'Podrás subir el flyer desde la ficha del evento después de crearlo; si ya tienes una liga pública, pégala aquí.'
+                : 'O pega una liga pública. Para subir el archivo usa el bloque “Imagen / flyer” de arriba.'}
+            </p>
           </div>
         </CardContent>
       </Card>

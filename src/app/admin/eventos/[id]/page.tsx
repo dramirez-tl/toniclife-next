@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { EventStatusBadge } from '@/components/admin/events/EventBadges';
 import { EventForm } from '@/components/admin/events/EventForm';
+import { EventImageCard } from '@/components/admin/events/EventImageCard';
 import { EventProductsTab } from '@/components/admin/events/EventProductsTab';
 import { EventBranchesTab } from '@/components/admin/events/EventBranchesTab';
 import { EventTicketsTab } from '@/components/admin/events/EventTicketsTab';
@@ -202,7 +203,8 @@ function EventoDetalleContent() {
           </TabsList>
 
           <TabsContent value="datos">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-5xl space-y-6">
+              <EventImageCard event={event} />
               <EventForm
                 mode="edit"
                 initial={initialForm}

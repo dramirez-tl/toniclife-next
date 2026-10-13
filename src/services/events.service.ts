@@ -94,6 +94,32 @@ class EventsService {
     return data;
   }
 
+  // ── Imagen / flyer ──
+
+  /**
+   * Sube la imagen/flyer (multipart, campo "image": jpg/png/webp ≤ 5 MB) a S3.
+   * Regresa la ficha ya con `imageUrl` pública (GET /public/events/:id/image).
+   * Quitarla es `update(id, { imageUrl: null })`.
+   */
+  async uploadImage(
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<EventDto> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await api.post<EventDto>(`/events/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onProgress
+        ? (evt) => {
+            const total = evt.total ?? file.size;
+            if (total > 0) onProgress(Math.min(100, Math.round((evt.loaded / total) * 100)));
+          }
+        : undefined,
+    });
+    return data;
+  }
+
   async getTickets(id: string, query: EventTicketsQuery = {}): Promise<EventTicketsResponseDto> {
     const params: Record<string, string> = {};
     if (query.status) params.status = query.status;

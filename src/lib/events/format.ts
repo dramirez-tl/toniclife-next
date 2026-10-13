@@ -112,6 +112,9 @@ const EVENT_ERROR_LABEL: Record<string, string> = {
   EVENT_PRODUCT_IS_EVENT: 'Ese producto ya es un boleto de evento; elige otro.',
   EVENT_CODE_REQUIRED: 'Captura la clave del evento (o vincula un producto existente).',
   EVENT_PRICE_REQUIRED: 'Captura el precio del boleto (o vincula un producto existente).',
+  // Imagen / flyer.
+  EVENT_IMAGE_INVALID: 'La imagen debe ser JPG, PNG o WebP de máximo 5 MB.',
+  EVENT_NOT_FOUND: 'El evento ya no existe.',
 };
 
 /** Mensaje legible de un error de axios, traduciendo los códigos del módulo. */

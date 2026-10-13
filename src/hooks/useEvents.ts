@@ -115,6 +115,27 @@ export const useRemoveEventProduct = () => {
   });
 };
 
+// ── Imagen / flyer ──
+
+export const useUploadEventImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      file,
+      onProgress,
+    }: {
+      id: string;
+      file: File;
+      onProgress?: (percent: number) => void;
+    }) => eventsService.uploadImage(id, file, onProgress),
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(eventKeys.detail(id), data);
+      queryClient.invalidateQueries({ queryKey: eventKeys.all });
+    },
+  });
+};
+
 export const useEventTickets = (id: string, query: EventTicketsQuery = {}) =>
   useQuery({
     queryKey: eventKeys.tickets(id, query),
