@@ -141,6 +141,19 @@ class CustomersService {
   }
 
   /** Envía (o reenvía) el correo de invitación para definir contraseña. */
+  /** Posición de kit por cortesía (sin venta): basic | premium + nota de
+   *  autorización. Activa al distribuidor si estaba pendiente. */
+  async grantKitPosition(
+    id: string,
+    data: { position: 'basic' | 'premium'; note: string },
+  ): Promise<Customer> {
+    const response = await api.post<Customer>(
+      `${this.basePath}/${id}/kit-position`,
+      data,
+    );
+    return response.data;
+  }
+
   async resendInvite(id: string): Promise<{ message: string }> {
     const response = await api.post<{ message: string }>(
       `${this.basePath}/${id}/resend-invite`,

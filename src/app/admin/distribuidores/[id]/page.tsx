@@ -13,6 +13,8 @@ import {
   updateCustomer,
 } from '@/store/slices/customersSlice';
 import { CustomerStatus } from '@/types/customer';
+import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
+import { customersService } from '@/services/customers.service';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { promotionsService } from '@/services/promotions.service';
@@ -417,6 +419,15 @@ export default function DetalleDistribuidorPage() {
                     <p className="font-medium text-gray-900 capitalize">
                       {customer.kitType || 'No especificado'}
                     </p>
+                    {/* Posición por cortesía (Operaciones): sustituye el
+                        cobro a $0 de 8562i / MTP en el almacén 100. */}
+                    <KitPositionGrantButton
+                      customerId={customer.id}
+                      kitType={customer.kitType ?? null}
+                      status={customer.status ?? null}
+                      customerType={customer.customerType ?? null}
+                      onDone={() => dispatch(fetchCustomerById(id))}
+                    />
                   </div>
                   <div>
                     <label className="text-sm text-gray-500">Patrocinador</label>
@@ -523,6 +534,146 @@ const GRANT_STATUS_META: Record<string, { label: string; cls: string }> = {
   expired: { label: 'Vencido', cls: 'bg-gray-100 text-gray-600' },
   cancelled: { label: 'Cancelado', cls: 'bg-red-100 text-red-700' },
 };
+
+/**
+ * Otorgar la posición de kit (Básico / Premium) por CORTESÍA, sin venta.
+ * En el sistema anterior Operaciones "cobraba" a $0 las claves 8562i / MTP
+ * en el almacén 100 para dejar la posición; aquí es una acción directa con
+ * nota de autorización (queda en la auditoría). Requiere customers:update.
+ */
+function KitPositionGrantButton({
+  customerId,
+  kitType,
+  status,
+  customerType,
+  onDone,
+}: {
+  customerId: string;
+  kitType: string | null;
+  status: string | null;
+  customerType: string | null;
+  onDone: () => void;
+}) {
+  const roles = useAppSelector(selectUserRoles);
+  const permissions = useAppSelector(selectUserPermissions);
+  const canGrant =
+    roles.includes('super_admin') ||
+    permissions.includes('customers:update') ||
+    permissions.includes('customers:*');
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<'basic' | 'premium'>(
+    kitType === 'basic' ? 'premium' : 'basic',
+  );
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  if (!canGrant || customerType !== 'distributor') return null;
+  // Con Premium ya no hay nada que otorgar (nunca se baja de posición).
+  if (kitType === 'premium') return null;
+
+  const handleGrant = async () => {
+    if (note.trim().length < 5) {
+      toast.error('Escribe quién autorizó / el motivo (mínimo 5 caracteres)');
+      return;
+    }
+    setSaving(true);
+    try {
+      await customersService.grantKitPosition(customerId, {
+        position,
+        note: note.trim(),
+      });
+      toast.success(
+        `Posición ${position === 'premium' ? 'Premium' : 'Básico'} otorgada${
+          status === 'pending' ? ' · distribuidor activado' : ''
+        }`,
+      );
+      setOpen(false);
+      setNote('');
+      onDone();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string | string[] } } })
+          ?.response?.data?.message ?? 'No se pudo otorgar la posición';
+      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1 text-xs font-medium text-[#3E667D] hover:underline"
+        title="Dar la posición de kit sin venta ni cobro (cortesía de Operaciones)"
+      >
+        {kitType ? 'Subir a Premium (cortesía)' : 'Otorgar posición (cortesía)'}
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-gray-900">
+              Otorgar posición de kit por cortesía
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">
+              No genera venta, cobro, puntos, valor de negocio, bono ni entrega
+              de producto: solo deja la posición
+              {status === 'pending' ? ' y activa al distribuidor' : ''}. Queda
+              registrado en la auditoría con tu usuario y la nota.
+            </p>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              Posición
+            </label>
+            <select
+              value={position}
+              onChange={(e) => setPosition(e.target.value as 'basic' | 'premium')}
+              disabled={saving}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+            >
+              {kitType !== 'basic' && <option value="basic">Básico (como 8562i)</option>}
+              <option value="premium">Premium (como MTP)</option>
+            </select>
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">
+              Autorización / motivo <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={300}
+              disabled={saving}
+              placeholder="Ej. Autorizó Operaciones (ticket 1234) — reconocimiento al distribuidor"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !saving && setOpen(false)}
+                disabled={saving}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGrant}
+                disabled={saving}
+                className="rounded-lg bg-[#3E667D] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#2f5165] disabled:opacity-60"
+              >
+                {saving ? 'Guardando…' : 'Otorgar posición'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 function PromotionGrantsSection({ customerId }: { customerId: string }) {
   const queryClient = useQueryClient();
