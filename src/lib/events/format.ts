@@ -103,6 +103,14 @@ const EVENT_ERROR_LABEL: Record<string, string> = {
     'No se puede asignar menos boletos de los que la sucursal ya vendió o tiene reservados.',
   EVENT_CAPACITY_EXCEEDED: 'La asignación supera el aforo del evento.',
   EVENT_EMAIL_MISSING: 'El boleto no tiene correo: captura uno para reenviarlo.',
+  // Producto vinculado (evento sobre un producto existente del catálogo).
+  EVENT_LINKED_PRODUCT:
+    'Este evento usa un producto existente: se vende donde haya existencia del producto (muévela con traspasos de inventario) y el precio se edita en Productos.',
+  EVENT_PRODUCT_NOT_FOUND: 'El producto elegido ya no existe en el catálogo.',
+  EVENT_PRODUCT_LINKED: 'Ese producto ya tiene un evento vinculado.',
+  EVENT_PRODUCT_IS_EVENT: 'Ese producto ya es un boleto de evento; elige otro.',
+  EVENT_CODE_REQUIRED: 'Captura la clave del evento (o vincula un producto existente).',
+  EVENT_PRICE_REQUIRED: 'Captura el precio del boleto (o vincula un producto existente).',
 };
 
 /** Mensaje legible de un error de axios, traduciendo los códigos del módulo. */

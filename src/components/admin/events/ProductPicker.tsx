@@ -1,8 +1,8 @@
 'use client';
 
-// IncludedProductPicker - Busca un producto del catálogo (clave o nombre) y lo
-// deja elegido como "producto incluido" del boleto (informativo: se imprime
-// como "Incluye: 1 × …").
+// ProductPicker - Busca un producto del catálogo (clave o nombre) y lo deja
+// elegido. Lo usa el formulario de eventos para el "producto incluido" del
+// boleto y para vincular el evento a un producto existente.
 
 import { useEffect, useRef, useState } from 'react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -11,30 +11,44 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useProductSearch } from '@/hooks/useProducts';
+import type { Product } from '@/types/product';
 
-interface IncludedProductPickerProps {
+export interface ProductPickerChange {
+  productId: string;
+  /** "CLAVE — Nombre" del producto elegido (vacío al quitarlo). */
+  productLabel: string;
+  /** Producto completo tal como lo regresó la búsqueda (null al quitarlo). */
+  product: Product | null;
+}
+
+interface ProductPickerProps {
   productId: string;
   /** "CLAVE — Nombre" del producto elegido (solo para mostrar). */
   productLabel: string;
-  onChange: (next: { productId: string; productLabel: string }) => void;
+  onChange: (next: ProductPickerChange) => void;
+  /** true = la opción no se ofrece (p. ej. productos que ya son boleto de evento). */
+  exclude?: (p: Product) => boolean;
   disabled?: boolean;
   id?: string;
+  placeholder?: string;
 }
 
-export function IncludedProductPicker({
+export function ProductPicker({
   productId,
   productLabel,
   onChange,
+  exclude,
   disabled = false,
   id,
-}: IncludedProductPickerProps) {
+  placeholder = 'Buscar por clave o nombre…',
+}: ProductPickerProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const debounced = useDebouncedValue(query.trim(), 300);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const { data, isFetching } = useProductSearch(debounced, { limit: 10, isActive: true });
-  const results = data?.data ?? [];
+  const results = (data?.data ?? []).filter((p) => !exclude?.(p));
 
   // Cerrar la lista al hacer clic fuera.
   useEffect(() => {
@@ -58,9 +72,9 @@ export function IncludedProductPicker({
             <button
               type="button"
               className="ml-1 rounded-full p-0.5 text-[#2f5165]/60 hover:bg-white hover:text-red-600"
-              onClick={() => onChange({ productId: '', productLabel: '' })}
+              onClick={() => onChange({ productId: '', productLabel: '', product: null })}
               title="Quitar producto"
-              aria-label="Quitar producto incluido"
+              aria-label="Quitar producto"
             >
               <XMarkIcon className="h-3.5 w-3.5" />
             </button>
@@ -82,7 +96,7 @@ export function IncludedProductPicker({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Buscar por clave o nombre…"
+        placeholder={placeholder}
         className="pl-9"
         autoComplete="off"
       />
@@ -102,7 +116,7 @@ export function IncludedProductPicker({
                 type="button"
                 className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                 onClick={() => {
-                  onChange({ productId: p.id, productLabel: `${p.code} — ${p.name}` });
+                  onChange({ productId: p.id, productLabel: `${p.code} — ${p.name}`, product: p });
                   setQuery('');
                   setOpen(false);
                 }}

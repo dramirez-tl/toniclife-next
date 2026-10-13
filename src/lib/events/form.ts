@@ -3,6 +3,13 @@
 //
 // El formulario trabaja con TEXTO en todos los campos (lo que teclea el
 // usuario); aquí se valida y se convierte a números/undefined/null.
+//
+// Dos modos de "producto del boleto" (`source`):
+//  - 'new': el API crea un producto de tipo 'event' con la clave y el precio
+//    capturados aquí.
+//  - 'linked': se usa un producto EXISTENTE del catálogo (productId). El API
+//    toma su clave y su precio público; no se mandan clave, precio, nombre en
+//    el POS ni claves SAT, y el precio se edita en Productos.
 
 import {
   EVENT_DEFAULT_TIMEZONE,
@@ -11,8 +18,19 @@ import {
   type EventTaxMode,
   type UpdateEventInput,
 } from '@/types/events';
+import { formatEventMoney } from './format';
+
+export type EventProductSource = 'new' | 'linked';
 
 export interface EventFormValues {
+  /** 'new' = el API crea el producto del boleto; 'linked' = usa un producto existente. */
+  source: EventProductSource;
+  /** Producto existente (modo 'linked'). */
+  productId: string;
+  /** "CLAVE — Nombre" del producto vinculado (solo para mostrar). */
+  productLabel: string;
+  /** Precio público del producto vinculado ya formateado (solo para mostrar). */
+  productPriceLabel: string;
   code: string;
   name: string;
   productName: string;
@@ -46,6 +64,10 @@ export interface EventFormValues {
 }
 
 export const EMPTY_EVENT_FORM: EventFormValues = {
+  source: 'new',
+  productId: '',
+  productLabel: '',
+  productPriceLabel: '',
   code: '',
   name: '',
   productName: '',
@@ -79,12 +101,18 @@ export const EMPTY_EVENT_FORM: EventFormValues = {
 
 /** Ficha del API → formulario (edición). */
 export function eventToForm(ev: EventDto): EventFormValues {
+  const linked = !!ev.linkedProduct;
+  const productCode = ev.productCode || ev.code;
   return {
+    source: linked ? 'linked' : 'new',
+    productId: ev.productId ?? '',
+    productLabel: [productCode, ev.productName].filter(Boolean).join(' — '),
+    productPriceLabel: formatEventMoney(ev.ticketPrice, ev.currencyCode),
     code: ev.code,
     name: ev.name,
     // El API devuelve el nombre del producto aunque sea el del evento: solo se
     // muestra como "nombre distinto" cuando de verdad difiere.
-    productName: ev.productName && ev.productName !== ev.name ? ev.productName : '',
+    productName: !linked && ev.productName && ev.productName !== ev.name ? ev.productName : '',
     speaker: ev.speaker ?? '',
     description: ev.description ?? '',
     eventDate: ev.eventDate,
@@ -126,13 +154,18 @@ const isBlank = (s: string) => s.trim() === '';
 
 /**
  * Primer error del formulario (texto para el toast) o null si está completo.
- * `mode` decide si la clave es obligatoria (solo en el alta).
+ * `mode` decide si la clave / el producto son obligatorios (solo en el alta).
  */
 export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): string | null {
+  const linked = v.source === 'linked';
   if (mode === 'create') {
-    if (isBlank(v.code)) return 'La clave del evento es obligatoria.';
-    if (!CODE_RE.test(v.code.trim()))
-      return 'La clave admite de 3 a 30 caracteres: letras, números, guion y guion bajo.';
+    if (linked) {
+      if (isBlank(v.productId)) return 'Elige el producto del catálogo que será el boleto.';
+    } else {
+      if (isBlank(v.code)) return 'La clave del evento es obligatoria.';
+      if (!CODE_RE.test(v.code.trim()))
+        return 'La clave admite de 3 a 30 caracteres: letras, números, guion y guion bajo.';
+    }
   }
   const name = v.name.trim();
   if (name.length < 3) return 'El nombre del evento debe tener al menos 3 caracteres.';
@@ -145,10 +178,12 @@ export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): 
   ] as const) {
     if (!isBlank(value) && !TIME_RE.test(value)) return `La hora de ${label} debe ser HH:MM.`;
   }
-  if (isBlank(v.ticketPrice)) return 'Captura el precio del boleto.';
-  const price = Number(v.ticketPrice);
-  if (!Number.isFinite(price) || price < 0) return 'El precio del boleto no es válido.';
-  if (Math.round(price * 100) !== price * 100) return 'El precio admite máximo 2 decimales.';
+  if (!linked) {
+    if (isBlank(v.ticketPrice)) return 'Captura el precio del boleto.';
+    const price = Number(v.ticketPrice);
+    if (!Number.isFinite(price) || price < 0) return 'El precio del boleto no es válido.';
+    if (Math.round(price * 100) !== price * 100) return 'El precio admite máximo 2 decimales.';
+  }
   const perUnit = Number(v.ticketsPerUnit);
   if (!Number.isInteger(perUnit) || perUnit < 1 || perUnit > 20)
     return 'Los boletos por unidad deben ser un entero entre 1 y 20.';
@@ -156,13 +191,15 @@ export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): 
     const cap = Number(v.capacity);
     if (!Number.isInteger(cap) || cap < 1) return 'El aforo debe ser un entero mayor que cero.';
   }
-  if (!isBlank(v.satProductCode) && !SAT_PRODUCT_RE.test(v.satProductCode.trim()))
-    return 'La clave SAT de producto debe tener 8 dígitos.';
-  if (!isBlank(v.satUnitCode) && !SAT_UNIT_RE.test(v.satUnitCode.trim()))
-    return 'La clave SAT de unidad debe tener 2 o 3 caracteres (p. ej. E48).';
-  if (v.includedProductId) {
-    const qty = Number(v.includedQuantity);
-    if (!Number.isFinite(qty) || qty <= 0) return 'La cantidad del producto incluido debe ser mayor que cero.';
+  if (!linked) {
+    if (!isBlank(v.satProductCode) && !SAT_PRODUCT_RE.test(v.satProductCode.trim()))
+      return 'La clave SAT de producto debe tener 8 dígitos.';
+    if (!isBlank(v.satUnitCode) && !SAT_UNIT_RE.test(v.satUnitCode.trim()))
+      return 'La clave SAT de unidad debe tener 2 o 3 caracteres (p. ej. E48).';
+    if (v.includedProductId) {
+      const qty = Number(v.includedQuantity);
+      if (!Number.isFinite(qty) || qty <= 0) return 'La cantidad del producto incluido debe ser mayor que cero.';
+    }
   }
   if (v.imageUrl.trim().length > 500) return 'La URL de la imagen es demasiado larga (máximo 500).';
   if (!isBlank(v.saleStartsOn) && !DATE_RE.test(v.saleStartsOn)) return 'La fecha de inicio de venta no es válida.';
@@ -178,12 +215,10 @@ export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): 
 const text = (s: string): string | undefined => (isBlank(s) ? undefined : s.trim());
 const num = (s: string): number | undefined => (isBlank(s) ? undefined : Number(s));
 
-/** Formulario → POST /events. Los opcionales vacíos NO se mandan. */
-export function toCreateInput(v: EventFormValues): CreateEventInput {
+/** Campos que se mandan igual en los dos modos (alta). */
+function commonCreateFields(v: EventFormValues) {
   return {
-    code: v.code.trim().toUpperCase(),
     name: v.name.trim(),
-    productName: text(v.productName),
     description: text(v.description),
     speaker: text(v.speaker),
     eventDate: v.eventDate,
@@ -198,12 +233,7 @@ export function toCreateInput(v: EventFormValues): CreateEventInput {
     countryId: text(v.countryId),
     capacity: num(v.capacity),
     ticketsPerUnit: num(v.ticketsPerUnit) ?? 1,
-    ticketPrice: Number(v.ticketPrice),
     taxMode: v.taxMode,
-    satProductCode: text(v.satProductCode),
-    satUnitCode: text(v.satUnitCode)?.toUpperCase(),
-    includedProductId: text(v.includedProductId),
-    includedQuantity: v.includedProductId ? num(v.includedQuantity) : undefined,
     imageUrl: text(v.imageUrl),
     ticketNotes: text(v.ticketNotes),
     emailNotes: text(v.emailNotes),
@@ -213,16 +243,39 @@ export function toCreateInput(v: EventFormValues): CreateEventInput {
 }
 
 /**
- * Formulario → PATCH /events/:id. Manda TODOS los campos editables: los
- * opcionales vacíos van en `null` para que el API los limpie (sin la clave,
- * que no se edita, ni el estado, que tiene sus propios botones).
+ * Formulario → POST /events. Los opcionales vacíos NO se mandan.
+ * Con producto vinculado va `productId` y NO van clave, precio, nombre en el
+ * POS, claves SAT ni producto incluido (el producto ES el boleto).
+ */
+export function toCreateInput(v: EventFormValues): CreateEventInput {
+  const common = commonCreateFields(v);
+  if (v.source === 'linked') {
+    return { productId: v.productId.trim(), ...common };
+  }
+  return {
+    code: v.code.trim().toUpperCase(),
+    ...common,
+    productName: text(v.productName),
+    ticketPrice: Number(v.ticketPrice),
+    satProductCode: text(v.satProductCode),
+    satUnitCode: text(v.satUnitCode)?.toUpperCase(),
+    includedProductId: text(v.includedProductId),
+    includedQuantity: v.includedProductId ? num(v.includedQuantity) : undefined,
+  };
+}
+
+/**
+ * Formulario → PATCH /events/:id. Manda los campos editables: los opcionales
+ * vacíos van en `null` para que el API los limpie (sin la clave, que no se
+ * edita, ni el estado, que tiene sus propios botones). Con producto
+ * vinculado no se mandan precio, nombre en el POS, claves SAT ni producto
+ * incluido (el precio se edita en Productos; mandarlo responde 400).
  */
 export function toUpdateInput(v: EventFormValues): UpdateEventInput {
-  const c = toCreateInput(v);
+  const c = commonCreateFields(v);
   const orNull = <T>(x: T | undefined): T | null => (x === undefined ? null : x);
-  return {
+  const common: UpdateEventInput = {
     name: c.name,
-    productName: orNull(c.productName),
     description: orNull(c.description),
     speaker: orNull(c.speaker),
     eventDate: c.eventDate,
@@ -237,17 +290,23 @@ export function toUpdateInput(v: EventFormValues): UpdateEventInput {
     countryId: c.countryId,
     capacity: orNull(c.capacity),
     ticketsPerUnit: c.ticketsPerUnit,
-    ticketPrice: c.ticketPrice,
     taxMode: c.taxMode,
-    satProductCode: orNull(c.satProductCode),
-    satUnitCode: orNull(c.satUnitCode),
-    includedProductId: orNull(c.includedProductId),
-    includedQuantity: c.includedProductId ? c.includedQuantity : null,
     imageUrl: orNull(c.imageUrl),
     ticketNotes: orNull(c.ticketNotes),
     emailNotes: orNull(c.emailNotes),
     saleStartsOn: orNull(c.saleStartsOn),
     saleEndsOn: orNull(c.saleEndsOn),
+  };
+  if (v.source === 'linked') return common;
+  const includedProductId = text(v.includedProductId);
+  return {
+    ...common,
+    productName: orNull(text(v.productName)),
+    ticketPrice: Number(v.ticketPrice),
+    satProductCode: orNull(text(v.satProductCode)),
+    satUnitCode: orNull(text(v.satUnitCode)?.toUpperCase()),
+    includedProductId: orNull(includedProductId),
+    includedQuantity: includedProductId ? orNull(num(v.includedQuantity)) : null,
   };
 }
 

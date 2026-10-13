@@ -189,6 +189,12 @@ export function EventBranchesTab({ event }: { event: EventDto }) {
     }
   };
 
+  // Producto vinculado: no hay asignación que editar (el API responde 400
+  // EVENT_LINKED_PRODUCT); se muestra dónde hay existencia, solo lectura.
+  if (event.linkedProduct) {
+    return <LinkedProductBranches event={event} rows={assigned ?? []} isLoading={loadingAssigned} />;
+  }
+
   const isLoading = loadingAssigned || loadingBranches;
 
   return (
@@ -347,6 +353,144 @@ export function EventBranchesTab({ event }: { event: EventDto }) {
               {saveMutation.isPending ? 'Guardando…' : 'Guardar asignación'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * Evento sobre un producto EXISTENTE: se vende en las sucursales que tengan
+ * existencia del producto. Solo lectura: `allotment` = existencia + vendido,
+ * `remaining` = disponible.
+ */
+function LinkedProductBranches({
+  event,
+  rows,
+  isLoading,
+}: {
+  event: EventDto;
+  rows: EventBranchDto[];
+  isLoading: boolean;
+}) {
+  const [search, setSearch] = useState('');
+  const productCode = event.productCode || event.code;
+
+  const sorted = useMemo(
+    () =>
+      rows
+        .slice()
+        .sort((a, b) => a.branchName.localeCompare(b.branchName, 'es', { sensitivity: 'base' })),
+    [rows],
+  );
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(
+      (r) => r.branchName.toLowerCase().includes(q) || r.branchCode.toLowerCase().includes(q),
+    );
+  }, [sorted, search]);
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, r) => ({
+          remaining: acc.remaining + r.remaining,
+          sold: acc.sold + r.soldUnits,
+          tickets: acc.tickets + r.ticketsIssued,
+        }),
+        { remaining: 0, sold: 0, tickets: 0 },
+      ),
+    [rows],
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 rounded-lg border border-[#a7c1e2] bg-[#C8DDF2]/20 p-3 text-sm text-[#2f5165]">
+        <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+        <p>
+          Este evento usa el producto <span className="font-mono font-semibold">{productCode}</span>: se
+          vende en las sucursales que tengan existencia; muévela con traspasos de inventario.
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative sm:w-80">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Buscar sucursal por nombre o clave…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">{rows.length}</span>{' '}
+              {rows.length === 1 ? 'sucursal con existencia' : 'sucursales con existencia'} ·{' '}
+              <span className="font-semibold text-gray-900">{totals.remaining.toLocaleString('es-MX')}</span>{' '}
+              disponibles · <span className="font-semibold text-gray-900">{totals.sold.toLocaleString('es-MX')}</span>{' '}
+              vendidos · <span className="font-semibold text-gray-900">{totals.tickets.toLocaleString('es-MX')}</span>{' '}
+              boletos
+            </p>
+          </div>
+
+          {isLoading ? (
+            <div className="space-y-2">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">
+              Ninguna sucursal tiene existencia del producto {productCode}. Dale entrada o tráspasala desde
+              Inventario.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table className="min-w-[680px]">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="px-3">Sucursal</TableHead>
+                    <TableHead className="w-32 px-3 text-right">Existencia disponible</TableHead>
+                    <TableHead className="w-24 px-3 text-right">Vendidos</TableHead>
+                    <TableHead className="w-32 px-3 text-right">Boletos emitidos</TableHead>
+                    <TableHead className="w-36 px-3 text-right">Existencia + vendidos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.length === 0 ? (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={5} className="py-8 text-center text-sm text-gray-500">
+                        Ninguna sucursal coincide con la búsqueda.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    visible.map((r) => (
+                      <TableRow key={r.branchId} className={r.isActive ? '' : 'opacity-60'}>
+                        <TableCell className="px-3">
+                          <p className="font-medium text-gray-900">{r.branchName}</p>
+                          <p className="font-mono text-xs text-gray-400">{r.branchCode}</p>
+                        </TableCell>
+                        <TableCell className="px-3 text-right tabular-nums text-gray-900">
+                          {r.remaining.toLocaleString('es-MX')}
+                        </TableCell>
+                        <TableCell className="px-3 text-right tabular-nums text-gray-700">
+                          {r.soldUnits.toLocaleString('es-MX')}
+                        </TableCell>
+                        <TableCell className="px-3 text-right tabular-nums text-gray-700">
+                          {r.ticketsIssued.toLocaleString('es-MX')}
+                        </TableCell>
+                        <TableCell className="px-3 text-right tabular-nums text-gray-500">
+                          {r.allotment.toLocaleString('es-MX')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

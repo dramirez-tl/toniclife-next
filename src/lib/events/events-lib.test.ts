@@ -114,4 +114,42 @@ describe('formulario → DTO', () => {
     expect(dto.doorsTime).toBe('10:30');
     expect(dto.name).toBe('FOCADE Teziutlán');
   });
+
+  describe('producto vinculado (evento sobre un producto existente)', () => {
+    const linked: EventFormValues = {
+      ...filled,
+      source: 'linked',
+      productId: 'p0000000-0000-4000-8000-000000000009',
+      productLabel: 'F9019-3 — Jimmy Coffee Frasco 270g.',
+      code: '',
+      ticketPrice: '',
+      satProductCode: '',
+      satUnitCode: '',
+    };
+
+    it('el alta exige el producto y ya no exige clave ni precio', () => {
+      expect(validateEventForm(linked, 'create')).toBeNull();
+      expect(validateEventForm({ ...linked, productId: '' }, 'create')).toMatch(/producto/i);
+    });
+
+    it('el alta manda productId y NO clave, precio, nombre en el POS, SAT ni producto incluido', () => {
+      const dto = toCreateInput({ ...linked, productName: 'otro', includedProductId: 'x' });
+      expect(dto.productId).toBe(linked.productId);
+      expect(dto.taxMode).toBe('iva_16');
+      expect(dto.ticketsPerUnit).toBe(2);
+      for (const k of ['code', 'ticketPrice', 'productName', 'satProductCode', 'satUnitCode', 'includedProductId', 'includedQuantity']) {
+        expect(k in dto).toBe(false);
+      }
+    });
+
+    it('la edición nunca manda precio ni SAT (el API responde 400 EVENT_LINKED_PRODUCT)', () => {
+      const dto = toUpdateInput(linked);
+      for (const k of ['code', 'productId', 'ticketPrice', 'productName', 'satProductCode', 'satUnitCode', 'includedProductId', 'includedQuantity']) {
+        expect(k in dto).toBe(false);
+      }
+      expect(dto.name).toBe('FOCADE Teziutlán');
+      expect(dto.taxMode).toBe('iva_16');
+      expect(dto.speaker).toBeNull();
+    });
+  });
 });

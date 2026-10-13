@@ -56,8 +56,15 @@ export const EVENT_TAX_MODE_LABEL: Record<EventTaxMode, string> = {
 // ================================
 
 export interface CreateEventInput {
-  /** Clave del evento = clave del producto que se teclea en el POS (3-30, letras/números/guiones). */
-  code: string;
+  /**
+   * Producto EXISTENTE del catálogo que será el boleto (uuid). Si viene, el
+   * API usa ese producto (conserva tipo, precios por tipo de precio y
+   * existencias por sucursal), `code` y `ticketPrice` dejan de ser obligatorios
+   * y se ignoran `productName`, `satProductCode` y `satUnitCode`.
+   */
+  productId?: string;
+  /** Clave del evento = clave del producto que se teclea en el POS (3-30, letras/números/guiones). Obligatoria sin `productId`. */
+  code?: string;
   name: string;
   /** Nombre del producto en el POS/ticket (por defecto el del evento). */
   productName?: string;
@@ -81,8 +88,8 @@ export interface CreateEventInput {
   capacity?: number;
   /** Boletos que genera cada unidad vendida (acceso + invitados). 1-20. */
   ticketsPerUnit?: number;
-  /** Precio al público con impuestos incluidos. */
-  ticketPrice: number;
+  /** Precio al público con impuestos incluidos. Obligatorio sin `productId`. */
+  ticketPrice?: number;
   taxMode?: EventTaxMode;
   /** Clave SAT producto/servicio (8 dígitos). */
   satProductCode?: string;
@@ -106,9 +113,11 @@ type Nullable<T> = { [K in keyof T]?: T[K] | null };
 
 /**
  * PATCH /events/:id. Todo opcional; `null` en un campo opcional = limpiarlo
- * (el DTO del API lleva @IsOptional, que acepta null).
+ * (el DTO del API lleva @IsOptional, que acepta null). Ni la clave ni el
+ * producto se cambian; con producto vinculado, `ticketPrice` responde 400
+ * EVENT_LINKED_PRODUCT (el precio se edita en Productos).
  */
-export type UpdateEventInput = Nullable<Omit<CreateEventInput, 'code'>> & {
+export type UpdateEventInput = Nullable<Omit<CreateEventInput, 'code' | 'productId'>> & {
   status?: EventStatus;
 };
 
@@ -205,7 +214,14 @@ export interface EventDto {
   saleEndsOn: string | null;
   status: EventStatus;
   productId: string;
+  productCode: string;
   productName: string;
+  /**
+   * true = el evento usa un producto existente del catálogo: se vende donde
+   * haya existencia del producto (sin asignación por sucursal) y el precio se
+   * edita en Productos.
+   */
+  linkedProduct: boolean;
   stats: EventStatsDto;
   createdAt: string;
   updatedAt: string;

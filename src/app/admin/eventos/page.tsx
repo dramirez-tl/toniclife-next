@@ -65,7 +65,12 @@ export default function EventosPage() {
           >
             {ev.name}
           </Link>
-          <p className="mt-0.5 font-mono text-xs text-gray-400">{ev.code}</p>
+          <p className="mt-0.5 font-mono text-xs text-gray-400">
+            {ev.code}
+            {ev.linkedProduct && (
+              <span className="ml-1.5 font-sans text-[11px] text-[#3E667D]">· producto del catálogo</span>
+            )}
+          </p>
           {ev.speaker && <p className="text-xs text-gray-500">{ev.speaker}</p>}
         </div>
       ),

@@ -11,6 +11,7 @@ import {
   ArrowLeftIcon,
   CalendarDaysIcon,
   ExclamationTriangleIcon,
+  LinkIcon,
   MapPinIcon,
   TicketIcon,
 } from '@heroicons/react/24/outline';
@@ -305,6 +306,16 @@ function EventHeader({
                   {event.ticketsPerUnit > 1 ? ` · ${event.ticketsPerUnit} boletos por unidad` : ''}
                 </span>
               </div>
+              {event.linkedProduct && (
+                <p className="mt-1.5 inline-flex flex-wrap items-center gap-1.5 text-sm text-gray-700">
+                  <LinkIcon className="h-4 w-4 text-[#3E667D]" />
+                  Producto vinculado:{' '}
+                  <span className="font-mono font-semibold text-[#3E667D]">
+                    {event.productCode || event.code}
+                  </span>
+                  <span>— {event.productName}</span>
+                </p>
+              )}
               <p className="mt-1 text-xs text-gray-400">{EVENT_STATUS_HELP[event.status]}</p>
             </div>
           </div>

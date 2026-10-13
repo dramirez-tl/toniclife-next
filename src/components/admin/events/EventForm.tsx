@@ -1,23 +1,39 @@
 'use client';
 
 // EventForm - Formulario de evento (alta y edición) agrupado por bloques:
-// Datos del evento, Fecha y horario, Sede, Boletos, Fiscal, Textos y Ventana
-// de venta. Trabaja con texto (EventFormValues); la validación y la
-// conversión a DTO viven en lib/events/form.ts.
+// Producto del boleto, Datos del evento, Fecha y horario, Sede, Boletos,
+// Fiscal, Textos y Ventana de venta. Trabaja con texto (EventFormValues); la
+// validación y la conversión a DTO viven en lib/events/form.ts.
+//
+// Producto del boleto (solo se elige en el alta):
+//  - "Crear producto nuevo": el API da de alta un producto de tipo Evento con
+//    la clave y el precio capturados aquí.
+//  - "Usar un producto existente": el boleto se cobra con ese producto (clave,
+//    precios por tipo y existencias por sucursal); se ocultan clave, nombre en
+//    el POS, precio, claves SAT y producto incluido.
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { LinkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveCountries } from '@/hooks/useConfig';
-import { EMPTY_EVENT_FORM, validateEventForm, type EventFormValues } from '@/lib/events/form';
+import {
+  EMPTY_EVENT_FORM,
+  validateEventForm,
+  type EventFormValues,
+  type EventProductSource,
+} from '@/lib/events/form';
+import { formatEventMoney } from '@/lib/events/format';
 import { EVENT_TAX_MODE_LABEL, EVENT_TAX_MODES, type EventTaxMode } from '@/types/events';
-import { IncludedProductPicker } from './IncludedProductPicker';
+import type { Product } from '@/types/product';
+import { ProductPicker } from './ProductPicker';
 
 interface EventFormProps {
   mode: 'create' | 'edit';
@@ -42,6 +58,13 @@ const TIMEZONE_OPTIONS = [
   { value: 'America/Chicago', label: 'Chicago (EE. UU. centro)' },
   { value: 'America/Los_Angeles', label: 'Los Ángeles (EE. UU. pacífico)' },
 ];
+
+/** Precio público de referencia del producto buscado (la búsqueda lo manda como texto). */
+function productPriceLabel(p: Product | null): string {
+  if (!p?.price) return '';
+  const n = Number(p.price);
+  return Number.isFinite(n) ? formatEventMoney(n, p.priceCurrency || 'MXN') : '';
+}
 
 export function EventForm({
   mode,
@@ -94,35 +117,138 @@ export function EventForm({
     [form, initial],
   );
 
+  const linked = form.source === 'linked';
+  const linkedCode = form.productLabel.split(' — ')[0] || '';
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* ── Producto del boleto ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Producto del boleto</CardTitle>
+          <CardDescription>
+            {mode === 'create'
+              ? 'El POS cobra el boleto como un producto: puede crearse uno nuevo o usarse uno que ya está en el catálogo.'
+              : linked
+                ? 'Este evento usa un producto existente del catálogo.'
+                : 'Este evento tiene su propio producto de tipo Evento.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mode === 'create' ? (
+            <RadioGroup
+              value={form.source}
+              onValueChange={(v) => set({ source: v as EventProductSource })}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              <label
+                htmlFor="ev-source-new"
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                  !linked ? 'border-[#3E667D] bg-[#C8DDF2]/20' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <RadioGroupItem value="new" id="ev-source-new" className="mt-0.5" />
+                <span>
+                  <span className="block font-medium text-gray-900">Crear producto nuevo para el boleto</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    Se da de alta un producto de tipo Evento con la clave y el precio que captures aquí;
+                    los boletos se asignan por sucursal.
+                  </span>
+                </span>
+              </label>
+              <label
+                htmlFor="ev-source-linked"
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                  linked ? 'border-[#3E667D] bg-[#C8DDF2]/20' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <RadioGroupItem value="linked" id="ev-source-linked" className="mt-0.5" />
+                <span>
+                  <span className="block font-medium text-gray-900">Usar un producto existente del catálogo</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    El boleto se cobra con ese producto: conserva su clave, sus precios por tipo y sus
+                    existencias por sucursal.
+                  </span>
+                </span>
+              </label>
+            </RadioGroup>
+          ) : (
+            linked && (
+              <p className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <LinkIcon className="h-4 w-4 text-[#3E667D]" />
+                Producto vinculado:{' '}
+                <span className="font-mono font-semibold text-[#3E667D]">{linkedCode}</span>
+                <span>{form.productLabel.slice(linkedCode.length + 3)}</span>
+              </p>
+            )
+          )}
+
+          {linked && mode === 'create' && (
+            <div className="grid gap-2">
+              <Label htmlFor="ev-product">Producto del catálogo *</Label>
+              <ProductPicker
+                id="ev-product"
+                productId={form.productId}
+                productLabel={form.productLabel}
+                exclude={(p) => p.productType === 'event'}
+                onChange={({ productId, productLabel, product }) =>
+                  set({ productId, productLabel, productPriceLabel: productPriceLabel(product) })
+                }
+                placeholder="Buscar por clave o nombre (p. ej. F9019-3)…"
+              />
+            </div>
+          )}
+
+          {linked && form.productId && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+              <p>
+                <span className="text-gray-500">Clave:</span>{' '}
+                <span className="font-mono font-semibold">{linkedCode || '—'}</span>
+                <span className="mx-2 text-gray-300">·</span>
+                <span className="text-gray-500">Precio público de referencia:</span>{' '}
+                <span className="font-semibold">{form.productPriceLabel || '—'}</span>
+                <span className="text-gray-500"> (se edita en Productos)</span>
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Se vende en las sucursales que tengan existencia del producto; muévela con traspasos
+                de inventario. Nombre en el POS y claves SAT son los del producto.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── Datos del evento ── */}
       <Card>
         <CardHeader>
           <CardTitle>Datos del evento</CardTitle>
           <CardDescription>
-            La clave es la que se teclea en el POS para cobrar el boleto (como cualquier producto).
+            {linked
+              ? 'Nombre, ponente y descripción que ven el equipo y el asistente.'
+              : 'La clave es la que se teclea en el POS para cobrar el boleto (como cualquier producto).'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="ev-code">Clave *</Label>
-            <Input
-              id="ev-code"
-              value={form.code}
-              onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
-              placeholder="FOCADE26"
-              className="font-mono uppercase"
-              maxLength={30}
-              disabled={mode === 'edit'}
-              readOnly={mode === 'edit'}
-            />
-            <p className="text-xs text-gray-400">
-              {mode === 'edit'
-                ? 'La clave no se cambia una vez creado el evento.'
-                : '3 a 30 caracteres: letras, números, guion y guion bajo.'}
-            </p>
-          </div>
+          {!linked && (
+            <div className="grid gap-2">
+              <Label htmlFor="ev-code">Clave *</Label>
+              <Input
+                id="ev-code"
+                value={form.code}
+                onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                placeholder="FOCADE26"
+                className="font-mono uppercase"
+                maxLength={30}
+                disabled={mode === 'edit'}
+                readOnly={mode === 'edit'}
+              />
+              <p className="text-xs text-gray-400">
+                {mode === 'edit'
+                  ? 'La clave no se cambia una vez creado el evento.'
+                  : '3 a 30 caracteres: letras, números, guion y guion bajo.'}
+              </p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="ev-name">Nombre del evento *</Label>
             <Input
@@ -133,17 +259,19 @@ export function EventForm({
               maxLength={200}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="ev-product-name">Nombre del producto en el POS (opcional)</Label>
-            <Input
-              id="ev-product-name"
-              value={form.productName}
-              onChange={(e) => set({ productName: e.target.value })}
-              placeholder="Vacío = el nombre del evento"
-              maxLength={255}
-            />
-            <p className="text-xs text-gray-400">Así aparece en el ticket de venta y en la factura.</p>
-          </div>
+          {!linked && (
+            <div className="grid gap-2">
+              <Label htmlFor="ev-product-name">Nombre del producto en el POS (opcional)</Label>
+              <Input
+                id="ev-product-name"
+                value={form.productName}
+                onChange={(e) => set({ productName: e.target.value })}
+                placeholder="Vacío = el nombre del evento"
+                maxLength={255}
+              />
+              <p className="text-xs text-gray-400">Así aparece en el ticket de venta y en la factura.</p>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="ev-speaker">Ponente</Label>
             <Input
@@ -282,7 +410,7 @@ export function EventForm({
               showAllOption={false}
               placeholder="Selecciona el país"
             />
-            {mode === 'edit' && (
+            {mode === 'edit' && !linked && (
               <p className="text-xs text-gray-400">
                 Si cambias el país, revisa la asignación de sucursales.
               </p>
@@ -300,19 +428,29 @@ export function EventForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="ev-price">Precio al público (IVA incluido) *</Label>
-            <Input
-              id="ev-price"
-              type="number"
-              min={0}
-              step="0.01"
-              inputMode="decimal"
-              value={form.ticketPrice}
-              onChange={(e) => set({ ticketPrice: e.target.value })}
-              placeholder="850.00"
-            />
-          </div>
+          {linked ? (
+            <div className="grid gap-2">
+              <Label>Precio al público</Label>
+              <p className="flex h-9 items-center text-sm font-semibold text-gray-900">
+                {form.productPriceLabel || '—'}
+              </p>
+              <p className="text-xs text-gray-400">Es el del producto vinculado; se edita en Productos.</p>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="ev-price">Precio al público (IVA incluido) *</Label>
+              <Input
+                id="ev-price"
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                value={form.ticketPrice}
+                onChange={(e) => set({ ticketPrice: e.target.value })}
+                placeholder="850.00"
+              />
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="ev-per-unit">Boletos por unidad *</Label>
             <Input
@@ -337,34 +475,42 @@ export function EventForm({
               onChange={(e) => set({ capacity: e.target.value })}
               placeholder="Sin tope"
             />
-            <p className="text-xs text-gray-400">Tope total de unidades que se pueden asignar a sucursales.</p>
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="ev-included">Producto incluido (opcional)</Label>
-            <IncludedProductPicker
-              id="ev-included"
-              productId={form.includedProductId}
-              productLabel={form.includedProductLabel}
-              onChange={({ productId, productLabel }) =>
-                set({ includedProductId: productId, includedProductLabel: productLabel })
-              }
-            />
             <p className="text-xs text-gray-400">
-              Informativo: se imprime en el boleto como “Incluye”. No descuenta inventario.
+              {linked
+                ? 'Tope total de boletos del evento (informativo).'
+                : 'Tope total de unidades que se pueden asignar a sucursales.'}
             </p>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="ev-included-qty">Cantidad incluida</Label>
-            <Input
-              id="ev-included-qty"
-              type="number"
-              min={0.01}
-              step="0.01"
-              value={form.includedQuantity}
-              onChange={(e) => set({ includedQuantity: e.target.value })}
-              disabled={!form.includedProductId}
-            />
-          </div>
+          {!linked && (
+            <>
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="ev-included">Producto incluido (opcional)</Label>
+                <ProductPicker
+                  id="ev-included"
+                  productId={form.includedProductId}
+                  productLabel={form.includedProductLabel}
+                  onChange={({ productId, productLabel }) =>
+                    set({ includedProductId: productId, includedProductLabel: productLabel })
+                  }
+                />
+                <p className="text-xs text-gray-400">
+                  Informativo: se imprime en el boleto como “Incluye”. No descuenta inventario.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ev-included-qty">Cantidad incluida</Label>
+                <Input
+                  id="ev-included-qty"
+                  type="number"
+                  min={0.01}
+                  step="0.01"
+                  value={form.includedQuantity}
+                  onChange={(e) => set({ includedQuantity: e.target.value })}
+                  disabled={!form.includedProductId}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -372,7 +518,11 @@ export function EventForm({
       <Card>
         <CardHeader>
           <CardTitle>Fiscal</CardTitle>
-          <CardDescription>Cómo se factura el boleto (CFDI).</CardDescription>
+          <CardDescription>
+            {linked
+              ? 'Impuesto del boleto: el API le asigna la regla al producto vinculado. Las claves SAT son las del producto.'
+              : 'Cómo se factura el boleto (CFDI).'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="grid gap-2">
@@ -385,27 +535,31 @@ export function EventForm({
               showAllOption={false}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="ev-sat-prod">Clave SAT producto/servicio</Label>
-            <Input
-              id="ev-sat-prod"
-              value={form.satProductCode}
-              onChange={(e) => set({ satProductCode: e.target.value.replace(/\D/g, '').slice(0, 8) })}
-              placeholder="01010101"
-              className="font-mono"
-              inputMode="numeric"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="ev-sat-unit">Clave SAT de unidad</Label>
-            <Input
-              id="ev-sat-unit"
-              value={form.satUnitCode}
-              onChange={(e) => set({ satUnitCode: e.target.value.toUpperCase().slice(0, 3) })}
-              placeholder="E48"
-              className="font-mono uppercase"
-            />
-          </div>
+          {!linked && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="ev-sat-prod">Clave SAT producto/servicio</Label>
+                <Input
+                  id="ev-sat-prod"
+                  value={form.satProductCode}
+                  onChange={(e) => set({ satProductCode: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                  placeholder="01010101"
+                  className="font-mono"
+                  inputMode="numeric"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ev-sat-unit">Clave SAT de unidad</Label>
+                <Input
+                  id="ev-sat-unit"
+                  value={form.satUnitCode}
+                  onChange={(e) => set({ satUnitCode: e.target.value.toUpperCase().slice(0, 3) })}
+                  placeholder="E48"
+                  className="font-mono uppercase"
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -457,7 +611,8 @@ export function EventForm({
         <CardHeader>
           <CardTitle>Ventana de venta</CardTitle>
           <CardDescription>
-            Opcional. Fuera de estas fechas el POS no vende el boleto aunque el evento esté activo.
+            Opcional, informativo por ahora: las fechas se muestran al equipo; el POS vende mientras
+            el evento esté Activo.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
