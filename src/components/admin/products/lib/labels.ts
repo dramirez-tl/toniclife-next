@@ -81,6 +81,8 @@ export const PRODUCT_TYPE_LABEL: Record<string, string> = {
   promotional: 'Promocional',
   virtual: 'Virtual',
   service: 'Servicio',
+  // Boleto de evento (mig 154): lo crea el módulo Eventos, no el alta de producto.
+  event: 'Evento (boleto)',
 };
 
 export const productTypeLabel = (type: string | null | undefined): string =>

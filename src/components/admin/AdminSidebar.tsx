@@ -29,6 +29,7 @@ import {
   ReceiptPercentIcon,
   AcademicCapIcon,
   WrenchScrewdriverIcon,
+  TicketIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -202,6 +203,9 @@ const navigation: NavItem[] = [
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },
+  // Eventos con venta de boletos (mig 154): alta, asignación por sucursal,
+  // boletos emitidos y entrada con QR.
+  { name: 'Eventos', href: '/admin/eventos', icon: TicketIcon, permissions: ['events', 'events:read'] },
   { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['config'] },
   { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['config'] },
   { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:create', 'pos:*', 'sales.pos', 'sales.pos.read', 'sales.pos.create'] },

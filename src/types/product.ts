@@ -13,6 +13,8 @@ export enum ProductType {
   PROMOTIONAL = 'promotional',
   VIRTUAL = 'virtual',
   SERVICE = 'service',
+  // Boleto de evento (mig 154): se crea desde Eventos; no se ofrece en el alta de producto.
+  EVENT = 'event',
 }
 
 // Modo de costeo del kit (NO es el rango). 'fixed' = kit pre-armado con precio
