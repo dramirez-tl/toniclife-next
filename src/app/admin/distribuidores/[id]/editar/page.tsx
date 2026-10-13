@@ -112,34 +112,68 @@ export default function EditarDistribuidorPage() {
     dispatch(clearError());
     setSaving(true);
 
-    // Build clean payload — only send non-empty values
+    // Solo se mandan los campos que CAMBIARON. Antes se reenviaba todo y un
+    // dato viejo inválido (p. ej. una CURP mal capturada en el sistema
+    // anterior) hacía fallar la validación del API aunque solo se quisiera
+    // cambiar el correo.
     const payload: UpdateCustomerDto = {};
-    if (formData.firstName) payload.firstName = formData.firstName.trim();
-    if (formData.lastName) payload.lastName = formData.lastName.trim();
-    payload.lastNameMother = formData.lastNameMother?.trim() || undefined;
+    const orig = {
+      firstName: customer?.firstName ?? '',
+      lastName: customer?.lastName ?? '',
+      lastNameMother: customer?.lastNameMother ?? '',
+      phone: customer?.phone ?? '',
+      birthDate: customer?.birthDate ? customer.birthDate.split('T')[0] : '',
+      rfc: (customer?.rfc ?? '').toUpperCase(),
+      curp: (customer?.curp ?? '').toUpperCase(),
+      status: customer?.status ?? 'active',
+      customerType: customer?.customerType ?? 'distributor',
+    };
+    const firstName = formData.firstName?.trim() ?? '';
+    if (firstName && firstName !== orig.firstName) payload.firstName = firstName;
+    const lastName = formData.lastName?.trim() ?? '';
+    if (lastName && lastName !== orig.lastName) payload.lastName = lastName;
+    const lastNameMother = formData.lastNameMother?.trim() ?? '';
+    if (lastNameMother !== orig.lastNameMother) {
+      payload.lastNameMother = lastNameMother || undefined;
+    }
     const email = formData.email?.trim() ?? '';
     if (email) {
-      payload.email = email;
+      if (email.toLowerCase() !== (customer?.email ?? '').toLowerCase()) {
+        payload.email = email;
+      }
     } else if (isSuperAdmin && customer?.email) {
       // Vaciar el campo = QUITAR el correo (email: null); la cuenta queda
       // pendiente de registrar uno al entrar.
       payload.email = null;
     }
-    payload.phone = formData.phone?.trim() || undefined;
-    payload.birthDate = formData.birthDate || undefined;
-    payload.rfc = formData.rfc?.trim().toUpperCase() || undefined;
-    payload.curp = formData.curp?.trim().toUpperCase() || undefined;
-    if (formData.status) payload.status = formData.status;
+    const phone = formData.phone?.trim() ?? '';
+    if (phone !== orig.phone) payload.phone = phone || undefined;
+    const birthDate = formData.birthDate ?? '';
+    if (birthDate !== orig.birthDate) payload.birthDate = birthDate || undefined;
+    // RFC/CURP: '' = borrar el dato (el API lo acepta y lo deja en NULL).
+    const rfc = formData.rfc?.trim().toUpperCase() ?? '';
+    if (rfc !== orig.rfc) payload.rfc = rfc;
+    const curp = formData.curp?.trim().toUpperCase() ?? '';
+    if (curp !== orig.curp) payload.curp = curp;
+    if (formData.status && formData.status !== orig.status) {
+      payload.status = formData.status;
+    }
 
     // Tipo de cliente. Si cambia a preferente/cliente, asignamos su tipo de
     // precio correspondiente. Para distribuidor no tocamos price_type_id (lo
     // define el kit/enrollment).
-    if (formData.customerType) {
+    if (formData.customerType && formData.customerType !== orig.customerType) {
       payload.customerType = formData.customerType;
       if (formData.customerType !== 'distributor') {
         const ptId = findPriceTypeIdForCustomerType(priceTypes, formData.customerType);
         if (ptId) payload.priceTypeId = ptId;
       }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast.info('No hay cambios que guardar');
+      setSaving(false);
+      return;
     }
 
     try {
