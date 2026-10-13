@@ -13,6 +13,7 @@ import {
   selectCustomersError,
   clearError,
 } from '@/store/slices/customersSlice';
+import { selectUserRoles } from '@/store/slices/authSlice';
 import type { UpdateCustomerDto } from '@/types/customer';
 import { useActivePriceTypes } from '@/hooks/useConfig';
 import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
@@ -52,6 +53,9 @@ export default function EditarDistribuidorPage() {
   const customer = useAppSelector(selectSelectedCustomer);
   const isLoading = useAppSelector(selectCustomersLoading);
   const error = useAppSelector(selectCustomersError);
+  // Solo el superadministrador puede dejar el correo vacío (el API lo
+  // exige): el distribuidor registra uno al entrar al portal.
+  const isSuperAdmin = useAppSelector(selectUserRoles).includes('super_admin');
   const { data: priceTypes } = useActivePriceTypes();
 
   const [loadingCustomer, setLoadingCustomer] = useState(true);
@@ -113,7 +117,14 @@ export default function EditarDistribuidorPage() {
     if (formData.firstName) payload.firstName = formData.firstName.trim();
     if (formData.lastName) payload.lastName = formData.lastName.trim();
     payload.lastNameMother = formData.lastNameMother?.trim() || undefined;
-    if (formData.email) payload.email = formData.email.trim();
+    const email = formData.email?.trim() ?? '';
+    if (email) {
+      payload.email = email;
+    } else if (isSuperAdmin && customer?.email) {
+      // Vaciar el campo = QUITAR el correo (email: null); la cuenta queda
+      // pendiente de registrar uno al entrar.
+      payload.email = null;
+    }
     payload.phone = formData.phone?.trim() || undefined;
     payload.birthDate = formData.birthDate || undefined;
     payload.rfc = formData.rfc?.trim().toUpperCase() || undefined;
@@ -287,7 +298,8 @@ export default function EditarDistribuidorPage() {
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Correo Electrónico <span className="text-red-500">*</span>
+                  Correo Electrónico{' '}
+                  {!isSuperAdmin && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <EnvelopeIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -296,11 +308,17 @@ export default function EditarDistribuidorPage() {
                     name="email"
                     value={formData.email ?? ''}
                     onChange={handleChange}
-                    required
+                    required={!isSuperAdmin}
                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="correo@ejemplo.com"
                   />
                 </div>
+                {isSuperAdmin && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Déjalo vacío para quitarle el correo: el distribuidor
+                    tendrá que registrar uno al entrar al portal con su número.
+                  </p>
+                )}
               </div>
 
               {/* Teléfono */}

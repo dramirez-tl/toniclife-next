@@ -150,7 +150,9 @@ export interface UpdateCustomerDto {
   firstName?: string;
   lastName?: string;
   lastNameMother?: string;
-  email?: string;
+  /** null = quitar el correo (solo super_admin): el distribuidor registra
+   *  uno al entrar al portal. */
+  email?: string | null;
   phone?: string;
   birthDate?: string;
   rfc?: string;
