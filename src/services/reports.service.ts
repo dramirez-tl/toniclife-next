@@ -2,7 +2,9 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.7 Módulo Reportes
 
 import api from '@/lib/api';
+import { saveBlob } from '@/lib/download';
 import type {
+  DateRangeQuery,
   SalesReportQuery,
   SalesReportResponse,
   SalesByProductResponse,
@@ -74,6 +76,36 @@ class ReportsService {
       `/reports/sales/by-branch?${params.toString()}`
     );
     return response.data;
+  }
+
+  /**
+   * Descarga el Excel "REPORTE DE VENTAS POR SUCURSAL" con la estructura del
+   * sistema anterior (una fila por sucursal: SUCURSAL | TOTAL NETO | IVA |
+   * TOTAL MX | TOTAL DLL | PERIÓDO) para un día o rango de días locales de
+   * cada sucursal. El API arma el archivo; aquí solo se dispara el save-as.
+   * Backend: GET /reports/sales/by-branch/legacy-xlsx
+   */
+  async downloadSalesByBranchLegacyXlsx(query: DateRangeQuery): Promise<void> {
+    const response = await api.get('/reports/sales/by-branch/legacy-xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+      },
+      responseType: 'blob',
+    });
+    // Mismo nombre que generaba el legacy (marca de tiempo de la descarga);
+    // Content-Disposition no se expone por CORS, así que se arma aquí.
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const stamp =
+      `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}` +
+      `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+    saveBlob(
+      response.data as BlobPart,
+      `REPORTE_VENTAS_POR_SUCURSAL_${stamp}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
   }
 
   // ================================

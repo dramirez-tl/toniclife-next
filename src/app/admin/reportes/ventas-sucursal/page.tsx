@@ -3,7 +3,9 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
+import { reportsService } from '@/services/reports.service';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import type { MlmPeriod } from '@/types/mlm-periods';
 import {
@@ -44,6 +46,20 @@ function toDateOnly(dateStr: string): string {
   return dateStr.slice(0, 10);
 }
 
+/** YYYY-MM-DD de hace `n` días en la hora local del navegador (inputs de fecha). */
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Periodo de negocio (26→25) o día/rango de fechas, como el reporte diario del sistema anterior. */
+type FilterMode = 'period' | 'dates';
+
+/** Mismo tope que el API para el Excel por rango. */
+const MAX_RANGE_DAYS = 366;
+
 function getCurrencyTotal(branch: Record<string, unknown>, key: CurrencyCode): number {
   const map: Record<CurrencyCode, string> = { MXN: 'totalMxn', USD: 'totalUsd', COP: 'totalCop', GTQ: 'totalGtq' };
   return Number(branch[map[key]] ?? 0);
@@ -59,6 +75,13 @@ export default function VentasSucursalPage() {
   // Applied state (what triggers the query)
   const [appliedStart, setAppliedStart] = useState('');
   const [appliedEnd, setAppliedEnd] = useState('');
+
+  // Filtro por día / rango de fechas (día local de cada sucursal). Por
+  // defecto hoy, que es lo que Contabilidad baja cada mañana.
+  const [mode, setMode] = useState<FilterMode>('period');
+  const [dateFrom, setDateFrom] = useState(() => daysAgo(0));
+  const [dateTo, setDateTo] = useState(() => daysAgo(0));
+  const [downloadingXlsx, setDownloadingXlsx] = useState(false);
 
   // Auto-select current period once loaded
   useEffect(() => {
@@ -79,14 +102,59 @@ export default function VentasSucursalPage() {
     endDate: appliedEnd,
   });
 
+  const applyDates = useCallback((from: string, to: string) => {
+    if (!from || !to) {
+      toast.error('Captura las fechas De y Hasta');
+      return;
+    }
+    if (from > to) {
+      toast.error('La fecha "De" no puede ser mayor que "Hasta"');
+      return;
+    }
+    const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+    if (days > MAX_RANGE_DAYS) {
+      toast.error(`El rango no puede exceder ${MAX_RANGE_DAYS} días`);
+      return;
+    }
+    setDateFrom(from);
+    setDateTo(to);
+    setAppliedStart(from);
+    setAppliedEnd(to);
+  }, []);
+
   const handleApply = useCallback(() => {
+    if (mode === 'dates') {
+      applyDates(dateFrom, dateTo);
+      return;
+    }
     if (!selectedPeriod) {
       toast.error('Selecciona un periodo');
       return;
     }
     setAppliedStart(toDateOnly(selectedPeriod.startDate));
     setAppliedEnd(toDateOnly(selectedPeriod.endDate));
-  }, [selectedPeriod]);
+  }, [mode, dateFrom, dateTo, applyDates, selectedPeriod]);
+
+  // Excel con la estructura del sistema anterior (lo arma el API con el
+  // mismo rango aplicado: un día o varios, día local de cada sucursal).
+  const handleDownloadLegacyXlsx = async () => {
+    if (!appliedStart || !appliedEnd) {
+      toast.error('Aplica un periodo o un rango de fechas');
+      return;
+    }
+    setDownloadingXlsx(true);
+    try {
+      await reportsService.downloadSalesByBranchLegacyXlsx({
+        startDate: appliedStart,
+        endDate: appliedEnd,
+      });
+      toast.success('Excel generado');
+    } catch {
+      toast.error('No se pudo generar el Excel');
+    } finally {
+      setDownloadingXlsx(false);
+    }
+  };
 
   const totals = useMemo(() => {
     if (!data?.branches) return { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0 };
@@ -145,7 +213,9 @@ export default function VentasSucursalPage() {
   const appliedPeriod = periods?.find((p) => p.startDate === appliedStart && p.endDate === appliedEnd);
   const periodLabel = appliedPeriod
     ? `${appliedPeriod.name} (${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)})`
-    : `${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)}`;
+    : appliedStart === appliedEnd
+      ? formatDateDisplay(appliedStart)
+      : `${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)}`;
 
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
@@ -160,16 +230,33 @@ export default function VentasSucursalPage() {
               Reporte de ventas agrupado por sucursal con desglose por moneda
             </p>
           </div>
-          <button
-            onClick={handleExportCSV}
-            disabled={!hasData}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            Exportar CSV
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleDownloadLegacyXlsx}
+              disabled={!appliedStart || !appliedEnd || isFetching || downloadingXlsx}
+              title="Una fila por sucursal: SUCURSAL | TOTAL NETO | IVA | TOTAL MX | TOTAL DLL | PERIÓDO (estructura del sistema anterior)"
+              className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {downloadingXlsx ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2f5165] border-t-transparent" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+              )}
+              Excel (formato anterior)
+            </button>
+            <button
+              onClick={handleExportCSV}
+              disabled={!hasData}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Exportar CSV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -181,35 +268,104 @@ export default function VentasSucursalPage() {
           </svg>
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filtros de búsqueda</h2>
         </div>
+        <div className="mb-4 inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium" role="tablist" aria-label="Tipo de filtro">
+          {(
+            [
+              { key: 'period', label: 'Periodo de negocio' },
+              { key: 'dates', label: 'Por día / rango de fechas' },
+            ] as { key: FilterMode; label: string }[]
+          ).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              role="tab"
+              aria-selected={mode === opt.key}
+              onClick={() => setMode(opt.key)}
+              className={`rounded-md px-3 py-1.5 transition-colors ${
+                mode === opt.key
+                  ? 'bg-white text-[#3E667D] shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <div className="flex flex-col sm:flex-row gap-4 items-end">
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Periodo</label>
-            <SearchableSelect
-              options={(periods ?? []).map((p) => ({
-                value: p.id,
-                label: `${p.name} (${formatDateDisplay(toDateOnly(p.startDate))} - ${formatDateDisplay(toDateOnly(p.endDate))})${p.isCurrent ? ' — Actual' : ''}`,
-              }))}
-              value={selectedPeriodId}
-              onChange={setSelectedPeriodId}
-              showAllOption={false}
-              placeholder={periodsLoading ? 'Cargando...' : 'Selecciona un periodo'}
-              disabled={periodsLoading}
-            />
-          </div>
-          {selectedPeriod && (
-            <div className="flex items-center gap-3 text-xs text-gray-500 pb-1">
-              <span>Inicio: <strong className="text-gray-700">{formatDateDisplay(toDateOnly(selectedPeriod.startDate))}</strong></span>
-              <span>Fin: <strong className="text-gray-700">{formatDateDisplay(toDateOnly(selectedPeriod.endDate))}</strong></span>
-              {selectedPeriod.isCurrent && (
-                <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
-                  Periodo actual
-                </span>
+          {mode === 'period' ? (
+            <>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Periodo</label>
+                <SearchableSelect
+                  options={(periods ?? []).map((p) => ({
+                    value: p.id,
+                    label: `${p.name} (${formatDateDisplay(toDateOnly(p.startDate))} - ${formatDateDisplay(toDateOnly(p.endDate))})${p.isCurrent ? ' — Actual' : ''}`,
+                  }))}
+                  value={selectedPeriodId}
+                  onChange={setSelectedPeriodId}
+                  showAllOption={false}
+                  placeholder={periodsLoading ? 'Cargando...' : 'Selecciona un periodo'}
+                  disabled={periodsLoading}
+                />
+              </div>
+              {selectedPeriod && (
+                <div className="flex items-center gap-3 text-xs text-gray-500 pb-1">
+                  <span>Inicio: <strong className="text-gray-700">{formatDateDisplay(toDateOnly(selectedPeriod.startDate))}</strong></span>
+                  <span>Fin: <strong className="text-gray-700">{formatDateDisplay(toDateOnly(selectedPeriod.endDate))}</strong></span>
+                  {selectedPeriod.isCurrent && (
+                    <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                      Periodo actual
+                    </span>
+                  )}
+                </div>
               )}
-            </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="ventas-sucursal-de" className="block text-xs font-medium text-gray-500 mb-1.5">De</label>
+                <Input
+                  id="ventas-sucursal-de"
+                  type="date"
+                  value={dateFrom}
+                  max={dateTo || undefined}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-auto"
+                />
+              </div>
+              <div>
+                <label htmlFor="ventas-sucursal-hasta" className="block text-xs font-medium text-gray-500 mb-1.5">Hasta</label>
+                <Input
+                  id="ventas-sucursal-hasta"
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-auto"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 pb-1">
+                <button
+                  type="button"
+                  onClick={() => applyDates(daysAgo(0), daysAgo(0))}
+                  className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyDates(daysAgo(1), daysAgo(1))}
+                  className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Ayer
+                </button>
+                <span className="text-xs text-gray-400">Día local de cada sucursal</span>
+              </div>
+            </>
           )}
           <button
             onClick={handleApply}
-            disabled={isFetching || !selectedPeriodId}
+            disabled={isFetching || (mode === 'period' ? !selectedPeriodId : !dateFrom || !dateTo)}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2f5165] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
           >
             {isFetching ? (
@@ -248,7 +404,7 @@ export default function VentasSucursalPage() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">🌎</span>
               <p className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Total del periodo (MXN)
+                Total consolidado (MXN)
               </p>
             </div>
             <p
