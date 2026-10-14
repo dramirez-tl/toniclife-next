@@ -94,6 +94,8 @@ export interface CreateUserDto {
   countryId?: string | null;
   branchId?: string;
   isActive?: boolean;
+  /** Expediente de RRHH existente al que se liga la cuenta (no se crea otro). */
+  employeeId?: string;
 }
 
 export interface UpdateUserDto {

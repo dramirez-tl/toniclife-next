@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useMemo, useEffect } from 'react';
+import { Suspense, useCallback, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,7 +49,7 @@ import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles, selectUserPermissions } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
-import { useDepartments } from '@/hooks/useHR';
+import { useDepartments, useEmployee } from '@/hooks/useHR';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { PhoneInput } from '@/components/ui/PhoneInput';
@@ -124,6 +124,40 @@ function UsuariosContent() {
   const [passwordTarget, setPasswordTarget] = useState<PasswordTarget | null>(null);
   const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
   const [isLoadingPassword, setIsLoadingPassword] = useState(false);
+
+  // Alta desde el expediente de RRHH (/admin/rrhh/empleados/[id] → "Dar acceso
+  // al admin"): ?employeeId=… abre el alta prellenada y LIGADA al expediente
+  // (el API liga employees.user_id en vez de crear otro empleado).
+  const linkEmployeeId = get('employeeId') || '';
+  const { data: linkEmployee } = useEmployee(linkEmployeeId);
+  const [prefilledEmployeeId, setPrefilledEmployeeId] = useState('');
+  useEffect(() => {
+    if (!linkEmployeeId || !linkEmployee || linkEmployee.id !== linkEmployeeId) return;
+    if (prefilledEmployeeId === linkEmployee.id) return;
+    setPrefilledEmployeeId(linkEmployee.id);
+    if (linkEmployee.userId) {
+      toast.info('Ese expediente ya tiene una cuenta de acceso.');
+      setParams({ employeeId: null });
+      return;
+    }
+    setEditingUser(null);
+    setFormData({
+      email: linkEmployee.email ?? '',
+      firstName: linkEmployee.firstName ?? '',
+      lastName: linkEmployee.lastName ?? '',
+      secondLastName: linkEmployee.secondLastName ?? '',
+      phone: linkEmployee.phone ?? '',
+      roleId: '',
+      userType: 'colaborador',
+      departmentId: linkEmployee.departmentId ?? '',
+      countryId: '',
+      isActive: true,
+      employeeId: linkEmployee.id,
+      employeeLabel: `${linkEmployee.employeeNumber} · ${linkEmployee.fullName ?? ''}`.trim(),
+      branchId: linkEmployee.branchId ?? '',
+    });
+    setIsModalOpen(true);
+  }, [linkEmployee, linkEmployeeId, prefilledEmployeeId, setParams]);
 
   // Build query params
   const queryParams: UserQueryParams = useMemo(() => {
@@ -301,19 +335,6 @@ function UsuariosContent() {
     }
   }, [backendTotalPages, currentPage, setParams]);
 
-  // Cerrar cualquier modal abierto con Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (passwordTarget) setPasswordTarget(null);
-      else if (deleteTarget) setDeleteTarget(null);
-      else if (resetEmailTarget) setResetEmailTarget(null);
-      else if (isModalOpen) closeModal();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [passwordTarget, deleteTarget, resetEmailTarget, isModalOpen]);
-
   // Modal handlers
   const openCreateModal = () => {
     setEditingUser(null);
@@ -349,11 +370,28 @@ function UsuariosContent() {
     setIsModalOpen(true);
   };
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingUser(null);
     setFormData({});
-  };
+    // Alta desde un expediente: al cerrar se limpia el parámetro para que no
+    // vuelva a abrirse al recargar.
+    if (get('employeeId')) setParams({ employeeId: null });
+  }, [get, setParams]);
+
+  // Cerrar cualquier modal abierto con Escape (va después de closeModal: es
+  // una dependencia del efecto).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (passwordTarget) setPasswordTarget(null);
+      else if (deleteTarget) setDeleteTarget(null);
+      else if (resetEmailTarget) setResetEmailTarget(null);
+      else if (isModalOpen) closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [passwordTarget, deleteTarget, resetEmailTarget, isModalOpen, closeModal]);
 
   const handleSubmit = async () => {
     // Validación client-side de campos obligatorios
@@ -410,6 +448,10 @@ function UsuariosContent() {
           departmentId: formData.departmentId || null,
           countryId: formData.countryId || null,
           isActive: formData.isActive,
+          // Desde el expediente de RRHH: liga employees.user_id y asigna su
+          // sucursal como inicial (no se crea otro empleado).
+          employeeId: formData.employeeId || undefined,
+          branchId: formData.branchId || undefined,
         };
         await createUser.mutateAsync(dto);
         toast.success(`Usuario creado. Invitación enviada a ${formData.email}`);
@@ -1499,6 +1541,14 @@ function UserFormModal({
             <XMarkIcon className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
+        {!editingUser && formData.employeeId && (
+          <div className="mx-6 mt-4 rounded-lg border border-[#a7c1e2] bg-[#C8DDF2]/20 px-3 py-2 text-sm text-[#2f5165]">
+            La cuenta se ligará al expediente de RRHH{' '}
+            <span className="font-semibold">{formData.employeeLabel}</span>: no se
+            creará otro empleado. Elige el rol (p. ej. Almacén) y, si aplica, el
+            departamento; la invitación llega al correo que captures.
+          </div>
+        )}
 
         {/* Form */}
         <div className="p-6 space-y-4">

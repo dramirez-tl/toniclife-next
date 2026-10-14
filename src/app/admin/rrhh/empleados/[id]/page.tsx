@@ -19,6 +19,7 @@ import {
   PencilSquareIcon,
   PrinterIcon,
   TrashIcon,
+  UserPlusIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -205,6 +206,17 @@ export default function EmployeeDetailPage({
                 >
                   <PencilSquareIcon className="mr-2 h-4 w-4" />
                   Editar
+                </Button>
+              )}
+              {/* Alta "solo control" sin cuenta: crear su acceso al admin desde
+                  Usuarios, ya prellenado y LIGADO a este expediente (no se
+                  duplica el empleado). */}
+              {canManage && !employee.userId && (
+                <Button asChild variant="secondary" size="sm" className="h-11 sm:h-9">
+                  <Link href={`/admin/usuarios?employeeId=${employee.id}`}>
+                    <UserPlusIcon className="mr-2 h-4 w-4" />
+                    Dar acceso al admin
+                  </Link>
                 </Button>
               )}
             </div>
