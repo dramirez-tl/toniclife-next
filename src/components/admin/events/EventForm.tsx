@@ -225,8 +225,9 @@ export function EventForm({
                 <span className="text-gray-500"> (se edita en Productos)</span>
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                Se vende en las sucursales que tengan existencia del producto; muévela con traspasos
-                de inventario. Nombre en el POS y claves SAT son los del producto.
+                Se vende en las sucursales que tengan existencia del producto: asígnala por sucursal
+                en la pestaña Sucursales (o muévela con traspasos de inventario). Nombre en el POS y
+                claves SAT son los del producto.
               </p>
               {mode === 'edit' && (
                 <p className="mt-2">
