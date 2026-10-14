@@ -24,7 +24,7 @@ import { productsAdminService } from '@/services/products-admin.service';
 import type { ProductImage } from '@/types/product';
 import { cn } from '@/lib/utils';
 import { productAdminErrorCode, productAdminErrorMessage } from './lib/errors';
-import { useReorderProductImages } from './useProductsAdmin';
+import { productsAdminKeys, useReorderProductImages } from './useProductsAdmin';
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_MB = 10;
@@ -139,6 +139,9 @@ export function ProductImagesManager({ productId, productName, readOnly = false,
     await queryClient.invalidateQueries({ queryKey: productKeys.images(productId) });
     queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
     queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    // La ficha admin (miniatura del encabezado) lee la imagen principal del
+    // producto por su propia consulta: refrescarla o se queda con la anterior.
+    queryClient.invalidateQueries({ queryKey: productsAdminKeys.product(productId) });
     if (ok > 0) onWrite?.();
 
     const summary = `${ok} ${ok === 1 ? 'subida' : 'subidas'}, ${fail} ${fail === 1 ? 'rechazada' : 'rechazadas'}`;

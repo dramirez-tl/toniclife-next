@@ -35,6 +35,21 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'ui-avatars.com',
       },
+      // Archivos públicos servidos por el API (S3 vía /api/v1/storage/file/*,
+      // S3_PUBLIC_BASE_URL): fotos de producto nuevas, flyers de eventos.
+      {
+        protocol: 'https',
+        hostname: '*.up.railway.app',
+      },
+      // Por si el bucket o un CDN quedan públicos más adelante.
+      {
+        protocol: 'https',
+        hostname: '*.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.cloudfront.net',
+      },
     ],
   },
 

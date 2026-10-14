@@ -111,6 +111,9 @@ export function useInvalidateProductDerived(id: string) {
     queryClient.invalidateQueries({ queryKey: productsAdminKeys.healthRoot() });
     queryClient.invalidateQueries({ queryKey: productKeys.lists() });
     queryClient.invalidateQueries({ queryKey: productKeys.detail(id) });
+    // La ficha misma (encabezado: imagen principal, badges): las escrituras
+    // que no pasan por patchProduct (imágenes, precios…) la cambian.
+    queryClient.invalidateQueries({ queryKey: productsAdminKeys.product(id) });
     // Kits: "¿Está listo para vender?" depende de precios, receta, modo y bonos.
     queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(id) });
   };
