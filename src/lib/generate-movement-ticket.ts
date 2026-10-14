@@ -36,6 +36,7 @@ const REASON_LABELS: Record<string, string> = {
   expiration: 'Caducidad',
   damage: 'Dano/Merma',
   adjustment: 'Ajuste',
+  other: 'Otros',
 };
 
 // ================================

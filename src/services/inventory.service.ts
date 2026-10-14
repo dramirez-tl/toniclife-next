@@ -565,6 +565,7 @@ class InventoryService {
       expiration: 'Caducidad',
       damage: 'Daño/Merma',
       adjustment: 'Ajuste',
+      other: 'Otros',
     };
     return labels[reason] || reason;
   }

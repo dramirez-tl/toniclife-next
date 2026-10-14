@@ -46,6 +46,9 @@ const EXIT_REASONS = [
   { value: MovementReason.EXPIRATION, label: 'Caducidad' },
   { value: MovementReason.DAMAGE, label: 'Daño/Merma' },
   { value: MovementReason.ADJUSTMENT, label: 'Ajuste' },
+  // Pedido de Almacén (14-oct-2026): salidas de producto de México a USA a
+  // petición de Dirección. Con este motivo las notas son obligatorias.
+  { value: MovementReason.OTHER, label: 'Otros (detallar en notas)' },
 ];
 
 interface ExitItem {
@@ -291,6 +294,9 @@ export default function NuevaSalidaPage() {
     const newErrors: Record<string, string> = {};
     if (!formData.branchId) newErrors.branchId = 'Selecciona la sucursal';
     if (!formData.reason) newErrors.reason = 'Selecciona el motivo de la salida';
+    if (formData.reason === MovementReason.OTHER && !formData.notes.trim()) {
+      newErrors.notes = 'Con el motivo "Otros" escribe de qué se trata la salida (p. ej. envío a USA a petición de Dirección)';
+    }
     if (items.length === 0) newErrors.items = 'Agrega al menos un producto';
 
     for (const item of items) {
@@ -649,15 +655,29 @@ export default function NuevaSalidaPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Notas <span className="text-gray-400 font-normal">(opcional)</span>
+                      Notas{' '}
+                      {formData.reason === MovementReason.OTHER ? (
+                        <span className="text-red-500">*</span>
+                      ) : (
+                        <span className="text-gray-400 font-normal">(opcional)</span>
+                      )}
                     </label>
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
-                      placeholder="Agregar notas o comentarios adicionales..."
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500/30 focus:border-red-500 text-sm resize-none"
+                      placeholder={
+                        formData.reason === MovementReason.OTHER
+                          ? 'Escribe de qué se trata la salida. Ej: envío de producto a USA a petición de Dirección'
+                          : 'Agregar notas o comentarios adicionales...'
+                      }
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-red-500/30 focus:border-red-500 text-sm resize-none ${
+                        errors.notes ? 'border-red-400' : 'border-gray-300'
+                      }`}
                     />
+                    {errors.notes && (
+                      <p className="mt-1 text-xs text-red-500">{errors.notes}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -718,6 +738,12 @@ export default function NuevaSalidaPage() {
                   <ChecklistItem done={!!formData.branchId} label="Sucursal seleccionada" />
                   <ChecklistItem done={items.length > 0} label="Al menos un producto" />
                   <ChecklistItem done={!!formData.reason} label="Motivo de la salida" />
+                  {formData.reason === MovementReason.OTHER && (
+                    <ChecklistItem
+                      done={!!formData.notes.trim()}
+                      label="Notas con el detalle (motivo Otros)"
+                    />
+                  )}
                 </div>
 
                 <div className="mt-6 lg:hidden">

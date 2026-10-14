@@ -45,6 +45,8 @@ export enum MovementReason {
   EXPIRATION = 'expiration',
   DAMAGE = 'damage',
   ADJUSTMENT = 'adjustment',
+  /** Salida que no encaja en las anteriores; el API exige notas con el detalle. */
+  OTHER = 'other',
 }
 
 /**
