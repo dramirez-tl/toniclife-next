@@ -64,11 +64,16 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
     mode: 'onChange',
     defaultValues: values as DefaultValues<T>,
     values,
-    resetOptions: { keepDirtyValues: true },
+    // `keepDirty`: cuando `values` cambia (refetch tras un 409 PRD_STALE, foco
+    // de la ventana, un guardado en otra sección…) react-hook-form conserva los
+    // campos tocados pero, sin esta opción, apaga `isDirty`: la sección se
+    // quedaba con el cambio en pantalla y "Guardar sección" deshabilitado
+    // (caso F9019-3 al pasarlo a Paquete, 13-oct).
+    resetOptions: { keepDirtyValues: true, keepDirty: true },
     disabled: readOnly,
   });
 
-  const { isDirty, dirtyFields, isValid } = useFormState({ control: form.control });
+  const { dirtyFields, isValid } = useFormState({ control: form.control });
   const dirtyKeys = useMemo<DirtyKeys<T>>(() => {
     const out: DirtyKeys<T> = {};
     for (const [key, flag] of Object.entries(dirtyFields)) {
@@ -76,7 +81,9 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
     }
     return out;
   }, [dirtyFields]);
-  const hasChanges = isDirty && Object.keys(dirtyKeys).length > 0;
+  // Hay cambios si hay campos tocados: no se condiciona al `isDirty` global,
+  // que un reset por `values` puede dejar en false con campos tocados vivos.
+  const hasChanges = Object.keys(dirtyKeys).length > 0;
 
   const submit = useCallback(async (): Promise<boolean> => {
     if (readOnly) return false;
