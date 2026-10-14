@@ -13,6 +13,7 @@ import {
   ExclamationTriangleIcon,
   LinkIcon,
   MapPinIcon,
+  PencilSquareIcon,
   TicketIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
@@ -322,6 +323,16 @@ function EventHeader({
                   </span>
                   <span>— {event.productName}</span>
                 </p>
+              )}
+              {event.productId && (
+                <Link
+                  href={`/admin/productos/${event.productId}/editar`}
+                  className="mt-1 flex w-fit items-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline"
+                  title="Abrir la ficha del producto del boleto: precio, imágenes, existencias, fiscal"
+                >
+                  <PencilSquareIcon className="h-4 w-4" />
+                  Editar producto del boleto
+                </Link>
               )}
               {(event.products?.length ?? 0) > 0 && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5" title="Claves que generan boletos">

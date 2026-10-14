@@ -13,6 +13,7 @@
 //    el POS, precio, claves SAT y producto incluido.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { LinkIcon } from '@heroicons/react/24/outline';
@@ -227,6 +228,17 @@ export function EventForm({
                 Se vende en las sucursales que tengan existencia del producto; muévela con traspasos
                 de inventario. Nombre en el POS y claves SAT son los del producto.
               </p>
+              {mode === 'edit' && (
+                <p className="mt-2">
+                  <Link
+                    href={`/admin/productos/${form.productId}/editar`}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    Editar producto (precio, imágenes, existencias, fiscal)
+                  </Link>
+                </p>
+              )}
             </div>
           )}
         </CardContent>
