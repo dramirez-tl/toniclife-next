@@ -36,6 +36,10 @@ export interface User {
   countryName?: string | null;
   countryCode?: string | null;
   currencyCode?: string | null;
+  /** Expediente de RRHH ligado a la cuenta (employees.user_id), si existe. */
+  employeeId?: string | null;
+  /** Foto del expediente de RRHH (URL firmada de 15 min); null si no hay expediente o no tiene foto. */
+  photoUrl?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;

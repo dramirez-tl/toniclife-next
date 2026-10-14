@@ -42,6 +42,7 @@ import {
 import { toast } from 'sonner';
 import { usersService } from '@/services/users.service';
 import { DistribuidoresTab } from '@/components/admin/users/DistribuidoresTab';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { getMlmTypeConfig } from '@/lib/mlmType';
 import { getUserTypeConfig, SELECTABLE_USER_TYPES } from '@/lib/userType';
 import type { Role } from '@/types/role';
@@ -537,9 +538,18 @@ function UsuariosContent() {
       sortValue: (user) => `${user.firstName} ${user.lastName}`,
       render: (user) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
-            <UserIcon className="h-5 w-5 text-primary" />
-          </div>
+          {/* Foto del expediente de RRHH (colaborador ligado); si no hay, el ícono genérico. */}
+          {user.photoUrl ? (
+            <EmployeeAvatar
+              photoUrl={user.photoUrl}
+              name={`${user.firstName} ${user.lastName}`}
+              size={40}
+            />
+          ) : (
+            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+              <UserIcon className="h-5 w-5 text-primary" />
+            </div>
+          )}
           <div>
             <Link
               href={`/admin/usuarios/${user.id}`}

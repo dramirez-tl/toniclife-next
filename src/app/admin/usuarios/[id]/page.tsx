@@ -18,6 +18,7 @@ import {
   ClipboardDocumentIcon,
   PencilIcon,
   ExclamationTriangleIcon,
+  IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,9 @@ import { PermissionGuard } from '@/components/auth';
 import { usersService } from '@/services/users.service';
 import { useActivateUser, useDeactivateUser } from '@/hooks/useUsers';
 import { getMlmTypeConfig } from '@/lib/mlmType';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserPermissions } from '@/store/slices/authSlice';
 import type { User } from '@/types/user';
 
 // ================================
@@ -153,6 +157,11 @@ function UsuarioDetalleContent() {
   const activateUser = useActivateUser();
   const deactivateUser = useDeactivateUser();
 
+  // El enlace al expediente solo si quien mira puede entrar a RRHH (mismo
+  // gate que rrhh/layout.tsx); si no, la liga llevaría a "sin permiso".
+  const viewerPermissions = useAppSelector(selectUserPermissions);
+  const canSeeHr = ['hr:read', 'hr:*', 'hr', '*'].some((p) => viewerPermissions.includes(p));
+
   const toggleActive = async () => {
     if (!user) return;
     try {
@@ -212,9 +221,19 @@ function UsuarioDetalleContent() {
             <Card className="overflow-hidden p-0">
               <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
-                    {getInitials(user)}
-                  </span>
+                  {/* Foto del expediente de RRHH ligado; sin foto, las iniciales. */}
+                  {user.photoUrl ? (
+                    <EmployeeAvatar
+                      photoUrl={user.photoUrl}
+                      name={`${user.firstName} ${user.lastName}`}
+                      initials={getInitials(user)}
+                      size={64}
+                    />
+                  ) : (
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+                      {getInitials(user)}
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <h2 className="truncate text-xl font-bold text-foreground">
                       {user.firstName} {user.lastName}
@@ -341,6 +360,20 @@ function UsuarioDetalleContent() {
                 </div>
                 <div className="divide-y divide-border px-6">
                   <InfoRow icon={ShieldCheckIcon} label="Rol" value={getRoleBadge(user)} />
+                  {user.employeeId && canSeeHr && (
+                    <InfoRow
+                      icon={IdentificationIcon}
+                      label="Expediente de RRHH"
+                      value={
+                        <Link
+                          href={`/admin/rrhh/empleados/${user.employeeId}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          Ver expediente
+                        </Link>
+                      }
+                    />
+                  )}
                   <InfoRow
                     icon={EnvelopeIcon}
                     label="Email verificado el"
