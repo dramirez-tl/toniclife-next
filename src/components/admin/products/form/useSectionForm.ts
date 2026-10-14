@@ -64,26 +64,32 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
     mode: 'onChange',
     defaultValues: values as DefaultValues<T>,
     values,
-    // `keepDirty`: cuando `values` cambia (refetch tras un 409 PRD_STALE, foco
-    // de la ventana, un guardado en otra sección…) react-hook-form conserva los
-    // campos tocados pero, sin esta opción, apaga `isDirty`: la sección se
-    // quedaba con el cambio en pantalla y "Guardar sección" deshabilitado
-    // (caso F9019-3 al pasarlo a Paquete, 13-oct).
-    resetOptions: { keepDirtyValues: true, keepDirty: true },
+    // OJO: `form.reset()` hereda estas opciones; guardar y descartar pasan
+    // `keepDirtyValues: false` explícito para que sí limpien/restauren.
+    resetOptions: { keepDirtyValues: true },
     disabled: readOnly,
   });
 
   const { dirtyFields, isValid } = useFormState({ control: form.control });
+  // react-hook-form MUTA `dirtyFields` en sitio: el objeto conserva la misma
+  // identidad entre renders aunque cambie su contenido, así que un `useMemo`
+  // sobre la referencia se quedaba con la foto del montaje ({}), el botón
+  // "Guardar sección" nunca se habilitaba y el cambio jamás llegaba al API
+  // (caso F9019-3 → Paquete, 13-oct). Se memoriza por el CONTENIDO (la lista
+  // de llaves tocadas), que sí cambia.
+  const dirtyKeyList = Object.keys(dirtyFields)
+    .filter((key) => Boolean((dirtyFields as Record<string, unknown>)[key]))
+    .sort()
+    .join('\u0000');
   const dirtyKeys = useMemo<DirtyKeys<T>>(() => {
     const out: DirtyKeys<T> = {};
-    for (const [key, flag] of Object.entries(dirtyFields)) {
-      if (flag) out[key as keyof T] = true;
-    }
+    if (dirtyKeyList === '') return out;
+    for (const key of dirtyKeyList.split('\u0000')) out[key as keyof T] = true;
     return out;
-  }, [dirtyFields]);
+  }, [dirtyKeyList]);
   // Hay cambios si hay campos tocados: no se condiciona al `isDirty` global,
   // que un reset por `values` puede dejar en false con campos tocados vivos.
-  const hasChanges = Object.keys(dirtyKeys).length > 0;
+  const hasChanges = dirtyKeyList !== '';
 
   const submit = useCallback(async (): Promise<boolean> => {
     if (readOnly) return false;
@@ -100,8 +106,9 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
         setIsSaving(true);
         try {
           await save({ values: current, dirty: dirtyKeys, extra });
-          // Lo guardado pasa a ser la base: la sección queda sin cambios pendientes.
-          form.reset(current);
+          // Lo guardado pasa a ser la base: la sección queda sin cambios pendientes
+          // (sin `keepDirtyValues`, que `reset` hereda de `resetOptions`).
+          form.reset(current, { keepDirtyValues: false });
           toast.success(successMessage ?? `${SECTION_LABEL[id]}: cambios guardados`);
           ok = true;
         } catch (err) {
@@ -118,7 +125,9 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
   }, [beforeSave, dirtyKeys, form, hasChanges, id, readOnly, save, successMessage]);
 
   const discard = useCallback(() => {
-    form.reset(values);
+    // Sin `keepDirtyValues` (heredado de `resetOptions`): con él, "Descartar"
+    // conservaba lo editado y solo apagaba la marca de cambios.
+    form.reset(values, { keepDirtyValues: false });
   }, [form, values]);
 
   const collectCreate = useCallback(async (): Promise<Partial<CreateProductDto> | null> => {
