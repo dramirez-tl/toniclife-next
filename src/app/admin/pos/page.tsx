@@ -51,7 +51,7 @@ import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
 import { getTimezoneShortLabel, formatDateTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
-import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
+import { selectUser, selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 
 const paymentFormOptions = PAYMENT_FORMS.map((f) => ({ value: f.Value, label: `${f.Value} - ${f.Name}` }));
 
@@ -108,6 +108,12 @@ export default function PosPage() {
   const userRoles = useSelector(selectUserRoles);
   const isAdmin = userRoles.some((r) => r === 'super_admin' || r === 'admin' || r === 'call_center');
   const isSuperAdmin = userRoles.includes('super_admin');
+  // Cancelar ventas: permiso pos:manage (Operaciones, CEDEAS y administración),
+  // mismo criterio que el API; antes el botón era solo para super_admin.
+  const userPermissions = useSelector(selectUserPermissions);
+  const canCancelSales =
+    isSuperAdmin ||
+    userPermissions.some((p) => p === 'pos:manage' || p === 'pos:*' || p === '*');
   const userDefaultBranchId = user?.defaultBranchId;
 
   const { cart, clearCart } = usePosCartStore();
@@ -798,8 +804,8 @@ export default function PosPage() {
                             </Button>
                           </>
                         )}
-                        {/* Cancel sale — Super Admin only, for any non-cancelled sale */}
-                        {isSuperAdmin && sale.status !== PosSaleStatus.CANCELLED && (
+                        {/* Cancelar venta: permiso pos:manage, para cualquier venta no cancelada */}
+                        {canCancelSales && sale.status !== PosSaleStatus.CANCELLED && (
                           <Button
                             variant="ghost"
                             size="icon"

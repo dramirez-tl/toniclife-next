@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
+  ArrowDownTrayIcon,
   ArrowLeftIcon,
   CalendarDaysIcon,
   ExclamationTriangleIcon,
@@ -29,6 +30,8 @@ import { EventTicketsTab } from '@/components/admin/events/EventTicketsTab';
 import { EventCheckInTab } from '@/components/admin/events/EventCheckInTab';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useEvent, useUpdateEvent } from '@/hooks/useEvents';
+import { eventsService } from '@/services/events.service';
+import { saveBlob } from '@/lib/download';
 import {
   eventErrorMessage,
   formatAllotment,
@@ -130,6 +133,25 @@ function EventoDetalleContent() {
   const { data: event, isLoading, isError, error } = useEvent(id);
   const updateMutation = useUpdateEvent();
   const [pendingAction, setPendingAction] = useState<StatusAction | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  // Excel del evento (resumen por sucursal, ventas y boletos): lo pidió
+  // Operaciones para el FOCADE (14-oct-2026).
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      const blob = await eventsService.downloadReport(id);
+      saveBlob(
+        blob,
+        `evento-${event?.code ?? id}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+    } catch (e) {
+      toast.error(eventErrorMessage(e, 'No se pudo descargar el reporte.'));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const initialForm = useMemo<EventFormValues | undefined>(
     () => (event ? eventToForm(event) : undefined),
@@ -194,6 +216,18 @@ function EventoDetalleContent() {
       />
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-3 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDownloadReport}
+            disabled={downloading}
+            title="Excel con el resumen por sucursal, las ventas de las claves y los boletos del evento"
+          >
+            <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+            {downloading ? 'Generando…' : 'Descargar reporte (Excel)'}
+          </Button>
+        </div>
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })} className="gap-4">
           <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="datos" className="px-4">Datos</TabsTrigger>

@@ -120,6 +120,12 @@ class EventsService {
     return data;
   }
 
+  /** Excel del evento: resumen por sucursal, ventas de las claves y boletos. */
+  async downloadReport(id: string): Promise<Blob> {
+    const { data } = await api.get<Blob>(`/events/${id}/report.xlsx`, { responseType: 'blob' });
+    return data;
+  }
+
   async getTickets(id: string, query: EventTicketsQuery = {}): Promise<EventTicketsResponseDto> {
     const params: Record<string, string> = {};
     if (query.status) params.status = query.status;
