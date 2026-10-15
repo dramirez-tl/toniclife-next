@@ -11,6 +11,7 @@ import {
   DocumentTextIcon,
   ChartBarIcon,
   BriefcaseIcon,
+  BanknotesIcon,
   Cog6ToothIcon,
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
@@ -73,6 +74,12 @@ const navigation: NavItem[] = [
       // habilitar los que faltan en sucursales nuevas.
       { name: 'Catálogo por sucursal', href: '/admin/inventario/catalogo-sucursal' },
     ],
+  },
+  {
+    name: 'Viáticos',
+    href: '/admin/viaticos',
+    icon: BanknotesIcon,
+    permissions: ['viaticos', 'viaticos:request', 'viaticos:approve', 'viaticos:read'],
   },
   {
     name: 'Activos TI',
