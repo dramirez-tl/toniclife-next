@@ -18,7 +18,7 @@ import { customersService } from '@/services/customers.service';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { promotionsService } from '@/services/promotions.service';
-import type { ManualGrantRequest } from '@/types/promotion';
+import type { ManualGrantRequest, PromotionComponent } from '@/types/promotion';
 import { toast } from 'sonner';
 import { DistributorPeriodActivity } from '@/components/distributor/DistributorPeriodActivity';
 import { DistributorDetailTabs } from './DistributorDetailTabs';
@@ -250,7 +250,10 @@ export default function DetalleDistribuidorPage() {
 
             {/* Promociones (derechos + otorgamiento manual) */}
             {customer.customerType === 'distributor' && (
-              <PromotionGrantsSection customerId={customer.id} />
+              <PromotionGrantsSection
+                customerId={customer.id}
+                countryId={customer.countryId ?? null}
+              />
             )}
 
             {/* Información Fiscal */}
@@ -675,7 +678,74 @@ function KitPositionGrantButton({
   );
 }
 
-function PromotionGrantsSection({ customerId }: { customerId: string }) {
+/**
+ * Renglones que aplican al país del distribuidor (mig 099): los de su país si
+ * la promo tiene lista por país; si no, los globales. Mismo criterio que el
+ * POS al canjear. Sin país conocido: los globales (o todos si no hay).
+ */
+function componentsForCountry(
+  rows: PromotionComponent[],
+  countryId: string | null,
+): PromotionComponent[] {
+  const active = rows.filter((r) => r.isActive !== false);
+  const own = countryId ? active.filter((r) => r.countryId === countryId) : [];
+  if (own.length > 0) return own;
+  const global = active.filter((r) => !r.countryId);
+  return global.length > 0 ? global : countryId ? [] : active;
+}
+
+/** "Incluye: 1× 8555 Nombre · 2× 9750 Nombre" de una promo, bajo su renglón. */
+function PromoContents({
+  promoId,
+  countryId,
+}: {
+  promoId: string;
+  countryId: string | null;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['promo-contents', promoId],
+    queryFn: () => promotionsService.getComponents(promoId),
+    staleTime: 5 * 60 * 1000,
+  });
+  if (isLoading) {
+    return <p className="text-[11px] text-gray-400">Cargando contenido…</p>;
+  }
+  if (isError) {
+    return <p className="text-[11px] text-red-500">No se pudo cargar el contenido.</p>;
+  }
+  const rows = componentsForCountry(data ?? [], countryId);
+  if (rows.length === 0) {
+    return (
+      <p className="text-[11px] italic text-gray-400">
+        Sin contenido cargado en esta promo.
+      </p>
+    );
+  }
+  return (
+    <p className="text-[11px] leading-snug text-gray-600">
+      <span className="font-medium text-gray-700">Incluye: </span>
+      {rows.map((r, i) => {
+        const qty = Number(r.quantity);
+        const qtyText = Number.isInteger(qty) ? String(qty) : qty.toFixed(2);
+        return (
+          <span key={r.id}>
+            {i > 0 ? ' · ' : ''}
+            {qtyText}× <span className="font-mono">{r.componentProductCode ?? ''}</span>{' '}
+            {r.componentProductName ?? r.componentName ?? ''}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+function PromotionGrantsSection({
+  customerId,
+  countryId,
+}: {
+  customerId: string;
+  countryId: string | null;
+}) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -873,25 +943,33 @@ function PromotionGrantsSection({ customerId }: { customerId: string }) {
                   return (
                     <label
                       key={p.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                      className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
                     >
                       <input
                         type="checkbox"
                         checked={selected.has(p.id)}
                         onChange={() => toggle(p.id)}
-                        className="h-4 w-4 rounded"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded"
                       />
-                      <span className="font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5">
-                        {p.code}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
-                        {p.name}
-                      </span>
-                      {!anyCurrent && (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
-                          no vigente
-                        </span>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5">
+                            {p.code}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                            {p.name}
+                          </span>
+                          {!anyCurrent && (
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                              no vigente
+                            </span>
+                          )}
+                        </div>
+                        {/* Qué trae la promo (para saber qué se otorga). */}
+                        <div className="mt-0.5">
+                          <PromoContents promoId={p.id} countryId={countryId} />
+                        </div>
+                      </div>
                     </label>
                   );
                 })
