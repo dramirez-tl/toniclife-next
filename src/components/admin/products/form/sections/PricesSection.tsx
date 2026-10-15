@@ -124,7 +124,9 @@ export function PricesSection() {
   // Promocionales (siempre $0) y boletos de evento (el de invitado se regala,
   // el del titular se cobra) admiten precio 0; el API aplica la misma regla.
   const allowZero =
-    product?.productType === 'promotional' || product?.productType === 'event';
+    product?.productType === 'promotional' ||
+    product?.productType === 'event' ||
+    product?.isEventTicket === true;
   const today = todayInMexico();
 
   // Aunque el API aún no filtre, aquí NUNCA entra una fila inactiva.

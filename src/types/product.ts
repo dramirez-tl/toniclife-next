@@ -89,6 +89,8 @@ export interface Product {
   unitId?: string;
   brand?: string;
   productType: string;
+  /** Clave ligada a un evento como boleto (admite precio $0 = invitado gratis). */
+  isEventTicket?: boolean;
   kitType?: string;
   kitPosition?: string;
   isEnrollmentKit: boolean;
