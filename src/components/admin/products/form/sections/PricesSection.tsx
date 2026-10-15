@@ -121,7 +121,10 @@ export function PricesSection() {
   const [priceToReactivate, setPriceToReactivate] = useState<ProductPrice | null>(null);
 
   const allQuery = useAdminProductPrices(productId, false, showInactive);
-  const allowZero = product?.productType === 'promotional';
+  // Promocionales (siempre $0) y boletos de evento (el de invitado se regala,
+  // el del titular se cobra) admiten precio 0; el API aplica la misma regla.
+  const allowZero =
+    product?.productType === 'promotional' || product?.productType === 'event';
   const today = todayInMexico();
 
   // Aunque el API aún no filtre, aquí NUNCA entra una fila inactiva.

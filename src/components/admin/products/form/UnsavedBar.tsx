@@ -20,7 +20,10 @@ export function UnsavedBar({ dirtySections, isSavingAll, onSaveAll, onDiscardAll
   if (dirtySections.length === 0) return null;
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-amber-300 bg-amber-50 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+      // En escritorio arranca donde termina el menú lateral (el layout del
+      // admin publica su ancho en --admin-sidebar-w: 16rem abierto, 0 oculto);
+      // antes la barra iba de borde a borde y el menú (z-40) tapaba el texto.
+      className="fixed bottom-0 left-0 right-0 z-30 border-t border-amber-300 bg-amber-50 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] transition-[left] duration-300 lg:left-[var(--admin-sidebar-w,16rem)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       role="region"
       aria-label="Cambios sin guardar"

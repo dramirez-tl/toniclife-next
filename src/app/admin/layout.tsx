@@ -26,6 +26,18 @@ export default function AdminLayout({
     localStorage.removeItem('admin-theme');
   }, []);
 
+  // Ancho real del menú lateral para elementos fijos al viewport (p. ej. la
+  // barra "Tienes cambios sin guardar" del producto): 16rem abierto, 0 oculto.
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--admin-sidebar-w',
+      collapsed ? '0px' : '16rem',
+    );
+    return () => {
+      document.documentElement.style.removeProperty('--admin-sidebar-w');
+    };
+  }, [collapsed]);
+
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
       const next = !prev;
