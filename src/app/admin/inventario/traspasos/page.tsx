@@ -3,7 +3,7 @@
 import { Suspense, useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser, selectUserPermissions } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +59,13 @@ export default function TraspasosPage() {
 
 function TraspasosContent() {
   const currentUser = useSelector(selectUser);
+  // inventory:self_approve (Operaciones, Almacén, CEDEAS, administración):
+  // pueden aprobar sus PROPIOS traspasos; el API aplica la misma regla. Sin
+  // ese permiso sigue la segregación (quien solicita no aprueba).
+  const userPermissions = useSelector(selectUserPermissions);
+  const canSelfApprove = userPermissions.some(
+    (p) => p === 'inventory:self_approve' || p === 'inventory:*' || p === '*',
+  );
   const { get, getNumber, setParams } = useQueryFilters({
     status: 'all',
     sourceBranch: 'all',
@@ -297,13 +304,13 @@ function TraspasosContent() {
                   className="text-green-600 hover:bg-green-50 disabled:opacity-40"
                   onClick={() => setActionModal({ type: 'approve', transfer })}
                   title={
-                    currentUser?.id === transfer.requestedBy?.id
+                    !canSelfApprove && currentUser?.id === transfer.requestedBy?.id
                       ? 'No puedes aprobar tu propio traspaso'
                       : 'Aprobar'
                   }
                   disabled={
                     approveTransfer.isPending ||
-                    currentUser?.id === transfer.requestedBy?.id
+                    (!canSelfApprove && currentUser?.id === transfer.requestedBy?.id)
                   }
                 >
                   <CheckIcon className="h-4 w-4" />
@@ -365,7 +372,7 @@ function TraspasosContent() {
         ),
       },
     ],
-    [branches, currentUser, approveTransfer.isPending, applyTransfer.isPending],
+    [branches, currentUser, canSelfApprove, approveTransfer.isPending, applyTransfer.isPending],
   );
 
   const StatCard = ({

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser, selectUserPermissions } from '@/store/slices/authSlice';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -202,10 +202,20 @@ export default function TransferDetailPage() {
   const rejectTransfer = useRejectTransfer();
   const cancelTransfer = useCancelTransfer();
 
-  // No se puede aprobar su propio traspaso (segregación de funciones)
+  // No se puede aprobar su propio traspaso (segregación de funciones), salvo
+  // con inventory:self_approve (Operaciones, Almacén, CEDEAS, administración),
+  // igual que el API.
+  const userPermissions = useSelector(selectUserPermissions);
+  const canSelfApprove = userPermissions.some(
+    (p) => p === 'inventory:self_approve' || p === 'inventory:*' || p === '*',
+  );
   const isSelfRequester = useMemo(
-    () => !!currentUser && !!transfer?.requestedBy && currentUser.id === transfer.requestedBy.id,
-    [currentUser, transfer?.requestedBy],
+    () =>
+      !canSelfApprove &&
+      !!currentUser &&
+      !!transfer?.requestedBy &&
+      currentUser.id === transfer.requestedBy.id,
+    [canSelfApprove, currentUser, transfer?.requestedBy],
   );
 
   // Modal state. approve/apply piden confirmación (mueven stock; hallazgo L).
