@@ -94,6 +94,15 @@ export interface CustomerPromotionGrant {
   redeemedSaleNumber: string | null;
   consumesPoints: boolean;
   minPointsRequired: number;
+  /**
+   * Activo pero RETENIDO: es automático y los puntos reales del periodo en
+   * que se otorgó no alcanzan el mínimo — el POS/panel no lo ofrece ni deja
+   * canjearlo. Reaparece solo si el periodo vuelve a alcanzar el mínimo.
+   * (Opcional: un API anterior al candado del 15-oct no lo manda.)
+   */
+  onHold?: boolean;
+  /** Puntos personales actuales del periodo en que se otorgó. */
+  periodPoints?: number | null;
 }
 
 export interface ManualGrantRequest {

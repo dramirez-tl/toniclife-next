@@ -857,11 +857,13 @@ function PromotionGrantsSection({
       ) : (
         <div className="space-y-2">
           {grants.map((g) => {
-            const meta =
-              GRANT_STATUS_META[g.status] ?? {
-                label: g.status,
-                cls: 'bg-gray-100 text-gray-600',
-              };
+            const onHold = g.status === 'active' && g.onHold === true;
+            const meta = onHold
+              ? { label: 'Retenido', cls: 'bg-amber-100 text-amber-800' }
+              : (GRANT_STATUS_META[g.status] ?? {
+                  label: g.status,
+                  cls: 'bg-gray-100 text-gray-600',
+                });
             return (
               <div
                 key={g.id}
@@ -884,6 +886,16 @@ function PromotionGrantsSection({
                     {g.grantNote ? ` · “${g.grantNote}”` : ''}
                     {g.grantedByName ? ` — ${g.grantedByName}` : ''}
                   </p>
+                  {onHold && (
+                    <p className="mt-0.5 text-[11px] text-amber-700">
+                      Su periodo suma{' '}
+                      {(g.periodPoints ?? 0).toLocaleString('es-MX')} pts reales
+                      de {g.minPointsRequired.toLocaleString('es-MX')}: el POS no
+                      la ofrece ni deja canjearla. Vuelve sola si alcanza el
+                      mínimo. Para dársela de todos modos: Revocar y luego
+                      “Otorgar promoción” (manual).
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <span
