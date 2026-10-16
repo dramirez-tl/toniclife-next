@@ -34,11 +34,16 @@ import {
 } from '@/hooks/useViaticos';
 import { daysOfRange, rangeLabel } from '@/lib/viaticos-week';
 import { ViaticoDayGridView } from './ViaticoDayGrid';
+import { ViaticoProofSection } from './ViaticoProofSection';
 import {
   VIATICO_STATUS_LABELS,
   VIATICO_STATUS_VARIANTS,
   type Viatico,
+  type ViaticoStatus,
 } from '@/types/viaticos';
+
+/** Aprobada y sus pasos siguientes (comprobación). */
+const APPROVED_FAMILY: ViaticoStatus[] = ['approved', 'proof_submitted', 'verified'];
 
 interface ViaticoDetailModalProps {
   open: boolean;
@@ -270,13 +275,21 @@ function ViaticoDetailBody({
       {v.status !== 'pending' && (
         <div className="rounded-lg bg-muted/60 p-4 text-sm">
           <p className="font-medium text-foreground">
-            {VIATICO_STATUS_LABELS[v.status]}
+            {/* decided_by es quien aprobó/rechazó la SOLICITUD (la comprobación tiene su propia revisión). */}
+            {APPROVED_FAMILY.includes(v.status) ? 'Aprobada' : VIATICO_STATUS_LABELS[v.status]}
             {v.decidedByName ? ` por ${v.decidedByName}` : ''}
             {v.decidedAt ? ` · ${fmtDate(v.decidedAt, true)}` : ''}
           </p>
           {v.decisionNotes && <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{v.decisionNotes}</p>}
         </div>
       )}
+
+      {APPROVED_FAMILY.includes(v.status) &&
+        (loadingItems ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <ViaticoProofSection viatico={v} canApprove={canApprove} />
+        ))}
 
       {mode === 'approve' && (
         <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4">

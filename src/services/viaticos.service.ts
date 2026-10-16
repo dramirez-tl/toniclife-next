@@ -6,9 +6,12 @@ import type {
   CancelViaticoDto,
   CreateViaticoDto,
   RejectViaticoDto,
+  SubmitViaticoProofDto,
   UpdateViaticoDto,
   Viatico,
   ViaticoConceptCatalog,
+  ViaticoFileKind,
+  ViaticoFileUrl,
   ViaticoListResponse,
   ViaticoQueryParams,
   ViaticoSummary,
@@ -67,6 +70,46 @@ class ViaticosService {
 
   async reject(id: string, dto: RejectViaticoDto): Promise<Viatico> {
     const { data } = await api.post<Viatico>(`/viaticos/${id}/reject`, dto);
+    return data;
+  }
+
+  // ---- Comprobación (mig 158) ----
+
+  /** Sube comprobantes (receipt) o la ficha de devolución (refund). */
+  async uploadFiles(id: string, kind: ViaticoFileKind, files: File[]): Promise<Viatico> {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    const { data } = await api.post<Viatico>(`/viaticos/${id}/files`, form, {
+      params: { kind },
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120_000,
+    });
+    return data;
+  }
+
+  async deleteFile(id: string, fileId: string): Promise<Viatico> {
+    const { data } = await api.delete<Viatico>(`/viaticos/${id}/files/${fileId}`);
+    return data;
+  }
+
+  /** URL firmada (10 min) para ver/descargar un archivo. */
+  async getFileUrl(id: string, fileId: string): Promise<ViaticoFileUrl> {
+    const { data } = await api.get<ViaticoFileUrl>(`/viaticos/${id}/files/${fileId}/url`);
+    return data;
+  }
+
+  async submitProof(id: string, dto: SubmitViaticoProofDto): Promise<Viatico> {
+    const { data } = await api.post<Viatico>(`/viaticos/${id}/proof`, dto);
+    return data;
+  }
+
+  async verifyProof(id: string, notes?: string): Promise<Viatico> {
+    const { data } = await api.post<Viatico>(`/viaticos/${id}/proof/verify`, { notes });
+    return data;
+  }
+
+  async returnProof(id: string, reason: string): Promise<Viatico> {
+    const { data } = await api.post<Viatico>(`/viaticos/${id}/proof/return`, { reason });
     return data;
   }
 }

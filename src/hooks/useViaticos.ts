@@ -14,7 +14,10 @@ import type {
   CancelViaticoDto,
   CreateViaticoDto,
   RejectViaticoDto,
+  SubmitViaticoProofDto,
   UpdateViaticoDto,
+  Viatico,
+  ViaticoFileKind,
   ViaticoQueryParams,
 } from '@/types/viaticos';
 
@@ -113,5 +116,60 @@ export function useRejectViatico() {
     mutationFn: ({ id, dto }: { id: string; dto: RejectViaticoDto }) =>
       viaticosService.reject(id, dto),
     onSuccess: (_, { id }) => invalidate(id),
+  });
+}
+
+// ---- Comprobación (mig 158) ----
+// Las mutaciones regresan la solicitud completa: se escribe directo en el
+// caché del detalle (la pantalla abierta se actualiza sin otro GET) y se
+// refrescan listados y resumen.
+
+function useApplyDetail() {
+  const queryClient = useQueryClient();
+  return (data: Viatico) => {
+    queryClient.setQueryData(viaticoKeys.detail(data.id), data);
+    void queryClient.invalidateQueries({ queryKey: viaticoKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: viaticoKeys.summary() });
+  };
+}
+
+export function useUploadViaticoFiles() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, kind, files }: { id: string; kind: ViaticoFileKind; files: File[] }) =>
+      viaticosService.uploadFiles(id, kind, files),
+    onSuccess: apply,
+  });
+}
+
+export function useDeleteViaticoFile() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, fileId }: { id: string; fileId: string }) => viaticosService.deleteFile(id, fileId),
+    onSuccess: apply,
+  });
+}
+
+export function useSubmitViaticoProof() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: SubmitViaticoProofDto }) => viaticosService.submitProof(id, dto),
+    onSuccess: apply,
+  });
+}
+
+export function useVerifyViaticoProof() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) => viaticosService.verifyProof(id, notes),
+    onSuccess: apply,
+  });
+}
+
+export function useReturnViaticoProof() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => viaticosService.returnProof(id, reason),
+    onSuccess: apply,
   });
 }

@@ -42,7 +42,17 @@ import {
   type ViaticoStatus,
 } from '@/types/viaticos';
 
-type View = 'mine' | 'pending' | 'all';
+/** mine / toprove: las propias (todas / aprobadas por comprobar); pending / proofs / all: quien ve todas. */
+type View = 'mine' | 'toprove' | 'pending' | 'proofs' | 'all';
+
+/** Vistas que fijan el estatus (sin selector de estatus). */
+const VIEW_STATUS: Partial<Record<View, ViaticoStatus>> = {
+  toprove: 'approved',
+  pending: 'pending',
+  proofs: 'proof_submitted',
+};
+
+const APPROVED_FAMILY: ViaticoStatus[] = ['approved', 'proof_submitted', 'verified'];
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Todos los estatus' },
@@ -111,8 +121,8 @@ function ViaticosContent() {
       page,
       limit,
       search: search || undefined,
-      mine: view === 'mine' ? true : undefined,
-      status: view === 'pending' ? 'pending' : status !== 'all' ? (status as ViaticoStatus) : undefined,
+      mine: view === 'mine' || view === 'toprove' ? true : undefined,
+      status: VIEW_STATUS[view] ?? (status !== 'all' ? (status as ViaticoStatus) : undefined),
       from: week || undefined,
       to: week ? addDaysIso(week, 6) : undefined,
     }),
@@ -164,7 +174,7 @@ function ViaticosContent() {
         </div>
       ),
     },
-    ...(view !== 'mine'
+    ...(view !== 'mine' && view !== 'toprove'
       ? [
           {
             key: 'requester',
@@ -199,11 +209,34 @@ function ViaticosContent() {
       key: 'approved',
       header: 'Autorizado',
       render: (v) =>
-        v.status === 'approved' ? (
+        APPROVED_FAMILY.includes(v.status) ? (
           <span className="tabular-nums font-medium text-emerald-700">{money(v.approvedAmount, v.currencyCode)}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         ),
+    },
+    {
+      key: 'proof',
+      header: 'Comprobación',
+      render: (v) => {
+        if (v.status === 'approved') {
+          return <span className="text-xs font-medium text-amber-700">Por comprobar</span>;
+        }
+        if (v.status !== 'proof_submitted' && v.status !== 'verified') {
+          return <span className="text-muted-foreground">—</span>;
+        }
+        const rest = v.proofBalance ?? 0;
+        return (
+          <div>
+            <p className="tabular-nums text-sm text-foreground">{money(v.proofTotal, v.currencyCode)}</p>
+            <p
+              className={`text-xs tabular-nums ${rest > 0 ? 'text-amber-700' : rest < 0 ? 'text-red-700' : 'text-muted-foreground'}`}
+            >
+              Resto {money(rest, v.currencyCode)}
+            </p>
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -214,34 +247,56 @@ function ViaticosContent() {
       key: 'actions',
       header: '',
       headerClassName: 'text-right',
-      render: (v) => (
-        <div className="flex justify-end gap-1">
-          {canApprove && v.status === 'pending' && !v.isMine ? (
-            <Button size="sm" onClick={() => setDetail(v)}>
-              Revisar
-            </Button>
-          ) : (
-            <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetail(v)}>
-              <EyeIcon className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
-      ),
+      render: (v) => {
+        const action =
+          canApprove && !v.isMine && v.status === 'pending'
+            ? 'Revisar'
+            : canApprove && !v.isMine && v.status === 'proof_submitted'
+              ? 'Validar'
+              : v.isMine && v.status === 'approved'
+                ? 'Comprobar'
+                : null;
+        return (
+          <div className="flex justify-end gap-1">
+            {action ? (
+              <Button size="sm" onClick={() => setDetail(v)}>
+                {action}
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetail(v)}>
+                <EyeIcon className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
   const chips = [
-    ...(canSeeAll ? [{ label: 'Por aprobar', value: summary?.pendingAll ?? 0, accent: 'text-amber-600' }] : []),
+    ...(canSeeAll
+      ? [
+          { label: 'Por aprobar', value: summary?.pendingAll ?? 0, accent: 'text-amber-600' },
+          { label: 'Por validar', value: summary?.proofToReview ?? 0, accent: 'text-[#0A4B94]' },
+        ]
+      : []),
     { label: 'Mis pendientes', value: summary?.minePending ?? 0 },
-    { label: 'Mis aprobadas', value: summary?.mineApproved ?? 0, accent: 'text-emerald-600' },
+    { label: 'Por comprobar', value: summary?.mineToProve ?? summary?.mineApproved ?? 0, accent: 'text-emerald-600' },
     { label: 'Mis rechazadas', value: summary?.mineRejected ?? 0, accent: 'text-red-600' },
   ];
 
+  const count = (n: number | undefined) => (n ? ` (${n})` : '');
   const views: { id: View; label: string }[] = [
-    ...(canRequest ? [{ id: 'mine' as const, label: 'Mis solicitudes' }] : []),
+    ...(canRequest
+      ? [
+          { id: 'mine' as const, label: 'Mis solicitudes' },
+          { id: 'toprove' as const, label: `Por comprobar${count(summary?.mineToProve)}` },
+        ]
+      : []),
     ...(canSeeAll
       ? [
-          { id: 'pending' as const, label: `Por aprobar${summary?.pendingAll ? ` (${summary.pendingAll})` : ''}` },
+          { id: 'pending' as const, label: `Por aprobar${count(summary?.pendingAll)}` },
+          { id: 'proofs' as const, label: `Por validar${count(summary?.proofToReview)}` },
           { id: 'all' as const, label: 'Todas' },
         ]
       : []),
@@ -268,7 +323,7 @@ function ViaticosContent() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {chips.map((c) => (
             <Card key={c.label}>
               <CardContent className="p-4">
@@ -349,7 +404,7 @@ function ViaticosContent() {
                   className="w-full pl-9 sm:w-72"
                 />
               </form>
-              {view !== 'pending' && (
+              {!VIEW_STATUS[view] && (
                 <SearchableSelect
                   options={STATUS_OPTIONS}
                   value={status}
@@ -379,11 +434,13 @@ function ViaticosContent() {
               getRowKey={(v) => v.id}
               isLoading={isLoading || isFetching}
               emptyMessage={
-                view === 'pending'
-                  ? 'No hay solicitudes pendientes de aprobar.'
-                  : view === 'mine'
-                    ? 'Aún no tienes solicitudes. Crea la primera con "Nueva solicitud".'
-                    : 'No hay solicitudes con esos filtros.'
+                {
+                  pending: 'No hay solicitudes pendientes de aprobar.',
+                  proofs: 'No hay comprobaciones por validar.',
+                  toprove: 'No tienes solicitudes aprobadas por comprobar.',
+                  mine: 'Aún no tienes solicitudes. Crea la primera con "Nueva solicitud".',
+                  all: 'No hay solicitudes con esos filtros.',
+                }[view]
               }
             />
             <DataTablePagination
