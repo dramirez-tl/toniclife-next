@@ -4,11 +4,22 @@
 //
 // Una sola pantalla con tres vistas según permisos: "Mis solicitudes" (quien
 // tiene viaticos:request), "Por aprobar" y "Todas" (viaticos:approve /
-// viaticos:read). El rol "Viáticos" solo ve la primera. Filtros en la URL
-// (useQueryFilters -> requiere Suspense); alta/edición y detalle en modales.
+// viaticos:read). El rol "Viáticos" solo ve la primera. Como en el sistema
+// anterior: filtro por SEMANA (lunes a domingo) y "Descargar Excel" con los
+// filtros actuales. Filtros en la URL (useQueryFilters -> requiere Suspense);
+// alta/edición y detalle en modales.
 
 import { Suspense, useMemo, useState } from 'react';
-import { BanknotesIcon, EyeIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  ArrowDownTrayIcon,
+  BanknotesIcon,
+  EyeIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +31,9 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useViaticoSummary, useViaticos } from '@/hooks/useViaticos';
 import { ViaticoFormModal } from '@/components/admin/viaticos/ViaticoFormModal';
 import { ViaticoDetailModal } from '@/components/admin/viaticos/ViaticoDetailModal';
+import { viaticosService } from '@/services/viaticos.service';
+import { saveBlob } from '@/lib/download';
+import { addDaysIso, mondayOf, rangeLabel, todayIso, weekLabel } from '@/lib/viaticos-week';
 import {
   VIATICO_STATUS_LABELS,
   VIATICO_STATUS_VARIANTS,
@@ -70,6 +84,7 @@ function ViaticosContent() {
   const { get, getNumber, setParams } = useQueryFilters({
     view: '',
     status: 'all',
+    week: '',
     page: '1',
     limit: '20',
   });
@@ -83,9 +98,13 @@ function ViaticosContent() {
   const view: View = viewParam || (canSeeAll ? 'pending' : 'mine');
   const status = get('status');
   const search = get('search');
+  // Semana (lunes ISO) o '' = todas. Se normaliza al lunes por si la URL trae otro día.
+  const weekParam = get('week');
+  const week = /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? mondayOf(weekParam) : '';
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 20;
   const [searchDraft, setSearchDraft] = useState(search);
+  const [downloading, setDownloading] = useState(false);
 
   const params = useMemo<ViaticoQueryParams>(
     () => ({
@@ -94,11 +113,31 @@ function ViaticosContent() {
       search: search || undefined,
       mine: view === 'mine' ? true : undefined,
       status: view === 'pending' ? 'pending' : status !== 'all' ? (status as ViaticoStatus) : undefined,
+      from: week || undefined,
+      to: week ? addDaysIso(week, 6) : undefined,
     }),
-    [page, limit, search, view, status],
+    [page, limit, search, view, status, week],
   );
   const { data, isLoading, isFetching } = useViaticos(params);
   const rows = data?.data ?? [];
+
+  const setWeek = (monday: string) => setParams({ week: monday, page: '1' });
+
+  const downloadExcel = async () => {
+    setDownloading(true);
+    try {
+      const blob = await viaticosService.exportXlsx(params);
+      saveBlob(
+        blob,
+        `viaticos${week ? `_${week}` : ''}.xlsx`,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+    } catch {
+      toast.error('No se pudo descargar el Excel.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Viatico | null>(null);
@@ -140,13 +179,13 @@ function ViaticosContent() {
         ]
       : []),
     {
-      key: 'destination',
-      header: 'Destino / viaje',
+      key: 'period',
+      header: 'Semana / motivo',
       render: (v) => (
-        <div>
-          <p className="text-sm text-foreground">{v.destination}</p>
-          <p className="text-xs text-muted-foreground">
-            {fmtDate(v.tripStart)} → {fmtDate(v.tripEnd)}
+        <div className="max-w-xs">
+          <p className="text-sm font-medium text-foreground">{rangeLabel(v.tripStart, v.tripEnd)}</p>
+          <p className="truncate text-xs text-muted-foreground" title={v.purpose}>
+            {[v.destination, v.purpose].filter(Boolean).join(' · ')}
           </p>
         </div>
       ),
@@ -255,7 +294,46 @@ function ViaticosContent() {
                 </Button>
               ))}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              {week ? (
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Semana anterior"
+                    onClick={() => setWeek(addDaysIso(week, -7))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="min-w-[150px] rounded-md border border-input px-3 py-1.5 text-center text-sm font-medium tabular-nums">
+                    {weekLabel(week)}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Semana siguiente"
+                    onClick={() => setWeek(addDaysIso(week, 7))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    title="Todas las semanas"
+                    aria-label="Quitar filtro de semana"
+                    onClick={() => setWeek('')}
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" size="sm" onClick={() => setWeek(mondayOf(todayIso()))}>
+                  Filtrar por semana
+                </Button>
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -281,6 +359,14 @@ function ViaticosContent() {
                   className="sm:w-48"
                 />
               )}
+              <Button type="button" variant="outline" size="sm" onClick={downloadExcel} disabled={downloading}>
+                {downloading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                )}
+                Descargar Excel
+              </Button>
             </div>
           </CardContent>
         </Card>

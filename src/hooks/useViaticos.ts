@@ -25,6 +25,7 @@ export const viaticoKeys = {
   details: () => [...viaticoKeys.all, 'detail'] as const,
   detail: (id: string) => [...viaticoKeys.details(), id] as const,
   summary: () => [...viaticoKeys.all, 'summary'] as const,
+  concepts: () => [...viaticoKeys.all, 'concepts'] as const,
 };
 
 export function useViaticos(params: ViaticoQueryParams = {}) {
@@ -50,6 +51,15 @@ export function useViaticoSummary() {
     queryKey: viaticoKeys.summary(),
     queryFn: () => viaticosService.getSummary(),
     staleTime: 30 * 1000,
+  });
+}
+
+/** Catálogo de conceptos (cambia solo con un deploy del API). */
+export function useViaticoConcepts() {
+  return useQuery({
+    queryKey: viaticoKeys.concepts(),
+    queryFn: () => viaticosService.getConcepts(),
+    staleTime: 10 * 60 * 1000,
   });
 }
 

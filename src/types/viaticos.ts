@@ -1,6 +1,41 @@
-// viaticos.ts - Tipos del módulo de viáticos (API /viaticos, mig 156).
+// viaticos.ts - Tipos del módulo de viáticos (API /viaticos, mig 156; por día, mig 157).
 
 export type ViaticoStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export type ViaticoCategory = 'lodging' | 'transport' | 'meals' | 'fuel' | 'other';
+
+export type ViaticoVehicleType = 'propio' | 'asignado';
+
+export interface ViaticoConcept {
+  code: string;
+  label: string;
+  category: ViaticoCategory;
+  /** false = ya no se ofrece para capturar (solo histórico). */
+  active: boolean;
+}
+
+export interface ViaticoConceptCatalog {
+  categories: { code: ViaticoCategory; label: string }[];
+  concepts: ViaticoConcept[];
+  /** La BD ya admite el detalle por día (mig 157). */
+  dailyItemsEnabled: boolean;
+}
+
+/** Monto de un concepto en un día. */
+export interface ViaticoItem {
+  conceptCode: string;
+  conceptLabel: string;
+  category: ViaticoCategory;
+  /** YYYY-MM-DD */
+  date: string;
+  amount: number;
+}
+
+export interface ViaticoItemInput {
+  conceptCode: string;
+  date: string;
+  amount: number;
+}
 
 export const VIATICO_STATUS_LABELS: Record<ViaticoStatus, string> = {
   pending: 'Pendiente',
@@ -29,6 +64,7 @@ export interface Viatico {
   departmentName: string | null;
   branchId: string | null;
   branchName: string | null;
+  /** "" si no tiene destino. */
   destination: string;
   purpose: string;
   tripStart: string;
@@ -36,8 +72,16 @@ export interface Viatico {
   transportAmount: number;
   lodgingAmount: number;
   mealsAmount: number;
+  /** Combustible y vehículo (mig 157; 0 en solicitudes anteriores). */
+  fuelAmount?: number;
   otherAmount: number;
   otherDescription: string | null;
+  vehicleType?: ViaticoVehicleType | null;
+  odometerKm?: number | null;
+  fuelEfficiencyKmL?: number | null;
+  tankCapacityL?: number | null;
+  /** Detalle por concepto y día: solo en GET /viaticos/:id. */
+  items?: ViaticoItem[];
   requestedAmount: number;
   currencyCode: string;
   status: ViaticoStatus;
@@ -82,10 +126,16 @@ export interface ViaticoQueryParams {
 }
 
 export interface CreateViaticoDto {
-  destination: string;
+  destination?: string;
   purpose: string;
   tripStart: string;
   tripEnd: string;
+  /** Detalle por día (mig 157): si viene, el total sale de aquí. */
+  items?: ViaticoItemInput[];
+  vehicleType?: ViaticoVehicleType | null;
+  odometerKm?: number | null;
+  fuelEfficiencyKmL?: number | null;
+  tankCapacityL?: number | null;
   transportAmount?: number;
   lodgingAmount?: number;
   mealsAmount?: number;

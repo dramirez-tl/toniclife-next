@@ -8,6 +8,7 @@ import type {
   RejectViaticoDto,
   UpdateViaticoDto,
   Viatico,
+  ViaticoConceptCatalog,
   ViaticoListResponse,
   ViaticoQueryParams,
   ViaticoSummary,
@@ -16,6 +17,21 @@ import type {
 class ViaticosService {
   async getSummary(): Promise<ViaticoSummary> {
     const { data } = await api.get<ViaticoSummary>('/viaticos/summary');
+    return data;
+  }
+
+  async getConcepts(): Promise<ViaticoConceptCatalog> {
+    const { data } = await api.get<ViaticoConceptCatalog>('/viaticos/concepts');
+    return data;
+  }
+
+  /** Excel con los mismos filtros del listado (hojas Solicitudes + Detalle por día). */
+  async exportXlsx(params: ViaticoQueryParams = {}): Promise<Blob> {
+    const { status, mine, search, from, to } = params;
+    const { data } = await api.get<Blob>('/viaticos/export.xlsx', {
+      params: { status, mine, search, from, to },
+      responseType: 'blob',
+    });
     return data;
   }
 

@@ -3,8 +3,10 @@
 // ViaticoDetailModal - Detalle de una solicitud con las acciones que apliquen:
 // aprobar (monto autorizado opcional) / rechazar (motivo) para quien aprueba y
 // no es el solicitante; cancelar o editar para el solicitante mientras esté
-// pendiente. El cuerpo vive en un componente interno con `key` por solicitud:
-// se monta al abrir y arranca limpio sin efectos.
+// pendiente. Muestra el grid por día (mig 157) en solo lectura con subtotales
+// por categoría; las solicitudes anteriores muestran sus 4 montos. El cuerpo
+// vive en un componente interno con `key` por solicitud: se monta al abrir y
+// arranca limpio sin efectos.
 
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -21,8 +23,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { useApproveViatico, useCancelViatico, useRejectViatico } from '@/hooks/useViaticos';
+import {
+  useApproveViatico,
+  useCancelViatico,
+  useRejectViatico,
+  useViatico,
+  useViaticoConcepts,
+} from '@/hooks/useViaticos';
+import { daysOfRange, rangeLabel } from '@/lib/viaticos-week';
+import { ViaticoDayGridView } from './ViaticoDayGrid';
 import {
   VIATICO_STATUS_LABELS,
   VIATICO_STATUS_VARIANTS,
@@ -70,13 +81,16 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ViaticoDetailModal({ open, onOpenChange, viatico, canApprove, onEdit }: ViaticoDetailModalProps) {
+  // El listado no trae el detalle por día: se carga al abrir.
+  const detail = useViatico(open && viatico ? viatico.id : undefined);
   return (
     <Dialog open={open && !!viatico} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[94vh] overflow-y-auto sm:max-w-5xl">
         {open && viatico && (
           <ViaticoDetailBody
             key={viatico.id}
-            viatico={viatico}
+            viatico={detail.data ?? viatico}
+            loadingItems={!detail.data}
             canApprove={canApprove}
             onEdit={onEdit}
             onClose={() => onOpenChange(false)}
@@ -87,13 +101,71 @@ export function ViaticoDetailModal({ open, onOpenChange, viatico, canApprove, on
   );
 }
 
+const CATEGORY_SUBTOTALS = [
+  ['Hospedaje', 'lodgingAmount'],
+  ['Transporte', 'transportAmount'],
+  ['Alimentos', 'mealsAmount'],
+  ['Combustible y vehículo', 'fuelAmount'],
+  ['Otros', 'otherAmount'],
+] as const;
+
+function DailyBreakdown({ v, loadingItems }: { v: Viatico; loadingItems: boolean }) {
+  const catalog = useViaticoConcepts();
+  if (loadingItems) return <Skeleton className="h-48 w-full" />;
+  const items = v.items ?? [];
+  if (items.length === 0) {
+    // Solicitud anterior al detalle por día (4 montos).
+    return (
+      <div className="rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <tbody className="divide-y divide-border">
+            {(
+              [
+                ['Transporte', v.transportAmount],
+                ['Hospedaje', v.lodgingAmount],
+                ['Alimentos', v.mealsAmount],
+                [v.otherDescription ? `Otros · ${v.otherDescription}` : 'Otros', v.otherAmount],
+              ] as const
+            ).map(([label, amount]) => (
+              <tr key={label}>
+                <td className="px-4 py-2 text-muted-foreground">{label}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{money(amount, v.currencyCode)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {CATEGORY_SUBTOTALS.map(([label, key]) => (
+          <div key={key} className="rounded-md border border-border px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="text-sm font-semibold tabular-nums text-foreground">{money(v[key] ?? 0, v.currencyCode)}</p>
+          </div>
+        ))}
+      </div>
+      <ViaticoDayGridView
+        catalog={catalog.data}
+        items={items}
+        days={daysOfRange(v.tripStart, v.tripEnd)}
+        currency={v.currencyCode}
+      />
+    </div>
+  );
+}
+
 function ViaticoDetailBody({
   viatico: v,
+  loadingItems,
   canApprove,
   onEdit,
   onClose,
 }: {
   viatico: Viatico;
+  loadingItems: boolean;
   canApprove: boolean;
   onEdit?: (viatico: Viatico) => void;
   onClose: () => void;
@@ -156,48 +228,43 @@ function ViaticoDetailBody({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Row label="Destino" value={v.destination} />
-        <Row label="Viaje" value={`${fmtDate(v.tripStart)} → ${fmtDate(v.tripEnd)}`} />
-        <div className="sm:col-span-2">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Row label="Semana / periodo" value={rangeLabel(v.tripStart, v.tripEnd)} />
+        <Row label="Destino / sucursal" value={v.destination || v.branchName || '—'} />
+        {(v.vehicleType || v.odometerKm != null) && (
+          <Row
+            label="Vehículo"
+            value={[
+              v.vehicleType === 'propio' ? 'Propio' : v.vehicleType === 'asignado' ? 'Asignado' : null,
+              v.odometerKm != null ? `${v.odometerKm.toLocaleString('es-MX')} km` : null,
+              v.fuelEfficiencyKmL != null ? `${v.fuelEfficiencyKmL} km/L` : null,
+              v.tankCapacityL != null ? `tanque ${v.tankCapacityL} L` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          />
+        )}
+        <div className="sm:col-span-3">
           <Row label="Motivo" value={<span className="whitespace-pre-wrap">{v.purpose}</span>} />
         </div>
-        {v.branchName && <Row label="Sucursal" value={v.branchName} />}
         {v.notes && (
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-3">
             <Row label="Notas del solicitante" value={<span className="whitespace-pre-wrap">{v.notes}</span>} />
           </div>
         )}
       </div>
 
-      <div className="rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <tbody className="divide-y divide-border">
-            {(
-              [
-                ['Transporte', v.transportAmount],
-                ['Hospedaje', v.lodgingAmount],
-                ['Alimentos', v.mealsAmount],
-                [v.otherDescription ? `Otros · ${v.otherDescription}` : 'Otros', v.otherAmount],
-              ] as const
-            ).map(([label, amount]) => (
-              <tr key={label}>
-                <td className="px-4 py-2 text-muted-foreground">{label}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{money(amount, v.currencyCode)}</td>
-              </tr>
-            ))}
-            <tr className="bg-muted/60 font-semibold">
-              <td className="px-4 py-2">Total solicitado</td>
-              <td className="px-4 py-2 text-right tabular-nums">{money(v.requestedAmount, v.currencyCode)}</td>
-            </tr>
-            {v.status === 'approved' && (
-              <tr className="bg-emerald-50 font-semibold text-emerald-800">
-                <td className="px-4 py-2">Monto autorizado</td>
-                <td className="px-4 py-2 text-right tabular-nums">{money(v.approvedAmount, v.currencyCode)}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <DailyBreakdown v={v} loadingItems={loadingItems} />
+
+      <div className="flex flex-col gap-2 rounded-lg bg-muted/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-foreground">
+          Total solicitado: <span className="tabular-nums">{money(v.requestedAmount, v.currencyCode)}</span>
+        </p>
+        {v.status === 'approved' && (
+          <p className="text-sm font-semibold text-emerald-800">
+            Monto autorizado: <span className="tabular-nums">{money(v.approvedAmount, v.currencyCode)}</span>
+          </p>
+        )}
       </div>
 
       {v.status !== 'pending' && (
