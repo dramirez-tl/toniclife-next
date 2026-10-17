@@ -73,11 +73,18 @@ export interface ProductSales {
 export interface BranchSales {
   branchId: string;
   branchName: string;
+  /** Moneda de la sucursal (ISO 4217). Opcional: API anterior no la manda. */
+  currencyCode?: string;
+  /** POS completadas + pedidos de la tienda en línea pagados de la sucursal. */
   totalSales: number;
   totalMxn: number;
   totalUsd: number;
   totalCop: number;
   totalGtq: number;
+  /** Parte de los totales que viene de pedidos en línea (moneda de la sucursal). */
+  onlineTotal?: number;
+  /** Pedidos en línea incluidos en orderCount. */
+  onlineCount?: number;
   orderCount: number;
   averageTicket: number;
 }

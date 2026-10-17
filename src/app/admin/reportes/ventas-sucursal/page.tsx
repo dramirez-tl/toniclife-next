@@ -65,6 +65,11 @@ function getCurrencyTotal(branch: Record<string, unknown>, key: CurrencyCode): n
   return Number(branch[map[key]] ?? 0);
 }
 
+/** Moneda de la sucursal para mostrar su parte en línea (MXN si el API no la manda). */
+function branchCurrency(code: string | undefined): CurrencyCode {
+  return CURRENCY_CONFIG.some((c) => c.key === code) ? (code as CurrencyCode) : 'MXN';
+}
+
 export default function VentasSucursalPage() {
   const { data: periods, isLoading: periodsLoading } = usePeriods();
   const { data: currentPeriod } = useCurrentPeriod();
@@ -157,7 +162,7 @@ export default function VentasSucursalPage() {
   };
 
   const totals = useMemo(() => {
-    if (!data?.branches) return { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0 };
+    if (!data?.branches) return { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0, onlineCount: 0 };
     return data.branches.reduce(
       (acc, b) => ({
         totalMxn: acc.totalMxn + (b.totalMxn ?? 0),
@@ -165,8 +170,9 @@ export default function VentasSucursalPage() {
         totalCop: acc.totalCop + (b.totalCop ?? 0),
         totalGtq: acc.totalGtq + (b.totalGtq ?? 0),
         orderCount: acc.orderCount + b.orderCount,
+        onlineCount: acc.onlineCount + (b.onlineCount ?? 0),
       }),
-      { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0 }
+      { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0, onlineCount: 0 }
     );
   }, [data]);
 
@@ -184,16 +190,27 @@ export default function VentasSucursalPage() {
     }
 
     const periodLabel = `${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)}`;
-    const headers = ['Sucursal', ...CURRENCY_CONFIG.map((c) => `Total ${c.key}`), 'Ventas/Documentos', 'Período'];
+    const headers = [
+      'Sucursal',
+      ...CURRENCY_CONFIG.map((c) => `Total ${c.key}`),
+      'Incluye tienda en línea (moneda de la sucursal)',
+      'Pedidos en línea',
+      'Ventas/Documentos',
+      'Período',
+    ];
     const rows = data.branches.map((b) => [
       b.branchName,
       ...CURRENCY_CONFIG.map((c) => getCurrencyTotal(b as unknown as Record<string, unknown>, c.key).toFixed(2)),
+      (b.onlineTotal ?? 0).toFixed(2),
+      (b.onlineCount ?? 0).toString(),
       b.orderCount.toString(),
       periodLabel,
     ]);
     rows.push([
       'TOTAL',
       ...CURRENCY_CONFIG.map((c) => totalsByKey[c.key].toFixed(2)),
+      '',
+      totals.onlineCount.toString(),
       totals.orderCount.toString(),
       periodLabel,
     ]);
@@ -227,7 +244,8 @@ export default function VentasSucursalPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Ventas por Sucursal</h1>
             <p className="text-sm text-white/70 mt-1">
-              Reporte de ventas agrupado por sucursal con desglose por moneda
+              Ventas del POS + pedidos de la tienda en línea pagados que tiene asignados cada sucursal (como el
+              sistema anterior), con desglose por moneda
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -474,6 +492,12 @@ export default function VentasSucursalPage() {
                       {c.flag} {c.key}
                     </TableHead>
                   ))}
+                  <TableHead
+                    className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    title="Parte del total que viene de pedidos de la tienda en línea pagados (ya incluida en las columnas de moneda)"
+                  >
+                    Incluye en línea
+                  </TableHead>
                   <TableHead className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Ventas/Documentos
                   </TableHead>
@@ -496,6 +520,18 @@ export default function VentasSucursalPage() {
                         {formatCurrency(getCurrencyTotal(branch as unknown as Record<string, unknown>, c.key), c.key)}
                       </TableCell>
                     ))}
+                    <TableCell className="px-6 py-3.5 text-sm text-right text-gray-500 whitespace-nowrap tabular-nums">
+                      {branch.onlineCount ? (
+                        <>
+                          {formatCurrency(branch.onlineTotal ?? 0, branchCurrency(branch.currencyCode))}
+                          <span className="ml-1.5 text-xs text-gray-400">
+                            ({branch.onlineCount} {branch.onlineCount === 1 ? 'pedido' : 'pedidos'})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                       {branch.orderCount.toLocaleString()}
                     </TableCell>
@@ -513,6 +549,11 @@ export default function VentasSucursalPage() {
                       {formatCurrency(totalsByKey[c.key], c.key)}
                     </TableCell>
                   ))}
+                  <TableCell className="px-6 py-4 text-xs text-right font-semibold text-[#3E667D] tabular-nums whitespace-nowrap">
+                    {totals.onlineCount
+                      ? `${totals.onlineCount.toLocaleString()} ${totals.onlineCount === 1 ? 'pedido' : 'pedidos'}`
+                      : '—'}
+                  </TableCell>
                   <TableCell className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {totals.orderCount.toLocaleString()}
                   </TableCell>
