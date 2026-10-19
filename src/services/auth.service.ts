@@ -59,6 +59,9 @@ export interface UserResponse {
   currencyCode?: string;
   defaultBranchId?: string;
   defaultBranchName?: string;
+  /** Departamento/área del colaborador (users.department_id); null para
+   *  distribuidores y usuarios sin área. Ausente en respuestas previas a oct-2026. */
+  departmentName?: string | null;
 }
 
 export interface AuthResponse {

@@ -169,6 +169,10 @@
 /* Base Styles */
 html {
   scroll-behavior: smooth;
+  /* Tamaño de letra por usuario (Preferencias del admin, lib/preferences.ts):
+     Tailwind v4 mide texto y espaciado en rem, así que escalar la raíz agranda
+     todo el admin proporcionalmente. Sin la variable queda el tamaño de siempre. */
+  font-size: calc(100% * var(--tl-font-scale, 1));
 }
 
 body {

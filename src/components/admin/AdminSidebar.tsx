@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
+import { PreferencesDialog } from '@/components/admin/PreferencesDialog';
+import { applyPreferences, loadPreferences } from '@/lib/preferences';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -292,6 +294,12 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
   const userPermissions = useAppSelector(selectUserPermissions);
+  // Preferencias (tamaño de letra) guardadas por usuario: se aplican al cargar
+  // y al cambiar de cuenta.
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  useEffect(() => {
+    applyPreferences(loadPreferences(user?.id));
+  }, [user?.id]);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Los MÓDULOS visibles los deciden los PERMISOS del rol — sin listas de
@@ -559,8 +567,20 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">{getUserDisplayName()}</p>
-            <p className="truncate text-xs text-white/60">{getUserRoleLabel()}</p>
+            <p className="truncate text-xs text-white/60">
+              {[user?.departmentName, getUserRoleLabel()].filter(Boolean).join(' · ')}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setPrefsOpen(true)}
+            title="Preferencias (tamaño de letra)"
+            aria-label="Preferencias"
+            className="shrink-0 rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <Cog6ToothIcon className="h-5 w-5" />
+          </button>
+          <PreferencesDialog key={user?.id ?? 'anon'} open={prefsOpen} onOpenChange={setPrefsOpen} userId={user?.id} />
         </div>
         <div className="space-y-0.5">
           <Link
