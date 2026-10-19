@@ -149,6 +149,7 @@ export default function EmployeeDetailPage({
               <PhotoBlock
                 employeeId={employee.id}
                 photoUrl={employee.photoUrl}
+                photoThumbUrl={employee.photoThumbUrl ?? employee.photoUrl}
                 name={name}
                 canManage={canManage}
               />
@@ -489,11 +490,15 @@ export default function EmployeeDetailPage({
 function PhotoBlock({
   employeeId,
   photoUrl,
+  photoThumbUrl,
   name,
   canManage,
 }: {
   employeeId: string;
+  /** Original (alta resolución): se abre en el visor y va a la credencial. */
   photoUrl: string | null;
+  /** Miniatura 256 px para el avatar (mig 160). */
+  photoThumbUrl: string | null;
   name: string;
   canManage: boolean;
 }) {
@@ -574,10 +579,10 @@ function PhotoBlock({
           title="Ver la foto completa"
           className="rounded-full transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
         >
-          <EmployeeAvatar photoUrl={photoUrl} name={name} size={84} className="border-2 border-white/60" />
+          <EmployeeAvatar photoUrl={photoThumbUrl} name={name} size={84} className="border-2 border-white/60" />
         </button>
       ) : (
-        <EmployeeAvatar photoUrl={photoUrl} name={name} size={84} className="border-2 border-white/60" />
+        <EmployeeAvatar photoUrl={photoThumbUrl} name={name} size={84} className="border-2 border-white/60" />
       )}
       {photoUrl && (
         <Dialog open={viewOpen} onOpenChange={setViewOpen}>

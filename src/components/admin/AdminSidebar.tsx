@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -548,9 +549,14 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
       {/* User section */}
       <div className="border-t border-white/10 p-3">
         <div className="mb-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C8DDF2] text-sm font-bold text-[#2f5165] ring-1 ring-white/20">
-            {getUserInitials()}
-          </div>
+          {/* Foto del expediente de RRHH (miniatura, mig 160) o iniciales. */}
+          <EmployeeAvatar
+            photoUrl={user?.avatarUrl}
+            name={getUserDisplayName()}
+            initials={getUserInitials()}
+            size={36}
+            className="ring-1 ring-white/20"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">{getUserDisplayName()}</p>
             <p className="truncate text-xs text-white/60">{getUserRoleLabel()}</p>

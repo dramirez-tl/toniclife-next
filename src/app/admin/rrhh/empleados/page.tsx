@@ -241,7 +241,7 @@ function EmpleadosContent() {
         const name = employeeDisplayName(e);
         return (
           <div className="flex min-w-0 items-center gap-3">
-            <EmployeeAvatar photoUrl={e.photoUrl} name={name} size={40} />
+            <EmployeeAvatar photoUrl={e.photoThumbUrl ?? e.photoUrl} name={name} size={40} />
             <div className="min-w-0">
               <Link
                 href={`/admin/rrhh/empleados/${e.id}`}
@@ -512,7 +512,7 @@ function EmpleadosContent() {
                 return (
                   <Card key={e.id}>
                     <CardContent className="flex items-start gap-3 p-4">
-                      <EmployeeAvatar photoUrl={e.photoUrl} name={name} size={44} />
+                      <EmployeeAvatar photoUrl={e.photoThumbUrl ?? e.photoUrl} name={name} size={44} />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <Link

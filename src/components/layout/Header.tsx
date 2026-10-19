@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui';
 import {
@@ -280,12 +280,12 @@ export function Header() {
                 {isAuthenticated && user ? (
                   <span className="flex items-center gap-2 bg-[#3E667D] hover:bg-[#2f5165] text-white text-sm font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer">
                     {user.avatarUrl ? (
-                      <Image
-                        src={user.avatarUrl}
-                        alt={`${user.firstName} ${user.lastName}`}
-                        width={24}
-                        height={24}
-                        className="h-6 w-6 rounded-full object-cover"
+                      // Miniatura firmada de S3 (dominio fuera de next/image): <img> con
+                      // respaldo de iniciales si la URL caducó.
+                      <EmployeeAvatar
+                        photoUrl={user.avatarUrl}
+                        name={`${user.firstName} ${user.lastName}`}
+                        size={24}
                       />
                     ) : (
                       <span className="h-6 w-6 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center shrink-0">

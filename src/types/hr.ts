@@ -309,6 +309,8 @@ export interface Employee {
   workScheduleName: string | null;
   /** URL firmada (15 min) de la foto del gafete; null si no tiene. */
   photoUrl: string | null;
+  /** Miniatura 256 px para avatares (mig 160); la original si aún no existe */
+  photoThumbUrl?: string | null;
   photoConsentAt: string | null;
   syncSource: SyncSource | null;
   lastSyncedAt: string | null;
@@ -654,6 +656,8 @@ export interface OrgChartEmployee {
   isActive: boolean;
   /** URL firmada (15 min); null si no hay foto o el proveedor es local. */
   photoUrl: string | null;
+  /** Miniatura 256 px para avatares (mig 160); la original si aún no existe */
+  photoThumbUrl?: string | null;
   isDepartmentHead: boolean;
   isCountryDirector: boolean;
 }
@@ -753,6 +757,8 @@ export interface AttendanceEvent {
   method: AttendanceMethod;
   /** URL firmada (15 min). null si no hubo foto o no hay GCS configurado. */
   photoUrl: string | null;
+  /** Miniatura 256 px para avatares (mig 160); la original si aún no existe */
+  photoThumbUrl?: string | null;
   /** Motivo por el que no se pudo subir la foto (el evento se guarda igual). */
   photoError: string | null;
   registeredBy: { id: string; name: string } | null;

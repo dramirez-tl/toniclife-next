@@ -138,7 +138,7 @@ function personNode(
     country: null,
     department: null,
     employee,
-    photoUrl: employee.photoUrl,
+    photoUrl: employee.photoThumbUrl ?? employee.photoUrl,
     initials: employee.initials,
     haystack: normalizeText(
       [
@@ -303,7 +303,7 @@ function countryNode(
     country,
     department: null,
     employee: null,
-    photoUrl: director?.photoUrl ?? null,
+    photoUrl: director?.photoThumbUrl ?? director?.photoUrl ?? null,
     initials: director?.initials ?? null,
     haystack: normalizeText([country.name, country.code, country.directorName ?? ''].join(' ')),
     children,
