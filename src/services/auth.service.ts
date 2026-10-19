@@ -45,7 +45,11 @@ export interface UserResponse {
   firstName: string;
   lastName: string;
   phone: string | null;
+  /** Miniatura (256 px) de la foto del expediente, firmada. */
   avatarUrl: string | null;
+  /** Foto original del expediente (para verla en grande). Ausente en
+   *  respuestas previas a oct-2026. */
+  photoUrl?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   roles: string[];

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
+import { ProfilePhotoDialog } from '@/components/admin/ProfilePhotoDialog';
 import { PreferencesDialog } from '@/components/admin/PreferencesDialog';
 import { applyPreferences, loadPreferences } from '@/lib/preferences';
 import {
@@ -300,6 +301,7 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
   // Preferencias (tamaño de letra) guardadas por usuario: se aplican al cargar
   // y al cambiar de cuenta.
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
   useEffect(() => {
     applyPreferences(loadPreferences(user?.id));
   }, [user?.id]);
@@ -560,14 +562,33 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
       {/* User section */}
       <div className="border-t border-white/10 p-3">
         <div className="mb-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">
-          {/* Foto del expediente de RRHH (miniatura, mig 160) o iniciales. */}
-          <EmployeeAvatar
-            photoUrl={user?.avatarUrl}
-            name={getUserDisplayName()}
-            initials={getUserInitials()}
-            size={36}
-            className="ring-1 ring-white/20"
-          />
+          {/* Foto del expediente de RRHH (miniatura, mig 160) o iniciales.
+              Con foto, clic = verla en grande (solo ver; se edita en RRHH). */}
+          {user?.avatarUrl || user?.photoUrl ? (
+            <button
+              type="button"
+              onClick={() => setPhotoOpen(true)}
+              title="Ver foto"
+              aria-label="Ver foto del expediente"
+              className="shrink-0 rounded-lg transition-opacity hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <EmployeeAvatar
+                photoUrl={user?.avatarUrl ?? user?.photoUrl}
+                name={getUserDisplayName()}
+                initials={getUserInitials()}
+                size={36}
+                className="ring-1 ring-white/20"
+              />
+            </button>
+          ) : (
+            <EmployeeAvatar
+              photoUrl={null}
+              name={getUserDisplayName()}
+              initials={getUserInitials()}
+              size={36}
+              className="ring-1 ring-white/20"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">{getUserDisplayName()}</p>
             <p className="truncate text-xs text-white/60">
@@ -584,6 +605,14 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
             <Cog6ToothIcon className="h-5 w-5" />
           </button>
           <PreferencesDialog key={user?.id ?? 'anon'} open={prefsOpen} onOpenChange={setPrefsOpen} userId={user?.id} />
+          <ProfilePhotoDialog
+            open={photoOpen}
+            onOpenChange={setPhotoOpen}
+            photoUrl={user?.photoUrl}
+            avatarUrl={user?.avatarUrl}
+            name={getUserDisplayName()}
+            subtitle={[user?.departmentName, getUserRoleLabel()].filter(Boolean).join(' · ') || undefined}
+          />
         </div>
         <div className="space-y-0.5">
           <Link
