@@ -71,6 +71,8 @@ const BASE_CSS = `
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .big { font-size: 15px; font-weight: bold; }
   .check { display: inline-block; width: 14px; height: 14px; border: 1px solid #333; vertical-align: middle; }
+  .check.small { width: 11px; height: 11px; }
+  tr.comp td { background: #fafafa; font-size: 11px; padding-top: 3px; padding-bottom: 3px; }
   .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; font-size: 11px; text-align: center; }
   .sign div { border-top: 1px solid #333; padding-top: 4px; }
   @media print { body { padding: 8px; } @page { margin: 10mm; } }
@@ -80,16 +82,32 @@ const BASE_CSS = `
 export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
   const items = d.items ?? [];
   const rows = items
-    .map(
-      (it, i) => `
+    .map((it, i) => {
+      const comps = it.components ?? [];
+      const isKit = it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional';
+      const main = `
       <tr>
         <td class="num">${i + 1}</td>
         <td><span class="check"></span></td>
         <td>${esc(it.productSku)}</td>
-        <td>${esc(it.productName)}${it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional' ? ' <span class="muted">(kit: surtir contenido)</span>' : ''}</td>
+        <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}</td>
         <td class="num big">${esc(it.quantity)}</td>
+      </tr>`;
+      // Contenido del kit / promo: una línea por pieza con su cantidad TOTAL.
+      const children = comps
+        .map(
+          (c) => `
+      <tr class="comp">
+        <td></td>
+        <td><span class="check small"></span></td>
+        <td class="muted">${esc(c.sku ?? '')}</td>
+        <td>↳ ${esc(c.name)} <span class="muted">(${esc(c.quantityPerUnit)} × ${esc(it.quantity)})</span></td>
+        <td class="num">${esc(c.quantityTotal)}</td>
       </tr>`,
-    )
+        )
+        .join('');
+      return main + children;
+    })
     .join('');
   const units = items.reduce((s, it) => s + it.quantity, 0);
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(d.saleNumber)}</title><style>${BASE_CSS}</style></head><body>
@@ -125,11 +143,14 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
 export function buildTicketHtml(d: Delivery, timeZone?: string): string {
   const items = d.items ?? [];
   const rows = items
-    .map(
-      (it) => `
-      <tr><td colspan="3">${esc(it.productName)}<br><span class="muted">${esc(it.productSku)}</span></td></tr>
-      <tr><td class="num">${esc(it.quantity)} × ${esc(money(it.unitPrice, d.currencyCode))}</td><td></td><td class="num">${esc(money(it.total, d.currencyCode))}</td></tr>`,
-    )
+    .map((it) => {
+      const includes = (it.components ?? [])
+        .map((c) => `${c.quantityTotal} ${c.sku ? `${c.sku} ` : ''}${c.name}`)
+        .join(', ');
+      return `
+      <tr><td colspan="3">${esc(it.productName)}<br><span class="muted">${esc(it.productSku)}</span>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
+      <tr><td class="num">${esc(it.quantity)} × ${esc(money(it.unitPrice, d.currencyCode))}</td><td></td><td class="num">${esc(money(it.total, d.currencyCode))}</td></tr>`;
+    })
     .join('');
   const css = `
     body { font-family: "Courier New", Courier, monospace; font-size: 12px; margin: 0; padding: 10px; width: 80mm; }

@@ -6,7 +6,7 @@
 // el ticket e imprimirlos. Sin fechas, el API muestra desde HOY más todo lo
 // que siga abierto (las ventas anteriores al arranque se surtieron en el legacy).
 
-import { Suspense, useMemo, useState } from 'react';
+import { Fragment, Suspense, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import {
@@ -688,19 +688,42 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((it, i) => (
-            <tr key={it.id} className="border-b border-gray-100">
-              <td className="py-1 pr-2 text-gray-500">{i + 1}</td>
-              <td className="py-1 pr-2 font-mono">{it.productSku}</td>
-              <td className="py-1 pr-2">
-                {it.productName}
-                {it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional' ? (
-                  <span className="ml-1 text-xs text-gray-500">(kit: surtir contenido)</span>
-                ) : null}
-              </td>
-              <td className="py-1 text-right text-base font-semibold">{it.quantity}</td>
-            </tr>
-          ))}
+          {items.map((it, i) => {
+            const isKit =
+              it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional';
+            const comps = it.components ?? [];
+            return (
+              <Fragment key={it.id}>
+                <tr className="border-b border-gray-100">
+                  <td className="py-1 pr-2 text-gray-500">{i + 1}</td>
+                  <td className="py-1 pr-2 font-mono">{it.productSku}</td>
+                  <td className="py-1 pr-2">
+                    {it.productName}
+                    {isKit ? (
+                      <span className="ml-1 text-xs text-gray-500">
+                        {comps.length ? '(contiene:)' : '(kit sin composición cargada)'}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-1 text-right text-base font-semibold">{it.quantity}</td>
+                </tr>
+                {/* Contenido del kit / promo: piezas con cantidad TOTAL (por unidad × renglón). */}
+                {comps.map((c) => (
+                  <tr key={`${it.id}-${c.productId}`} className="border-b border-gray-50 bg-gray-50/60 text-xs">
+                    <td className="py-0.5 pr-2" />
+                    <td className="py-0.5 pr-2 font-mono text-gray-500">{c.sku ?? ''}</td>
+                    <td className="py-0.5 pr-2 text-gray-700">
+                      ↳ {c.name}
+                      <span className="ml-1 text-gray-400">
+                        ({c.quantityPerUnit} × {it.quantity})
+                      </span>
+                    </td>
+                    <td className="py-0.5 text-right font-medium text-gray-700">{c.quantityTotal}</td>
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          })}
         </tbody>
         <tfoot>
           <tr>
@@ -762,6 +785,12 @@ function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
             </span>
             <span>{formatMoney(it.total, d.currencyCode)}</span>
           </div>
+          {it.components && it.components.length > 0 ? (
+            <p className="text-[11px] text-gray-500">
+              Incluye:{' '}
+              {it.components.map((c) => `${c.quantityTotal} ${c.sku ? `${c.sku} ` : ''}${c.name}`).join(', ')}
+            </p>
+          ) : null}
         </div>
       ))}
       <hr className="my-2 border-dashed" />

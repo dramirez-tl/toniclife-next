@@ -25,6 +25,15 @@ export interface DeliveryQuery {
   limit?: number;
 }
 
+/** Pieza que compone un kit / paquete / promoción (lo que Almacén debe meter). */
+export interface DeliveryItemComponent {
+  productId: string;
+  sku: string | null;
+  name: string;
+  quantityPerUnit: number;
+  quantityTotal: number;
+}
+
 export interface DeliveryItem {
   id: string;
   productId: string;
@@ -34,6 +43,8 @@ export interface DeliveryItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  /** Contenido resuelto para el país de la sucursal que surte (solo kits, paquetes y promos). */
+  components?: DeliveryItemComponent[];
 }
 
 export interface Delivery {
