@@ -515,3 +515,105 @@ export interface SalesByUserResponse {
   summary: SalesByUserSummary;
   rows: SaleByUserRow[];
 }
+
+// ================================
+// BONO DE INSCRIPCIÓN (REPORTE_BONO_SUSCRIPCION del sistema anterior)
+// ================================
+
+export interface KitBonusRow {
+  sponsorNumber: string;
+  sponsorName: string;
+  buyerNumber: string;
+  buyerName: string;
+  /** YYYY-MM-DD o null */
+  registrationDate: string | null;
+  /** YYYY-MM-DD, día local de la sucursal de la venta */
+  purchaseDate: string;
+  /** basico | premium */
+  kitType: string;
+  kitCode: string;
+  units: number;
+  /** Moneda del patrocinador */
+  currencyCode: string;
+  /** Régimen fiscal del patrocinador; vacío si v2 no lo tiene */
+  regime: string;
+  subtotal: number;
+  isr: number;
+  iva: number;
+  ivaWithholding: number;
+  resico: number;
+  total: number;
+  documentId: string;
+  source: 'pos' | 'online';
+  ruleOrigin: 'venta' | 'patrocinador' | 'ninguna';
+  converted: boolean;
+  missingRate: boolean;
+}
+
+export interface KitBonusesByCurrency {
+  currencyCode: string;
+  rows: number;
+  subtotal: number;
+  total: number;
+}
+
+export interface KitBonusesSummary {
+  rows: number;
+  subtotal: number;
+  isr: number;
+  iva: number;
+  ivaWithholding: number;
+  resico: number;
+  total: number;
+  byCurrency: KitBonusesByCurrency[];
+  missingRegime: number;
+  missingRule: number;
+  missingRate: number;
+}
+
+export interface KitBonusesResponse {
+  startDate: string;
+  endDate: string;
+  periodName: string | null;
+  rates: Record<string, number>;
+  summary: KitBonusesSummary;
+  rows: KitBonusRow[];
+}
+
+// ================================
+// CORTE DE CAJA POR SUCURSAL (REPORTE_DE_CAJA del sistema anterior)
+// ================================
+
+export interface CashCutQuery {
+  startDate: string;
+  endDate: string;
+  branchId: string;
+}
+
+export interface CashCutRow {
+  documentId: string;
+  customerName: string;
+  total: number;
+  currencyCode: string;
+  paymentLabel: string;
+  paymentMethod: string;
+  /** ISO 8601 UTC */
+  saleDateTime: string;
+}
+
+export interface CashCutSummaryRow {
+  paymentLabel: string;
+  total: number;
+}
+
+export interface CashCutResponse {
+  startDate: string;
+  endDate: string;
+  branchId: string;
+  branchName: string;
+  currencyCode: string;
+  salesCount: number;
+  total: number;
+  summary: CashCutSummaryRow[];
+  rows: CashCutRow[];
+}

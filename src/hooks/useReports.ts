@@ -12,6 +12,8 @@ import type {
   AnalyticsQuery,
   ProductByPeriodQuery,
   SalesByUserQuery,
+  DateRangeQuery,
+  CashCutQuery,
 } from '@/types/reports';
 
 // ================================
@@ -52,6 +54,26 @@ export function useSalesByBranch(query: SalesReportQuery) {
     queryKey: ['reports', 'sales', 'by-branch', query],
     queryFn: () => reportsService.getSalesByBranch(query),
     enabled: !!query.startDate && !!query.endDate,
+  });
+}
+
+// ================================
+// TESORERÍA: BONO DE INSCRIPCIÓN Y CORTE DE CAJA
+// ================================
+
+export function useKitBonuses(query: DateRangeQuery) {
+  return useQuery({
+    queryKey: ['reports', 'kit-bonuses', query],
+    queryFn: () => reportsService.getKitBonuses(query),
+    enabled: !!query.startDate && !!query.endDate,
+  });
+}
+
+export function useCashCutByBranch(query: CashCutQuery) {
+  return useQuery({
+    queryKey: ['reports', 'cash-cut', 'by-branch', query],
+    queryFn: () => reportsService.getCashCutByBranch(query),
+    enabled: !!query.startDate && !!query.endDate && !!query.branchId,
   });
 }
 

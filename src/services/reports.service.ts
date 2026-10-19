@@ -29,7 +29,27 @@ import type {
   ProductByPeriodResponse,
   SalesByUserQuery,
   SalesByUserResponse,
+  KitBonusesResponse,
+  CashCutQuery,
+  CashCutResponse,
 } from '@/types/reports';
+
+const XLSX_MIME =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * Marca de tiempo yyyyMMddHHmmss de la descarga (hora local): mismo nombre
+ * que generaba el legacy. Content-Disposition no se expone por CORS, así que
+ * el nombre se arma aquí.
+ */
+function downloadStamp(): string {
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}` +
+    `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
+  );
+}
 
 class ReportsService {
   // ================================
@@ -294,6 +314,68 @@ class ReportsService {
       `/reports/sales/by-user?${params.toString()}`
     );
     return response.data;
+  }
+
+  // ================================
+  // TESORERÍA: BONO DE INSCRIPCIÓN Y CORTE DE CAJA (formato del sistema anterior)
+  // ================================
+
+  /** Backend: GET /reports/kit-bonuses (bono por suscrito, como el legacy). */
+  async getKitBonuses(query: DateRangeQuery): Promise<KitBonusesResponse> {
+    const response = await api.get<KitBonusesResponse>('/reports/kit-bonuses', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+      },
+    });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/kit-bonuses/legacy-xlsx → REPORTE_BONO_SUSCRIPCION_<fecha>.xlsx */
+  async downloadKitBonusesLegacyXlsx(query: DateRangeQuery): Promise<void> {
+    const response = await api.get('/reports/kit-bonuses/legacy-xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+      },
+      responseType: 'blob',
+    });
+    saveBlob(
+      response.data as BlobPart,
+      `REPORTE_BONO_SUSCRIPCION_${downloadStamp()}.xlsx`,
+      XLSX_MIME,
+    );
+  }
+
+  /** Backend: GET /reports/cash-cut/by-branch (corte de caja de una sucursal). */
+  async getCashCutByBranch(query: CashCutQuery): Promise<CashCutResponse> {
+    const response = await api.get<CashCutResponse>('/reports/cash-cut/by-branch', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        branchId: query.branchId,
+      },
+    });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/cash-cut/by-branch/legacy-xlsx → REPORTE_CORTE_CAJA_SUCURSAL_<fecha>.xlsx */
+  async downloadCashCutLegacyXlsx(query: CashCutQuery): Promise<void> {
+    const response = await api.get('/reports/cash-cut/by-branch/legacy-xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        branchId: query.branchId,
+      },
+      responseType: 'blob',
+    });
+    saveBlob(
+      response.data as BlobPart,
+      `REPORTE_CORTE_CAJA_SUCURSAL_${downloadStamp()}.xlsx`,
+      XLSX_MIME,
+    );
   }
 }
 
