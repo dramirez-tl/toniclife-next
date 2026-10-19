@@ -635,13 +635,55 @@ export interface KitBonusRevertResult {
   reverted: boolean;
 }
 
+/** Un bono (suscrito) dentro del grupo de un patrocinador. */
+export interface KitBonusGroupItem {
+  source: 'pos' | 'online';
+  itemId: string;
+  buyerNumber: string;
+  buyerName: string;
+  kitType: string;
+  kitCode: string;
+  purchaseDate: string;
+  documentId: string;
+  subtotal: number;
+  total: number;
+}
+
+/** Bonos de un patrocinador que se pagan juntos (misma moneda, régimen y estatus). */
+export interface KitBonusGroup {
+  key: string;
+  sponsorId: string;
+  sponsorNumber: string;
+  sponsorName: string;
+  sponsorCountry: string | null;
+  currencyCode: string;
+  regime: string;
+  paymentStatus: KitBonusPaymentStatus;
+  paidAt: string | null;
+  paymentReference: string | null;
+  bonuses: number;
+  units: number;
+  subtotal: number;
+  isr: number;
+  iva: number;
+  ivaWithholding: number;
+  resico: number;
+  total: number;
+  /** true = más de un bono pendiente: impuestos calculados sobre la suma. */
+  recomputed: boolean;
+  items: KitBonusGroupItem[];
+}
+
 export interface KitBonusesResponse {
   startDate: string;
   endDate: string;
   periodName: string | null;
   rates: Record<string, number>;
   summary: KitBonusesSummary;
+  /** Una fila por bono; con varios pendientes del mismo patrocinador, impuestos prorrateados del cálculo sobre la suma. */
   rows: KitBonusRow[];
+  /** Compactado por patrocinador: lo que se deposita. */
+  groups: KitBonusGroup[];
 }
 
 // ================================

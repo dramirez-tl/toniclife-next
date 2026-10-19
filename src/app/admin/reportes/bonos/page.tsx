@@ -10,7 +10,7 @@
 // motivo); se marca por selección o todos los pendientes del rango, y se
 // puede revertir (vuelve a pendiente, queda historial).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useKitBonuses, useMarkKitBonusPayments, useRevertKitBonusPayment } from '@/hooks/useReports';
 import { reportsService } from '@/services/reports.service';
@@ -38,7 +38,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import type { KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
+import type { KitBonusGroup, KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
 
 /** Mismo tope que el API para el rango. */
 const MAX_RANGE_DAYS = 366;
@@ -140,6 +140,172 @@ function StatusBadge({ row }: { row: KitBonusRow }) {
 
 type DialogMode = { kind: 'paid' | 'excluded'; count: number; all: boolean } | { kind: 'revert'; row: KitBonusRow } | null;
 
+function GroupStatusBadge({ g }: { g: KitBonusGroup }) {
+  if (g.paymentStatus === 'paid') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
+        title={g.paymentReference ? `Ref. ${g.paymentReference}` : undefined}
+      >
+        Pagado {formatDateDisplay(g.paidAt)}
+      </span>
+    );
+  }
+  if (g.paymentStatus === 'excluded') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+        No pagado
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+      Pendiente
+    </span>
+  );
+}
+
+interface GroupedTableProps {
+  groups: KitBonusGroup[];
+  canPay: boolean;
+  selected: Set<string>;
+  allSelected: boolean;
+  anyPending: boolean;
+  onToggleGroup: (g: KitBonusGroup) => void;
+  onToggleAll: () => void;
+  expanded: Set<string>;
+  onToggleExpand: (key: string) => void;
+  totalLabel: string;
+}
+
+/** Un renglón por patrocinador: lo que Tesorería deposita. */
+function GroupedTable({
+  groups,
+  canPay,
+  selected,
+  allSelected,
+  anyPending,
+  onToggleGroup,
+  onToggleAll,
+  expanded,
+  onToggleExpand,
+  totalLabel,
+}: GroupedTableProps) {
+  const colSpan = canPay ? 9 : 8;
+  return (
+    <div className="overflow-x-auto">
+      <Table className="min-w-full">
+        <TableHeader>
+          <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+            {canPay && (
+              <TableHead className="px-4 py-3.5 w-10">
+                <Checkbox checked={allSelected} onCheckedChange={onToggleAll} disabled={!anyPending} aria-label="Seleccionar todos los patrocinadores pendientes" />
+              </TableHead>
+            )}
+            {['Estatus', 'ID Upline', 'Upline', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos'].map((h) => (
+              <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                {h}
+              </TableHead>
+            ))}
+            {['Subtotal', 'ISR', 'IVA', 'Ret IVA', 'RESICO', 'Total'].map((h) => (
+              <TableHead key={h} className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                {h}
+              </TableHead>
+            ))}
+            <TableHead className="px-4 py-3.5" />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {groups.map((g, idx) => {
+            const isSelected = g.paymentStatus === 'pending' && g.items.every((i) => selected.has(`${i.source}:${i.itemId}`));
+            const open = expanded.has(g.key);
+            return (
+              <Fragment key={g.key}>
+                <TableRow
+                  className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${g.paymentStatus === 'excluded' ? 'opacity-60' : ''}`}
+                >
+                  {canPay && (
+                    <TableCell className="px-4 py-3 w-10">
+                      {g.paymentStatus === 'pending' && (
+                        <Checkbox checked={isSelected} onCheckedChange={() => onToggleGroup(g)} aria-label={`Seleccionar los bonos de ${g.sponsorName}`} />
+                      )}
+                    </TableCell>
+                  )}
+                  <TableCell className="px-4 py-3 whitespace-nowrap"><GroupStatusBadge g={g} /></TableCell>
+                  <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap tabular-nums">{g.sponsorNumber}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{g.sponsorName}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap" title={g.sponsorCountry ? COUNTRY_LABEL[g.sponsorCountry] ?? g.sponsorCountry : undefined}>
+                    {g.sponsorCountry ?? '—'}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm whitespace-nowrap">
+                    {g.regime ? (
+                      <span className="text-gray-700">{g.regime}</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">Sin régimen</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{g.currencyCode}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap tabular-nums">
+                    {g.bonuses}
+                    {g.recomputed && (
+                      <span className="ml-1 rounded bg-[#3E667D]/10 px-1 text-[10px] font-semibold text-[#3E667D]" title="Más de un bono: impuestos calculados sobre la suma">
+                        Σ
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={g.items.map((i) => `${i.buyerNumber} ${i.buyerName}`).join(' · ')}>
+                    {g.items.map((i) => i.buyerName).join(', ')}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(g.subtotal, g.currencyCode)}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.isr ? formatAmount(g.isr) : '—'}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.iva ? formatAmount(g.iva) : '—'}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.ivaWithholding ? formatAmount(g.ivaWithholding) : '—'}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.resico ? formatAmount(g.resico) : '—'}</TableCell>
+                  <TableCell className="px-4 py-3 text-sm text-right font-semibold text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(g.total, g.currencyCode)}</TableCell>
+                  <TableCell className="px-4 py-3 whitespace-nowrap">
+                    <button type="button" onClick={() => onToggleExpand(g.key)} className="text-xs text-[#3E667D] hover:underline">
+                      {open ? 'Ocultar' : 'Ver bonos'}
+                    </button>
+                  </TableCell>
+                </TableRow>
+                {open && (
+                  <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
+                    <TableCell colSpan={colSpan + 7} className="px-6 py-2">
+                      <ul className="space-y-0.5 text-xs text-gray-600">
+                        {g.items.map((i) => (
+                          <li key={`${i.source}:${i.itemId}`}>
+                            <span className="font-mono text-gray-500">{i.buyerNumber}</span> {i.buyerName} · {KIT_LABEL[i.kitType] ?? i.kitType}{' '}
+                            <span className="text-gray-400">{i.kitCode}</span> · {formatDateDisplay(i.purchaseDate)} · {i.documentId} · bono{' '}
+                            {formatAmount(i.subtotal)} → neto {formatAmount(i.total)}
+                          </li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            );
+          })}
+        </TableBody>
+        <TableFooter className="bg-transparent">
+          <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
+            <TableCell colSpan={colSpan} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
+              {totalLabel} ({groups.length} {groups.length === 1 ? 'patrocinador' : 'patrocinadores'} ·{' '}
+              {groups.reduce((acc, g) => acc + g.bonuses, 0)} bonos)
+            </TableCell>
+            {(['subtotal', 'isr', 'iva', 'ivaWithholding', 'resico', 'total'] as const).map((k) => (
+              <TableCell key={k} className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                {formatAmount(groups.reduce((acc, g) => acc + g[k], 0))}
+              </TableCell>
+            ))}
+            <TableCell className="px-4 py-4" />
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </div>
+  );
+}
+
 export default function BonosInscripcionPage() {
   // Por defecto la semana pasada (lunes→domingo): el legacy lo corría cada lunes.
   const [lastWeekFrom, lastWeekTo] = useMemo(() => weekRange(-1), []);
@@ -151,6 +317,9 @@ export default function BonosInscripcionPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogMode>(null);
+  // Vista compacta por patrocinador (lo que se deposita) o una fila por bono.
+  const [view, setView] = useState<'grouped' | 'detail'>('grouped');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [paidAt, setPaidAt] = useState(() => daysAgo(0));
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
@@ -264,6 +433,33 @@ export default function BonosInscripcionPage() {
       return next;
     });
 
+  // Grupos por patrocinador (mismo filtro de estatus). Seleccionar un grupo =
+  // seleccionar todos sus bonos pendientes (las claves son las de las filas).
+  const groups = useMemo(
+    () => (data?.groups ?? []).filter((g) => statusFilter === 'all' || g.paymentStatus === statusFilter),
+    [data, statusFilter],
+  );
+  const groupKeys = (g: KitBonusGroup) => g.items.map((i) => `${i.source}:${i.itemId}`);
+  const pendingGroups = groups.filter((g) => g.paymentStatus === 'pending');
+  const allGroupsSelected =
+    pendingGroups.length > 0 && pendingGroups.every((g) => groupKeys(g).every((k) => selected.has(k)));
+  const selectedGroupCount = pendingGroups.filter((g) => groupKeys(g).every((k) => selected.has(k))).length;
+  const toggleGroup = (g: KitBonusGroup) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const keys = groupKeys(g);
+      const all = keys.every((k) => next.has(k));
+      keys.forEach((k) => (all ? next.delete(k) : next.add(k)));
+      return next;
+    });
+  const toggleExpand = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const filtersLabel = `${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}`;
   // Sin selección se marcan los pendientes VISIBLES (respetando país y estatus),
   // nunca todo el rango: cada tesorería marca solo lo que pagó.
@@ -338,7 +534,7 @@ export default function BonosInscripcionPage() {
             <button
               onClick={handleDownload}
               disabled={!appliedStart || !appliedEnd || isFetching || downloading}
-              title="REPORTE_BONO_SUSCRIPCION: ID UPLINE | NOMBRES UPLINE | ID | NOMBRES | FECHA REGISTRO | FECHA COMPRA | BONO POR SUSCRITO | TIPO KIT | CLAVE | MONEDA | RÉGIMEN | SUBTOTAL | ISR | IVA | RET IVA | RESICO | TOTAL + ESTATUS PAGO"
+              title="REPORTE_BONO_SUSCRIPCION: hoja POR PATROCINADOR (un renglón por patrocinador, impuestos sobre la suma: la que se usa para depositar) + Hoja1 con las 17 columnas del sistema anterior (una fila por suscrito) + ESTATUS PAGO"
               className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {downloading ? (
@@ -505,11 +701,32 @@ export default function BonosInscripcionPage() {
                 );
               })}
             </div>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium" role="tablist" aria-label="Vista">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'grouped'}
+                onClick={() => setView('grouped')}
+                className={`rounded-md px-3 py-1.5 transition-colors ${view === 'grouped' ? 'bg-white text-[#3E667D] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                title="Un renglón por patrocinador con la suma de sus bonos; impuestos sobre la suma"
+              >
+                Por patrocinador <span className="text-gray-400">({groups.length})</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'detail'}
+                onClick={() => setView('detail')}
+                className={`rounded-md px-3 py-1.5 transition-colors ${view === 'detail' ? 'bg-white text-[#3E667D] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Por bono <span className="text-gray-400">({rows.length})</span>
+              </button>
+            </div>
             {canPay && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-500">
                   {selectedVisible.length
-                    ? `${selectedVisible.length} ${selectedVisible.length === 1 ? 'seleccionado' : 'seleccionados'}`
+                    ? `${selectedVisible.length} ${selectedVisible.length === 1 ? 'bono seleccionado' : 'bonos seleccionados'}${selectedGroupCount ? ` · ${selectedGroupCount} ${selectedGroupCount === 1 ? 'patrocinador' : 'patrocinadores'}` : ''}`
                     : `Sin selección: aplica a los ${visiblePending.length} pendientes visibles (${filtersLabel})`}
                 </span>
                 <Button size="sm" onClick={() => openMark('paid')} disabled={busy || visiblePending.length === 0} className="bg-green-700 hover:bg-green-800 text-white">
@@ -544,6 +761,19 @@ export default function BonosInscripcionPage() {
               </p>
               <p className="text-xs text-gray-300">Intenta con otras fechas o cambia el filtro de estatus</p>
             </div>
+          ) : view === 'grouped' ? (
+            <GroupedTable
+              groups={groups}
+              canPay={canPay}
+              selected={selected}
+              allSelected={allGroupsSelected}
+              anyPending={pendingGroups.length > 0}
+              onToggleGroup={toggleGroup}
+              onToggleAll={toggleAllVisible}
+              expanded={expanded}
+              onToggleExpand={toggleExpand}
+              totalLabel={statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-full">
@@ -679,7 +909,8 @@ export default function BonosInscripcionPage() {
                   <DialogTitle>Marcar como pagados</DialogTitle>
                   <DialogDescription>
                     {dialog.all ? `Los ${dialog.count} bonos pendientes visibles (${filtersLabel})` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
-                    Se congelan subtotal, impuestos y total tal como se ven hoy.
+                    Se congelan subtotal, impuestos y total; si un patrocinador tiene varios bonos en este pago, los
+                    impuestos se calculan sobre la suma.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">
