@@ -122,6 +122,11 @@ const formatCurrency = (amount: number, currencyCode = 'MXN') =>
     currency: currencyCode,
   }).format(amount);
 
+/** Puntos de la venta = suma de puntos × cantidad de sus renglones. OJO: `accumulatedPoints`
+ *  del API es el SALDO del periodo después de la venta, no los puntos de la venta. */
+const salePointsOf = (sale: Sale): number =>
+  (sale.items ?? []).reduce((s, it) => s + (Number(it.points) || 0) * (Number(it.quantity) || 0), 0);
+
 const formatDate = (dateStr: string, timezone: string = DEFAULT_TIMEZONE) =>
   new Date(dateStr).toLocaleString('es-MX', {
     year: 'numeric',
@@ -405,10 +410,10 @@ function printSaleTicket(sale: Sale, branchTz: string) {
     ${change > 0 ? `<div class="row"><span>Cambio</span><span>${money(change)}</span></div>` : ''}
     ${
       sale.accumulatedPoints != null
-        ? `<hr /><div class="row"><span>Puntos de la venta</span><span class="b">+${esc(Number(sale.accumulatedPoints).toLocaleString('es-MX'))}</span></div>${
+        ? `<hr /><div class="row"><span>Puntos de la venta</span><span class="b">+${esc(salePointsOf(sale).toLocaleString('es-MX'))}</span></div>${
             sale.pointsBalanceAfter != null
               ? `<div class="row muted"><span>Saldo del periodo</span><span>${esc(Number(sale.pointsBalanceBefore ?? 0).toLocaleString('es-MX'))} → ${esc(Number(sale.pointsBalanceAfter).toLocaleString('es-MX'))}</span></div>`
-              : ''
+              : `<div class="row muted"><span>Saldo del periodo tras la venta</span><span>${esc(Number(sale.accumulatedPoints).toLocaleString('es-MX'))}</span></div>`
           }`
         : ''
     }
@@ -435,6 +440,7 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
   if (!sale) return null;
 
   const view = detail ?? sale;
+  // (salePointsOf: puntos de la venta = suma de puntos × cantidad de sus renglones)
   const currency = view.currencyCode || 'MXN';
 
   const itemColumns: DataTableColumn<SaleItem>[] = [
@@ -619,7 +625,9 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             </div>
           </div>
 
-          {/* Puntos generados por la venta (MLM) */}
+          {/* Puntos generados por la venta (MLM). OJO: accumulatedPoints es el
+              SALDO del periodo después de la venta (no los puntos de la venta);
+              los puntos de la venta salen de sus renglones (puntos × cantidad). */}
           {view.accumulatedPoints != null && (
             <div className="rounded-xl border border-[#a7c1e2] bg-[#C8DDF2]/20 p-4">
               <div className="flex items-center justify-between">
@@ -633,21 +641,27 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
                   </div>
                 </div>
                 <span className="text-lg font-bold text-[#3E667D]">
-                  +{Number(view.accumulatedPoints).toLocaleString('es-MX')}
+                  +{salePointsOf(view).toLocaleString('es-MX')}
                 </span>
               </div>
-              {view.pointsBalanceAfter != null && (
-                <div className="mt-3 flex items-center justify-between border-t border-[#a7c1e2]/60 pt-3 text-sm">
-                  <span className="text-gray-600">Saldo del periodo</span>
-                  <span className="font-medium text-gray-900">
-                    {Number(view.pointsBalanceBefore ?? 0).toLocaleString('es-MX')}
-                    <span className="mx-1.5 text-gray-400">→</span>
+              <div className="mt-3 flex items-center justify-between border-t border-[#a7c1e2]/60 pt-3 text-sm">
+                <span className="text-gray-600">Saldo del periodo tras la venta</span>
+                <span className="font-medium text-gray-900">
+                  {view.pointsBalanceAfter != null ? (
+                    <>
+                      {Number(view.pointsBalanceBefore ?? 0).toLocaleString('es-MX')}
+                      <span className="mx-1.5 text-gray-400">→</span>
+                      <span className="text-[#3E667D] font-bold">
+                        {Number(view.pointsBalanceAfter).toLocaleString('es-MX')}
+                      </span>
+                    </>
+                  ) : (
                     <span className="text-[#3E667D] font-bold">
-                      {Number(view.pointsBalanceAfter).toLocaleString('es-MX')}
+                      {Number(view.accumulatedPoints).toLocaleString('es-MX')}
                     </span>
-                  </span>
-                </div>
-              )}
+                  )}
+                </span>
+              </div>
             </div>
           )}
 
