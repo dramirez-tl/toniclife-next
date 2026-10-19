@@ -98,6 +98,18 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 
 const rowKey = (r: KitBonusRow) => `${r.source}:${r.itemId}`;
 
+/** País del patrocinador = quien cobra; por aquí se reparte el pago entre tesorerías. */
+const COUNTRY_LABEL: Record<string, string> = { MX: 'México', FN: 'Frontera', US: 'EE. UU.', CO: 'Colombia', GT: 'Guatemala' };
+const COUNTRY_ORDER = ['MX', 'FN', 'US', 'CO', 'GT'];
+const sortCountries = (list: string[]) =>
+  [...list].sort((a, b) => {
+    const ia = COUNTRY_ORDER.indexOf(a);
+    const ib = COUNTRY_ORDER.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+  });
+const chipClass = (active: boolean) =>
+  `rounded-full border px-3 py-1 text-xs font-medium transition-colors ${active ? 'border-[#3E667D] bg-[#3E667D] text-white' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`;
+
 function StatusBadge({ row }: { row: KitBonusRow }) {
   if (row.paymentStatus === 'paid') {
     return (
@@ -147,11 +159,32 @@ export default function BonosInscripcionPage() {
   useEffect(() => {
     setCanPay(authService.hasPermission(PAY_PERMISSION));
   }, []);
+  // Filtro por país del patrocinador (quien cobra): el API filtra, así los
+  // totales y el Excel son solo de ese país y "marcar pagados" no toca otros.
+  const [countries, setCountries] = useState<Set<string>>(new Set());
+  const [knownCountries, setKnownCountries] = useState<string[]>([]);
+  const countryParam = countries.size ? sortCountries([...countries]).join(',') : undefined;
+  const toggleCountry = (code: string) => {
+    setCountries((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+    setSelected(new Set());
+  };
 
   const { data, isLoading, isFetching, error, refetch } = useKitBonuses({
     startDate: appliedStart,
     endDate: appliedEnd,
+    ...(countryParam ? { country: countryParam } : {}),
   });
+  useEffect(() => {
+    if (!data) return;
+    const found = data.rows.map((r) => r.sponsorCountry).filter((c): c is string => !!c);
+    if (found.length === 0) return;
+    setKnownCountries((prev) => sortCountries([...new Set([...prev, ...found])]));
+  }, [data]);
   const markMutation = useMarkKitBonusPayments();
   const revertMutation = useRevertKitBonusPayment();
 
@@ -187,6 +220,7 @@ export default function BonosInscripcionPage() {
         startDate: appliedStart,
         endDate: appliedEnd,
         ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        ...(countryParam ? { country: countryParam } : {}),
       });
       toast.success(statusFilter === 'all' ? 'Excel generado' : `Excel generado (solo ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()})`);
     } catch {
@@ -230,17 +264,19 @@ export default function BonosInscripcionPage() {
       return next;
     });
 
-  const pendingTotal = byStatus?.pending.rows ?? 0;
+  const filtersLabel = `${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}`;
+  // Sin selección se marcan los pendientes VISIBLES (respetando país y estatus),
+  // nunca todo el rango: cada tesorería marca solo lo que pagó.
   const openMark = (kind: 'paid' | 'excluded') => {
-    const count = selectedVisible.length;
-    if (count === 0 && pendingTotal === 0) {
-      toast.error('No hay bonos pendientes en el rango');
+    const count = selectedVisible.length || visiblePending.length;
+    if (count === 0) {
+      toast.error('No hay bonos pendientes con los filtros actuales');
       return;
     }
     setPaidAt(daysAgo(0));
     setReference('');
     setNotes('');
-    setDialog({ kind, count: count || pendingTotal, all: count === 0 });
+    setDialog({ kind, count, all: selectedVisible.length === 0 });
   };
 
   const submitMark = async () => {
@@ -250,12 +286,13 @@ export default function BonosInscripcionPage() {
       return;
     }
     try {
-      const items = dialog.all ? undefined : selectedVisible.map((r) => ({ source: r.source, itemId: r.itemId }));
+      const targets = dialog.all ? visiblePending : selectedVisible;
+      const items = targets.map((r) => ({ source: r.source, itemId: r.itemId }));
       const result = await markMutation.mutateAsync({
         startDate: appliedStart,
         endDate: appliedEnd,
         status: dialog.kind,
-        ...(items ? { items } : { all: true }),
+        items,
         ...(dialog.kind === 'paid' ? { paidAt, reference: reference.trim() || undefined } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       });
@@ -360,6 +397,27 @@ export default function BonosInscripcionPage() {
               )}
             </button>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">País del patrocinador (quien cobra):</span>
+            <button
+              type="button"
+              onClick={() => {
+                setCountries(new Set());
+                setSelected(new Set());
+              }}
+              className={chipClass(countries.size === 0)}
+            >
+              Todos
+            </button>
+            {knownCountries.map((c) => (
+              <button key={c} type="button" onClick={() => toggleCountry(c)} className={chipClass(countries.has(c))}>
+                {c} · {COUNTRY_LABEL[c] ?? c}
+              </button>
+            ))}
+            {countries.size > 0 && (
+              <span className="text-xs text-gray-400">Totales, Excel y marcar pagados: solo {countryParam?.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ')}</span>
+            )}
+          </div>
           <p className="mt-3 text-xs text-gray-400">
             Solo kits vendidos en este sistema (ventas POS completadas y pedidos en línea pagados). Las semanas
             anteriores al cambio de sistema se siguen bajando del sistema anterior.
@@ -452,12 +510,12 @@ export default function BonosInscripcionPage() {
                 <span className="text-xs text-gray-500">
                   {selectedVisible.length
                     ? `${selectedVisible.length} ${selectedVisible.length === 1 ? 'seleccionado' : 'seleccionados'}`
-                    : `Sin selección: aplica a los ${pendingTotal} pendientes del rango`}
+                    : `Sin selección: aplica a los ${visiblePending.length} pendientes visibles (${filtersLabel})`}
                 </span>
-                <Button size="sm" onClick={() => openMark('paid')} disabled={busy || pendingTotal === 0} className="bg-green-700 hover:bg-green-800 text-white">
+                <Button size="sm" onClick={() => openMark('paid')} disabled={busy || visiblePending.length === 0} className="bg-green-700 hover:bg-green-800 text-white">
                   Marcar como pagados
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || pendingTotal === 0}>
+                <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || visiblePending.length === 0}>
                   Marcar como no pagados
                 </Button>
               </div>
@@ -501,7 +559,7 @@ export default function BonosInscripcionPage() {
                         />
                       </TableHead>
                     )}
-                    {['Estatus', 'Fecha compra', 'ID Upline', 'Upline', 'ID', 'Comprador', 'Registro', 'Kit', 'Moneda', 'Régimen'].map((h) => (
+                    {['Estatus', 'Fecha compra', 'ID Upline', 'Upline', 'ID', 'Comprador', 'Registro', 'Kit', 'Moneda', 'País', 'Régimen'].map((h) => (
                       <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </TableHead>
@@ -544,6 +602,9 @@ export default function BonosInscripcionPage() {
                       <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {r.currencyCode}
                         {r.converted && <span className="ml-1 text-[10px] text-gray-400" title="Convertido con la tasa del periodo">conv.</span>}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap" title={r.sponsorCountry ? COUNTRY_LABEL[r.sponsorCountry] ?? r.sponsorCountry : undefined}>
+                        {r.sponsorCountry ?? '—'}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm whitespace-nowrap">
                         {r.regime ? (
@@ -591,7 +652,7 @@ export default function BonosInscripcionPage() {
                 </TableBody>
                 <TableFooter className="bg-transparent">
                   <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
-                    <TableCell colSpan={canPay ? 11 : 10} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
+                    <TableCell colSpan={canPay ? 12 : 11} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
                       {statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`} ({rows.length}{' '}
                       {rows.length === 1 ? 'bono' : 'bonos'})
                     </TableCell>
@@ -617,7 +678,7 @@ export default function BonosInscripcionPage() {
                 <DialogHeader>
                   <DialogTitle>Marcar como pagados</DialogTitle>
                   <DialogDescription>
-                    {dialog.all ? `Todos los ${dialog.count} bonos pendientes del rango ${rangeLabel}` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
+                    {dialog.all ? `Los ${dialog.count} bonos pendientes visibles (${filtersLabel})` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
                     Se congelan subtotal, impuestos y total tal como se ven hoy.
                   </DialogDescription>
                 </DialogHeader>
@@ -648,7 +709,7 @@ export default function BonosInscripcionPage() {
                 <DialogHeader>
                   <DialogTitle>Marcar como no pagados</DialogTitle>
                   <DialogDescription>
-                    {dialog.all ? `Todos los ${dialog.count} bonos pendientes del rango ${rangeLabel}` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
+                    {dialog.all ? `Los ${dialog.count} bonos pendientes visibles (${filtersLabel})` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
                     Quedan fuera de lo pendiente; se puede revertir después.
                   </DialogDescription>
                 </DialogHeader>

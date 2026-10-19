@@ -525,6 +525,8 @@ export type KitBonusPaymentStatus = 'pending' | 'paid' | 'excluded';
 export interface KitBonusesQuery extends DateRangeQuery {
   /** Solo bonos con este estatus de pago (el API filtra) */
   status?: KitBonusPaymentStatus;
+  /** País del patrocinador (quien cobra); varios separados por coma: 'MX,FN' */
+  country?: string;
 }
 
 export interface KitBonusRow {
@@ -555,6 +557,9 @@ export interface KitBonusRow {
   units: number;
   /** Moneda del patrocinador */
   currencyCode: string;
+  /** País del patrocinador (quien cobra): MX, FN, US, CO… */
+  sponsorCountry: string | null;
+  saleCountry: string | null;
   /** Régimen fiscal del patrocinador; vacío si v2 no lo tiene */
   regime: string;
   subtotal: number;

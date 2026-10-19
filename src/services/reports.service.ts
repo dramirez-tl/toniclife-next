@@ -332,6 +332,7 @@ class ReportsService {
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.status ? { status: query.status } : {}),
+        ...(query.country ? { country: query.country } : {}),
       },
     });
     return response.data;
@@ -345,10 +346,13 @@ class ReportsService {
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.status ? { status: query.status } : {}),
+        ...(query.country ? { country: query.country } : {}),
       },
       responseType: 'blob',
     });
-    const suffix = query.status ? `_${query.status.toUpperCase()}` : '';
+    const suffix =
+      (query.country ? `_${query.country.replace(/,/g, '-')}` : '') +
+      (query.status ? `_${query.status.toUpperCase()}` : '');
     saveBlob(
       response.data as BlobPart,
       `REPORTE_BONO_SUSCRIPCION${suffix}_${downloadStamp()}.xlsx`,
