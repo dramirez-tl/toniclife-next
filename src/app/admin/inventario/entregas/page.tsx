@@ -359,19 +359,29 @@ function EntregasContent() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Entregas a domicilio</h1>
-          <p className="text-sm text-gray-600">
-            Pedidos cobrados por Call Center en el POS con domicilio confirmado. Surte, marca listo, enviado
-            (con guía) y entregado. Se actualiza solo cada minuto.
-          </p>
+    <div className="space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
+      {/* Encabezado (mismo estilo que el resto del admin) */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3E667D] to-[#2f5165] px-6 py-6 shadow-lg">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
+        <div className="absolute -right-4 bottom-0 h-24 w-24 rounded-full bg-white/5" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Entregas a domicilio</h1>
+            <p className="mt-1 text-sm text-white/70">
+              Pedidos cobrados por Call Center en el POS con domicilio confirmado. Surte, marca listo, enviado
+              (con guía) y entregado. Se actualiza solo cada minuto.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-[#2f5165] shadow-sm transition-all hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-          <ArrowPathIcon className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
       </div>
 
       {/* Pestañas por estado */}
@@ -400,7 +410,7 @@ function EntregasContent() {
       </div>
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-5">
         <div className="md:col-span-2">
           <Label htmlFor="deliveries-search">Buscar</Label>
           <form
@@ -470,23 +480,30 @@ function EntregasContent() {
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data?.data ?? []}
-        getRowKey={(d) => d.id}
-        isLoading={isLoading}
-        emptyMessage="No hay entregas con estos filtros."
-        minWidthClassName="min-w-[1100px]"
-      />
-      <DataTablePagination
-        currentPage={page}
-        pageSize={limit}
-        totalItems={data?.total ?? 0}
-        onPageChange={(p) => setParams({ page: String(p) })}
-        onPageSizeChange={(s) => setParams({ limit: String(s), page: '1' })}
-        pageSizeOptions={[20, 50, 100, 200]}
-        isLoading={isFetching}
-      />
+      {/* Tabla en tarjeta, con aire respecto a las orillas */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto px-2 pt-2">
+          <DataTable
+            columns={columns}
+            data={data?.data ?? []}
+            getRowKey={(d) => d.id}
+            isLoading={isLoading}
+            emptyMessage="No hay entregas con estos filtros."
+            minWidthClassName="min-w-[1100px]"
+          />
+        </div>
+        <div className="border-t border-gray-100 px-4 py-3">
+          <DataTablePagination
+            currentPage={page}
+            pageSize={limit}
+            totalItems={data?.total ?? 0}
+            onPageChange={(p) => setParams({ page: String(p) })}
+            onPageSizeChange={(s) => setParams({ limit: String(s), page: '1' })}
+            pageSizeOptions={[20, 50, 100, 200]}
+            isLoading={isFetching}
+          />
+        </div>
+      </div>
 
       <DeliveryDetailDialog
         id={detailId}
