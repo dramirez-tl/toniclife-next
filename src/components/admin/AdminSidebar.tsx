@@ -72,6 +72,9 @@ const navigation: NavItem[] = [
       { name: 'Entradas', href: '/admin/inventario/entradas' },
       { name: 'Salidas', href: '/admin/inventario/salidas' },
       { name: 'Traspasos', href: '/admin/inventario/traspasos' },
+      // Pedidos a domicilio que Call Center cobra en el POS y Almacén surte
+      // (listo → enviado con guía → entregado).
+      { name: 'Entregas a domicilio', href: '/admin/inventario/entregas' },
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
       // Qué productos ve el POS de cada sucursal (filas de stock_levels) y
       // habilitar los que faltan en sucursales nuevas.
