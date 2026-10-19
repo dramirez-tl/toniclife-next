@@ -520,7 +520,27 @@ export interface SalesByUserResponse {
 // BONO DE INSCRIPCIÓN (REPORTE_BONO_SUSCRIPCION del sistema anterior)
 // ================================
 
+export type KitBonusPaymentStatus = 'pending' | 'paid' | 'excluded';
+
+export interface KitBonusesQuery extends DateRangeQuery {
+  /** Solo bonos con este estatus de pago (el API filtra) */
+  status?: KitBonusPaymentStatus;
+}
+
 export interface KitBonusRow {
+  /** Identidad del bono (pos_sale_items.id | order_items.id) */
+  itemId: string;
+  documentUuid: string;
+  kitProductId: string;
+  buyerId: string;
+  sponsorId: string;
+  /** pending (sin registro) | paid (montos congelados) | excluded (no se paga) */
+  paymentStatus: KitBonusPaymentStatus;
+  paymentId: string | null;
+  /** YYYY-MM-DD */
+  paidAt: string | null;
+  paymentReference: string | null;
+  paymentNotes: string | null;
   sponsorNumber: string;
   sponsorName: string;
   buyerNumber: string;
@@ -557,6 +577,13 @@ export interface KitBonusesByCurrency {
   total: number;
 }
 
+export interface KitBonusStatusTotals {
+  rows: number;
+  subtotal: number;
+  total: number;
+  byCurrency: KitBonusesByCurrency[];
+}
+
 export interface KitBonusesSummary {
   rows: number;
   subtotal: number;
@@ -566,9 +593,41 @@ export interface KitBonusesSummary {
   resico: number;
   total: number;
   byCurrency: KitBonusesByCurrency[];
+  byStatus: Record<KitBonusPaymentStatus, KitBonusStatusTotals>;
   missingRegime: number;
   missingRule: number;
   missingRate: number;
+}
+
+export interface KitBonusItemRef {
+  source: 'pos' | 'online';
+  itemId: string;
+}
+
+export interface MarkKitBonusPaymentsPayload {
+  startDate: string;
+  endDate: string;
+  status: 'paid' | 'excluded';
+  /** Filas elegidas; si se omite, all = todos los pendientes del rango */
+  items?: KitBonusItemRef[];
+  all?: boolean;
+  /** YYYY-MM-DD (por defecto hoy en CDMX) */
+  paidAt?: string;
+  reference?: string;
+  notes?: string;
+}
+
+export interface KitBonusPaymentsResult {
+  status: 'paid' | 'excluded';
+  marked: number;
+  skipped: number;
+  notFound: number;
+  paidAt: string | null;
+}
+
+export interface KitBonusRevertResult {
+  id: string;
+  reverted: boolean;
 }
 
 export interface KitBonusesResponse {

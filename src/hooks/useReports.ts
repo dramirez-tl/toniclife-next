@@ -1,7 +1,7 @@
 // useReports.ts - React Query hooks for Reports API
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.7 Módulo Reportes
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportsService } from '@/services/reports.service';
 import type {
   SalesReportQuery,
@@ -12,7 +12,8 @@ import type {
   AnalyticsQuery,
   ProductByPeriodQuery,
   SalesByUserQuery,
-  DateRangeQuery,
+  KitBonusesQuery,
+  MarkKitBonusPaymentsPayload,
   CashCutQuery,
 } from '@/types/reports';
 
@@ -61,11 +62,29 @@ export function useSalesByBranch(query: SalesReportQuery) {
 // TESORERÍA: BONO DE INSCRIPCIÓN Y CORTE DE CAJA
 // ================================
 
-export function useKitBonuses(query: DateRangeQuery) {
+export function useKitBonuses(query: KitBonusesQuery) {
   return useQuery({
     queryKey: ['reports', 'kit-bonuses', query],
     queryFn: () => reportsService.getKitBonuses(query),
     enabled: !!query.startDate && !!query.endDate,
+  });
+}
+
+/** Tesorería: marcar bonos como pagados (congela montos) o no pagados; refresca el reporte. */
+export function useMarkKitBonusPayments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MarkKitBonusPaymentsPayload) => reportsService.markKitBonusPayments(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
+/** Tesorería: revertir un registro de pago (el bono vuelve a pendiente). */
+export function useRevertKitBonusPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => reportsService.revertKitBonusPayment(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
   });
 }
 

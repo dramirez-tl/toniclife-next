@@ -30,6 +30,10 @@ import type {
   SalesByUserQuery,
   SalesByUserResponse,
   KitBonusesResponse,
+  KitBonusesQuery,
+  MarkKitBonusPaymentsPayload,
+  KitBonusPaymentsResult,
+  KitBonusRevertResult,
   CashCutQuery,
   CashCutResponse,
 } from '@/types/reports';
@@ -320,33 +324,50 @@ class ReportsService {
   // TESORERÍA: BONO DE INSCRIPCIÓN Y CORTE DE CAJA (formato del sistema anterior)
   // ================================
 
-  /** Backend: GET /reports/kit-bonuses (bono por suscrito, como el legacy). */
-  async getKitBonuses(query: DateRangeQuery): Promise<KitBonusesResponse> {
+  /** Backend: GET /reports/kit-bonuses (bono por suscrito, como el legacy; con estatus de pago). */
+  async getKitBonuses(query: KitBonusesQuery): Promise<KitBonusesResponse> {
     const response = await api.get<KitBonusesResponse>('/reports/kit-bonuses', {
       params: {
         startDate: query.startDate,
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.status ? { status: query.status } : {}),
       },
     });
     return response.data;
   }
 
   /** Backend: GET /reports/kit-bonuses/legacy-xlsx → REPORTE_BONO_SUSCRIPCION_<fecha>.xlsx */
-  async downloadKitBonusesLegacyXlsx(query: DateRangeQuery): Promise<void> {
+  async downloadKitBonusesLegacyXlsx(query: KitBonusesQuery): Promise<void> {
     const response = await api.get('/reports/kit-bonuses/legacy-xlsx', {
       params: {
         startDate: query.startDate,
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.status ? { status: query.status } : {}),
       },
       responseType: 'blob',
     });
+    const suffix = query.status ? `_${query.status.toUpperCase()}` : '';
     saveBlob(
       response.data as BlobPart,
-      `REPORTE_BONO_SUSCRIPCION_${downloadStamp()}.xlsx`,
+      `REPORTE_BONO_SUSCRIPCION${suffix}_${downloadStamp()}.xlsx`,
       XLSX_MIME,
     );
+  }
+
+  /** Backend: POST /reports/kit-bonuses/payments (Tesorería: pagado congela montos / no pagado con motivo). */
+  async markKitBonusPayments(payload: MarkKitBonusPaymentsPayload): Promise<KitBonusPaymentsResult> {
+    const response = await api.post<KitBonusPaymentsResult>('/reports/kit-bonuses/payments', payload);
+    return response.data;
+  }
+
+  /** Backend: POST /reports/kit-bonuses/payments/:id/revert (el bono vuelve a pendiente). */
+  async revertKitBonusPayment(id: string, reason?: string): Promise<KitBonusRevertResult> {
+    const response = await api.post<KitBonusRevertResult>(`/reports/kit-bonuses/payments/${id}/revert`, {
+      ...(reason ? { reason } : {}),
+    });
+    return response.data;
   }
 
   /** Backend: GET /reports/cash-cut/by-branch (corte de caja de una sucursal). */

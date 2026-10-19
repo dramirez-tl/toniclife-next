@@ -4,13 +4,31 @@
 // una fila por kit básico/premium vendido en el rango, pagado al patrocinador
 // del comprador con la regla vigente y los impuestos de su régimen. El Excel
 // REPORTE_BONO_SUSCRIPCION lo arma el API con las 17 columnas del legacy.
+//
+// Control de pago (Tesorería, permiso commissions:validate): cada bono está
+// pendiente, pagado (montos congelados al pagar) o no pagado (excluido con
+// motivo); se marca por selección o todos los pendientes del rango, y se
+// puede revertir (vuelve a pendiente, queda historial).
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useKitBonuses } from '@/hooks/useReports';
+import { useKitBonuses, useMarkKitBonusPayments, useRevertKitBonusPayment } from '@/hooks/useReports';
 import { reportsService } from '@/services/reports.service';
+import { authService } from '@/services/auth.service';
 import { PermissionGuard } from '@/components/auth';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableHeader,
@@ -20,9 +38,12 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
+import type { KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
 
 /** Mismo tope que el API para el rango. */
 const MAX_RANGE_DAYS = 366;
+/** Permiso de Tesorería para marcar/revertir pagos (mig 142). */
+const PAY_PERMISSION = 'commissions:validate';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toInputDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -66,6 +87,47 @@ function formatAmount(value: number): string {
 
 const KIT_LABEL: Record<string, string> = { basico: 'Básico', premium: 'Premium' };
 
+type StatusFilter = 'all' | KitBonusPaymentStatus;
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'pending', label: 'Pendientes' },
+  { key: 'paid', label: 'Pagados' },
+  { key: 'excluded', label: 'No pagados' },
+];
+
+const rowKey = (r: KitBonusRow) => `${r.source}:${r.itemId}`;
+
+function StatusBadge({ row }: { row: KitBonusRow }) {
+  if (row.paymentStatus === 'paid') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
+        title={[row.paymentReference ? `Ref. ${row.paymentReference}` : '', row.paymentNotes ?? ''].filter(Boolean).join(' · ') || undefined}
+      >
+        Pagado {formatDateDisplay(row.paidAt)}
+      </span>
+    );
+  }
+  if (row.paymentStatus === 'excluded') {
+    return (
+      <span
+        className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20"
+        title={row.paymentNotes ?? undefined}
+      >
+        No pagado
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+      Pendiente
+    </span>
+  );
+}
+
+type DialogMode = { kind: 'paid' | 'excluded'; count: number; all: boolean } | { kind: 'revert'; row: KitBonusRow } | null;
+
 export default function BonosInscripcionPage() {
   // Por defecto la semana pasada (lunes→domingo): el legacy lo corría cada lunes.
   const [lastWeekFrom, lastWeekTo] = useMemo(() => weekRange(-1), []);
@@ -74,11 +136,24 @@ export default function BonosInscripcionPage() {
   const [appliedStart, setAppliedStart] = useState(lastWeekFrom);
   const [appliedEnd, setAppliedEnd] = useState(lastWeekTo);
   const [downloading, setDownloading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dialog, setDialog] = useState<DialogMode>(null);
+  const [paidAt, setPaidAt] = useState(() => daysAgo(0));
+  const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
+  // Permiso leído en cliente (localStorage) para no desfasar el render del servidor.
+  const [canPay, setCanPay] = useState(false);
+  useEffect(() => {
+    setCanPay(authService.hasPermission(PAY_PERMISSION));
+  }, []);
 
   const { data, isLoading, isFetching, error, refetch } = useKitBonuses({
     startDate: appliedStart,
     endDate: appliedEnd,
   });
+  const markMutation = useMarkKitBonusPayments();
+  const revertMutation = useRevertKitBonusPayment();
 
   const applyDates = useCallback((from: string, to: string) => {
     if (!from || !to) {
@@ -98,6 +173,7 @@ export default function BonosInscripcionPage() {
     setDateTo(to);
     setAppliedStart(from);
     setAppliedEnd(to);
+    setSelected(new Set());
   }, []);
 
   const handleDownload = async () => {
@@ -110,8 +186,9 @@ export default function BonosInscripcionPage() {
       await reportsService.downloadKitBonusesLegacyXlsx({
         startDate: appliedStart,
         endDate: appliedEnd,
+        ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
       });
-      toast.success('Excel generado');
+      toast.success(statusFilter === 'all' ? 'Excel generado' : `Excel generado (solo ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()})`);
     } catch {
       toast.error('No se pudo generar el Excel');
     } finally {
@@ -119,14 +196,92 @@ export default function BonosInscripcionPage() {
     }
   };
 
-  const rows = data?.rows ?? [];
+  const allRows = useMemo(() => data?.rows ?? [], [data]);
+  const rows = useMemo(
+    () => (statusFilter === 'all' ? allRows : allRows.filter((r) => r.paymentStatus === statusFilter)),
+    [allRows, statusFilter],
+  );
   const summary = data?.summary;
+  const byStatus = summary?.byStatus;
   const retentions = summary ? summary.isr + summary.ivaWithholding + summary.resico : 0;
   const hasData = rows.length > 0;
   const rangeLabel =
     appliedStart === appliedEnd
       ? formatDateDisplay(appliedStart)
       : `${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)}`;
+
+  // Selección: solo filas pendientes visibles.
+  const visiblePending = useMemo(() => rows.filter((r) => r.paymentStatus === 'pending'), [rows]);
+  const selectedVisible = visiblePending.filter((r) => selected.has(rowKey(r)));
+  const allVisibleSelected = visiblePending.length > 0 && selectedVisible.length === visiblePending.length;
+  const toggleRow = (r: KitBonusRow) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const k = rowKey(r);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  const toggleAllVisible = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visiblePending.forEach((r) => next.delete(rowKey(r)));
+      else visiblePending.forEach((r) => next.add(rowKey(r)));
+      return next;
+    });
+
+  const pendingTotal = byStatus?.pending.rows ?? 0;
+  const openMark = (kind: 'paid' | 'excluded') => {
+    const count = selectedVisible.length;
+    if (count === 0 && pendingTotal === 0) {
+      toast.error('No hay bonos pendientes en el rango');
+      return;
+    }
+    setPaidAt(daysAgo(0));
+    setReference('');
+    setNotes('');
+    setDialog({ kind, count: count || pendingTotal, all: count === 0 });
+  };
+
+  const submitMark = async () => {
+    if (!dialog || dialog.kind === 'revert') return;
+    if (dialog.kind === 'excluded' && !notes.trim()) {
+      toast.error('Indica el motivo por el que no se paga');
+      return;
+    }
+    try {
+      const items = dialog.all ? undefined : selectedVisible.map((r) => ({ source: r.source, itemId: r.itemId }));
+      const result = await markMutation.mutateAsync({
+        startDate: appliedStart,
+        endDate: appliedEnd,
+        status: dialog.kind,
+        ...(items ? { items } : { all: true }),
+        ...(dialog.kind === 'paid' ? { paidAt, reference: reference.trim() || undefined } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+      toast.success(
+        `${result.marked} ${result.marked === 1 ? 'bono marcado' : 'bonos marcados'} como ${dialog.kind === 'paid' ? 'pagados' : 'no pagados'}` +
+          (result.skipped ? ` · ${result.skipped} ya tenían estatus` : ''),
+      );
+      setSelected(new Set());
+      setDialog(null);
+    } catch {
+      toast.error('No se pudo registrar el pago');
+    }
+  };
+
+  const submitRevert = async () => {
+    if (!dialog || dialog.kind !== 'revert' || !dialog.row.paymentId) return;
+    try {
+      await revertMutation.mutateAsync({ id: dialog.row.paymentId, reason: notes.trim() || undefined });
+      toast.success('Registro revertido: el bono vuelve a pendiente');
+      setDialog(null);
+    } catch {
+      toast.error('No se pudo revertir');
+    }
+  };
+
+  const busy = markMutation.isPending || revertMutation.isPending;
 
   return (
     <PermissionGuard permissions={['reports:read', 'reports:*']}>
@@ -146,7 +301,7 @@ export default function BonosInscripcionPage() {
             <button
               onClick={handleDownload}
               disabled={!appliedStart || !appliedEnd || isFetching || downloading}
-              title="REPORTE_BONO_SUSCRIPCION: ID UPLINE | NOMBRES UPLINE | ID | NOMBRES | FECHA REGISTRO | FECHA COMPRA | BONO POR SUSCRITO | TIPO KIT | CLAVE | MONEDA | RÉGIMEN | SUBTOTAL | ISR | IVA | RET IVA | RESICO | TOTAL"
+              title="REPORTE_BONO_SUSCRIPCION: ID UPLINE | NOMBRES UPLINE | ID | NOMBRES | FECHA REGISTRO | FECHA COMPRA | BONO POR SUSCRITO | TIPO KIT | CLAVE | MONEDA | RÉGIMEN | SUBTOTAL | ISR | IVA | RET IVA | RESICO | TOTAL + ESTATUS PAGO"
               className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {downloading ? (
@@ -156,7 +311,7 @@ export default function BonosInscripcionPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                 </svg>
               )}
-              Excel (formato anterior)
+              Excel (formato anterior){statusFilter !== 'all' ? ` · ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()}` : ''}
             </button>
           </div>
         </div>
@@ -172,46 +327,20 @@ export default function BonosInscripcionPage() {
           <div className="flex flex-col sm:flex-row gap-4 items-end">
             <div>
               <label htmlFor="bonos-de" className="block text-xs font-medium text-gray-500 mb-1.5">De</label>
-              <Input
-                id="bonos-de"
-                type="date"
-                value={dateFrom}
-                max={dateTo || undefined}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-auto"
-              />
+              <Input id="bonos-de" type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="w-auto" />
             </div>
             <div>
               <label htmlFor="bonos-hasta" className="block text-xs font-medium text-gray-500 mb-1.5">Hasta</label>
-              <Input
-                id="bonos-hasta"
-                type="date"
-                value={dateTo}
-                min={dateFrom || undefined}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-auto"
-              />
+              <Input id="bonos-hasta" type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="w-auto" />
             </div>
             <div className="flex flex-wrap items-center gap-2 pb-1">
-              <button
-                type="button"
-                onClick={() => applyDates(...weekRange(-1))}
-                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
+              <button type="button" onClick={() => applyDates(...weekRange(-1))} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Semana pasada
               </button>
-              <button
-                type="button"
-                onClick={() => applyDates(...weekRange(0))}
-                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
+              <button type="button" onClick={() => applyDates(...weekRange(0))} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Esta semana
               </button>
-              <button
-                type="button"
-                onClick={() => applyDates(daysAgo(6), daysAgo(0))}
-                className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
+              <button type="button" onClick={() => applyDates(daysAgo(6), daysAgo(0))} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Últimos 7 días
               </button>
               <span className="text-xs text-gray-400">Día local de la sucursal de la venta</span>
@@ -263,33 +392,76 @@ export default function BonosInscripcionPage() {
         )}
 
         {/* Resumen */}
-        {data && (
+        {data && byStatus && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Bonos</p>
               <p className="text-lg font-bold text-gray-900">{summary?.rows.toLocaleString() ?? 0}</p>
-              <p className="text-xs text-gray-400 mt-1">{rangeLabel}</p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Subtotal</p>
-              <p className="text-lg font-bold text-gray-900">{formatAmount(summary?.subtotal ?? 0)}</p>
               <p className="text-xs text-gray-400 mt-1">
-                {summary?.byCurrency.map((c) => `${c.currencyCode} ${formatAmount(c.subtotal)}`).join(' · ') || '—'}
+                {rangeLabel} · subtotal {formatAmount(summary?.subtotal ?? 0)} · retenciones {formatAmount(retentions)}
               </p>
-            </div>
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Retenciones</p>
-              <p className="text-lg font-bold text-gray-900">{formatAmount(retentions)}</p>
-              <p className="text-xs text-gray-400 mt-1">ISR + Ret. IVA + RESICO · IVA {formatAmount(summary?.iva ?? 0)}</p>
             </div>
             <div className="rounded-xl border border-[#3E667D]/30 bg-[#3E667D] p-4 shadow-sm">
-              <p className="text-xs font-medium text-white/70 uppercase tracking-wide mb-2">Total neto</p>
-              <p className="text-lg font-bold text-white">{formatAmount(summary?.total ?? 0)}</p>
+              <p className="text-xs font-medium text-white/70 uppercase tracking-wide mb-2">Pendiente por pagar</p>
+              <p className="text-lg font-bold text-white">{formatAmount(byStatus.pending.total)}</p>
               <p className="text-xs text-white/70 mt-1">
-                {summary?.byCurrency.map((c) => `${c.currencyCode} ${formatAmount(c.total)}`).join(' · ') || '—'}
-                {data.periodName && summary && summary.byCurrency.length > 1 ? ` · tasa ${data.periodName}` : ''}
+                {byStatus.pending.rows} {byStatus.pending.rows === 1 ? 'bono' : 'bonos'} ·{' '}
+                {byStatus.pending.byCurrency.map((c) => `${c.currencyCode} ${formatAmount(c.total)}`).join(' · ') || '—'}
               </p>
             </div>
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4 shadow-sm">
+              <p className="text-xs font-medium text-green-700/70 uppercase tracking-wide mb-2">Pagado</p>
+              <p className="text-lg font-bold text-green-800">{formatAmount(byStatus.paid.total)}</p>
+              <p className="text-xs text-green-700/70 mt-1">
+                {byStatus.paid.rows} {byStatus.paid.rows === 1 ? 'bono' : 'bonos'} ·{' '}
+                {byStatus.paid.byCurrency.map((c) => `${c.currencyCode} ${formatAmount(c.total)}`).join(' · ') || '—'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+              <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wide mb-2">No pagados</p>
+              <p className="text-lg font-bold text-amber-800">{byStatus.excluded.rows}</p>
+              <p className="text-xs text-amber-700/70 mt-1">
+                {byStatus.excluded.rows ? `${formatAmount(byStatus.excluded.total)} excluidos del pago` : 'ninguno'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Barra de estatus / acciones */}
+        {data && (
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium" role="tablist" aria-label="Estatus de pago">
+              {STATUS_FILTERS.map((f) => {
+                const n = f.key === 'all' ? allRows.length : (byStatus?.[f.key].rows ?? 0);
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={statusFilter === f.key}
+                    onClick={() => setStatusFilter(f.key)}
+                    className={`rounded-md px-3 py-1.5 transition-colors ${statusFilter === f.key ? 'bg-white text-[#3E667D] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {f.label} <span className="text-gray-400">({n})</span>
+                  </button>
+                );
+              })}
+            </div>
+            {canPay && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  {selectedVisible.length
+                    ? `${selectedVisible.length} ${selectedVisible.length === 1 ? 'seleccionado' : 'seleccionados'}`
+                    : `Sin selección: aplica a los ${pendingTotal} pendientes del rango`}
+                </span>
+                <Button size="sm" onClick={() => openMark('paid')} disabled={busy || pendingTotal === 0} className="bg-green-700 hover:bg-green-800 text-white">
+                  Marcar como pagados
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || pendingTotal === 0}>
+                  Marcar como no pagados
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -309,25 +481,27 @@ export default function BonosInscripcionPage() {
             </div>
           ) : !hasData ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <p className="text-sm text-gray-400">No hay kits vendidos en el rango seleccionado</p>
-              <p className="text-xs text-gray-300">Intenta con otras fechas</p>
+              <p className="text-sm text-gray-400">
+                {statusFilter === 'all' ? 'No hay kits vendidos en el rango seleccionado' : 'No hay bonos con ese estatus en el rango'}
+              </p>
+              <p className="text-xs text-gray-300">Intenta con otras fechas o cambia el filtro de estatus</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table className="min-w-full">
                 <TableHeader>
                   <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
-                    {[
-                      'Fecha compra',
-                      'ID Upline',
-                      'Upline',
-                      'ID',
-                      'Comprador',
-                      'Registro',
-                      'Kit',
-                      'Moneda',
-                      'Régimen',
-                    ].map((h) => (
+                    {canPay && (
+                      <TableHead className="px-4 py-3.5 w-10">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={toggleAllVisible}
+                          disabled={visiblePending.length === 0}
+                          aria-label="Seleccionar todos los pendientes visibles"
+                        />
+                      </TableHead>
+                    )}
+                    {['Estatus', 'Fecha compra', 'ID Upline', 'Upline', 'ID', 'Comprador', 'Registro', 'Kit', 'Moneda', 'Régimen'].map((h) => (
                       <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </TableHead>
@@ -340,14 +514,23 @@ export default function BonosInscripcionPage() {
                     <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Documento
                     </TableHead>
+                    {canPay && <TableHead className="px-4 py-3.5" />}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((r, idx) => (
                     <TableRow
-                      key={`${r.documentId}-${r.kitCode}-${idx}`}
-                      className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                      key={rowKey(r)}
+                      className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${r.paymentStatus === 'excluded' ? 'opacity-60' : ''}`}
                     >
+                      {canPay && (
+                        <TableCell className="px-4 py-3 w-10">
+                          {r.paymentStatus === 'pending' && (
+                            <Checkbox checked={selected.has(rowKey(r))} onCheckedChange={() => toggleRow(r)} aria-label="Seleccionar bono" />
+                          )}
+                        </TableCell>
+                      )}
+                      <TableCell className="px-4 py-3 whitespace-nowrap"><StatusBadge row={r} /></TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDateDisplay(r.purchaseDate)}</TableCell>
                       <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap tabular-nums">{r.sponsorNumber}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.sponsorName}</TableCell>
@@ -360,28 +543,20 @@ export default function BonosInscripcionPage() {
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {r.currencyCode}
-                        {r.converted && (
-                          <span className="ml-1 text-[10px] text-gray-400" title="Convertido con la tasa del periodo">conv.</span>
-                        )}
+                        {r.converted && <span className="ml-1 text-[10px] text-gray-400" title="Convertido con la tasa del periodo">conv.</span>}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm whitespace-nowrap">
                         {r.regime ? (
                           <span className="text-gray-700">{r.regime}</span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                            Sin régimen
-                          </span>
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">Sin régimen</span>
                         )}
                       </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap tabular-nums">
                         {r.ruleOrigin === 'ninguna' ? (
-                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-                            Sin regla
-                          </span>
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">Sin regla</span>
                         ) : r.missingRate ? (
-                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
-                            Sin tasa
-                          </span>
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">Sin tasa</span>
                         ) : (
                           formatMoney(r.subtotal, r.currencyCode)
                         )}
@@ -394,27 +569,124 @@ export default function BonosInscripcionPage() {
                       <TableCell className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                         {r.documentId} <span className="text-gray-300">· {r.source === 'online' ? 'En línea' : 'POS'}</span>
                       </TableCell>
+                      {canPay && (
+                        <TableCell className="px-4 py-3 whitespace-nowrap">
+                          {r.paymentStatus !== 'pending' && r.paymentId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNotes('');
+                                setDialog({ kind: 'revert', row: r });
+                              }}
+                              disabled={busy}
+                              className="text-xs text-[#3E667D] hover:underline disabled:opacity-50"
+                            >
+                              Revertir
+                            </button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter className="bg-transparent">
                   <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
-                    <TableCell colSpan={9} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
-                      TOTAL ({rows.length} {rows.length === 1 ? 'bono' : 'bonos'})
+                    <TableCell colSpan={canPay ? 11 : 10} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
+                      {statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`} ({rows.length}{' '}
+                      {rows.length === 1 ? 'bono' : 'bonos'})
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.subtotal ?? 0)}</TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.isr ?? 0)}</TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.iva ?? 0)}</TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.ivaWithholding ?? 0)}</TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.resico ?? 0)}</TableCell>
-                    <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(summary?.total ?? 0)}</TableCell>
+                    {(['subtotal', 'isr', 'iva', 'ivaWithholding', 'resico', 'total'] as const).map((k) => (
+                      <TableCell key={k} className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                        {formatAmount(rows.reduce((acc, r) => acc + r[k], 0))}
+                      </TableCell>
+                    ))}
                     <TableCell className="px-4 py-4" />
+                    {canPay && <TableCell className="px-4 py-4" />}
                   </TableRow>
                 </TableFooter>
               </Table>
             </div>
           )}
         </div>
+
+        {/* Diálogo: marcar pagados / no pagados / revertir */}
+        <Dialog open={dialog !== null} onOpenChange={(open) => !open && !busy && setDialog(null)}>
+          <DialogContent className="sm:max-w-md">
+            {dialog?.kind === 'paid' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Marcar como pagados</DialogTitle>
+                  <DialogDescription>
+                    {dialog.all ? `Todos los ${dialog.count} bonos pendientes del rango ${rangeLabel}` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
+                    Se congelan subtotal, impuestos y total tal como se ven hoy.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="bonos-paid-at">Fecha de pago</Label>
+                    <Input id="bonos-paid-at" type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} className="mt-1 w-auto" />
+                  </div>
+                  <div>
+                    <Label htmlFor="bonos-ref">Referencia (lote, transferencia)</Label>
+                    <Input id="bonos-ref" value={reference} maxLength={100} onChange={(e) => setReference(e.target.value)} className="mt-1" placeholder="Opcional" />
+                  </div>
+                  <div>
+                    <Label htmlFor="bonos-notes">Comentario</Label>
+                    <Textarea id="bonos-notes" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Opcional" rows={2} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button onClick={submitMark} disabled={busy || !paidAt} className="bg-green-700 hover:bg-green-800 text-white">
+                    {busy ? 'Guardando…' : 'Confirmar pago'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+            {dialog?.kind === 'excluded' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Marcar como no pagados</DialogTitle>
+                  <DialogDescription>
+                    {dialog.all ? `Todos los ${dialog.count} bonos pendientes del rango ${rangeLabel}` : `${dialog.count} ${dialog.count === 1 ? 'bono seleccionado' : 'bonos seleccionados'}`}.
+                    Quedan fuera de lo pendiente; se puede revertir después.
+                  </DialogDescription>
+                </DialogHeader>
+                <div>
+                  <Label htmlFor="bonos-reason">Motivo</Label>
+                  <Textarea id="bonos-reason" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Ej. venta duplicada, patrocinador dado de baja…" rows={3} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button onClick={submitMark} disabled={busy || !notes.trim()}>
+                    {busy ? 'Guardando…' : 'Confirmar'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+            {dialog?.kind === 'revert' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Revertir registro de pago</DialogTitle>
+                  <DialogDescription>
+                    El bono de {dialog.row.sponsorNumber} por el kit {dialog.row.kitCode} ({dialog.row.documentId}) vuelve a pendiente; el registro
+                    actual queda como historial.
+                  </DialogDescription>
+                </DialogHeader>
+                <div>
+                  <Label htmlFor="bonos-revert-reason">Motivo</Label>
+                  <Textarea id="bonos-revert-reason" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Opcional" rows={2} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button variant="destructive" onClick={submitRevert} disabled={busy}>
+                    {busy ? 'Revirtiendo…' : 'Revertir'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </PermissionGuard>
   );
