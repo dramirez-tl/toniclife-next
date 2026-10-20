@@ -215,9 +215,11 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
       const includes = (it.components ?? [])
         .map((c) => `${c.quantityTotal} ${c.sku ? `${c.sku} ` : ''}${c.name}`)
         .join(', ');
+      // Producto, clave y cantidad en negritas: Almacén surte leyendo el ticket
+      // en el rollo térmico y pidió que esos tres datos resalten.
       return `
-      <tr><td colspan="3" class="name">${esc(it.productName)}<br><span class="muted">${esc(it.productSku)}</span>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
-      <tr><td class="num">${esc(it.quantity)}</td><td class="num">× ${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num"><strong>${esc(money(it.total, d.currencyCode))}</strong></td></tr>`;
+      <tr><td colspan="3" class="name"><strong>${esc(it.productName)}</strong><br><strong class="sku">${esc(it.productSku)}</strong>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
+      <tr><td class="num"><strong class="qty">${esc(it.quantity)}</strong></td><td class="num">× ${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num"><strong>${esc(money(it.total, d.currencyCode))}</strong></td></tr>`;
     })
     .join('');
   const scale = scaleOf(fontScale);
@@ -227,6 +229,8 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
     .c { text-align: center; } .muted { color: #555; font-size: calc(11px * var(--s)); }
     table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } td.num { text-align: right; white-space: nowrap; }
     td.name { padding-top: 5px; }
+    .sku { font-size: calc(12px * var(--s)); letter-spacing: .02em; }
+    .qty { font-size: calc(14px * var(--s)); }
     th { font-size: calc(11px * var(--s)); text-align: right; font-weight: normal; color: #555; padding: 0; }
     th.l { text-align: left; }
     hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
