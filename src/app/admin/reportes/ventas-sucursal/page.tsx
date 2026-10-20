@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
@@ -504,6 +506,9 @@ export default function VentasSucursalPage() {
                   <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Período
                   </TableHead>
+                  <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Corte
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -538,6 +543,16 @@ export default function VentasSucursalPage() {
                     <TableCell className="px-6 py-3.5 text-xs text-center text-gray-400 whitespace-nowrap">
                       {periodLabel}
                     </TableCell>
+                    {/* Corte de caja de esa sucursal con el mismo rango (Contabilidad, 20-oct-2026). */}
+                    <TableCell className="px-6 py-3.5 text-center whitespace-nowrap">
+                      <Link
+                        href={`/admin/reportes/corte-caja?branchId=${encodeURIComponent(branch.branchId)}&from=${appliedStart}&to=${appliedEnd}`}
+                        className="text-xs font-medium text-[#3E667D] underline-offset-2 hover:underline"
+                        title="Abrir el corte de caja de esta sucursal con el mismo rango"
+                      >
+                        Ver corte
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -557,6 +572,7 @@ export default function VentasSucursalPage() {
                   <TableCell className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {totals.orderCount.toLocaleString()}
                   </TableCell>
+                  <TableCell className="px-6 py-4" />
                   <TableCell className="px-6 py-4" />
                 </TableRow>
               </TableFooter>

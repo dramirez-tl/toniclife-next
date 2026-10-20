@@ -5,7 +5,8 @@
 // sucursal), una fila por venta con su forma de pago (los pagos mixtos se
 // abren por parte) y totales por forma de pago. El Excel lo arma el API.
 
-import { useCallback, useMemo, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useCashCutByBranch } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
@@ -72,13 +73,36 @@ interface AppliedFilter {
   endDate: string;
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// useSearchParams exige un límite de Suspense en el App Router.
 export default function CorteCajaPage() {
+  return (
+    <Suspense>
+      <CorteCajaContent />
+    </Suspense>
+  );
+}
+
+function CorteCajaContent() {
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
-  const [branchId, setBranchId] = useState('');
+  // Acceso directo desde Ventas por Sucursal (Contabilidad, 20-oct-2026):
+  // ?branchId=&from=&to= precarga la sucursal y el rango y consulta de una vez.
+  const searchParams = useSearchParams();
+  const linked = useMemo(() => {
+    const b = searchParams.get('branchId') ?? '';
+    const from = searchParams.get('from') ?? '';
+    const to = searchParams.get('to') ?? '';
+    const ok = !!b && DATE_RE.test(from) && DATE_RE.test(to) && from <= to;
+    return ok ? { branchId: b, startDate: from, endDate: to } : null;
+  }, [searchParams]);
+  const [branchId, setBranchId] = useState(() => linked?.branchId ?? '');
   // Por defecto hoy: el corte se baja al cerrar el día.
-  const [dateFrom, setDateFrom] = useState(() => daysAgo(0));
-  const [dateTo, setDateTo] = useState(() => daysAgo(0));
-  const [applied, setApplied] = useState<AppliedFilter>({ branchId: '', startDate: '', endDate: '' });
+  const [dateFrom, setDateFrom] = useState(() => linked?.startDate ?? daysAgo(0));
+  const [dateTo, setDateTo] = useState(() => linked?.endDate ?? daysAgo(0));
+  const [applied, setApplied] = useState<AppliedFilter>(
+    () => linked ?? { branchId: '', startDate: '', endDate: '' },
+  );
   const [downloading, setDownloading] = useState(false);
 
   const branchOptions = useMemo(
