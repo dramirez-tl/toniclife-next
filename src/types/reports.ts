@@ -493,16 +493,6 @@ export interface SalesByUserQuery {
   customer?: string;
 }
 
-/** Vendedor con ventas en el rango (GET reports/sales/by-user/sellers). */
-export interface SalesByUserSeller {
-  id: string;
-  username: string;
-  name: string;
-  roleCode: string | null;
-  roleName: string | null;
-  sales: number;
-}
-
 export interface SaleByUserRow {
   /** pos_sales.id: abre el detalle (GET pos/sales/:id). */
   saleId: string;

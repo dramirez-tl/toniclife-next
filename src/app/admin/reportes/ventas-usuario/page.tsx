@@ -4,20 +4,20 @@
 // con detalle de cada venta. La usan Reportes (reports:read) y Call Center
 // (reports:sales_lookup, mig 163) para consultar las compras de un cliente.
 //
-// - Vendedores: salen de las ventas reales del periodo (GET sales/by-user/sellers),
-//   no de los roles: aparecen CEDEAS, Operaciones o la terminal cuando vendieron.
-// - Distribuidor: número (v2 o legacy) o parte del nombre; el API filtra.
-// - Detalle: clic en el folio abre la venta (productos, precios, pagos, puntos).
+// - Distribuidor: buscador de 2 modos como el del POS (abierto o número EXACTO);
+//   elegir uno consulta al instante. Sin filtro por vendedor (se quitó el 20-oct;
+//   el vendedor sigue visible en cada renglón).
+// - Detalle: clic en el renglón despliega la venta en acordeón (productos,
+//   precios, pagos, puntos) sin salir de la página.
+// - El selector de periodo usa GET mlm/periods, que acepta reports:sales_lookup.
 
 import { Fragment, useState, useMemo, useCallback } from 'react';
-import { useSalesByUser, useSalesByUserSellers } from '@/hooks/useReports';
+import { useSalesByUser } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Table,
   TableHeader,
@@ -79,27 +79,17 @@ function VentasUsuarioContent() {
     () => periods?.find((p) => p.id === selectedPeriodId),
     [periods, selectedPeriodId],
   );
-  const periodStart = selectedPeriod ? toDateOnly(selectedPeriod.startDate) : '';
-  const periodEnd = selectedPeriod ? toDateOnly(selectedPeriod.endDate) : '';
-
-  // Vendedores con ventas en el periodo elegido.
-  const { data: sellers = [], isLoading: sellersLoading } = useSalesByUserSellers(periodStart, periodEnd);
-  const [selectedSellerIds, setSelectedSellerIds] = useState<string[]>([]);
-  const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false);
-  const sellerName = (id: string) => sellers.find((s) => s.id === id)?.name ?? id;
-
   // Distribuidor: elegido del buscador (número exacto) o texto libre tecleado.
   const [picked, setPicked] = useState<PickedDistributor | null>(null);
   const [customerText, setCustomerText] = useState('');
   const customerInput = picked ? picked.customerNumber : customerText;
 
-  // Consulta aplicada (solo cambia al presionar Consultar).
-  const [applied, setApplied] = useState<{ start: string; end: string; sellerIds: string[]; customer: string } | null>(null);
+  // Consulta aplicada (cambia al presionar Consultar o al elegir un distribuidor).
+  const [applied, setApplied] = useState<{ start: string; end: string; customer: string } | null>(null);
 
   const { data, isLoading, error, isFetching } = useSalesByUser({
     startDate: applied?.start ?? '',
     endDate: applied?.end ?? '',
-    sellerIds: applied && applied.sellerIds.length > 0 ? applied.sellerIds : undefined,
     customer: applied?.customer || undefined,
   });
 
@@ -109,15 +99,13 @@ function VentasUsuarioContent() {
         toast.error('Selecciona un periodo');
         return;
       }
-      setSellerDropdownOpen(false);
       setApplied({
         start: toDateOnly(selectedPeriod.startDate),
         end: toDateOnly(selectedPeriod.endDate),
-        sellerIds: [...selectedSellerIds],
         customer: customer.trim(),
       });
     },
-    [selectedPeriod, selectedSellerIds],
+    [selectedPeriod],
   );
   const handleApply = useCallback(() => applyFilters(customerInput), [applyFilters, customerInput]);
 
@@ -128,9 +116,6 @@ function VentasUsuarioContent() {
     if (p) applyFilters(p.customerNumber);
     else if (applied?.customer) applyFilters('');
   };
-
-  const toggleSeller = (id: string) =>
-    setSelectedSellerIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
 
   const rows = useMemo(() => data?.rows ?? [], [data]);
   const hasData = rows.length > 0;
@@ -191,7 +176,7 @@ function VentasUsuarioContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">Ventas por Usuario</h1>
             <p className="text-sm text-white/70 mt-1">
-              Ventas del POS por vendedor o por distribuidor, con el detalle de cada venta
+              Ventas del POS con el detalle de cada venta; busca por distribuidor
             </p>
           </div>
           <Button
@@ -211,8 +196,8 @@ function VentasUsuarioContent() {
       {/* Filtros */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-700">Filtros de búsqueda</h2>
-        <div className="grid grid-cols-1 gap-4 items-end md:grid-cols-2 xl:grid-cols-4">
-          <div>
+        <div className="grid grid-cols-1 gap-4 items-end lg:grid-cols-12">
+          <div className="lg:col-span-4">
             <label className="mb-1.5 block text-xs font-medium text-gray-500">Periodo</label>
             <SearchableSelect
               options={sortedPeriods.map((p) => ({
@@ -220,10 +205,7 @@ function VentasUsuarioContent() {
                 label: `${p.name} (${formatDateDisplay(p.startDate)} - ${formatDateDisplay(p.endDate)})${p.isCurrent ? ' — Actual' : ''}`,
               }))}
               value={selectedPeriodId}
-              onChange={(v) => {
-                setChosenPeriodId(v);
-                setSelectedSellerIds([]);
-              }}
+              onChange={setChosenPeriodId}
               disabled={periodsLoading}
               showAllOption={false}
               allLabel="Selecciona un periodo"
@@ -232,7 +214,7 @@ function VentasUsuarioContent() {
             />
           </div>
 
-          <div>
+          <div className="lg:col-span-6">
             <label className="mb-1.5 block text-xs font-medium text-gray-500">Distribuidor</label>
             <DistributorPicker
               value={picked}
@@ -242,62 +224,7 @@ function VentasUsuarioContent() {
             />
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-500">
-              Vendedores
-              {selectedSellerIds.length > 0 && <span className="ml-1 text-[#3E667D]">({selectedSellerIds.length})</span>}
-            </label>
-            <Popover open={sellerDropdownOpen} onOpenChange={setSellerDropdownOpen}>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="outline" className="w-full justify-between bg-gray-50 text-left font-normal text-gray-900">
-                  <span className="truncate">
-                    {selectedSellerIds.length === 0
-                      ? 'Todos los vendedores'
-                      : selectedSellerIds.length === 1
-                        ? sellerName(selectedSellerIds[0])
-                        : `${selectedSellerIds.length} seleccionados`}
-                  </span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="ml-2 h-4 w-4 shrink-0 text-gray-400">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-[--radix-popover-trigger-width] min-w-[280px] max-h-80 overflow-y-auto p-0">
-                <div className="sticky top-0 z-10 flex gap-2 border-b border-gray-100 bg-white px-3 py-2">
-                  <Button type="button" variant="link" size="sm" onClick={() => setSelectedSellerIds(sellers.map((s) => s.id))} className="h-auto p-0 text-xs text-[#3E667D]">
-                    Seleccionar todos
-                  </Button>
-                  <span className="text-gray-300">|</span>
-                  <Button type="button" variant="link" size="sm" onClick={() => setSelectedSellerIds([])} className="h-auto p-0 text-xs text-gray-500">
-                    Limpiar
-                  </Button>
-                </div>
-                {sellersLoading ? (
-                  <div className="px-3 py-4 text-center text-xs text-gray-400">Cargando vendedores…</div>
-                ) : sellers.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-xs text-gray-400">
-                    {periodStart ? 'Nadie ha vendido en este periodo' : 'Elige un periodo'}
-                  </div>
-                ) : (
-                  sellers.map((s) => (
-                    <label key={s.id} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
-                      <Checkbox checked={selectedSellerIds.includes(s.id)} onCheckedChange={() => toggleSeller(s.id)} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-gray-900">{s.name}</span>
-                        <span className="block truncate text-[11px] text-gray-400">
-                          {s.username}
-                          {s.roleName ? ` · ${s.roleName}` : ''}
-                        </span>
-                      </span>
-                      <span className="text-xs tabular-nums text-gray-500">{s.sales}</span>
-                    </label>
-                  ))
-                )}
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <Button onClick={handleApply} disabled={isFetching || !selectedPeriodId} className="whitespace-nowrap active:scale-[0.98]">
+          <Button onClick={handleApply} disabled={isFetching || !selectedPeriodId} className="whitespace-nowrap active:scale-[0.98] lg:col-span-2">
             {isFetching ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -314,19 +241,12 @@ function VentasUsuarioContent() {
           </Button>
         </div>
 
-        {applied && (applied.sellerIds.length > 0 || applied.customer) && (
+        {applied?.customer && (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-gray-500">Filtros:</span>
-            {applied.customer && (
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                Distribuidor: {picked && picked.customerNumber === applied.customer ? `#${picked.customerNumber} ${picked.name}` : applied.customer}
-              </span>
-            )}
-            {applied.sellerIds.map((sid) => (
-              <span key={sid} className="inline-flex items-center rounded-full bg-[#3E667D]/10 px-2.5 py-0.5 text-xs font-medium text-[#3E667D]">
-                {sellerName(sid)}
-              </span>
-            ))}
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+              Distribuidor: {picked && picked.customerNumber === applied.customer ? `#${picked.customerNumber} ${picked.name}` : applied.customer}
+            </span>
           </div>
         )}
       </div>
@@ -364,7 +284,7 @@ function VentasUsuarioContent() {
           </div>
         ) : !applied ? (
           <div className="flex flex-col items-center justify-center gap-3 py-24">
-            <p className="text-sm text-gray-400">Elige el periodo, opcionalmente un distribuidor o vendedores, y presiona Consultar</p>
+            <p className="text-sm text-gray-400">Elige el periodo y, si quieres, un distribuidor; luego presiona Consultar</p>
           </div>
         ) : !hasData ? (
           <div className="flex flex-col items-center justify-center gap-3 py-24">

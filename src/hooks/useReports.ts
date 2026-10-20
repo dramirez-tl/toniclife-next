@@ -220,13 +220,3 @@ export function useSalesByUser(query: SalesByUserQuery) {
     staleTime: 1000 * 60 * 5,
   });
 }
-
-/** Vendedores con ventas en el rango (sale de las ventas reales, no de los roles). */
-export function useSalesByUserSellers(startDate: string, endDate: string) {
-  return useQuery({
-    queryKey: ['reports', 'sales', 'by-user', 'sellers', startDate, endDate],
-    queryFn: () => reportsService.getSalesByUserSellers(startDate, endDate),
-    enabled: !!startDate && !!endDate,
-    staleTime: 1000 * 60 * 5,
-  });
-}

@@ -100,8 +100,8 @@ export function DistributorPicker({
 
   return (
     <div className="relative">
-      <div className="space-y-1.5">
-        <div className="relative">
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             value={query}
@@ -124,7 +124,7 @@ export function DistributorPicker({
             autoComplete="off"
           />
         </div>
-        <div className="relative">
+        <div className="relative w-56 shrink-0 sm:w-64">
           <HashtagIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             value={numberQuery}
@@ -144,7 +144,8 @@ export function DistributorPicker({
                 else onSubmit?.();
               }
             }}
-            placeholder="No. de distribuidor EXACTO (ej. 2) + Enter"
+            placeholder="No. EXACTO (ej. 2) + Enter"
+            title="Número de distribuidor exacto + Enter"
             className="bg-gray-50 pl-9 font-mono"
             inputMode="numeric"
             autoComplete="off"
