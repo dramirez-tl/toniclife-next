@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
 import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
+import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -24,6 +25,8 @@ import {
 
 export default function VentasPage() {
   const t = useTranslations('distributor.sales');
+  // Tienda solo para distribuidores: sin carrito compartido; vender = comprar en la tienda.
+  const { membersOnly } = useStorefrontAccess();
   const user = useAppSelector(selectUser);
 
   // Periodo seleccionado (default: actual). Permite ver periodos pasados.
@@ -204,7 +207,8 @@ export default function VentasPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Link href="/distribuidor/compartir-carrito">
+              {/* Tienda solo para distribuidores: el carrito compartido está apagado; "vender" = comprar en la tienda */}
+              <Link href={membersOnly ? '/productos' : '/distribuidor/compartir-carrito'}>
                 <Button className="bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10">
                   <ShoppingCartIcon className="h-4 w-4" />
                   {t('sellNow')}
@@ -249,12 +253,14 @@ export default function VentasPage() {
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href="/distribuidor/compartir-carrito">
-                  <Button>
-                    <ShoppingCartIcon className="h-4 w-4" />
-                    {t('empty.shareCart')}
-                  </Button>
-                </Link>
+                {!membersOnly && (
+                  <Link href="/distribuidor/compartir-carrito">
+                    <Button>
+                      <ShoppingCartIcon className="h-4 w-4" />
+                      {t('empty.shareCart')}
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/productos">
                   <Button variant="outline">
                     <ShoppingBagIcon className="h-4 w-4" />
@@ -466,6 +472,7 @@ export default function VentasPage() {
                 </div>
 
                 <div className="space-y-2.5">
+                  {!membersOnly && (
                   <Link
                     href="/distribuidor/compartir-carrito"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
@@ -479,6 +486,7 @@ export default function VentasPage() {
                     </div>
                     <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
                   </Link>
+                  )}
 
                   <Link
                     href="/productos"

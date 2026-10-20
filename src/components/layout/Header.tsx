@@ -23,6 +23,7 @@ import { readyAccountCountry } from '@/hooks/useStoreCountry';
 import { resolvePortal } from '@/lib/auth-roles';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { openCartDrawer } from '@/lib/storefront/cart-drawer-store';
+import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 
 // Objetivo táctil de 44 px (antes ~40) y foco visible.
 const CART_ICON_CLASS =
@@ -66,15 +67,20 @@ export function Header() {
     window.location.href = `/${loc}`;
   };
 
-  // Get cart item count from API
-  const { data: cartSummary } = useCartSummary();
-  const cartItemCount = cartSummary?.itemCount || 0;
-
   // Get user authentication state, roles, and profile
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const isInitialized = useAppSelector(selectIsInitialized);
   const userRoles = useAppSelector(selectUserRoles);
   const user = useAppSelector(selectUser);
+
+  // Tienda solo para distribuidores: sin sesión no hay carrito (el API
+  // respondería 401) y el header invita a iniciar sesión o a unirse.
+  const { membersOnly } = useStorefrontAccess();
+  const guestLockedOut = membersOnly && isInitialized && !isAuthenticated;
+
+  // Get cart item count from API
+  const { data: cartSummary } = useCartSummary(!guestLockedOut);
+  const cartItemCount = cartSummary?.itemCount || 0;
 
   // Si el usuario está logueado y su país tiene tienda lista, el país lo fija su
   // cuenta (solo puede cambiar idioma). El locale efectivo usa ese país.
@@ -249,7 +255,14 @@ export function Header() {
             <span className="hidden lg:block h-6 w-px bg-gray-200 mr-1" aria-hidden="true" />
             {/* Cart */}
             {/* En /carrito el icono es un enlace normal; en el resto abre el mini-carrito. */}
-            {onCartPage ? (
+            {guestLockedOut ? (
+              <Link
+                href="/formulario"
+                className="hidden text-sm font-medium text-[#3E667D] hover:underline md:inline-block"
+              >
+                {t('nav.join')}
+              </Link>
+            ) : onCartPage ? (
               <Link
                 href="/carrito"
                 aria-current="page"

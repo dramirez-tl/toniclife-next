@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,6 +35,20 @@ import {
   selectEmailLinkRequired,
   clearError,
 } from '@/store/slices/authSlice';
+
+/** Llegó desde la tienda solo para distribuidores (middleware: ?tienda=1): explica por qué pide sesión. */
+function StoreLoginNotice({ text }: { text: string }) {
+  const params = useSearchParams();
+  if (params.get('tienda') !== '1') return null;
+  return (
+    <div
+      role="status"
+      className="mx-auto mt-4 max-w-md rounded-xl border border-[#3E667D]/20 bg-[#3E667D]/5 px-4 py-3 text-left text-sm text-[#3E667D]"
+    >
+      {text}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
@@ -217,6 +232,9 @@ export default function LoginPage() {
             <p className="mt-2 max-w-md text-sm text-gray-600 lg:max-w-none">
               {t('subtitle')}
             </p>
+            <Suspense fallback={null}>
+              <StoreLoginNotice text={t('storeNotice')} />
+            </Suspense>
           </div>
 
           <Card className="rounded-3xl border border-gray-100 bg-white/95 shadow-2xl shadow-gray-200/70 backdrop-blur">

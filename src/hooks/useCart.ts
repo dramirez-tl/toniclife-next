@@ -161,12 +161,15 @@ export const useCart = () => {
   });
 };
 
-export const useCartSummary = () => {
+export const useCartSummary = (enabled = true) => {
   return useQuery({
     queryKey: cartKeys.summary(),
     queryFn: () => cartService.getCartSummary(),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
+    // Tienda solo para distribuidores + visitante sin sesión: no hay carrito
+    // que consultar (el API respondería 401 STF_MEMBERS_ONLY).
+    enabled,
   });
 };
 

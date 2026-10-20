@@ -45,6 +45,7 @@ import {
 } from '@/hooks/useDistributor';
 import { useMyCourses } from '@/hooks/useCourses';
 import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
+import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { localeLanguage } from '@/i18n/config';
 import { useAppSelector } from '@/store/hooks';
@@ -390,6 +391,10 @@ export default function DistribuidorDashboard() {
     if (profile?.code) return profile.code;
     return null;
   }, [profile?.referralCode, profile?.personalLink, profile?.code]);
+
+  // Tienda solo para distribuidores: "Comparte y gana" (compra a precio público
+  // por link) se oculta y las acciones de venta llevan a la tienda.
+  const { membersOnly } = useStorefrontAccess();
 
   // Enlaces dinámicos (funcionan en localhost, QA y producción)
   const dynamicPersonalLink = useMemo(() => {
@@ -902,7 +907,9 @@ export default function DistribuidorDashboard() {
                       <Link
                         href={
                           points?.isPersonalQualified
-                            ? '/distribuidor/compartir-carrito'
+                            ? membersOnly
+                              ? '/productos'
+                              : '/distribuidor/compartir-carrito'
                             : '/distribuidor/comisiones'
                         }
                       >
@@ -1047,11 +1054,17 @@ export default function DistribuidorDashboard() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <Link href="/distribuidor/compartir-carrito" className={actionBox}>
+                  {/* Tienda solo para distribuidores: el carrito compartido está apagado; la acción es comprar */}
+                  <Link
+                    href={membersOnly ? '/productos' : '/distribuidor/compartir-carrito'}
+                    className={actionBox}
+                  >
                     <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
                       <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
                     </div>
-                    <span className="text-sm font-medium text-gray-700">{t('actions.shareCart')}</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {membersOnly ? t('buyCta.title') : t('actions.shareCart')}
+                    </span>
                   </Link>
                   <Link href="/distribuidor/ventas" className={actionBox}>
                     <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
@@ -1134,7 +1147,11 @@ export default function DistribuidorDashboard() {
               </Link>
             )}
 
-            {/* ══════════════ Comparte y gana ══════════════ */}
+            {/* ══════════════ Comparte y gana ══════════════
+                Con la tienda solo para distribuidores el link de compra a precio
+                público no existe: la tarjeta se oculta (el link de registro de
+                socios sigue en Mi Red). */}
+            {!membersOnly && (
             <Card className="overflow-hidden border-0 shadow-md p-0">
               {/* Encabezado cálido + código de referido */}
               <div className="bg-gradient-to-br from-[#3E667D] to-[#0A4B94] px-5 py-5 text-white">
@@ -1214,6 +1231,7 @@ export default function DistribuidorDashboard() {
                 </button>
               </CardContent>
             </Card>
+            )}
           </div>
         </div>
       )}

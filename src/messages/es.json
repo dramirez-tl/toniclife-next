@@ -5,7 +5,8 @@
     "evaluation": "Evaluación de Salud",
     "help": "Ayuda",
     "goToPanel": "Ir a Panel",
-    "login": "Iniciar sesión"
+    "login": "Iniciar sesión",
+    "join": "Quiero ser distribuidor"
   },
   "common": {
     "tagline": "Bienestar natural desde 2004 — Tonic Life"
@@ -13,6 +14,13 @@
   "home": {
     "playVideo": "Reproducir video",
     "pauseVideo": "Pausar video",
+    "members": {
+      "eyebrow": "Tienda en línea",
+      "title": "Exclusiva para distribuidores Tonic Life",
+      "body": "Inicia sesión con tu cuenta para ver tus precios, resurtir tu inventario y sumar puntos al periodo.",
+      "login": "Iniciar sesión",
+      "join": "Quiero ser distribuidor"
+    },
     "categoriesTitle": "Nuestros productos",
     "categories": {
       "capsules": "Cápsulas",
@@ -663,6 +671,7 @@
   },
   "auth": {
     "secureAccess": "Acceso seguro",
+    "storeNotice": "La tienda en línea es exclusiva para distribuidores: inicia sesión con tu cuenta para ver tus precios y comprar. Al entrar regresas a donde estabas.",
     "title": "Iniciar sesión",
     "subtitle": "Ingresa con tus credenciales autorizadas para acceder a la plataforma.",
     "identifierLabel": "Correo electrónico o usuario",
@@ -2518,6 +2527,12 @@
       }
     },
     "shareCart": {
+      "membersOnly": {
+        "title": "La tienda es solo para distribuidores",
+        "body": "Mientras la tienda en línea sea exclusiva para distribuidores, no se generan carritos para que un cliente pague a precio público. Compra tú a precio de distribuidor y suma puntos, o da de alta a tu cliente como socio.",
+        "store": "Ir a la tienda",
+        "enroll": "Dar de alta socio"
+      },
       "header": {
         "title": "Compartir carrito",
         "subtitle": "Elige productos del catálogo y comparte el carrito. Tu cliente paga directo a precio público; la venta cuenta para ti.",

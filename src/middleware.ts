@@ -62,6 +62,7 @@ const authOnlyRoutes = [
 // atrapado en /login→/distribuidor→/ durante 7 días y el usuario tenía que
 // borrar caché — bug de roles corporativos, ago-2026).
 import { resolvePortal, type Portal } from './lib/auth-roles';
+import { getStorefrontAccessEdge, STORE_ROUTE_RE } from './lib/storefront/access';
 
 const AUTH_COOKIES = ['accessToken', 'authRole', 'authPortal'];
 
@@ -72,7 +73,7 @@ function redirectClearingSession(request: NextRequest, to: string): NextResponse
   return res;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── Subdominios de los formularios públicos de marketing ──────────────
@@ -135,6 +136,24 @@ export function middleware(request: NextRequest) {
     pathname === '/' ||
     LOCALIZABLE_BASE_RE.test(pathname)
   ) {
+    // ── Tienda solo para distribuidores (storefront.access_mode = members) ──
+    // Catálogo, detalle, carrito, checkout y quiz exigen sesión: sin la cookie
+    // accessToken se manda a /login y, al entrar, el login regresa aquí
+    // (?redirect= neutral). El home del locale sigue público (landing). El
+    // API aplica el mismo candado (401 STF_MEMBERS_ONLY), esto es solo la UX.
+    const storePath = pathname.replace(LOCALE_PREFIX_RE, '/');
+    if (
+      STORE_ROUTE_RE.test(storePath) &&
+      !request.cookies.get('accessToken')?.value
+    ) {
+      const access = await getStorefrontAccessEdge();
+      if (access.membersOnly) {
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search);
+        loginUrl.searchParams.set('tienda', '1');
+        return NextResponse.redirect(loginUrl);
+      }
+    }
     return intlMiddleware(request);
   }
 

@@ -31,6 +31,7 @@ import {
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, safeJsonLd } from '@/lib/storefront/json-ld';
 import { buildCatalogMetadata, buildNoIndexMetadata } from '@/lib/storefront/metadata';
 import { canonicalFor, localizedPath } from '@/lib/storefront/seo';
+import { fetchStorefrontAccess } from '@/lib/storefront/access';
 import { fetchStorefrontList } from '@/lib/storefront/server';
 import { absoluteUrl } from '@/lib/storefront/site';
 import { CatalogClient } from './CatalogClient';
@@ -64,6 +65,14 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   }
 
   const { state, stateKey } = readState(await searchParams);
+  // Tienda solo para distribuidores: el catálogo vive detrás del login (noindex,
+  // sin lista anónima en el servidor).
+  if ((await fetchStorefrontAccess()).membersOnly) {
+    return {
+      ...buildCatalogMetadata({ locale, state, categoryName: null }),
+      robots: { index: false, follow: false },
+    };
+  }
   const result = await getList(country, lang, stateKey);
   const categoryName =
     result.ok && state.categoria
@@ -83,7 +92,12 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   }
 
   const { state, stateKey } = readState(await searchParams);
-  const result = await getList(country, lang, stateKey);
+  // Tienda solo para distribuidores: sin lista anónima del servidor (el API
+  // responde 401); CatalogClient consulta con la sesión, igual que una búsqueda.
+  const membersOnly = (await fetchStorefrontAccess()).membersOnly;
+  const result = membersOnly
+    ? ({ ok: false, status: 401 } as const)
+    : await getList(country, lang, stateKey);
   // Sin datos de servidor (búsqueda, 429/5xx persistente o respuesta fuera de contrato): consulta el cliente.
   const list = result.ok ? result.data : null;
 

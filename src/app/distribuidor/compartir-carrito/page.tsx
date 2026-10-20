@@ -27,6 +27,7 @@ import {
   useCancelSharedCart,
 } from '@/hooks/useSharedCart';
 import { useMyPilotFeatures } from '@/hooks/usePilot';
+import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 import { LockClosedIcon } from '@heroicons/react/24/solid';
 
 interface Line {
@@ -92,6 +93,9 @@ function CompartirCarritoContent() {
   const tGate = useTranslations('distributor.pilotGate');
   const { data: pilotFeatures } = useMyPilotFeatures();
   const shareCartEnabled = pilotFeatures?.shareCart ?? false;
+  // Tienda solo para distribuidores: el carrito compartido (el cliente paga a
+  // precio público por link) está apagado en el API (403 SHARE_CART_DISABLED).
+  const { membersOnly } = useStorefrontAccess();
 
   const products = productsData?.data ?? [];
   const qtyOf = (productId: string) =>
@@ -166,6 +170,35 @@ function CompartirCarritoContent() {
     const text = encodeURIComponent(t('shareText', { url }));
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
   };
+
+  if (membersOnly) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+          <Card>
+            <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#3E667D]/10">
+                <LockClosedIcon className="h-7 w-7 text-[#3E667D]" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">{t('membersOnly.title')}</h1>
+              <p className="max-w-xl text-sm text-gray-600">{t('membersOnly.body')}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link href="/productos">
+                  <Button>
+                    <ShoppingCartIcon className="h-4 w-4" />
+                    {t('membersOnly.store')}
+                  </Button>
+                </Link>
+                <Link href="/distribuidor/red?alta=socio">
+                  <Button variant="outline">{t('membersOnly.enroll')}</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

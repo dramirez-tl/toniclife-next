@@ -656,6 +656,29 @@ export const usePlatformSettings = () => {
   });
 };
 
+// ── Acceso a la tienda en línea (storefront.access_mode: public | members) ──
+export const storefrontAccessSettingKey = ['config', 'storefront-access'] as const;
+
+export const useStorefrontAccessSetting = () =>
+  useQuery({
+    queryKey: storefrontAccessSettingKey,
+    queryFn: () => configService.getStorefrontAccess(),
+    staleTime: 30 * 1000,
+  });
+
+export const useUpdateStorefrontAccess = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: 'public' | 'members') =>
+      configService.updateStorefrontAccess(mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: storefrontAccessSettingKey });
+      // El header/hero leen el modo público: que se enteren sin recargar.
+      queryClient.invalidateQueries({ queryKey: ['storefront', 'access'] });
+    },
+  });
+};
+
 /** Guarda (merge) los ajustes generales de la plataforma. */
 export const useUpdatePlatformSettings = (
   options?: MutationOptions<Record<string, unknown>>,

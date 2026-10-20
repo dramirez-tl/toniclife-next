@@ -390,6 +390,24 @@ class ConfigService {
     return response.data;
   }
 
+  /** Acceso a la tienda en línea (admin): public | members. */
+  async getStorefrontAccess(): Promise<{ mode: 'public' | 'members' }> {
+    const response = await api.get<{ mode: 'public' | 'members' }>(
+      '/config/storefront-access',
+    );
+    return response.data;
+  }
+
+  async updateStorefrontAccess(
+    mode: 'public' | 'members',
+  ): Promise<{ mode: 'public' | 'members' }> {
+    const response = await api.patch<{ mode: 'public' | 'members' }>(
+      '/config/storefront-access',
+      { mode },
+    );
+    return response.data;
+  }
+
   // ================================
   // POS OPERATIONS (interruptor global de liberación de terminales)
   // ================================

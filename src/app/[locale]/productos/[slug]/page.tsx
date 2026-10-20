@@ -26,9 +26,11 @@ import { StorefrontUnavailableError } from '@/lib/storefront/errors';
 import { buildBreadcrumbJsonLd, buildProductJsonLd, safeJsonLd } from '@/lib/storefront/json-ld';
 import { buildNoIndexMetadata, buildProductMetadata } from '@/lib/storefront/metadata';
 import { canonicalFor, localizedPath } from '@/lib/storefront/seo';
+import { fetchStorefrontAccess } from '@/lib/storefront/access';
 import { fetchStorefrontDetail } from '@/lib/storefront/server';
 import { isValidSlug, productPath } from '@/lib/storefront/slug';
 import { ProductDetailClient } from './ProductDetailClient';
+import { ProductDetailMembers } from './ProductDetailMembers';
 
 interface PageProps {
   params: Promise<{ locale: string; slug: string }>;
@@ -61,6 +63,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const slug = readSlug(rawSlug);
   if (!isValidSlug(slug)) return buildNoIndexMetadata(t('product.notFound.metaTitle'));
+  // Tienda solo para distribuidores: el detalle vive detrás del login (noindex,
+  // sin cotización anónima en el servidor).
+  if ((await fetchStorefrontAccess()).membersOnly) return buildNoIndexMetadata('Tonic Life');
   const result = await getDetail(country, lang, slug);
   if (!result.ok) {
     const missing = result.status === 404 || result.status === 400;
@@ -88,6 +93,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const slug = readSlug(rawSlug);
   if (!isValidSlug(slug)) notFound();
+
+  // Tienda solo para distribuidores: el SSR anónimo no puede cotizar (401);
+  // el cliente consulta con la sesión. Sin sesión el middleware ya mandó a /login.
+  if ((await fetchStorefrontAccess()).membersOnly) {
+    return <ProductDetailMembers slug={slug} />;
+  }
 
   const result = await getDetail(country, lang, slug);
   if (!result.ok) {

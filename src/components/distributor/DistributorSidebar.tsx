@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
 import { startDistributorTour } from '@/lib/distributorTour';
 import { CORE_NAV, MORE_GROUPS, COMING_SOON } from './distributorNav';
+import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 import { DistributorLanguageToggle } from './DistributorLanguageToggle';
 
 // Anclas del tour guiado (ver distributorTour.ts).
@@ -52,6 +53,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
   const t = useTranslations('distributor');
+  const { membersOnly } = useStorefrontAccess();
 
   const { networkSummary, profile, points } = useDistributorDashboard();
   // "Próximamente" colapsado por defecto: son 12 filas deshabilitadas que en
@@ -232,7 +234,11 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
               {t(`groups.${group.key}`)}
             </p>
             <ul className="space-y-1">
-              {group.items.map((item) => (
+              {group.items
+                // Tienda solo para distribuidores: el carrito compartido (compra a
+                // precio público por link) está apagado y no se ofrece.
+                .filter((item) => !(membersOnly && item.key === 'shareCart'))
+                .map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}

@@ -10,6 +10,8 @@ import {
   useCountries,
   usePlatformSettings,
   useUpdatePlatformSettings,
+  useStorefrontAccessSetting,
+  useUpdateStorefrontAccess,
 } from '@/hooks/useConfig';
 import {
   Cog6ToothIcon,
@@ -22,10 +24,113 @@ import {
   CreditCardIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
+  LockClosedIcon,
+  ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { PermissionGuard } from '@/components/auth';
+
+type StorefrontAccessMode = 'public' | 'members';
+
+/**
+ * Pestaña "Tienda en línea": quién puede entrar a la tienda (storefront.access_mode).
+ * El API aplica el candado en menos de un minuto; no requiere redeploy.
+ */
+function StorefrontAccessCard() {
+  const { data, isLoading } = useStorefrontAccessSetting();
+  const update = useUpdateStorefrontAccess();
+  const current: StorefrontAccessMode = data?.mode ?? 'public';
+  const [draft, setDraft] = useState<StorefrontAccessMode | null>(null);
+  const value = draft ?? current;
+  const dirty = value !== current;
+
+  const options: { mode: StorefrontAccessMode; title: string; body: string; icon: typeof LockClosedIcon }[] = [
+    {
+      mode: 'members',
+      title: 'Solo distribuidores',
+      body: 'Catálogo, carrito, checkout y Evaluación de Salud exigen iniciar sesión. Los visitantes ven el home con la invitación a entrar o a unirse. Los carritos compartidos para clientes se apagan.',
+      icon: LockClosedIcon,
+    },
+    {
+      mode: 'public',
+      title: 'Pública',
+      body: 'Cualquier visitante ve el catálogo a precio público y puede armar carrito; con sesión de distribuidor ve sus precios y puntos.',
+      icon: ShoppingBagIcon,
+    },
+  ];
+
+  const save = () => {
+    update.mutate(value, {
+      onSuccess: () => {
+        setDraft(null);
+        toast.success(
+          value === 'members'
+            ? 'Tienda solo para distribuidores: aplica en menos de un minuto.'
+            : 'Tienda pública: aplica en menos de un minuto.',
+        );
+      },
+      onError: () => toast.error('No se pudo guardar el acceso a la tienda'),
+    });
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Tienda en línea</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Decide quién puede entrar a la tienda. El cambio aplica en menos de un
+          minuto en la tienda y en el API, sin publicar una versión nueva.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {options.map((opt) => {
+            const selected = value === opt.mode;
+            return (
+              <label
+                key={opt.mode}
+                className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${
+                  selected ? 'border-[#3E667D] bg-[#3E667D]/5' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="storefront-access"
+                  className="mt-1 h-4 w-4 accent-[#3E667D]"
+                  checked={selected}
+                  disabled={isLoading || update.isPending}
+                  onChange={() => setDraft(opt.mode)}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <opt.icon className="h-5 w-5 text-[#3E667D]" />
+                    <span className="font-semibold text-gray-900">{opt.title}</span>
+                    {current === opt.mode && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                        Vigente
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">{opt.body}</p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        <div className="mt-6 flex items-center justify-end gap-3">
+          {dirty && (
+            <Button variant="outline" onClick={() => setDraft(null)} disabled={update.isPending}>
+              Descartar
+            </Button>
+          )}
+          <Button onClick={save} disabled={!dirty || update.isPending}>
+            <CheckCircleIcon className="h-5 w-5" />
+            {update.isPending ? 'Guardando…' : 'Guardar'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState({
@@ -215,6 +320,7 @@ export default function ConfiguracionPage() {
   const tabs = [
     { id: 'general', name: 'General', icon: Cog6ToothIcon },
     { id: 'business', name: 'Negocio', icon: BuildingStorefrontIcon },
+    { id: 'storefront', name: 'Tienda en línea', icon: LockClosedIcon },
     { id: 'store-countries', name: 'Almacenes y envíos', icon: GlobeAltIcon },
     { id: 'shipping', name: 'Envíos', icon: TruckIcon },
     { id: 'email', name: 'Correo', icon: EnvelopeIcon },
@@ -450,6 +556,9 @@ export default function ConfiguracionPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Tienda en línea: pública o solo para distribuidores (storefront.access_mode) */}
+            {activeTab === 'storefront' && <StorefrontAccessCard />}
 
             {/* Almacenes y envíos: sustituye a la pestaña "Tienda por país" (rutas de surtido, mig 144) */}
             {activeTab === 'store-countries' && (

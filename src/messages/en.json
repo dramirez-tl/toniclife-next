@@ -5,7 +5,8 @@
     "evaluation": "Health Assessment",
     "help": "Help",
     "goToPanel": "Go to Panel",
-    "login": "Sign in"
+    "login": "Sign in",
+    "join": "Become a distributor"
   },
   "common": {
     "tagline": "Natural wellness since 2004 — Tonic Life"
@@ -13,6 +14,13 @@
   "home": {
     "playVideo": "Play video",
     "pauseVideo": "Pause video",
+    "members": {
+      "eyebrow": "Online store",
+      "title": "Exclusively for Tonic Life distributors",
+      "body": "Sign in to see your prices, restock your inventory and earn points for the period.",
+      "login": "Sign in",
+      "join": "Become a distributor"
+    },
     "categoriesTitle": "Our products",
     "categories": {
       "capsules": "Capsules",
@@ -663,6 +671,7 @@
   },
   "auth": {
     "secureAccess": "Secure access",
+    "storeNotice": "The online store is exclusive to distributors: sign in with your account to see your prices and buy. After signing in you return to where you were.",
     "title": "Sign in",
     "subtitle": "Sign in with your authorized credentials to access the platform.",
     "identifierLabel": "Email or username",
@@ -2518,6 +2527,12 @@
       }
     },
     "shareCart": {
+      "membersOnly": {
+        "title": "The store is for distributors only",
+        "body": "While the online store is exclusive to distributors, no carts are generated for a customer to pay at retail price. Buy at your distributor price and earn points, or enroll your customer as a partner.",
+        "store": "Go to the store",
+        "enroll": "Enroll a partner"
+      },
       "header": {
         "title": "Share cart",
         "subtitle": "Choose products from the catalog and share the cart. Your customer pays directly at retail price; the sale counts toward you.",

@@ -84,6 +84,9 @@ const PUBLIC_ENDPOINTS = [
   '/categories',
   '/quiz',
   '/shared-carts',
+  // Tienda (catálogo público y su candado): un 401 STF_MEMBERS_ONLY sin sesión
+  // no debe mandar a /login a mitad del home.
+  '/storefront',
 ];
 
 const isAuthEndpoint = (url?: string): boolean => {
