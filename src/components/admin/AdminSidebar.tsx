@@ -62,7 +62,12 @@ const navigation: NavItem[] = [
       { name: 'Salud del catálogo', href: '/admin/productos/salud' },
     ],
   },
-  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:read', 'sales.orders', 'sales.orders.read'] },
+  // Pedidos web (ecommerce) se gatea por orders:update, no por orders:read:
+  // Call Center solo tiene orders:read y trabaja en Inventario › Entregas a
+  // domicilio; verlo aquí confundía (20-oct-2026). Los demás roles con
+  // orders:read (administrador, almacén, cedeas, operaciones, sistemas) tienen
+  // también orders:update, así que no pierden nada.
+  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:update', 'sales.orders', 'sales.orders.read'] },
   {
     name: 'Inventario',
     href: '/admin/inventario',

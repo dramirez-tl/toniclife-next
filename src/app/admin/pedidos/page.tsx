@@ -614,7 +614,7 @@ function PedidosContent() {
   }
 
   return (
-    <PermissionGuard permissions={['orders:read', 'orders:*']}>
+    <PermissionGuard permissions={['orders:update', 'orders:*']}>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
