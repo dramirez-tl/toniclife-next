@@ -122,6 +122,10 @@ export const GLOBAL_EXCLUSION_LABELS: Record<GlobalExclusionReason, string> = {
   zero_total: 'Total en cero',
   credit_sale: 'Venta a crédito (PPD)',
   already_in_global: 'Ya está en otra global',
+  // Contabilidad (20-oct-2026): estos cobros no se globalizan.
+  cashback: 'Pagado con cashback (no se globaliza)',
+  promotion: 'Pagado con promoción (no se globaliza)',
+  usd: 'Pagado en dólares (no se globaliza)',
 };
 
 export const GLOBAL_BLOCKER_LABELS: Record<GlobalBlockerCode, string> = {

@@ -28,7 +28,6 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { PermissionGuard } from '@/components/auth';
 import {
   useBillingStatus,
-  useCreateGlobalInvoice,
   useDiscardGlobalInvoice,
   useGlobalDays,
   useGlobalPreview,
@@ -37,7 +36,7 @@ import {
   useReissueGlobalInvoice,
 } from '@/hooks/useBilling';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
+import { billingErrorMessage, isBillingFlowDisabled } from '@/lib/billing-error';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 import {
   formatCurrency,
@@ -49,6 +48,7 @@ import {
 } from '@/types/billing';
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
+import { GlobalPaymentGroups } from '@/components/admin/billing/invoices/GlobalPaymentGroups';
 import { V2FlowsBanner } from '@/components/admin/billing/invoices/BillingStatusCards';
 import {
   CONCEPT_MODE_OPTIONS,
@@ -138,10 +138,8 @@ function GlobalInvoiceContent() {
   const previewRequested = requestedKey === previewKey;
 
   const preview = useGlobalPreview(branchId ? { branchId, date, conceptMode } : null, previewRequested);
-  const create = useCreateGlobalInvoice();
   const discard = useDiscardGlobalInvoice();
   const reissue = useReissueGlobalInvoice();
-  const [confirmOpen, setConfirmOpen] = useState(false);
   // Global viva (día ya emitido) que se va a reexpedir porque no declara todos sus tickets.
   const [reissueTarget, setReissueTarget] = useState<{
     invoiceId: string;
@@ -186,31 +184,14 @@ function GlobalInvoiceContent() {
 
   const globals = useInvoices({ invoiceType: 'global', branchId: branchId || undefined, limit: 10, sort: 'createdAt:desc' }, !!branchId);
 
-  const handleEmit = async () => {
-    const p = preview.data;
-    if (!p) return;
-    try {
-      const invoice = await create.mutateAsync({ branchId, date, conceptMode, previewHash: p.previewHash });
-      setConfirmOpen(false);
-      router.push(`/admin/facturacion/${invoice.id}`);
-    } catch (err) {
-      if (isBillingFlowDisabled(err)) setFlowDisabled(true);
-      if (isBillingErrorCode(err, 'CFDI_GLOBAL_PREVIEW_STALE')) {
-        setConfirmOpen(false);
-        void preview.refetch();
-      }
-    }
+  // Tras emitir la global de una forma de pago: la vista previa se regenera
+  // (los tickets emitidos salen como "ya está en otra global") y la tira de
+  // días y el listado de globales se refrescan.
+  const refreshAfterEmit = () => {
+    void preview.refetch();
+    void days.refetch();
+    void globals.refetch();
   };
-
-  const dayColumns: DataTableColumn<GlobalPreview['included'][number]>[] = [
-    { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}<span className="ml-1 text-xs text-gray-500">{r.kind === 'order' ? 'pedido' : 'ticket'}</span></span> },
-    { key: 'time', header: 'Hora', render: (r) => <span className="text-sm">{r.time}</span> },
-    { key: 'customer', header: 'Cliente', render: (r) => <span className="text-sm text-gray-700">{r.customerName ?? 'Público en general'}</span> },
-    { key: 'pf', header: 'Forma de pago', render: (r) => <span className="text-sm">{r.paymentFormCode ? `${r.paymentFormCode} · ${getPaymentFormName(r.paymentFormCode)}` : '—'}</span> },
-    { key: 'subtotal', header: 'Base', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => formatCurrency(r.subtotal) },
-    { key: 'tax', header: 'IVA', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => formatCurrency(r.taxAmount) },
-    { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
-  ];
 
   const excludedColumns: DataTableColumn<GlobalPreview['excluded'][number]>[] = [
     { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}</span> },
@@ -227,11 +208,10 @@ function GlobalInvoiceContent() {
   ];
 
   const p = previewRequested ? preview.data : undefined;
-  // Global VIVA del día = la que cuenta para `uq_invoices_global_branch_day` (más la
-  // cancelación en proceso). Un intento en `error` se reutiliza al emitir (§5.3.5).
-  const existingLive =
-    !!p?.existingGlobal && !['error', 'cancelled'].includes(p.existingGlobal.providerStatus);
-  const canEmit = !!p && p.canStamp && !existingLive && p.blockers.length === 0 && canManage && !flowDisabled;
+  // Mig 164: una global por forma de pago; las vivas del día se listan por grupo.
+  // El aviso CFDI_GLOBAL_PAYMENT_FORM_REQUIRED es para el POS viejo, aquí no aplica.
+  const eligibilityErrors = (p?.eligibilityErrors ?? []).filter((e) => e.code !== 'CFDI_GLOBAL_PAYMENT_FORM_REQUIRED');
+  const existingGlobals = p?.existingGlobals ?? (p?.existingGlobal ? [p.existingGlobal] : []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -313,7 +293,7 @@ function GlobalInvoiceContent() {
                           role="option"
                           aria-selected={active}
                           onClick={() => setParams({ date: d.localDate })}
-                          title={`${info.label} · ${d.ticketCount} tickets · ${formatCurrency(d.total)}${d.blockers ? ` · ${d.blockers} bloqueador(es)` : ''}${reason ? ` · ${reason}` : ''}${attempt ? ` · Intento/global: ${attempt}` : ''}${dayHasUncovered(d) && d.uncoveredCount ? ` · ${d.uncoveredCount} ticket(s) sin declarar` : ''}${d.lateEmission ? ' · emisión tardía' : ''}`}
+                          title={`${info.label} · ${d.ticketCount} tickets · ${formatCurrency(d.total)}${d.blockers ? ` · ${d.blockers} bloqueador(es)` : ''}${reason ? ` · ${reason}` : ''}${attempt ? ` · Intento/global: ${attempt}` : ''}${dayHasUncovered(d) && d.uncoveredCount ? ` · ${d.uncoveredCount} ticket(s) sin declarar` : ''}${d.emittedForms?.length ? ` · emitidas: ${d.emittedForms.map((f) => f.paymentForm).join(', ')}` : ''}${d.pendingForms?.length ? ` · por emitir: ${d.pendingForms.map((f) => `${f.paymentForm} (${f.ticketCount})`).join(', ')}` : ''}${d.lateEmission ? ' · emisión tardía' : ''}`}
                           className={`min-w-[84px] rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${info.className} ${active ? 'ring-2 ring-[#3E667D]' : ''}`}
                         >
                           <span className="block font-semibold">{formatIsoDate(d.localDate).slice(0, 5)}</span>
@@ -416,9 +396,9 @@ function GlobalInvoiceContent() {
 
         {p && (
           <>
-            {(!p.eligible || p.blockers.length > 0 || p.existingGlobal || p.lateEmission || p.branch.terminalsOff.length > 0) && (
+            {(!p.eligible || p.blockers.length > 0 || existingGlobals.length > 0 || p.lateEmission || p.branch.terminalsOff.length > 0) && (
               <div className="space-y-3">
-                {p.eligibilityErrors.map((e) => (
+                {eligibilityErrors.map((e) => (
                   <div key={e.code} className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
                     <span className="font-mono text-xs">{e.code}</span> · {e.message}
                   </div>
@@ -428,20 +408,27 @@ function GlobalInvoiceContent() {
                     Terminales con Facturación apagada (el sistema anterior sigue globalizando esas cajas): {p.branch.terminalsOff.join(', ')}
                   </div>
                 )}
-                {p.existingGlobal && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900" role="status">
-                    <span>
-                      Ya existe una global de este día: <span className="font-mono">{p.existingGlobal.folioDisplay}</span>{' '}
-                      <InvoiceStatusBadge status={p.existingGlobal.providerStatus} />
-                    </span>
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" variant="outline"><Link href={`/admin/facturacion/${p.existingGlobal.invoiceId}`}>Ver global</Link></Button>
-                      {canManage && !p.existingGlobal.satUuid && (p.existingGlobal.providerStatus === 'error' || p.existingGlobal.providerStatus === 'pending') && (
-                        <Button size="sm" variant="ghost" className="text-red-600" disabled={discard.isPending} onClick={() => setDiscardTarget({ invoiceId: p.existingGlobal!.invoiceId, localDate: p.localDate })}>
-                          Descartar intento
-                        </Button>
-                      )}
-                    </div>
+                {existingGlobals.length > 0 && (
+                  <div className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900" role="status">
+                    <p className="font-medium">Globales de este día ({existingGlobals.length}) — una por forma de pago:</p>
+                    {existingGlobals.map((g) => (
+                      <div key={g.invoiceId} className="flex flex-wrap items-center justify-between gap-2">
+                        <span>
+                          {g.paymentForm ? <span className="mr-1 rounded bg-white px-1.5 py-0.5 text-xs font-medium">{g.paymentForm} · {getPaymentFormName(g.paymentForm)}</span> : null}
+                          <span className="font-mono">{g.folioDisplay}</span>{' '}
+                          <InvoiceStatusBadge status={g.providerStatus} />
+                          {typeof g.ticketCount === 'number' ? <span className="ml-1 text-xs">{g.ticketCount} tickets · {formatCurrency(g.total ?? 0)}</span> : null}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button asChild size="sm" variant="outline"><Link href={`/admin/facturacion/${g.invoiceId}`}>Ver global</Link></Button>
+                          {canManage && !g.satUuid && (g.providerStatus === 'error' || g.providerStatus === 'pending') && (
+                            <Button size="sm" variant="ghost" className="text-red-600" disabled={discard.isPending} onClick={() => setDiscardTarget({ invoiceId: g.invoiceId, localDate: p.localDate })}>
+                              Descartar intento
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {p.lateEmission && (
@@ -480,8 +467,13 @@ function GlobalInvoiceContent() {
             <Card>
               <CardContent className="grid gap-4 p-4 text-sm md:grid-cols-3">
                 <div>
-                  <p className="text-xs text-gray-500">Forma de pago dominante</p>
-                  <p className="font-medium">{p.totals.paymentForm ? `${p.totals.paymentForm} · ${getPaymentFormName(p.totals.paymentForm)}` : '—'} · PUE</p>
+                  <p className="text-xs text-gray-500">Formas de pago por globalizar</p>
+                  <p className="font-medium">
+                    {p.groups.length > 0
+                      ? p.groups.map((g) => `${g.paymentForm} · ${getPaymentFormName(g.paymentForm)} (${g.included.length})`).join(' · ')
+                      : 'Ninguna'}{' '}
+                    · PUE
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Por tasa</p>
@@ -498,74 +490,29 @@ function GlobalInvoiceContent() {
               </CardContent>
             </Card>
 
-            {/* Incluidos / excluidos / conceptos */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="mb-3 text-lg font-semibold text-gray-900">Incluidos ({p.included.length})</h2>
-                <DataTable columns={dayColumns} data={p.included} getRowKey={(r) => `${r.kind}:${r.id}`} emptyMessage="Ningún documento entra a la global." minWidthClassName="min-w-[800px]" />
-              </CardContent>
-            </Card>
+            {/* Una global por forma de pago (mig 164): grupos con selección de tickets y emisión por grupo */}
+            {!canManage && <p className="text-sm text-gray-500">Solo lectura: necesitas billing:manage para emitir.</p>}
+            <GlobalPaymentGroups
+              preview={p}
+              branchId={branchId}
+              date={date}
+              conceptMode={conceptMode}
+              canManage={canManage}
+              flowDisabled={flowDisabled}
+              onRefresh={refreshAfterEmit}
+              onFlowDisabled={() => setFlowDisabled(true)}
+              onDiscard={(invoiceId) => setDiscardTarget({ invoiceId, localDate: p.localDate })}
+            />
+
             {p.excluded.length > 0 && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="mb-3 text-lg font-semibold text-gray-900">Excluidos ({p.excluded.length})</h2>
+                  <h2 className="mb-3 text-lg font-semibold text-gray-900">Fuera de la global ({p.excluded.length})</h2>
+                  <p className="mb-3 text-xs text-gray-500">Ya facturados, en $0, a crédito, pagados con cashback, promoción o dólares (Contabilidad los registra aparte), o ya dentro de otra global del día.</p>
                   <DataTable columns={excludedColumns} data={p.excluded} getRowKey={(r) => `${r.kind}:${r.id}`} />
                 </CardContent>
               </Card>
             )}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="mb-3 text-lg font-semibold text-gray-900">Conceptos que se enviarán ({p.items.length})</h2>
-                <div className="max-h-96 overflow-auto">
-                  <table className="w-full min-w-[640px] text-sm">
-                    <thead className="sticky top-0 bg-white text-left text-xs text-gray-500">
-                      <tr><th className="py-1 pr-3">#</th><th className="py-1 pr-3">Clave / unidad</th><th className="py-1 pr-3">No. identificación</th><th className="py-1 pr-3">Descripción</th><th className="py-1 pr-3 text-right">Cant.</th><th className="py-1 pr-3 text-right">Importe</th><th className="py-1 pr-3 text-right">IVA</th><th className="py-1 text-right">Total</th></tr>
-                    </thead>
-                    <tbody>
-                      {p.items.map((it) => (
-                        <tr key={it.lineNumber} className="border-t">
-                          <td className="py-1 pr-3">{it.lineNumber}</td>
-                          <td className="py-1 pr-3 font-mono text-xs">{it.satProductCode} / {it.satUnitCode}</td>
-                          <td className="py-1 pr-3 font-mono text-xs">{it.identificationNumber ?? '—'}</td>
-                          <td className="py-1 pr-3">{it.description}</td>
-                          <td className="py-1 pr-3 text-right">{it.quantity}</td>
-                          <td className="py-1 pr-3 text-right">{formatCurrency(it.amount)}</td>
-                          <td className="py-1 pr-3 text-right">{formatCurrency(it.taxes.reduce((s, t) => s + t.amount, 0))}</td>
-                          <td className="py-1 text-right font-medium">{formatCurrency(it.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              {!canManage && <p className="text-sm text-gray-500">Solo lectura: necesitas billing:manage para emitir.</p>}
-              <Button size="lg" disabled={!canEmit || create.isPending} onClick={() => setConfirmOpen(true)}>
-                <GlobeAltIcon className="h-5 w-5" aria-hidden />
-                Emitir factura global
-              </Button>
-            </div>
-
-            <ConfirmDialog
-              open={confirmOpen}
-              onOpenChange={setConfirmOpen}
-              title="Emitir factura global"
-              description="Es un CFDI ante el SAT: una vez timbrado solo se puede cancelar, no borrar."
-              confirmLabel="Timbrar global"
-              confirmText="EMITIR"
-              cancelLabel="Volver"
-              isPending={create.isPending}
-              onConfirm={handleEmit}
-            >
-              <p>
-                Se timbrará <strong>1 CFDI</strong> con <strong>{p.totals.documents}</strong> documento(s) por{' '}
-                <strong>{formatCurrency(p.totals.total)}</strong> a <strong>PÚBLICO EN GENERAL</strong> para{' '}
-                <strong>{p.branch.name}</strong> del <strong>{formatIsoDate(p.localDate)}</strong> ({p.conceptMode === 'ticket' ? 'un concepto por ticket' : 'agrupada por producto'}).
-              </p>
-              <p className="mt-2 text-xs text-gray-500">Si la selección cambió desde la vista previa, el API la rechazará y se recargará la vista previa.</p>
-            </ConfirmDialog>
           </>
         )}
 

@@ -556,6 +556,27 @@ export interface GlobalDayStatus {
   /** Importe (con IVA) de esos tickets: ingreso del día que la global no declara. */
   uncoveredTotal?: number;
   lateEmission: boolean;
+  /** Mig 164: globales VIVAS del día, una por forma de pago. */
+  emittedForms?: GlobalDayForm[];
+  /** Formas de pago con tickets incluibles que aún no tienen global (`status: 'ready'`). */
+  pendingForms?: GlobalPendingForm[];
+}
+
+export interface GlobalDayForm {
+  paymentForm: string;
+  invoiceId: string;
+  providerStatus: InvoiceStatus | null;
+  folioDisplay: string;
+  satUuid: string | null;
+  ticketCount: number;
+  total: number;
+  globalReissueState: GlobalReissueState | null;
+}
+
+export interface GlobalPendingForm {
+  paymentForm: string;
+  ticketCount: number;
+  total: number;
 }
 
 export interface GlobalDaysQuery {
@@ -574,7 +595,11 @@ export type GlobalExclusionReason =
   | 'nominative_invoiced'
   | 'zero_total'
   | 'credit_sale'
-  | 'already_in_global';
+  | 'already_in_global'
+  // Contabilidad (20-oct-2026): cobros que NO se globalizan.
+  | 'cashback'
+  | 'promotion'
+  | 'usd';
 
 export type GlobalBlockerCode =
   | 'nominative_in_progress'
@@ -636,13 +661,43 @@ export interface GlobalPreview {
     byRate: InvoiceTotalsByRate[];
     paymentForm: string | null;
   };
+  /** Conceptos del PRIMER grupo (compatibilidad); cada grupo trae los suyos. */
   items: InvoiceItemDto[];
-  existingGlobal: {
-    invoiceId: string;
-    providerStatus: InvoiceStatus;
-    folioDisplay: string;
-    satUuid: string | null;
-  } | null;
+  /**
+   * Mig 164 (Contabilidad, 20-oct-2026): una global por forma de pago. Cada
+   * grupo se emite con `POST { paymentForm, previewHash: grupo.previewHash }`.
+   */
+  groups: GlobalPreviewGroup[];
+  multiplePaymentForms: boolean;
+  /** Globales vivas o en curso del día (todas las formas). */
+  existingGlobals: GlobalExisting[];
+  /** Compatibilidad: la primera global viva/en curso del día. */
+  existingGlobal: GlobalExisting | null;
+  /** Compatibilidad: true solo cuando el día tiene UNA forma de pago emitible. */
+  canStamp: boolean;
+  /** Compatibilidad: hash del único grupo, o del conjunto si hay varios. */
+  previewHash: string;
+}
+
+export interface GlobalExisting {
+  invoiceId: string;
+  providerStatus: InvoiceStatus;
+  folioDisplay: string;
+  satUuid: string | null;
+  paymentForm?: string | null;
+  total?: number;
+  ticketCount?: number;
+}
+
+export interface GlobalPreviewGroup {
+  paymentForm: string;
+  included: GlobalPreview['included'];
+  totals: GlobalPreview['totals'];
+  items: InvoiceItemDto[];
+  /** Bloqueadores fiscales de ESTE grupo (el documento no pasaría el validador). */
+  blockers: GlobalPreview['blockers'];
+  /** Globales vivas o en curso del día con esta forma de pago. */
+  existing: GlobalExisting[];
   canStamp: boolean;
   previewHash: string;
 }
@@ -666,7 +721,12 @@ export interface CreateGlobalInvoiceDto {
   branchId: string;
   date: string;
   conceptMode?: GlobalConceptMode;
+  /** Hash del GRUPO (forma de pago) que el usuario confirmó. */
   previewHash: string;
+  /** c_FormaPago del grupo a emitir (obligatoria si el día tiene varias formas). */
+  paymentForm?: string;
+  /** Tickets/pedidos del grupo que el usuario desmarcó: quedan por facturar. */
+  excludedIds?: string[];
 }
 
 // ================================
