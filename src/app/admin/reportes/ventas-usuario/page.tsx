@@ -9,12 +9,12 @@
 // - Distribuidor: número (v2 o legacy) o parte del nombre; el API filtra.
 // - Detalle: clic en el folio abre la venta (productos, precios, pagos, puntos).
 
-import { useState, useMemo, useCallback } from 'react';
+import { Fragment, useState, useMemo, useCallback } from 'react';
 import { useSalesByUser, useSalesByUserSellers } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -31,7 +31,8 @@ import { PermissionGuard } from '@/components/auth';
 import { paymentMethodLabel } from '@/lib/delivery-print';
 import { DEFAULT_TIMEZONE, formatDateTimeLocal } from '@/lib/timezone-utils';
 import type { SaleByUserRow } from '@/types/reports';
-import { SaleQuickDetail } from './SaleQuickDetail';
+import { DistributorPicker, type PickedDistributor } from './DistributorPicker';
+import { SaleDetailInline } from './SaleDetailInline';
 
 function toDateOnly(dateStr: string): string {
   return dateStr.slice(0, 10);
@@ -87,8 +88,10 @@ function VentasUsuarioContent() {
   const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false);
   const sellerName = (id: string) => sellers.find((s) => s.id === id)?.name ?? id;
 
-  // Distribuidor (número o nombre).
-  const [customerInput, setCustomerInput] = useState('');
+  // Distribuidor: elegido del buscador (número exacto) o texto libre tecleado.
+  const [picked, setPicked] = useState<PickedDistributor | null>(null);
+  const [customerText, setCustomerText] = useState('');
+  const customerInput = picked ? picked.customerNumber : customerText;
 
   // Consulta aplicada (solo cambia al presionar Consultar).
   const [applied, setApplied] = useState<{ start: string; end: string; sellerIds: string[]; customer: string } | null>(null);
@@ -100,19 +103,31 @@ function VentasUsuarioContent() {
     customer: applied?.customer || undefined,
   });
 
-  const handleApply = useCallback(() => {
-    if (!selectedPeriod) {
-      toast.error('Selecciona un periodo');
-      return;
-    }
-    setSellerDropdownOpen(false);
-    setApplied({
-      start: toDateOnly(selectedPeriod.startDate),
-      end: toDateOnly(selectedPeriod.endDate),
-      sellerIds: [...selectedSellerIds],
-      customer: customerInput.trim(),
-    });
-  }, [selectedPeriod, selectedSellerIds, customerInput]);
+  const applyFilters = useCallback(
+    (customer: string) => {
+      if (!selectedPeriod) {
+        toast.error('Selecciona un periodo');
+        return;
+      }
+      setSellerDropdownOpen(false);
+      setApplied({
+        start: toDateOnly(selectedPeriod.startDate),
+        end: toDateOnly(selectedPeriod.endDate),
+        sellerIds: [...selectedSellerIds],
+        customer: customer.trim(),
+      });
+    },
+    [selectedPeriod, selectedSellerIds],
+  );
+  const handleApply = useCallback(() => applyFilters(customerInput), [applyFilters, customerInput]);
+
+  // Elegir un distribuidor en el buscador consulta al instante (como en el POS);
+  // quitarlo vuelve a consultar sin filtro si ya había una consulta aplicada.
+  const handlePick = (p: PickedDistributor | null) => {
+    setPicked(p);
+    if (p) applyFilters(p.customerNumber);
+    else if (applied?.customer) applyFilters('');
+  };
 
   const toggleSeller = (id: string) =>
     setSelectedSellerIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
@@ -128,7 +143,15 @@ function VentasUsuarioContent() {
     [rows],
   );
 
-  const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
+  // Acordeón: ventas desplegadas en línea (varias a la vez).
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const handleExportCSV = () => {
     if (!hasData || !applied) return;
@@ -211,14 +234,11 @@ function VentasUsuarioContent() {
 
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-500">Distribuidor</label>
-            <Input
-              value={customerInput}
-              onChange={(e) => setCustomerInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleApply();
-              }}
-              placeholder="Número o nombre del distribuidor"
-              className="bg-gray-50"
+            <DistributorPicker
+              value={picked}
+              onChange={handlePick}
+              onFreeTextChange={setCustomerText}
+              onSubmit={handleApply}
             />
           </div>
 
@@ -299,7 +319,7 @@ function VentasUsuarioContent() {
             <span className="text-xs text-gray-500">Filtros:</span>
             {applied.customer && (
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                Distribuidor: {applied.customer}
+                Distribuidor: {picked && picked.customerNumber === applied.customer ? `#${picked.customerNumber} ${picked.name}` : applied.customer}
               </span>
             )}
             {applied.sellerIds.map((sid) => (
@@ -353,12 +373,13 @@ function VentasUsuarioContent() {
         ) : (
           <div className="overflow-x-auto">
             <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/50 px-6 py-3">
-              <span className="text-sm font-medium text-gray-700">Detalle de ventas · clic en el folio para ver la venta</span>
+              <span className="text-sm font-medium text-gray-700">Detalle de ventas · clic en un renglón para desplegar lo que compró</span>
               <span className="text-xs text-gray-400">{rows.length.toLocaleString()} registros</span>
             </div>
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+                  <TableHead className={`${TH} w-8 text-left`} aria-label="Desplegar" />
                   <TableHead className={`${TH} text-left`}>Fecha</TableHead>
                   <TableHead className={`${TH} text-left`}>Folio</TableHead>
                   <TableHead className={`${TH} text-left`}>Sucursal</TableHead>
@@ -371,14 +392,21 @@ function VentasUsuarioContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row, idx) => (
+                {rows.map((row, idx) => {
+                  const rowKey = row.saleId || `${row.saleNumber}-${idx}`;
+                  const isOpen = !!row.saleId && expanded.has(row.saleId);
+                  return (
+                  <Fragment key={rowKey}>
                   <TableRow
-                    key={row.saleId || `${row.saleNumber}-${idx}`}
-                    className={`cursor-pointer border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.04] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                    onClick={() => row.saleId && setDetailSaleId(row.saleId)}
+                    className={`cursor-pointer border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.04] ${isOpen ? 'bg-[#3E667D]/[0.06]' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    onClick={() => row.saleId && toggleExpanded(row.saleId)}
+                    aria-expanded={isOpen}
                   >
+                    <TableCell className="px-2 py-3 text-gray-400">
+                      {isOpen ? <ChevronDownIcon className="h-4 w-4 text-[#3E667D]" /> : <ChevronRightIcon className="h-4 w-4" />}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{formatDateTimeLocal(row.date, DEFAULT_TIMEZONE)}</TableCell>
-                    <TableCell className="whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-[#3E667D] underline-offset-2 hover:underline">{row.saleNumber}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-[#3E667D]">{row.saleNumber}</TableCell>
                     <TableCell className="max-w-[200px] truncate whitespace-nowrap px-4 py-3 text-sm text-gray-600" title={row.branchName}>{row.branchName}</TableCell>
                     <TableCell className="max-w-[260px] truncate whitespace-nowrap px-4 py-3 text-sm text-gray-700" title={`${row.customerId} ${row.customerName}`}>
                       {row.customerId ? <span className="font-mono text-gray-500">{row.customerId} </span> : null}
@@ -397,11 +425,20 @@ function VentasUsuarioContent() {
                       {formatCurrency(row.total, row.currencyCode === 'USD' ? 'USD' : 'MXN')}
                     </TableCell>
                   </TableRow>
-                ))}
+                  {isOpen && (
+                    <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
+                      <TableCell colSpan={10} className="px-4 py-3 sm:px-8">
+                        <SaleDetailInline saleId={row.saleId} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
+                  );
+                })}
               </TableBody>
               <TableFooter className="bg-transparent">
                 <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
-                  <TableCell colSpan={6} className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
+                  <TableCell colSpan={7} className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
                   <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">{num(totals.units)}</TableCell>
                   <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">{num(totals.points)}</TableCell>
                   <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">
@@ -415,7 +452,6 @@ function VentasUsuarioContent() {
         )}
       </div>
 
-      <SaleQuickDetail saleId={detailSaleId} onClose={() => setDetailSaleId(null)} />
     </div>
   );
 }
