@@ -2,7 +2,10 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 
 import { apiClient } from '@/lib/api-client';
+import { saveBlob } from '@/lib/download';
 import type {
+  FoliosReportQuery,
+  FoliosReportResponse,
   FiscalData,
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
@@ -641,6 +644,47 @@ export async function listFacturamaCfdis(query?: FacturamaCfdisQuery): Promise<F
 }
 
 // ================================
+// REPORTE DE FOLIOS (conciliación, Contabilidad)
+// ================================
+
+function foliosQueryString(query: FoliosReportQuery): string {
+  return toQueryString({
+    startDate: query.startDate,
+    endDate: query.endDate,
+    dateBasis: query.dateBasis,
+    branchId: query.branchId,
+    invoiceType: query.invoiceType,
+    paymentForm: query.paymentForm,
+    status: query.status,
+    search: query.search?.trim() || undefined,
+  });
+}
+
+/** CFDI timbrados en el rango, desde nuestra base (no del PAC), con totales. */
+export async function getFoliosReport(query: FoliosReportQuery): Promise<FoliosReportResponse> {
+  const response = await apiClient.get<FoliosReportResponse>(
+    `${BASE_URL}/reports/folios${foliosQueryString(query)}`,
+  );
+  return response.data;
+}
+
+/** Excel de 3 hojas (FOLIOS, TICKETS EN GLOBALES, RESUMEN); el nombre lo pone el API. */
+export async function downloadFoliosReportXlsx(query: FoliosReportQuery): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `${BASE_URL}/reports/folios/xlsx${foliosQueryString(query)}`,
+    { responseType: 'blob' },
+  );
+  const disposition = String(response.headers?.['content-disposition'] ?? '');
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  saveBlob(
+    response.data as BlobPart,
+    match?.[1] ?? `REPORTE_FOLIOS_${stamp}.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+}
+
+// ================================
 // STATUS
 // ================================
 
@@ -723,6 +767,10 @@ export const billingService = {
 
   // Facturama Direct
   listFacturamaCfdis,
+
+  // Reporte de folios (conciliación)
+  getFoliosReport,
+  downloadFoliosReportXlsx,
 
   // Status
   getFacturamaStatus,

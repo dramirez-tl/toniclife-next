@@ -1,367 +1,568 @@
 'use client';
 
-import { useMemo, Suspense } from 'react';
+// Reporte de folios (Contabilidad, 20-oct-2026). Pestañas:
+//  - Conciliación: CFDI timbrados en el rango desde NUESTRA base
+//    (GET /billing/reports/folios): sucursal, forma de pago, totales, estatus
+//    SAT, tickets dentro de cada global y Excel de 3 hojas.
+//  - Facturama (PAC): lo que devuelve el PAC, para cruzar.
+// Filtros en la URL (?tab&from&to&basis&branch&type&pf&status&q) para
+// compartir el enlace y sobrevivir a recargar.
+
+import { Fragment, Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import {
+  ArrowDownTrayIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+} from '@heroicons/react/24/outline';
+import { PermissionGuard } from '@/components/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { DataTable } from '@/components/ui/DataTable';
-import type { DataTableColumn } from '@/components/ui/DataTable';
-import { useFacturamaCfdis } from '@/hooks/useBilling';
+import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useActiveBranches } from '@/hooks/useBranches';
+import { useFoliosReport, useInvoice } from '@/hooks/useBilling';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { billingErrorMessage } from '@/lib/billing-error';
-import type { FacturamaCfdiItem } from '@/services/billing.service';
-import {
-  DocumentTextIcon,
-  CurrencyDollarIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
+import { billingService } from '@/services/billing.service';
+import { getPaymentFormName } from '@/types/billing';
+import type {
+  FoliosDateBasis,
+  FoliosInvoiceType,
+  FoliosReportQuery,
+  FoliosRowStatus,
+  FoliosStatusFilter,
+} from '@/types/billing';
+import { FacturamaCfdisTab } from './FacturamaCfdisTab';
 
-// ================================
-// Helpers
-// ================================
+const TABS = ['conciliacion', 'pac'] as const;
+type Tab = (typeof TABS)[number];
+const isTab = (v: string): v is Tab => (TABS as readonly string[]).includes(v);
 
-const formatCurrency = (amount: number, currency = 'MXN') =>
-  new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-  }).format(amount);
-
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-
-function getDefaultDateFrom(): string {
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const pad = (n: number) => String(n).padStart(2, '0');
+const todayLocal = () => {
   const d = new Date();
-  d.setDate(d.getDate() - 7);
-  return d.toISOString().split('T')[0];
-}
-
-function getDefaultDateTo(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-const CFDI_TYPE_LABELS: Record<string, string> = {
-  I: 'Ingreso',
-  E: 'Egreso',
-  P: 'Pago',
-  T: 'Traslado',
-  N: 'Nómina',
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+/** Primer día del mes en curso: Contabilidad concilia por mes calendario (fiscal), no por periodo 26→25. */
+const firstOfMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
 };
 
-const CFDI_TYPE_STYLES: Record<string, string> = {
-  I: 'bg-blue-100 text-blue-700',
-  E: 'bg-orange-100 text-orange-700',
-  P: 'bg-purple-100 text-purple-700',
-  T: 'bg-gray-100 text-gray-700',
-  N: 'bg-teal-100 text-teal-700',
+const money = (v: number, currency = 'MXN') =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }).format(v);
+const fmtDay = (s: string | null) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : '—');
+/** Comprobante.Fecha viene en hora local sin zona ('YYYY-MM-DDTHH:mm:ss'). */
+const fmtCfdiDate = (s: string | null) => (s ? `${fmtDay(s)} ${s.slice(11, 16)}` : '—');
+
+const TYPE_OPTIONS: Array<{ value: '' | FoliosInvoiceType; label: string }> = [
+  { value: '', label: 'Todos los tipos' },
+  { value: 'sale', label: 'Nominativas (venta y pedido)' },
+  { value: 'global', label: 'Globales' },
+  { value: 'payment', label: 'Complementos de pago' },
+];
+const PF_OPTIONS = ['01', '28', '04', '03', '06', '99'].map((code) => ({
+  value: code,
+  label: `${code} · ${getPaymentFormName(code)}`,
+}));
+const STATUS_OPTIONS: Array<{ value: FoliosStatusFilter; label: string }> = [
+  { value: 'vigentes', label: 'Vigentes' },
+  { value: 'canceladas', label: 'Canceladas' },
+  { value: 'todas', label: 'Todas' },
+];
+const STATUS_BADGE: Record<FoliosRowStatus, { label: string; cls: string }> = {
+  vigente: { label: 'Vigente', cls: 'bg-emerald-100 text-emerald-800' },
+  cancelacion_en_proceso: { label: 'Cancelación en proceso', cls: 'bg-amber-100 text-amber-800' },
+  cancelada: { label: 'Cancelada', cls: 'bg-red-100 text-red-700' },
+};
+const TYPE_BADGE: Record<string, string> = {
+  global: 'bg-violet-100 text-violet-800',
+  payment: 'bg-sky-100 text-sky-800',
+  sale: 'bg-gray-100 text-gray-700',
 };
 
-const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
-  active: { label: 'Activa', style: 'bg-green-100 text-green-700' },
-  canceled: { label: 'Cancelada', style: 'bg-red-100 text-red-700' },
-  pending: { label: 'Pendiente', style: 'bg-yellow-100 text-yellow-700' },
-};
-
-const StatusIcon = ({ status }: { status: string }) => {
-  const cls = 'h-3 w-3';
-  switch (status) {
-    case 'active':
-      return <CheckCircleIcon className={cls} />;
-    case 'canceled':
-      return <XCircleIcon className={cls} />;
-    default:
-      return <ClockIcon className={cls} />;
-  }
-};
-
-// ================================
-// Page
-// ================================
+const TH = 'px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap';
+const TD = 'px-3 py-2 text-sm whitespace-nowrap';
 
 export default function ReporteFoliosPage() {
   return (
-    <Suspense>
-      <ReporteFoliosContent />
-    </Suspense>
+    <PermissionGuard permissions={['billing:read', 'reports:read']}>
+      <Suspense>
+        <ReporteFoliosContent />
+      </Suspense>
+    </PermissionGuard>
   );
 }
 
 function ReporteFoliosContent() {
-  // Filtros en la URL (`?from&to&page`): se pueden compartir y sobreviven a recargar.
-  // Es un rango libre de fechas de emisión ante el PAC, no una métrica de periodo.
   const { get, getNumber, setParams } = useQueryFilters({});
-  const defaults = useMemo(() => ({ from: getDefaultDateFrom(), to: getDefaultDateTo() }), []);
-  const dateFrom = get('from') || defaults.from;
-  const dateTo = get('to') || defaults.to;
-  const page = Math.max(0, getNumber('page'));
-  const setPage = (next: number) => setParams({ page: next > 0 ? String(next) : null });
+  const defaults = useMemo(() => ({ from: firstOfMonth(), to: todayLocal() }), []);
+  const tabParam = get('tab');
+  const activeTab: Tab = isTab(tabParam) ? tabParam : 'conciliacion';
 
-  const { data: cfdisData, isLoading, isFetching, isError, error, refetch } = useFacturamaCfdis({
-    dateStart: dateFrom,
-    dateEnd: dateTo,
-    status: 'all',
-    page,
-  });
+  // Lo APLICADO vive en la URL; los inputs son borrador hasta "Consultar".
+  const applied = useMemo<FoliosReportQuery>(() => {
+    const from = get('from');
+    const to = get('to');
+    const basis = get('basis');
+    const type = get('type');
+    const status = get('status');
+    return {
+      startDate: DATE_RE.test(from) ? from : defaults.from,
+      endDate: DATE_RE.test(to) ? to : defaults.to,
+      dateBasis: basis === 'operacion' ? 'operacion' : 'emision',
+      branchId: get('branch') || undefined,
+      invoiceType: type === 'sale' || type === 'global' || type === 'payment' ? type : undefined,
+      paymentForm: /^\d{2}$/.test(get('pf')) ? get('pf') : undefined,
+      status: status === 'canceladas' || status === 'todas' ? status : 'vigentes',
+      search: get('q') || undefined,
+    };
+  }, [get, defaults]);
 
-  // Memo: `?? []` crearía un arreglo nuevo en cada render y recalcularía el resumen.
-  const cfdis = useMemo(() => cfdisData?.data ?? [], [cfdisData]);
-  const totalCount = cfdisData?.total ?? 0;
+  const [draft, setDraft] = useState<FoliosReportQuery>(applied);
+  const [downloading, setDownloading] = useState(false);
+  const [expandedGlobalId, setExpandedGlobalId] = useState<string | null>(null);
 
-  // Summary
-  const totalFacturado = useMemo(
-    () => cfdis.reduce((sum, c) => sum + (c.total || 0), 0),
-    [cfdis],
+  const { data: branches } = useActiveBranches();
+  const branchOptions = useMemo(
+    () => [
+      { value: '', label: 'Todas las sucursales' },
+      ...(branches ?? []).map((b) => ({ value: b.id, label: `${b.code} - ${b.name}` })),
+    ],
+    [branches],
   );
 
-  // ================================
-  // Table columns
-  // ================================
+  const report = useFoliosReport(activeTab === 'conciliacion' ? applied : null);
+  const rows = useMemo(() => report.data?.rows ?? [], [report.data]);
+  const totals = report.data?.totals;
 
-  const columns: DataTableColumn<FacturamaCfdiItem>[] = useMemo(() => [
-    {
-      key: 'cfdiType',
-      header: 'Tipo',
-      render: (c) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CFDI_TYPE_STYLES[c.cfdiType] || 'bg-gray-100 text-gray-700'}`}>
-          {CFDI_TYPE_LABELS[c.cfdiType] ?? c.cfdiType}
-        </span>
-      ),
-    },
-    {
-      key: 'folio',
-      header: 'Folio',
-      sortable: true,
-      sortValue: (c) => c.folio || '',
-      render: (c) => (
-        <div>
-          <span className="font-semibold text-[#3E667D]">{c.folio || '—'}</span>
-          {c.serie && (
-            <span className="ml-1 text-xs text-gray-500">({c.serie})</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'receiver',
-      header: 'Receptor',
-      render: (c) => (
-        <div>
-          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{c.receiverName || '—'}</p>
-          <p className="text-xs text-gray-500">{c.receiverRfc || ''}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'total',
-      header: 'Monto',
-      sortable: true,
-      sortValue: (c) => c.total || 0,
-      headerClassName: 'text-right',
-      cellClassName: 'text-right',
-      render: (c) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <span className="font-semibold text-gray-900">{formatCurrency(c.total, c.currency || 'MXN')}</span>
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-            {c.currency || 'MXN'}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'date',
-      header: 'Fecha',
-      sortable: true,
-      sortValue: (c) => c.date || '',
-      render: (c) => (
-        <span className="text-sm text-gray-700">
-          {c.date ? formatDate(c.date) : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'uuid',
-      header: 'UUID',
-      render: (c) => (
-        <span className="text-xs text-gray-500 font-mono">
-          {c.uuid ? `${c.uuid.substring(0, 8)}...` : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      headerClassName: 'text-center',
-      cellClassName: 'text-center',
-      render: (c) => {
-        const statusKey = c.status?.toLowerCase() || '';
-        const config = STATUS_CONFIG[statusKey];
-        return (
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config?.style || 'bg-gray-100 text-gray-700'}`}>
-            <StatusIcon status={statusKey} />
-            {config?.label ?? c.status ?? '—'}
-          </span>
-        );
-      },
-    },
-  ], []);
+  const apply = () => {
+    if (!DATE_RE.test(draft.startDate) || !DATE_RE.test(draft.endDate)) {
+      toast.error('Captura las fechas De y Hasta');
+      return;
+    }
+    if (draft.startDate > draft.endDate) {
+      toast.error('La fecha "De" no puede ser mayor que "Hasta"');
+      return;
+    }
+    setExpandedGlobalId(null);
+    setParams({
+      tab: 'conciliacion',
+      from: draft.startDate,
+      to: draft.endDate,
+      basis: draft.dateBasis === 'operacion' ? 'operacion' : null,
+      branch: draft.branchId || null,
+      type: draft.invoiceType || null,
+      pf: draft.paymentForm || null,
+      status: draft.status && draft.status !== 'vigentes' ? draft.status : null,
+      q: draft.search?.trim() || null,
+      page: null,
+    });
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await billingService.downloadFoliosReportXlsx(applied);
+      toast.success('Excel generado');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo generar el Excel'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const pacPage = Math.max(0, getNumber('page'));
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+        <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <DocumentTextIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Reporte Facturama - Folios</h1>
+              <div className="mb-1 flex items-center gap-3">
+                <DocumentTextIcon className="h-9 w-9" />
+                <h1 className="text-3xl font-bold">Reporte de folios</h1>
               </div>
-              <p className="text-white/80 text-lg">
-                CFDIs emitidos directamente desde Facturama
+              <p className="text-white/80">
+                CFDI timbrados por día, sucursal y forma de pago, con los tickets de cada global — para conciliar
               </p>
             </div>
-            <Link href="/admin/facturacion">
-              <Button variant="secondary">Volver a Facturación</Button>
-            </Link>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => void handleDownload()}
+                disabled={downloading || activeTab !== 'conciliacion' || rows.length === 0}
+                className="gap-2 border border-white/20 bg-white/15 text-white hover:bg-white/25 hover:text-white disabled:opacity-40"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {downloading ? 'Generando…' : 'Excel (3 hojas)'}
+              </Button>
+              <Link href="/admin/facturacion">
+                <Button variant="secondary">Volver a Facturación</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">CFDIs en página</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {isLoading ? '...' : totalCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <DocumentTextIcon className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <Tabs value={activeTab} onValueChange={(v) => setParams({ tab: v === 'conciliacion' ? null : v, page: null })}>
+          <TabsList>
+            <TabsTrigger value="conciliacion">Conciliación (sistema)</TabsTrigger>
+            <TabsTrigger value="pac">Facturama (PAC)</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Facturado (página)</p>
-                  <p className="text-3xl font-bold text-[#3E667D]">
-                    {isLoading ? '...' : formatCurrency(totalFacturado)}
-                  </p>
+          <TabsContent value="conciliacion" className="mt-4 space-y-6">
+            {/* Filtros */}
+            <Card>
+              <CardContent className="p-5">
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-700">Filtros</h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6 items-end">
+                  <div className="xl:col-span-2">
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Sucursal</label>
+                    <SearchableSelect
+                      options={branchOptions}
+                      value={draft.branchId ?? ''}
+                      onChange={(v) => setDraft((d) => ({ ...d, branchId: v || undefined }))}
+                      showAllOption={false}
+                      placeholder="Buscar sucursal..."
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">De</label>
+                    <Input type="date" value={draft.startDate} max={draft.endDate} onChange={(e) => setDraft((d) => ({ ...d, startDate: e.target.value }))} className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Hasta</label>
+                    <Input type="date" value={draft.endDate} min={draft.startDate} onChange={(e) => setDraft((d) => ({ ...d, endDate: e.target.value }))} className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Fecha contada</label>
+                    <select
+                      value={draft.dateBasis ?? 'emision'}
+                      onChange={(e) => setDraft((d) => ({ ...d, dateBasis: e.target.value as FoliosDateBasis }))}
+                      className="h-10 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      <option value="emision">Día de emisión</option>
+                      <option value="operacion">Día de operación (global)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Estatus</label>
+                    <select
+                      value={draft.status ?? 'vigentes'}
+                      onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value as FoliosStatusFilter }))}
+                      className="h-10 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="xl:col-span-2">
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Tipo</label>
+                    <select
+                      value={draft.invoiceType ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, invoiceType: (e.target.value || undefined) as FoliosInvoiceType | undefined }))}
+                      className="h-10 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="xl:col-span-2">
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Forma de pago</label>
+                    <select
+                      value={draft.paymentForm ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, paymentForm: e.target.value || undefined }))}
+                      className="h-10 w-full rounded-md border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      <option value="">Todas las formas de pago</option>
+                      {PF_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-500">Buscar</label>
+                    <Input
+                      value={draft.search ?? ''}
+                      onChange={(e) => setDraft((d) => ({ ...d, search: e.target.value }))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') apply(); }}
+                      placeholder="UUID, folio, RFC, ticket…"
+                      className="bg-gray-50"
+                    />
+                  </div>
+                  <Button onClick={apply} disabled={report.isFetching} className="gap-2">
+                    <MagnifyingGlassIcon className="h-4 w-4" />
+                    {report.isFetching ? 'Consultando…' : 'Consultar'}
+                  </Button>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <p className="mt-3 text-xs text-gray-400">
+                  Día de emisión = fecha del timbrado en la zona de la sucursal. Día de operación = el día que cubre la global (para nominativas y complementos es el de emisión). Máximo 92 días.
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <label htmlFor="rf-from" className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
-                <input
-                  id="rf-from"
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setParams({ from: e.target.value, page: null })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                />
+            {report.isError && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+                <span>{billingErrorMessage(report.error, 'No se pudo generar el reporte')}</span>
+                <Button variant="outline" size="sm" onClick={() => void report.refetch()}>Reintentar</Button>
               </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="rf-to" className="text-sm text-gray-500 whitespace-nowrap">Hasta</label>
-                <input
-                  id="rf-to"
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setParams({ to: e.target.value, page: null })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                />
-              </div>
-              <p className="text-xs text-gray-400 ml-auto">
-                Facturama muestra máximo 100 CFDIs por página
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            )}
 
-        {/* Table */}
-        {isError && (
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
-            <span>{billingErrorMessage(error, 'No se pudieron consultar los CFDI en Facturama')}</span>
-            <Button variant="outline" size="sm" onClick={() => void refetch()}>
-              Reintentar
-            </Button>
-          </div>
-        )}
-        <Card>
-          <CardContent className="p-0">
-            <DataTable
-              columns={columns}
-              data={cfdis}
-              isLoading={isLoading}
-              loadingRows={10}
-              getRowKey={(c) => c.id || c.uuid}
-              minWidthClassName="min-w-[900px]"
-              emptyState={
-                <div className="text-center py-12">
-                  <DocumentTextIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    No se encontraron CFDIs
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Ajusta el rango de fechas para buscar
-                  </p>
+            {/* Resumen */}
+            {totals && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                  <SummaryCard label="CFDI vigentes" value={totals.live.count.toLocaleString()} sub={money(totals.live.total)} />
+                  <SummaryCard label="Subtotal vigente" value={money(totals.live.subtotal)} sub={`IVA ${money(totals.live.taxAmount)}`} />
+                  <SummaryCard label="Canceladas" value={totals.cancelled.count.toLocaleString()} sub={money(totals.cancelled.total)} tone="red" />
+                  <SummaryCard
+                    label="Globales"
+                    value={(totals.byType.find((b) => b.key === 'global')?.count ?? 0).toLocaleString()}
+                    sub={`${totals.globalDocumentsLive.toLocaleString()} tickets dentro · ${money(totals.globalDocumentsLiveTotal)}`}
+                  />
+                  <SummaryCard
+                    label="Nominativas / Complementos"
+                    value={`${(totals.byType.find((b) => b.key === 'sale')?.count ?? 0).toLocaleString()} / ${(totals.byType.find((b) => b.key === 'payment')?.count ?? 0).toLocaleString()}`}
+                    sub={`${totals.replacements} sustituciones`}
+                  />
                 </div>
-              }
+                {totals.byPaymentForm.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-gray-500">Vigentes por forma de pago:</span>
+                    {totals.byPaymentForm.map((b) => (
+                      <span key={b.key} className="rounded-full bg-[#3E667D]/10 px-2.5 py-1 font-medium text-[#3E667D]">
+                        {b.label}: {b.count} · {money(b.total)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {report.data?.truncated && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Se alcanzó el tope de {report.data.limit.toLocaleString()} CFDI: el reporte está incompleto. Acota el rango o filtra por sucursal.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Tabla */}
+            <Card>
+              <CardContent className="p-0">
+                {report.isLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-24">
+                    <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-[#3E667D]" />
+                    <span className="text-sm text-gray-400">Generando reporte...</span>
+                  </div>
+                ) : rows.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <DocumentTextIcon className="mx-auto mb-3 h-14 w-14 text-gray-300" />
+                    <p className="text-sm text-gray-500">No hay CFDI con esos filtros</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/50 px-4 py-2.5">
+                      <span className="text-sm font-medium text-gray-700">
+                        {rows.length.toLocaleString()} CFDI · {fmtDay(applied.startDate)} – {fmtDay(applied.endDate)} · clic en una global para ver sus tickets
+                      </span>
+                    </div>
+                    <Table className="min-w-[1500px]">
+                      <TableHeader>
+                        <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+                          <TableHead className={`${TH} w-6`} />
+                          <TableHead className={TH}>Fecha emisión</TableHead>
+                          <TableHead className={TH}>Día op.</TableHead>
+                          <TableHead className={TH}>Sucursal</TableHead>
+                          <TableHead className={TH}>Tipo</TableHead>
+                          <TableHead className={TH}>Serie-Folio</TableHead>
+                          <TableHead className={TH}>UUID</TableHead>
+                          <TableHead className={TH}>Receptor</TableHead>
+                          <TableHead className={TH}>Ticket / Pedido</TableHead>
+                          <TableHead className={TH}>Forma de pago</TableHead>
+                          <TableHead className={`${TH} text-right`}>Subtotal</TableHead>
+                          <TableHead className={`${TH} text-right`}>IVA</TableHead>
+                          <TableHead className={`${TH} text-right`}>Total</TableHead>
+                          <TableHead className={TH}>Estatus</TableHead>
+                          <TableHead className={`${TH} text-right`}>Tickets</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.map((r, idx) => {
+                          const isGlobal = r.invoiceType === 'global';
+                          const isOpen = isGlobal && expandedGlobalId === r.id;
+                          const badge = STATUS_BADGE[r.status];
+                          return (
+                            <Fragment key={r.id}>
+                              <TableRow
+                                className={`border-b border-gray-100 ${isGlobal ? 'cursor-pointer' : ''} ${isOpen ? 'bg-[#3E667D]/[0.06]' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} ${r.status === 'cancelada' ? 'text-red-700/80' : ''}`}
+                                onClick={() => isGlobal && setExpandedGlobalId(isOpen ? null : r.id)}
+                              >
+                                <TableCell className="px-2 py-2 text-gray-400">
+                                  {isGlobal ? (isOpen ? <ChevronDownIcon className="h-4 w-4 text-[#3E667D]" /> : <ChevronRightIcon className="h-4 w-4" />) : null}
+                                </TableCell>
+                                <TableCell className={`${TD} text-gray-600`}>{fmtCfdiDate(r.cfdiDate ?? r.stampedAt)}</TableCell>
+                                <TableCell className={`${TD} text-gray-600`}>{fmtDay(r.globalLocalDate ?? r.localDate)}</TableCell>
+                                <TableCell className={`${TD} max-w-[220px] truncate text-gray-700`} title={r.branchName ?? ''}>
+                                  {r.branchCode ? <span className="font-mono text-xs text-gray-500">{r.branchCode} </span> : null}
+                                  {r.branchName ?? '—'}
+                                </TableCell>
+                                <TableCell className={TD}>
+                                  <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${TYPE_BADGE[r.invoiceType] ?? 'bg-gray-100 text-gray-700'}`}>{r.typeLabel}</span>
+                                  {r.isReplacement && <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800" title={r.relatedUuid ? `Sustituye a ${r.relatedUuid}` : 'Sustitución'}>Sust.</span>}
+                                </TableCell>
+                                <TableCell className={`${TD} font-mono font-medium`}>
+                                  <Link href={`/admin/facturacion/${r.id}`} className="text-[#3E667D] underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+                                    {r.folioDisplay}
+                                  </Link>
+                                </TableCell>
+                                <TableCell className={`${TD} font-mono text-xs text-gray-500`} title={r.satUuid}>{r.satUuid}</TableCell>
+                                <TableCell className={`${TD} max-w-[260px]`}>
+                                  <p className="truncate text-gray-900" title={r.receiverName}>{r.receiverName}</p>
+                                  <p className="text-xs text-gray-500">{r.receiverRfc ?? ''}{r.customerNumber ? ` · #${r.customerNumber}` : ''}</p>
+                                </TableCell>
+                                <TableCell className={`${TD} font-mono text-xs text-gray-600`}>{r.saleNumber ?? r.orderNumber ?? '—'}</TableCell>
+                                <TableCell className={`${TD} text-gray-700`}>
+                                  {r.paymentFormCode ? `${r.paymentFormCode} · ${r.paymentFormName ?? ''}` : '—'}
+                                  {r.paymentMethodCode ? <span className="ml-1 text-xs text-gray-400">{r.paymentMethodCode}</span> : null}
+                                </TableCell>
+                                <TableCell className={`${TD} text-right tabular-nums`}>{money(r.subtotal, r.currencyCode)}</TableCell>
+                                <TableCell className={`${TD} text-right tabular-nums`}>{money(r.taxAmount, r.currencyCode)}</TableCell>
+                                <TableCell className={`${TD} text-right font-medium tabular-nums`}>{money(r.total, r.currencyCode)}</TableCell>
+                                <TableCell className={TD}>
+                                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
+                                  {r.status === 'cancelada' && r.cancelledAt ? <span className="ml-1 text-xs text-gray-400">{fmtDay(r.cancelledAt)}</span> : null}
+                                </TableCell>
+                                <TableCell className={`${TD} text-right tabular-nums text-gray-700`}>
+                                  {isGlobal ? (
+                                    <>
+                                      {r.globalDocumentsLive ?? 0}
+                                      {r.globalDocumentsReleased ? <span className="ml-1 text-xs text-gray-400" title="Salieron de la global (nominativa posterior o global cancelada)">(−{r.globalDocumentsReleased})</span> : null}
+                                    </>
+                                  ) : '—'}
+                                </TableCell>
+                              </TableRow>
+                              {isOpen && (
+                                <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
+                                  <TableCell colSpan={15} className="px-4 py-3 sm:px-8">
+                                    <GlobalDocumentsPanel invoiceId={r.id} />
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </TableBody>
+                      {totals && (
+                        <TableFooter className="bg-transparent">
+                          <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
+                            <TableCell colSpan={10} className="px-3 py-3 text-sm font-bold text-[#3E667D]">
+                              TOTAL VIGENTES ({totals.live.count.toLocaleString()} CFDI)
+                            </TableCell>
+                            <TableCell className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[#3E667D]">{money(totals.live.subtotal)}</TableCell>
+                            <TableCell className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[#3E667D]">{money(totals.live.taxAmount)}</TableCell>
+                            <TableCell className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[#3E667D]">{money(totals.live.total)}</TableCell>
+                            <TableCell className="px-3 py-3" />
+                            <TableCell className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[#3E667D]">{totals.globalDocumentsLive.toLocaleString()}</TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      )}
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pac" className="mt-4">
+            <FacturamaCfdisTab
+              dateFrom={applied.startDate}
+              dateTo={applied.endDate}
+              page={pacPage}
+              onPageChange={(next) => setParams({ page: next > 0 ? String(next) : null })}
             />
-          </CardContent>
-        </Card>
-
-        {/* Pagination (Facturama pages: 0-based, 100 per page) */}
-        <div className="flex items-center justify-between mt-4 px-2">
-          <p className="text-sm text-gray-500">
-            Página {page + 1} {totalCount === 100 && '(puede haber más páginas)'}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 0 || isLoading || isFetching}
-              onClick={() => setPage(Math.max(0, page - 1))}
-            >
-              <ChevronLeftIcon className="h-4 w-4 mr-1" />
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={totalCount < 100 || isLoading || isFetching}
-              onClick={() => setPage(page + 1)}
-            >
-              Siguiente
-              <ChevronRightIcon className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'red' }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">{label}</p>
+      <p className={`text-lg font-bold ${tone === 'red' ? 'text-red-700' : 'text-gray-900'}`}>{value}</p>
+      {sub ? <p className="text-xs text-gray-500">{sub}</p> : null}
+    </div>
+  );
+}
+
+/** Tickets/pedidos de una global (los que siguen dentro y los que salieron), vía GET /billing/invoices/:id. */
+function GlobalDocumentsPanel({ invoiceId }: { invoiceId: string }) {
+  const { data, isLoading, isError } = useInvoice(invoiceId);
+  if (isLoading) return <p className="py-3 text-center text-sm text-gray-500">Cargando tickets…</p>;
+  if (isError || !data?.global) return <p className="py-3 text-center text-sm text-red-600">No se pudieron cargar los tickets de esta global.</p>;
+  const docs = [...data.global.documents, ...data.global.released];
+  if (docs.length === 0) return <p className="py-3 text-center text-sm text-gray-500">Esta global no tiene tickets registrados.</p>;
+  const liveTotal = data.global.documents.reduce((s, d) => s + (d.total ?? 0), 0);
+  return (
+    <div className="rounded-lg border border-[#3E667D]/20 bg-white p-3 shadow-inner">
+      <p className="mb-2 text-xs text-gray-600">
+        <span className="font-semibold text-gray-900">{data.global.documents.length}</span> dentro · {money(liveTotal)}
+        {data.global.released.length > 0 ? <> · <span className="font-semibold">{data.global.released.length}</span> salieron</> : null}
+        {typeof data.global.uncoveredCount === 'number' && data.global.uncoveredCount > 0 ? (
+          <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+            {data.global.uncoveredCount} venta(s) del día no cubiertas · {money(data.global.uncoveredTotal ?? 0)}
+          </span>
+        ) : null}
+      </p>
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-gray-200 text-left uppercase text-gray-500">
+            <th className="py-1 pr-2">Ticket / Pedido</th>
+            <th className="py-1 pr-2">Día</th>
+            <th className="py-1 pr-2">Forma de pago</th>
+            <th className="py-1 pr-2 text-right">Subtotal</th>
+            <th className="py-1 pr-2 text-right">IVA</th>
+            <th className="py-1 pr-2 text-right">Total</th>
+            <th className="py-1">Estado en la global</th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map((d) => (
+            <tr key={d.id} className={`border-b border-gray-100 ${d.releasedAt ? 'text-gray-400' : 'text-gray-800'}`}>
+              <td className="py-1 pr-2 font-mono">{d.documentNumber}</td>
+              <td className="py-1 pr-2">{fmtDay(d.localDate)}</td>
+              <td className="py-1 pr-2">{d.paymentFormCode ? `${d.paymentFormCode} · ${getPaymentFormName(d.paymentFormCode)}` : '—'}</td>
+              <td className="py-1 pr-2 text-right tabular-nums">{money(d.subtotal)}</td>
+              <td className="py-1 pr-2 text-right tabular-nums">{money(d.taxAmount)}</td>
+              <td className="py-1 pr-2 text-right font-medium tabular-nums">{money(d.total)}</td>
+              <td className="py-1">
+                {d.releasedAt
+                  ? d.releasedReason === 'nominative_issued'
+                    ? 'Salió: se emitió nominativa'
+                    : d.releasedReason === 'global_cancelled'
+                      ? 'Salió: global cancelada'
+                      : 'Salió'
+                  : 'Dentro'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

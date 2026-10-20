@@ -902,6 +902,105 @@ export function getPaymentFormName(code: string): string {
   return item?.Name || code;
 }
 
+// ================================
+// REPORTE DE FOLIOS (conciliación) — GET /billing/reports/folios
+// ================================
+
+export type FoliosInvoiceType = 'sale' | 'global' | 'payment';
+export type FoliosStatusFilter = 'vigentes' | 'canceladas' | 'todas';
+export type FoliosDateBasis = 'emision' | 'operacion';
+export type FoliosRowStatus = 'vigente' | 'cancelacion_en_proceso' | 'cancelada';
+
+export interface FoliosReportQuery {
+  startDate: string;
+  endDate: string;
+  dateBasis?: FoliosDateBasis;
+  branchId?: string;
+  invoiceType?: FoliosInvoiceType;
+  paymentForm?: string;
+  status?: FoliosStatusFilter;
+  search?: string;
+}
+
+export interface FoliosReportRow {
+  id: string;
+  invoiceType: FoliosInvoiceType;
+  cfdiType: string | null;
+  typeLabel: string;
+  folioDisplay: string;
+  providerSerie: string | null;
+  providerFolio: string | null;
+  satUuid: string;
+  /** Comprobante.Fecha (hora local, sin zona). */
+  cfdiDate: string | null;
+  localDate: string;
+  globalLocalDate: string | null;
+  branchId: string | null;
+  branchCode: string | null;
+  branchName: string | null;
+  receiverRfc: string | null;
+  receiverName: string;
+  customerId: string | null;
+  customerNumber: string | null;
+  posSaleId: string | null;
+  saleNumber: string | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  paymentFormCode: string | null;
+  paymentFormName: string | null;
+  paymentMethodCode: string | null;
+  currencyCode: string;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  providerStatus: string | null;
+  satStatus: string | null;
+  status: FoliosRowStatus;
+  cancelledAt: string | null;
+  cancellationRequestedAt: string | null;
+  satCancellationStatus: string | null;
+  isReplacement: boolean;
+  relatedUuid: string | null;
+  relationType: string | null;
+  replacedByInvoiceId: string | null;
+  globalDocumentsLive: number | null;
+  globalDocumentsLiveTotal: number | null;
+  globalDocumentsReleased: number | null;
+  globalConceptMode: string | null;
+  globalReissueState: string | null;
+  stampedAt: string | null;
+  stampedByUsername: string | null;
+  emailedAt: string | null;
+}
+
+export interface FoliosReportBucket {
+  key: string;
+  label: string;
+  count: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+}
+
+export interface FoliosReportTotals {
+  live: FoliosReportBucket;
+  cancelled: FoliosReportBucket;
+  byType: FoliosReportBucket[];
+  byPaymentForm: FoliosReportBucket[];
+  byBranch: FoliosReportBucket[];
+  globalDocumentsLive: number;
+  globalDocumentsLiveTotal: number;
+  replacements: number;
+}
+
+export interface FoliosReportResponse {
+  rows: FoliosReportRow[];
+  totals: FoliosReportTotals;
+  truncated: boolean;
+  limit: number;
+  generatedAt: string;
+}
+
 /** @deprecated Usa `fiscalRegimeLabel(code, catalog)` con el catálogo del API. */
 export function getFiscalRegimeName(code: string): string {
   const item = FISCAL_REGIMES.find((r) => r.Value === code);

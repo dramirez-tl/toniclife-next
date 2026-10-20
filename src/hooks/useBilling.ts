@@ -17,6 +17,7 @@ import type {
   CancelInvoiceDto,
   CreateGlobalInvoiceDto,
   CreatePaymentComplementDto,
+  FoliosReportQuery,
   GlobalDaysQuery,
   GlobalPreviewQuery,
   InvoiceListQuery,
@@ -63,6 +64,7 @@ export const billingKeys = {
     [...billingKeys.catalogs(), 'sat-codes', kind, keyword] as const,
   status: () => [...billingKeys.all, 'status'] as const,
   facturamaCfdis: (query?: FacturamaCfdisQuery) => [...billingKeys.all, 'facturama-cfdis', query] as const,
+  foliosReport: (query?: FoliosReportQuery) => [...billingKeys.all, 'folios-report', query] as const,
   // Preparación fiscal (Fase 1). Todo cuelga de `readiness()` para que una
   // sola invalidación recalcule conteos, listados, emisor y bloqueadores.
   readiness: () => [...billingKeys.all, 'readiness'] as const,
@@ -821,6 +823,17 @@ export function useFacturamaCfdis(query?: FacturamaCfdisQuery) {
     queryKey: billingKeys.facturamaCfdis(query),
     queryFn: () => billingService.listFacturamaCfdis(query),
     enabled: !!(query?.dateStart && query?.dateEnd),
+  });
+}
+
+/** Reporte de folios (conciliación) desde nuestra base: GET /billing/reports/folios. */
+export function useFoliosReport(query: FoliosReportQuery | null) {
+  return useQuery({
+    queryKey: billingKeys.foliosReport(query ?? undefined),
+    queryFn: () => billingService.getFoliosReport(query!),
+    enabled: !!(query?.startDate && query?.endDate),
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 }
 
