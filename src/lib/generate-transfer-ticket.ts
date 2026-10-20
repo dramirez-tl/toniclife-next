@@ -3,6 +3,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { TransferDto } from '@/types/inventory';
+import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
 
 // ================================
 // Constants
@@ -73,6 +74,8 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
   }
 
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // Letra más grande para quien lo configuró en Preferencias del admin.
+  applyPdfFontScale(doc, resolvePdfFontScale());
   let y = TOP_MARGIN;
 
   // ----- 1. Logo + Company Header -----

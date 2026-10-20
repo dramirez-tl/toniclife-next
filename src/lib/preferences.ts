@@ -65,3 +65,14 @@ export function applyPreferences(prefs: AdminPreferences): void {
   if (prefs.fontScale === 1) root.style.removeProperty(CSS_VAR);
   else root.style.setProperty(CSS_VAR, String(prefs.fontScale));
 }
+
+/**
+ * Escala vigente del usuario (la que ya está aplicada en <html>). La usan los
+ * documentos que se generan FUERA del admin (ventana de impresión, PDF de
+ * tickets y pedidos) para crecer igual que la pantalla; 1 si no hay preferencia.
+ */
+export function currentFontScale(): FontScale {
+  if (typeof document === 'undefined') return 1;
+  const raw = Number(document.documentElement.style.getPropertyValue(CSS_VAR));
+  return isFontScale(raw) ? raw : 1;
+}

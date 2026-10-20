@@ -57,6 +57,7 @@ import {
   paymentMethodLabel,
   printHtml,
 } from '@/lib/delivery-print';
+import { currentFontScale } from '@/lib/preferences';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 type Tab = 'open' | DeliveryStatus | 'all';
@@ -598,7 +599,10 @@ function DeliveryDetailDialog({
 
   const print = (kind: 'order' | 'ticket') => {
     if (!d) return;
-    const html = kind === 'order' ? buildPickingSheetHtml(d, timeZone) : buildTicketHtml(d, timeZone);
+    // La ventana de impresión no hereda el tamaño de letra del admin: se manda
+    // la preferencia del usuario (Preferencias → tamaño de letra).
+    const scale = currentFontScale();
+    const html = kind === 'order' ? buildPickingSheetHtml(d, timeZone, scale) : buildTicketHtml(d, timeZone, scale);
     if (!printHtml(html)) toast.error('El navegador bloqueó la ventana de impresión; permite ventanas emergentes.');
   };
 
@@ -721,7 +725,8 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
                     {s.customerName ?? '—'}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {s.itemsUnits} pza(s){s.status !== 'pending' && s.status !== d.status ? ` · ${s.statusLabel}` : ''}
+                    {s.itemsUnits} pza(s) · {formatMoney(s.saleTotal, d.currencyCode)}
+                    {s.status !== 'pending' && s.status !== d.status ? ` · ${s.statusLabel}` : ''}
                   </span>
                 </li>
               ))}
@@ -759,6 +764,9 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
             <th className="py-1 pr-2">Clave</th>
             <th className="py-1 pr-2">Producto</th>
             <th className="py-1 text-right">Cant.</th>
+            {/* Precio por renglón solo con una venta (en el consolidado cada venta trae su total arriba) */}
+            {!consolidated && <th className="py-1 pl-2 text-right">P. unit.</th>}
+            {!consolidated && <th className="py-1 pl-2 text-right">Importe</th>}
           </tr>
         </thead>
         <tbody>
@@ -820,6 +828,12 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
                     ) : null}
                   </td>
                   <td className="py-1 text-right text-base font-semibold">{it.quantity}</td>
+                  <td className="py-1 pl-2 text-right whitespace-nowrap text-gray-700">
+                    {formatMoney(it.unitPrice, d.currencyCode)}
+                  </td>
+                  <td className="py-1 pl-2 text-right whitespace-nowrap font-medium">
+                    {formatMoney(it.total, d.currencyCode)}
+                  </td>
                 </tr>
                 {/* Contenido del kit / promo: piezas con cantidad TOTAL (por unidad × renglón). */}
                 {comps.map((c) => (
@@ -833,6 +847,7 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
                       </span>
                     </td>
                     <td className="py-0.5 text-right font-medium text-gray-700">{c.quantityTotal}</td>
+                    <td colSpan={2} />
                   </tr>
                 ))}
               </Fragment>
@@ -840,11 +855,15 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           })}
         </tbody>
         <tfoot>
-          <tr>
+          <tr className="border-t border-gray-200">
             <td colSpan={3} className="py-1 text-right text-xs text-gray-500">
               {consolidated ? (d.shipmentItems ?? []).length : items.length} renglón(es)
             </td>
             <td className="py-1 text-right font-semibold">{units} pza(s)</td>
+            {!consolidated && <td className="py-1 pl-2 text-right text-xs uppercase text-gray-500">Total</td>}
+            {!consolidated && (
+              <td className="py-1 pl-2 text-right text-base font-bold">{formatMoney(d.saleTotal, d.currencyCode)}</td>
+            )}
           </tr>
         </tfoot>
       </table>

@@ -4,6 +4,7 @@
 import type { jsPDF } from 'jspdf';
 import type { MovementDto } from '@/types/inventory';
 import { MovementType } from '@/types/inventory';
+import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
 
 // ================================
 // Constants
@@ -89,6 +90,8 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
   }
 
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // Letra más grande para quien lo configuró en Preferencias del admin.
+  applyPdfFontScale(doc, resolvePdfFontScale());
   let y = TOP_MARGIN;
 
   const isEntry = movement.movementType === MovementType.ENTRY;

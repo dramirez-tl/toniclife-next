@@ -2,6 +2,11 @@
 // entrega a domicilio (Almacén). Se abre una ventana con HTML propio (sin
 // estilos del admin) y se manda a imprimir; la hoja cabe en media carta y el
 // ticket en rollo de 80 mm o en carta.
+//
+// Tamaño de letra: la ventana no hereda la preferencia del admin, así que el
+// llamador pasa `fontScale` (Preferencias → tamaño de letra, 1 = normal) y todo
+// el texto se multiplica por esa escala (--s en el CSS). Precios: la hoja de
+// surtido y el ticket muestran precio unitario e importe por renglón.
 
 import type { Delivery } from '@/types/deliveries';
 import { DELIVERY_STATUS_LABELS } from '@/types/deliveries';
@@ -57,31 +62,42 @@ function dateTime(iso: string | null | undefined, timeZone?: string): string {
   });
 }
 
-const BASE_CSS = `
+/** Escala segura (1 si viene algo raro). */
+function scaleOf(fontScale?: number): number {
+  return typeof fontScale === 'number' && Number.isFinite(fontScale) && fontScale >= 1 && fontScale <= 2
+    ? fontScale
+    : 1;
+}
+
+/** Todos los tamaños en px × la escala del usuario (--s). */
+const baseCss = (scale: number) => `
+  :root { --s: ${scale}; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; padding: 16px; }
-  h1 { font-size: 18px; margin: 0 0 2px; }
-  h2 { font-size: 13px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: #444; }
-  .muted { color: #666; font-size: 12px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; padding: 16px; font-size: calc(13px * var(--s)); }
+  h1 { font-size: calc(19px * var(--s)); margin: 0 0 2px; }
+  h2 { font-size: calc(13px * var(--s)); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: #444; }
+  .muted { color: #666; font-size: calc(12px * var(--s)); }
+  table { width: 100%; border-collapse: collapse; font-size: calc(13px * var(--s)); }
   th, td { border-bottom: 1px solid #ddd; padding: 5px 6px; text-align: left; vertical-align: top; }
-  th { background: #f3f3f3; font-size: 11px; text-transform: uppercase; }
+  th { background: #f3f3f3; font-size: calc(11px * var(--s)); text-transform: uppercase; }
   td.num, th.num { text-align: right; white-space: nowrap; }
-  .box { border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; margin-top: 6px; font-size: 12px; }
+  .box { border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; margin-top: 6px; font-size: calc(13px * var(--s)); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .big { font-size: 15px; font-weight: bold; }
-  .check { display: inline-block; width: 14px; height: 14px; border: 1px solid #333; vertical-align: middle; }
-  .check.small { width: 11px; height: 11px; }
-  tr.comp td { background: #fafafa; font-size: 11px; padding-top: 3px; padding-bottom: 3px; }
-  .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; font-size: 11px; text-align: center; }
+  .big { font-size: calc(16px * var(--s)); font-weight: bold; }
+  .check { display: inline-block; width: calc(14px * var(--s)); height: calc(14px * var(--s)); border: 1px solid #333; vertical-align: middle; }
+  .check.small { width: calc(11px * var(--s)); height: calc(11px * var(--s)); }
+  tr.comp td { background: #fafafa; font-size: calc(11px * var(--s)); padding-top: 3px; padding-bottom: 3px; }
+  tfoot td { font-weight: bold; background: #f7f7f7; }
+  .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; font-size: calc(11px * var(--s)); text-align: center; }
   .sign div { border-top: 1px solid #333; padding-top: 4px; }
   @media print { body { padding: 8px; } @page { margin: 10mm; } }
 `;
 
 /** Hoja de surtido: qué sacar del almacén y a dónde va. En un envío consolidado
  *  (varias ventas, un paquete) junta los productos de todas las ventas y
- *  desglosa cada producto por venta/distribuidor. */
-export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
+ *  desglosa cada producto por venta/distribuidor. Con una sola venta lleva
+ *  precio unitario e importe por renglón y el total de la venta. */
+export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?: number): string {
   const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
   const items = consolidated
     ? (d.shipmentItems ?? []).map((it) => ({
@@ -91,6 +107,8 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
         quantity: it.quantity,
         components: it.components,
         perSale: it.perSale,
+        unitPrice: null as number | null,
+        total: null as number | null,
       }))
     : (d.items ?? []).map((it) => ({
         productSku: it.productSku,
@@ -99,7 +117,12 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
         quantity: it.quantity,
         components: it.components,
         perSale: [] as { saleNumber: string; customerNumber: string | null; quantity: number }[],
+        unitPrice: it.unitPrice as number | null,
+        total: it.total as number | null,
       }));
+  // Precios solo cuando es una venta (en el consolidado cada venta trae su total abajo).
+  const withPrices = !consolidated;
+  const cols = withPrices ? 7 : 5;
   const rows = items
     .map((it, i) => {
       const comps = it.components ?? [];
@@ -107,13 +130,16 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
       const perSale = it.perSale.length
         ? `<br><span class="muted">${esc(it.perSale.map((p) => `${p.saleNumber}${p.customerNumber ? ` (#${p.customerNumber})` : ''}: ${p.quantity}`).join(' · '))}</span>`
         : '';
+      const priceCells = withPrices
+        ? `<td class="num">${esc(money(it.unitPrice ?? 0, d.currencyCode))}</td><td class="num">${esc(money(it.total ?? 0, d.currencyCode))}</td>`
+        : '';
       const main = `
       <tr>
         <td class="num">${i + 1}</td>
         <td><span class="check"></span></td>
         <td>${esc(it.productSku)}</td>
         <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}${perSale}</td>
-        <td class="num big">${esc(it.quantity)}</td>
+        <td class="num big">${esc(it.quantity)}</td>${priceCells}
       </tr>`;
       // Contenido del kit / promo: una línea por pieza con su cantidad TOTAL.
       const children = comps
@@ -124,7 +150,7 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
         <td><span class="check small"></span></td>
         <td class="muted">${esc(c.sku ?? '')}</td>
         <td>↳ ${esc(c.name)} <span class="muted">(${esc(c.quantityPerUnit)} × ${esc(it.quantity)})</span></td>
-        <td class="num">${esc(c.quantityTotal)}</td>
+        <td class="num">${esc(c.quantityTotal)}</td>${withPrices ? '<td></td><td></td>' : ''}
       </tr>`,
         )
         .join('');
@@ -139,12 +165,15 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
        <table style="margin-top:4px"><tbody>${sales
          .map(
            (s) =>
-             `<tr><td>${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td></tr>`,
+             `<tr><td>${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td><td class="num">${esc(money(s.saleTotal, d.currencyCode))}</td></tr>`,
          )
          .join('')}</tbody></table>`
     : `<div class="muted">Distribuidor</div>
        <div class="big">${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? '')}</div>`;
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${BASE_CSS}</style></head><body>
+  const foot = withPrices
+    ? `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td><td class="num">Total</td><td class="num">${esc(money(d.saleTotal, d.currencyCode))}</td></tr></tfoot>`
+    : `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td></tr></tfoot>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${baseCss(scaleOf(fontScale))}</style></head><body>
     <h1>Hoja de surtido · ${esc(title)}</h1>
     <div class="muted">Entrega a domicilio · ${esc(DELIVERY_STATUS_LABELS[d.status] ?? d.status)} · Surte: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
     <div class="grid">
@@ -167,8 +196,9 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
     } · Capturó ${esc(d.requestedByName)} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
     <h2>Productos (${items.length} renglón(es) · ${units} pieza(s))</h2>
     <table>
-      <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" class="muted">Sin renglones</td></tr>'}</tbody>
+      <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th>${withPrices ? '<th class="num">P. unit.</th><th class="num">Importe</th>' : ''}</tr></thead>
+      <tbody>${rows || `<tr><td colspan="${cols}" class="muted">Sin renglones</td></tr>`}</tbody>
+      ${foot}
     </table>
     ${d.warehouseNotes ? `<div class="box"><span class="muted">Observaciones de Almacén:</span> ${esc(d.warehouseNotes)}</div>` : ''}
     <div class="box"><span class="muted">Paquetería:</span> ${esc(d.carrier ?? '____________________')} &nbsp;&nbsp; <span class="muted">Guía:</span> ${esc(d.trackingNumber ?? '____________________')}</div>
@@ -176,8 +206,9 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
   </body></html>`;
 }
 
-/** Ticket de la venta (formato de rollo) para anexar al paquete. */
-export function buildTicketHtml(d: Delivery, timeZone?: string): string {
+/** Ticket de la venta (formato de rollo) para anexar al paquete: cada renglón
+ *  con cantidad, precio unitario e importe, y el total de la venta. */
+export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: number): string {
   const items = d.items ?? [];
   const rows = items
     .map((it) => {
@@ -185,16 +216,21 @@ export function buildTicketHtml(d: Delivery, timeZone?: string): string {
         .map((c) => `${c.quantityTotal} ${c.sku ? `${c.sku} ` : ''}${c.name}`)
         .join(', ');
       return `
-      <tr><td colspan="3">${esc(it.productName)}<br><span class="muted">${esc(it.productSku)}</span>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
-      <tr><td class="num">${esc(it.quantity)} × ${esc(money(it.unitPrice, d.currencyCode))}</td><td></td><td class="num">${esc(money(it.total, d.currencyCode))}</td></tr>`;
+      <tr><td colspan="3" class="name">${esc(it.productName)}<br><span class="muted">${esc(it.productSku)}</span>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
+      <tr><td class="num">${esc(it.quantity)}</td><td class="num">× ${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num"><strong>${esc(money(it.total, d.currencyCode))}</strong></td></tr>`;
     })
     .join('');
+  const scale = scaleOf(fontScale);
   const css = `
-    body { font-family: "Courier New", Courier, monospace; font-size: 12px; margin: 0; padding: 10px; width: 80mm; }
-    .c { text-align: center; } .muted { color: #555; font-size: 11px; }
+    :root { --s: ${scale}; }
+    body { font-family: "Courier New", Courier, monospace; font-size: calc(13px * var(--s)); margin: 0; padding: 10px; width: 80mm; }
+    .c { text-align: center; } .muted { color: #555; font-size: calc(11px * var(--s)); }
     table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } td.num { text-align: right; white-space: nowrap; }
+    td.name { padding-top: 5px; }
+    th { font-size: calc(11px * var(--s)); text-align: right; font-weight: normal; color: #555; padding: 0; }
+    th.l { text-align: left; }
     hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
-    .tot td { font-weight: bold; font-size: 13px; }
+    .tot td { font-weight: bold; font-size: calc(15px * var(--s)); }
     @media print { @page { margin: 4mm; } }
   `;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ticket ${esc(d.saleNumber)}</title><style>${css}</style></head><body>
@@ -205,7 +241,10 @@ export function buildTicketHtml(d: Delivery, timeZone?: string): string {
     <div>Cliente: ${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? d.recipientName)}</div>
     <div>Pago: ${esc(paymentMethodLabel(d.paymentMethod))}</div>
     <hr>
-    <table>${rows}</table>
+    <table>
+      <thead><tr><th class="l">Cant.</th><th>Precio</th><th>Importe</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
     <hr>
     <table class="tot"><tr><td>TOTAL</td><td class="num">${esc(money(d.saleTotal, d.currencyCode))}</td></tr></table>
     <hr>

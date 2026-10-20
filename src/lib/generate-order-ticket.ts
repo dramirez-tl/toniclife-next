@@ -3,6 +3,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { Order } from '@/types/order';
+import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
 
 // ================================
 // Types
@@ -18,6 +19,8 @@ export interface TicketBranchConfig {
 
 interface TicketOptions {
   branch?: TicketBranchConfig;
+  /** Tamaño de letra (Preferencias del admin): 1 = normal. Sin valor, la preferencia del usuario. */
+  fontScale?: number;
 }
 
 // ================================
@@ -133,6 +136,9 @@ export async function generateOrderTicketPdf(order: Order, options?: TicketOptio
     unit: 'mm',
     format: [PAGE_W, PAGE_H],
   });
+  // Letra más grande para quien lo configuró en Preferencias (afecta todos los setFontSize).
+  const fontScale = resolvePdfFontScale(options?.fontScale);
+  applyPdfFontScale(doc, fontScale);
 
   let y = TOP_MARGIN;
 
@@ -225,9 +231,10 @@ export async function generateOrderTicketPdf(order: Order, options?: TicketOptio
   // ----- 5. Tabla Productos -----
   y = drawSeparator(doc, y);
 
+  // Las columnas se abren con la letra para que clave y cantidad no se encimen.
   const colClave = MARGIN;
-  const colCant = MARGIN + 16;
-  const colPrecio = MARGIN + 26;
+  const colCant = MARGIN + 16 * fontScale;
+  const colPrecio = MARGIN + 26 * fontScale;
   const colTotal = PAGE_W - MARGIN;
 
   doc.setFont(FONT_MONO, 'bold');

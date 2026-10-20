@@ -3,6 +3,7 @@
 
 import type { jsPDF } from 'jspdf';
 import type { Sale } from '@/types/pos';
+import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
 
 // ================================
 // Types
@@ -19,6 +20,8 @@ export interface PosTicketBranchConfig {
 interface PosTicketOptions {
   branch?: PosTicketBranchConfig;
   currencyLabel?: string; // e.g. "Pesos Mexicanos"
+  /** Tamaño de letra (Preferencias del admin): 1 = normal. Sin valor, la preferencia del usuario. */
+  fontScale?: number;
 }
 
 // ================================
@@ -154,7 +157,11 @@ export async function generatePosTicketPdf(
   }
 
   // First pass: measure content height with a throwaway doc
+  // Letra más grande para quien lo configuró en Preferencias (misma escala en
+  // la pasada de medición y en la final, para que la altura coincida).
+  const fontScale = resolvePdfFontScale(options?.fontScale);
   const measureDoc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: [PAGE_W, PAGE_H] });
+  applyPdfFontScale(measureDoc, fontScale);
   const measuredHeight = renderTicketContent(measureDoc, sale, LOGO_BASE64, branch, currencyLabel, barcodeDataUrl);
   const finalPageH = measuredHeight + BOTTOM_MARGIN;
 
@@ -164,6 +171,7 @@ export async function generatePosTicketPdf(
     unit: 'mm',
     format: [PAGE_W, finalPageH],
   });
+  applyPdfFontScale(doc, fontScale);
 
   renderTicketContent(doc, sale, LOGO_BASE64, branch, currencyLabel, barcodeDataUrl);
 
