@@ -81,6 +81,9 @@ const STATUS_STYLE: Record<DeliveryStatus, { bg: string; text: string; icon: Rea
 
 type ActionType = 'ready' | 'shipped' | 'delivered' | 'cancelled' | 'edit' | 'unready' | 'unship';
 
+/** Renglón de la tabla: la primera entrega del envío + todas las que lo comparten en esta vista. */
+type DeliveryRowItem = Delivery & { members: Delivery[] };
+
 function formatMoney(value: number, currency: string): string {
   try {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency, minimumFractionDigits: 2 }).format(
@@ -190,41 +193,88 @@ function EntregasContent() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [action, setAction] = useState<{ type: ActionType; delivery: Delivery } | null>(null);
 
-  const columns: DataTableColumn<Delivery>[] = useMemo(
+  // Envío consolidado: las entregas que comparten clave se muestran como UN
+  // renglón (el paquete), con sus ventas listadas. Las acciones aplican a todo
+  // el envío (lo hace el API).
+  const displayRows: DeliveryRowItem[] = useMemo(() => {
+    const byKey = new Map<string, Delivery[]>();
+    for (const d of data?.data ?? []) {
+      const arr = byKey.get(d.shipmentKey) ?? [];
+      arr.push(d);
+      byKey.set(d.shipmentKey, arr);
+    }
+    return [...byKey.values()].map((members) => ({ ...members[0], members }));
+  }, [data]);
+
+  const columns: DataTableColumn<DeliveryRowItem>[] = useMemo(
     () => [
       {
         key: 'sale',
         header: 'Venta',
-        render: (d) => (
-          <div>
-            <button
-              type="button"
-              className="font-mono font-semibold text-[#3E667D] hover:underline"
-              onClick={() => setDetailId(d.id)}
-            >
-              {d.saleNumber}
-            </button>
-            <p className="text-xs text-gray-500">
-              {formatDateTime(d.saleCreatedAt, timeZone)} · {paymentMethodLabel(d.paymentMethod)}
-            </p>
-            <p className="text-xs text-gray-700">{formatMoney(d.saleTotal, d.currencyCode)}</p>
-            {d.saleStatus !== 'completed' && (
-              <p className="text-xs font-medium text-red-600">
-                Venta {d.saleStatus === 'pending' ? 'sin cobrar' : d.saleStatus}
+        render: (d) =>
+          d.members.length > 1 || d.shipmentSize > 1 ? (
+            <div>
+              <button
+                type="button"
+                className="font-semibold text-[#3E667D] hover:underline"
+                onClick={() => setDetailId(d.id)}
+              >
+                Envío consolidado · {d.shipmentSize} ventas
+              </button>
+              <p className="font-mono text-xs text-gray-600">
+                {d.members.map((m) => m.saleNumber).join(', ')}
+                {d.members.length < d.shipmentSize ? ` (+${d.shipmentSize - d.members.length} fuera de esta vista)` : ''}
               </p>
-            )}
-          </div>
-        ),
+              <p className="text-xs text-gray-500">{formatDateTime(d.saleCreatedAt, timeZone)}</p>
+              <p className="text-xs text-gray-700">
+                {formatMoney(
+                  d.members.reduce((s, m) => s + m.saleTotal, 0),
+                  d.currencyCode,
+                )}
+              </p>
+              {d.members.some((m) => m.saleStatus !== 'completed') && (
+                <p className="text-xs font-medium text-red-600">Hay ventas sin cobrar en el envío</p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="font-mono font-semibold text-[#3E667D] hover:underline"
+                onClick={() => setDetailId(d.id)}
+              >
+                {d.saleNumber}
+              </button>
+              <p className="text-xs text-gray-500">
+                {formatDateTime(d.saleCreatedAt, timeZone)} · {paymentMethodLabel(d.paymentMethod)}
+              </p>
+              <p className="text-xs text-gray-700">{formatMoney(d.saleTotal, d.currencyCode)}</p>
+              {d.saleStatus !== 'completed' && (
+                <p className="text-xs font-medium text-red-600">
+                  Venta {d.saleStatus === 'pending' ? 'sin cobrar' : d.saleStatus}
+                </p>
+              )}
+            </div>
+          ),
       },
       {
         key: 'customer',
         header: 'Distribuidor · recibe',
         render: (d) => (
           <div className="text-sm">
-            <p className="font-medium">
-              {d.customerNumber ? <span className="font-mono">{d.customerNumber} </span> : null}
-              {d.customerName ?? '—'}
-            </p>
+            {d.members.length > 1 ? (
+              <p className="font-medium" title={d.members.map((m) => `${m.customerNumber ?? ''} ${m.customerName ?? ''}`).join(' · ')}>
+                {d.members.length} distribuidores:{' '}
+                <span className="font-normal text-gray-600">
+                  {d.members.map((m) => m.customerName ?? m.customerNumber ?? '—').join(', ')}
+                </span>
+              </p>
+            ) : (
+              <p className="font-medium">
+                {d.customerNumber ? <span className="font-mono">{d.customerNumber} </span> : null}
+                {d.customerName ?? '—'}
+              </p>
+            )}
             <p className="text-gray-700">
               Recibe: {d.recipientName}
               {d.recipientPhone ? <span className="text-gray-500"> · {d.recipientPhone}</span> : null}
@@ -251,8 +301,8 @@ function EntregasContent() {
         cellClassName: 'text-center',
         render: (d) => (
           <div>
-            <p className="font-semibold">{d.itemsUnits}</p>
-            <p className="text-xs text-gray-500">{d.itemsCount} renglón(es)</p>
+            <p className="font-semibold">{d.members.reduce((s, m) => s + m.itemsUnits, 0)}</p>
+            <p className="text-xs text-gray-500">{d.members.reduce((s, m) => s + m.itemsCount, 0)} renglón(es)</p>
           </div>
         ),
       },
@@ -275,6 +325,9 @@ function EntregasContent() {
         render: (d) => (
           <div className="space-y-1">
             <StatusBadge status={d.status} label={d.statusLabel} />
+            {d.members.some((m) => m.status !== d.status) && (
+              <p className="text-xs text-amber-700">Estados mixtos en el envío; abre el detalle</p>
+            )}
             {d.status === 'shipped' || d.status === 'delivered' ? (
               <p className="text-xs text-gray-600">
                 {d.carrier ?? 'Paquetería s/d'}
@@ -485,8 +538,8 @@ function EntregasContent() {
         <div className="overflow-x-auto px-2 pt-2">
           <DataTable
             columns={columns}
-            data={data?.data ?? []}
-            getRowKey={(d) => d.id}
+            data={displayRows}
+            getRowKey={(d) => d.shipmentKey}
             isLoading={isLoading}
             emptyMessage="No hay entregas con estos filtros."
             minWidthClassName="min-w-[1100px]"
@@ -648,17 +701,37 @@ function DeliveryDetailDialog({
 }
 
 function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
+  const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
   const items = d.items ?? [];
-  const units = items.reduce((s, it) => s + it.quantity, 0);
+  const units = consolidated
+    ? (d.shipmentItems ?? []).reduce((s, it) => s + it.quantity, 0)
+    : items.reduce((s, it) => s + it.quantity, 0);
   return (
     <div className="space-y-3 text-sm">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-md border border-gray-200 p-3">
-          <p className="text-xs uppercase text-gray-500">Distribuidor</p>
-          <p className="font-semibold">
-            {d.customerNumber ? <span className="font-mono">{d.customerNumber} </span> : null}
-            {d.customerName ?? '—'}
-          </p>
+          <p className="text-xs uppercase text-gray-500">{consolidated ? 'Envío consolidado' : 'Distribuidor'}</p>
+          {consolidated ? (
+            <ul className="space-y-0.5">
+              {d.shipmentDeliveries!.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2">
+                  <span>
+                    <span className="font-mono text-xs text-gray-500">{s.saleNumber}</span>{' '}
+                    {s.customerNumber ? <span className="font-mono">{s.customerNumber} </span> : null}
+                    {s.customerName ?? '—'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {s.itemsUnits} pza(s){s.status !== 'pending' && s.status !== d.status ? ` · ${s.statusLabel}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-semibold">
+              {d.customerNumber ? <span className="font-mono">{d.customerNumber} </span> : null}
+              {d.customerName ?? '—'}
+            </p>
+          )}
           <p className="mt-2 text-xs uppercase text-gray-500">Recibe</p>
           <p>
             {d.recipientName}
@@ -675,8 +748,9 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
         </div>
       </div>
       <p className="text-xs text-gray-600">
-        Venta {d.saleNumber} del {formatDateTime(d.saleCreatedAt, timeZone)} · {paymentMethodLabel(d.paymentMethod)} ·{' '}
-        {formatMoney(d.saleTotal, d.currencyCode)}
+        {consolidated
+          ? `${d.shipmentDeliveries!.length} ventas en un solo paquete · ${formatMoney(d.shipmentDeliveries!.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode)} en total`
+          : `Venta ${d.saleNumber} del ${formatDateTime(d.saleCreatedAt, timeZone)} · ${paymentMethodLabel(d.paymentMethod)} · ${formatMoney(d.saleTotal, d.currencyCode)}`}
       </p>
       <table className="w-full text-sm">
         <thead>
@@ -688,7 +762,47 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((it, i) => {
+          {consolidated &&
+            (d.shipmentItems ?? []).map((it, i) => {
+              const isKit =
+                it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional';
+              const comps = it.components ?? [];
+              return (
+                <Fragment key={it.productId}>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-1 pr-2 text-gray-500">{i + 1}</td>
+                    <td className="py-1 pr-2 font-mono">{it.productSku}</td>
+                    <td className="py-1 pr-2">
+                      {it.productName}
+                      {isKit ? (
+                        <span className="ml-1 text-xs text-gray-500">
+                          {comps.length ? '(contiene:)' : '(kit sin composición cargada)'}
+                        </span>
+                      ) : null}
+                      <p className="text-[11px] text-gray-500">
+                        {it.perSale.map((p) => `${p.saleNumber}${p.customerNumber ? ` (#${p.customerNumber})` : ''}: ${p.quantity}`).join(' · ')}
+                      </p>
+                    </td>
+                    <td className="py-1 text-right text-base font-semibold">{it.quantity}</td>
+                  </tr>
+                  {comps.map((c) => (
+                    <tr key={`${it.productId}-${c.productId}`} className="border-b border-gray-50 bg-gray-50/60 text-xs">
+                      <td className="py-0.5 pr-2" />
+                      <td className="py-0.5 pr-2 font-mono text-gray-500">{c.sku ?? ''}</td>
+                      <td className="py-0.5 pr-2 text-gray-700">
+                        ↳ {c.name}
+                        <span className="ml-1 text-gray-400">
+                          ({c.quantityPerUnit} × {it.quantity})
+                        </span>
+                      </td>
+                      <td className="py-0.5 text-right font-medium text-gray-700">{c.quantityTotal}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          {!consolidated &&
+            items.map((it, i) => {
             const isKit =
               it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional';
             const comps = it.components ?? [];
@@ -728,7 +842,7 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
         <tfoot>
           <tr>
             <td colSpan={3} className="py-1 text-right text-xs text-gray-500">
-              {items.length} renglón(es)
+              {consolidated ? (d.shipmentItems ?? []).length : items.length} renglón(es)
             </td>
             <td className="py-1 text-right font-semibold">{units} pza(s)</td>
           </tr>

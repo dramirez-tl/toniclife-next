@@ -98,8 +98,39 @@ export interface Delivery {
   cancelReason: string | null;
   itemsCount: number;
   itemsUnits: number;
+  /** Clave del envío: varias entregas con la misma clave = un solo paquete (envío consolidado). */
+  shipmentKey: string;
+  /** Entregas (ventas) que comparten el envío; 1 = sencillo. */
+  shipmentSize: number;
   /** Solo en el detalle. */
   items?: DeliveryItem[];
+  /** Solo en el detalle de un envío consolidado: todas las ventas del paquete. */
+  shipmentDeliveries?: ShipmentDeliverySummary[];
+  /** Solo en el detalle de un envío consolidado: productos de todas las ventas, por producto. */
+  shipmentItems?: ShipmentItem[];
+}
+
+export interface ShipmentDeliverySummary {
+  id: string;
+  saleId: string;
+  saleNumber: string;
+  status: DeliveryStatus;
+  statusLabel: string;
+  customerNumber: string | null;
+  customerName: string | null;
+  saleTotal: number;
+  itemsCount: number;
+  itemsUnits: number;
+}
+
+export interface ShipmentItem {
+  productId: string;
+  productSku: string;
+  productName: string;
+  productType: string | null;
+  quantity: number;
+  perSale: { saleNumber: string; customerNumber: string | null; quantity: number }[];
+  components?: DeliveryItemComponent[];
 }
 
 export interface DeliveryStatusCounts {

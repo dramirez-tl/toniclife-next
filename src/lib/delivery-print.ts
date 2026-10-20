@@ -78,19 +78,41 @@ const BASE_CSS = `
   @media print { body { padding: 8px; } @page { margin: 10mm; } }
 `;
 
-/** Hoja de surtido: qué sacar del almacén y a dónde va. */
+/** Hoja de surtido: qué sacar del almacén y a dónde va. En un envío consolidado
+ *  (varias ventas, un paquete) junta los productos de todas las ventas y
+ *  desglosa cada producto por venta/distribuidor. */
 export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
-  const items = d.items ?? [];
+  const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
+  const items = consolidated
+    ? (d.shipmentItems ?? []).map((it) => ({
+        productSku: it.productSku,
+        productName: it.productName,
+        productType: it.productType,
+        quantity: it.quantity,
+        components: it.components,
+        perSale: it.perSale,
+      }))
+    : (d.items ?? []).map((it) => ({
+        productSku: it.productSku,
+        productName: it.productName,
+        productType: it.productType,
+        quantity: it.quantity,
+        components: it.components,
+        perSale: [] as { saleNumber: string; customerNumber: string | null; quantity: number }[],
+      }));
   const rows = items
     .map((it, i) => {
       const comps = it.components ?? [];
       const isKit = it.productType === 'kit' || it.productType === 'pack' || it.productType === 'promotional';
+      const perSale = it.perSale.length
+        ? `<br><span class="muted">${esc(it.perSale.map((p) => `${p.saleNumber}${p.customerNumber ? ` (#${p.customerNumber})` : ''}: ${p.quantity}`).join(' · '))}</span>`
+        : '';
       const main = `
       <tr>
         <td class="num">${i + 1}</td>
         <td><span class="check"></span></td>
         <td>${esc(it.productSku)}</td>
-        <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}</td>
+        <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}${perSale}</td>
         <td class="num big">${esc(it.quantity)}</td>
       </tr>`;
       // Contenido del kit / promo: una línea por pieza con su cantidad TOTAL.
@@ -110,13 +132,24 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
     })
     .join('');
   const units = items.reduce((s, it) => s + it.quantity, 0);
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(d.saleNumber)}</title><style>${BASE_CSS}</style></head><body>
-    <h1>Hoja de surtido · ${esc(d.saleNumber)}</h1>
+  const sales = consolidated ? (d.shipmentDeliveries ?? []) : [];
+  const title = consolidated ? `Envío consolidado · ${sales.length} ventas` : d.saleNumber;
+  const distributorBox = consolidated
+    ? `<div class="muted">Ventas en este paquete</div>
+       <table style="margin-top:4px"><tbody>${sales
+         .map(
+           (s) =>
+             `<tr><td>${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td></tr>`,
+         )
+         .join('')}</tbody></table>`
+    : `<div class="muted">Distribuidor</div>
+       <div class="big">${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? '')}</div>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${BASE_CSS}</style></head><body>
+    <h1>Hoja de surtido · ${esc(title)}</h1>
     <div class="muted">Entrega a domicilio · ${esc(DELIVERY_STATUS_LABELS[d.status] ?? d.status)} · Surte: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
     <div class="grid">
       <div class="box">
-        <div class="muted">Distribuidor</div>
-        <div class="big">${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? '')}</div>
+        ${distributorBox}
         <div class="muted" style="margin-top:6px">Recibe</div>
         <div><strong>${esc(d.recipientName)}</strong>${d.recipientPhone ? ` · Tel. ${esc(d.recipientPhone)}` : ''}</div>
       </div>
@@ -127,7 +160,11 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string): string {
         ${d.notes ? `<div style="margin-top:6px"><span class="muted">Indicaciones de Call Center:</span> ${esc(d.notes)}</div>` : ''}
       </div>
     </div>
-    <div class="muted" style="margin-top:8px">Venta ${esc(d.saleNumber)} del ${esc(dateTime(d.saleCreatedAt, timeZone))} · ${esc(paymentMethodLabel(d.paymentMethod))} · ${esc(money(d.saleTotal, d.currencyCode))} · Capturó ${esc(d.requestedByName)} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
+    <div class="muted" style="margin-top:8px">${
+      consolidated
+        ? `${sales.length} ventas · ${esc(money(sales.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode))} en total`
+        : `Venta ${esc(d.saleNumber)} del ${esc(dateTime(d.saleCreatedAt, timeZone))} · ${esc(paymentMethodLabel(d.paymentMethod))} · ${esc(money(d.saleTotal, d.currencyCode))}`
+    } · Capturó ${esc(d.requestedByName)} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
     <h2>Productos (${items.length} renglón(es) · ${units} pieza(s))</h2>
     <table>
       <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th></tr></thead>
