@@ -9,10 +9,23 @@
 // pendiente, pagado (montos congelados al pagar) o no pagado (excluido con
 // motivo); se marca por selección o todos los pendientes del rango, y se
 // puede revertir (vuelve a pendiente, queda historial).
+//
+// Comprobante del bono pagado (20-oct-2026): a los patrocinadores ASIMILADOS
+// (MXN) Tonic Life les EMITE un recibo de nómina (CFDI N) por grupo pagado
+// ("Timbrar"); los RESICO/FIC/MORAL/FRONTERIZA emiten su propio CFDI y aquí
+// se REGISTRA el XML contra el pago. Lo pinta la columna "Comprobante" de la
+// vista por patrocinador.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useKitBonuses, useMarkKitBonusPayments, useRevertKitBonusPayment } from '@/hooks/useReports';
+import {
+  useKitBonuses,
+  useMarkKitBonusPayments,
+  useRegisterKitBonusReceivedCfdi,
+  useRevertKitBonusPayment,
+  useStampKitBonusPayroll,
+  useUnlinkKitBonusReceivedCfdi,
+} from '@/hooks/useReports';
 import { reportsService } from '@/services/reports.service';
 import { authService } from '@/services/auth.service';
 import { PermissionGuard } from '@/components/auth';
@@ -38,7 +51,7 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import type { KitBonusGroup, KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
+import type { KitBonusGroup, KitBonusGroupVoucher, KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
 
 /** Mismo tope que el API para el rango. */
 const MAX_RANGE_DAYS = 366;
@@ -138,7 +151,120 @@ function StatusBadge({ row }: { row: KitBonusRow }) {
   );
 }
 
-type DialogMode = { kind: 'paid' | 'excluded'; count: number; all: boolean } | { kind: 'revert'; row: KitBonusRow } | null;
+type DialogMode =
+  | { kind: 'paid' | 'excluded'; count: number; all: boolean }
+  | { kind: 'revert'; row: KitBonusRow }
+  | { kind: 'stamp'; group: KitBonusGroup }
+  | { kind: 'received'; group: KitBonusGroup }
+  | { kind: 'unlink'; group: KitBonusGroup }
+  | null;
+
+/** Mensaje del API ({ code, message } de BillingErrorFilter o de Nest) o el texto de respaldo. */
+function apiErrorMessage(err: unknown, fallback: string): string {
+  const e = err as { response?: { data?: { message?: unknown } } };
+  const m = e?.response?.data?.message;
+  if (typeof m === 'string' && m.trim()) return m;
+  if (Array.isArray(m) && m.length) return String(m[0]);
+  return fallback;
+}
+
+/** kit_bonus_payments.id de los bonos del grupo (los pagados siempre lo traen). */
+const groupPaymentIds = (g: KitBonusGroup) => g.items.map((i) => i.paymentId).filter((id): id is string => !!id);
+
+/** Grupo ASIMILADOS al que se le puede (volver a) emitir el recibo: sin recibo vivo y con datos completos. */
+function isPayrollReady(g: KitBonusGroup): boolean {
+  const v = g.voucher;
+  return (
+    !!v &&
+    v.mode === 'payroll' &&
+    (v.status === 'not_stamped' || v.status === 'cancelled' || v.status === 'error') &&
+    v.issues.length === 0 &&
+    groupPaymentIds(g).length === g.items.length
+  );
+}
+
+const shortUuid = (uuid: string | null) => (uuid ? `${uuid.slice(0, 8)}…` : '');
+
+interface VoucherCellProps {
+  g: KitBonusGroup;
+  canPay: boolean;
+  busy: boolean;
+  onStamp: (g: KitBonusGroup) => void;
+  onRegister: (g: KitBonusGroup) => void;
+  onUnlink: (g: KitBonusGroup) => void;
+  onDownload: (g: KitBonusGroup, ext: 'pdf' | 'xml') => void;
+}
+
+/** Columna "Comprobante": recibo de nómina (ASIMILADOS) o CFDI del distribuidor (RESICO…). */
+function VoucherCell({ g, canPay, busy, onStamp, onRegister, onUnlink, onDownload }: VoucherCellProps) {
+  const v: KitBonusGroupVoucher | null = g.voucher;
+  if (g.paymentStatus !== 'paid' || !v || v.mode === 'none') {
+    return <span className="text-xs text-gray-300">—</span>;
+  }
+  const link = 'text-xs text-[#3E667D] hover:underline disabled:opacity-50';
+  const pill = (cls: string, text: string, title?: string) => (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}`} title={title}>
+      {text}
+    </span>
+  );
+  const partial = v.partial ? pill('bg-red-50 text-red-700 ring-red-600/20', 'Parcial', 'El comprobante no cubre todos los bonos del grupo: revisa') : null;
+
+  if (v.mode === 'payroll') {
+    if (v.status === 'stamped') {
+      return (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {pill('bg-green-50 text-green-700 ring-green-600/20', `Nómina ${v.folio ?? shortUuid(v.uuid)}`, v.uuid ?? undefined)}
+          <button type="button" onClick={() => onDownload(g, 'pdf')} className={link}>PDF</button>
+          <button type="button" onClick={() => onDownload(g, 'xml')} className={link}>XML</button>
+          {partial}
+        </div>
+      );
+    }
+    if (v.status === 'in_progress') {
+      return pill('bg-blue-50 text-blue-700 ring-blue-600/20', 'Timbrando…', 'El recibo se está timbrando; actualiza en unos segundos');
+    }
+    const issues = v.issues.length ? v.issues.join(' · ') : '';
+    const label = v.status === 'error' ? 'Reintentar' : v.status === 'cancelled' ? 'Timbrar de nuevo' : 'Timbrar';
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {v.status === 'error' && pill('bg-red-50 text-red-700 ring-red-600/20', 'Error PAC', v.error ?? undefined)}
+        {v.status === 'cancelled' && pill('bg-gray-100 text-gray-600 ring-gray-500/10', 'Recibo cancelado', v.uuid ?? undefined)}
+        {v.status === 'not_stamped' && !issues && pill('bg-amber-50 text-amber-700 ring-amber-600/20', 'Sin recibo')}
+        {issues && pill('bg-red-50 text-red-700 ring-red-600/20', 'Faltan datos', issues)}
+        {canPay && (
+          <button type="button" onClick={() => onStamp(g)} disabled={busy || !!issues} className={link} title={issues || 'Emitir el recibo de nómina (CFDI) de este pago'}>
+            {label}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // CFDI del distribuidor
+  if (v.status === 'registered') {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {pill('bg-green-50 text-green-700 ring-green-600/20', `CFDI ${v.folio ?? shortUuid(v.uuid)}`, [v.uuid, v.issuerName, v.total !== null ? formatAmount(v.total) : ''].filter(Boolean).join(' · '))}
+        {canPay && (
+          <button type="button" onClick={() => onUnlink(g)} disabled={busy} className={link} title="Quitar el CFDI registrado (el bono vuelve a quedar sin CFDI)">
+            Quitar
+          </button>
+        )}
+        {partial}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {pill('bg-amber-50 text-amber-700 ring-amber-600/20', 'Sin CFDI', 'El distribuidor debe emitir su CFDI a Tonic Life por este pago')}
+      {canPay && (
+        <button type="button" onClick={() => onRegister(g)} disabled={busy} className={link} title="Subir el XML del CFDI que emitió el distribuidor">
+          Registrar CFDI
+        </button>
+      )}
+    </div>
+  );
+}
 
 function GroupStatusBadge({ g }: { g: KitBonusGroup }) {
   if (g.paymentStatus === 'paid') {
@@ -176,6 +302,12 @@ interface GroupedTableProps {
   expanded: Set<string>;
   onToggleExpand: (key: string) => void;
   totalLabel: string;
+  /** Comprobante del grupo pagado (recibo de nómina / CFDI recibido). */
+  busyKey: string | null;
+  onStamp: (g: KitBonusGroup) => void;
+  onRegister: (g: KitBonusGroup) => void;
+  onUnlink: (g: KitBonusGroup) => void;
+  onDownload: (g: KitBonusGroup, ext: 'pdf' | 'xml') => void;
 }
 
 /** Un renglón por patrocinador: lo que Tesorería deposita. */
@@ -190,8 +322,13 @@ function GroupedTable({
   expanded,
   onToggleExpand,
   totalLabel,
+  busyKey,
+  onStamp,
+  onRegister,
+  onUnlink,
+  onDownload,
 }: GroupedTableProps) {
-  const colSpan = canPay ? 9 : 8;
+  const colSpan = canPay ? 10 : 9;
   return (
     <div className="overflow-x-auto">
       <Table className="min-w-full">
@@ -202,7 +339,7 @@ function GroupedTable({
                 <Checkbox checked={allSelected} onCheckedChange={onToggleAll} disabled={!anyPending} aria-label="Seleccionar todos los patrocinadores pendientes" />
               </TableHead>
             )}
-            {['Estatus', 'ID Upline', 'Upline', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos'].map((h) => (
+            {['Estatus', 'ID Upline', 'Upline', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos', 'Comprobante'].map((h) => (
               <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 {h}
               </TableHead>
@@ -255,6 +392,17 @@ function GroupedTable({
                   </TableCell>
                   <TableCell className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={g.items.map((i) => `${i.buyerNumber} ${i.buyerName}`).join(' · ')}>
                     {g.items.map((i) => i.buyerName).join(', ')}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 whitespace-nowrap">
+                    <VoucherCell
+                      g={g}
+                      canPay={canPay}
+                      busy={busyKey !== null}
+                      onStamp={onStamp}
+                      onRegister={onRegister}
+                      onUnlink={onUnlink}
+                      onDownload={onDownload}
+                    />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(g.subtotal, g.currencyCode)}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.isr ? formatAmount(g.isr) : '—'}</TableCell>
@@ -356,6 +504,13 @@ export default function BonosInscripcionPage() {
   }, [data]);
   const markMutation = useMarkKitBonusPayments();
   const revertMutation = useRevertKitBonusPayment();
+  // Comprobante del bono pagado: recibo de nómina (ASIMILADOS) o CFDI del distribuidor.
+  const stampMutation = useStampKitBonusPayroll();
+  const registerMutation = useRegisterKitBonusReceivedCfdi();
+  const unlinkMutation = useUnlinkKitBonusReceivedCfdi();
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [xmlFile, setXmlFile] = useState<File | null>(null);
+  const [stampAllProgress, setStampAllProgress] = useState<string | null>(null);
 
   const applyDates = useCallback((from: string, to: string) => {
     if (!from || !to) {
@@ -475,8 +630,100 @@ export default function BonosInscripcionPage() {
     setDialog({ kind, count, all: selectedVisible.length === 0 });
   };
 
+  // ---- Comprobante del bono pagado -------------------------------------------------
+  const readyPayroll = useMemo(() => groups.filter(isPayrollReady), [groups]);
+
+  const stampGroup = async (g: KitBonusGroup): Promise<boolean> => {
+    setBusyKey(g.key);
+    try {
+      const r = await stampMutation.mutateAsync(groupPaymentIds(g));
+      if (r.status === 'stamped' || r.status === 'sent') {
+        toast.success(`Recibo de nómina ${r.folio ?? ''} timbrado para ${g.sponsorName}`.replace(/\s+/g, ' '));
+        return true;
+      }
+      if (r.status === 'error') {
+        toast.error(`El PAC rechazó el recibo de ${g.sponsorName}: ${r.error ?? 'sin detalle'}`);
+        return false;
+      }
+      toast.info(`Recibo de ${g.sponsorName} en proceso (${r.status}); actualiza en unos segundos`);
+      return false;
+    } catch (err) {
+      toast.error(apiErrorMessage(err, `No se pudo timbrar el recibo de ${g.sponsorName}`));
+      return false;
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const submitStamp = async () => {
+    if (!dialog || dialog.kind !== 'stamp') return;
+    const g = dialog.group;
+    setDialog(null);
+    await stampGroup(g);
+  };
+
+  // Uno por uno (cada recibo es una llamada al PAC); se detiene en el primer error del PAC.
+  const stampAllReady = async () => {
+    const targets = readyPayroll;
+    if (targets.length === 0) return;
+    let ok = 0;
+    for (let i = 0; i < targets.length; i++) {
+      setStampAllProgress(`${i + 1}/${targets.length}`);
+      const done = await stampGroup(targets[i]);
+      if (!done) break;
+      ok++;
+    }
+    setStampAllProgress(null);
+    if (ok > 0) toast.success(`${ok} ${ok === 1 ? 'recibo timbrado' : 'recibos timbrados'}`);
+  };
+
+  const submitReceived = async () => {
+    if (!dialog || dialog.kind !== 'received' || !xmlFile) return;
+    const g = dialog.group;
+    setBusyKey(g.key);
+    try {
+      const r = await registerMutation.mutateAsync({
+        paymentIds: groupPaymentIds(g),
+        file: xmlFile,
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+      toast.success(`CFDI ${r.uuid.slice(0, 8)}… registrado (${formatAmount(r.total)}) para ${g.sponsorName}`);
+      setDialog(null);
+      setXmlFile(null);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo registrar el CFDI'));
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const submitUnlink = async () => {
+    if (!dialog || dialog.kind !== 'unlink' || !dialog.group.voucher?.id) return;
+    const g = dialog.group;
+    setBusyKey(g.key);
+    try {
+      await unlinkMutation.mutateAsync({ id: g.voucher!.id!, reason: notes.trim() || undefined });
+      toast.success('CFDI desvinculado: el pago vuelve a quedar sin comprobante');
+      setDialog(null);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo quitar el CFDI'));
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleDownloadVoucher = async (g: KitBonusGroup, ext: 'pdf' | 'xml') => {
+    const v = g.voucher;
+    if (!v?.id) return;
+    try {
+      await reportsService.downloadKitBonusPayrollFile(v.id, ext, `NOMINA_BONO_${g.sponsorNumber}_${(v.uuid ?? v.id).slice(0, 8)}.${ext}`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, `No se pudo descargar el ${ext.toUpperCase()}`));
+    }
+  };
+
   const submitMark = async () => {
-    if (!dialog || dialog.kind === 'revert') return;
+    if (!dialog || (dialog.kind !== 'paid' && dialog.kind !== 'excluded')) return;
     if (dialog.kind === 'excluded' && !notes.trim()) {
       toast.error('Indica el motivo por el que no se paga');
       return;
@@ -514,7 +761,13 @@ export default function BonosInscripcionPage() {
     }
   };
 
-  const busy = markMutation.isPending || revertMutation.isPending;
+  const busy =
+    markMutation.isPending ||
+    revertMutation.isPending ||
+    stampMutation.isPending ||
+    registerMutation.isPending ||
+    unlinkMutation.isPending ||
+    stampAllProgress !== null;
 
   return (
     <PermissionGuard permissions={['reports:read', 'reports:*']}>
@@ -735,6 +988,18 @@ export default function BonosInscripcionPage() {
                 <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || visiblePending.length === 0}>
                   Marcar como no pagados
                 </Button>
+                {view === 'grouped' && readyPayroll.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={stampAllReady}
+                    disabled={busy}
+                    className="border-[#3E667D] text-[#3E667D] hover:bg-[#3E667D]/5"
+                    title="Emite el recibo de nómina (CFDI) de cada pago ASIMILADOS que aún no lo tiene y ya trae RFC, CURP y CP; uno por uno"
+                  >
+                    {stampAllProgress ? `Timbrando ${stampAllProgress}…` : `Timbrar recibos (${readyPayroll.length})`}
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -773,6 +1038,18 @@ export default function BonosInscripcionPage() {
               expanded={expanded}
               onToggleExpand={toggleExpand}
               totalLabel={statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`}
+              busyKey={busy ? (busyKey ?? '*') : null}
+              onStamp={(g) => setDialog({ kind: 'stamp', group: g })}
+              onRegister={(g) => {
+                setNotes('');
+                setXmlFile(null);
+                setDialog({ kind: 'received', group: g });
+              }}
+              onUnlink={(g) => {
+                setNotes('');
+                setDialog({ kind: 'unlink', group: g });
+              }}
+              onDownload={handleDownloadVoucher}
             />
           ) : (
             <div className="overflow-x-auto">
@@ -973,6 +1250,89 @@ export default function BonosInscripcionPage() {
                   <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
                   <Button variant="destructive" onClick={submitRevert} disabled={busy}>
                     {busy ? 'Revirtiendo…' : 'Revertir'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+            {dialog?.kind === 'stamp' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Emitir recibo de nómina</DialogTitle>
+                  <DialogDescription>
+                    Se timbra ante el SAT un CFDI de nómina (ingresos asimilados a salarios) a nombre de{' '}
+                    <strong>{dialog.group.sponsorNumber} {dialog.group.sponsorName}</strong> por el pago del{' '}
+                    {formatDateDisplay(dialog.group.paidAt)} y se le envía por correo.
+                  </DialogDescription>
+                </DialogHeader>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <dt className="text-gray-500">Bonos (suscritos)</dt>
+                  <dd className="text-right tabular-nums">{dialog.group.bonuses}</dd>
+                  <dt className="text-gray-500">Percepción (bono)</dt>
+                  <dd className="text-right tabular-nums">{formatMoney(dialog.group.subtotal, dialog.group.currencyCode)}</dd>
+                  <dt className="text-gray-500">ISR retenido</dt>
+                  <dd className="text-right tabular-nums">{formatAmount(dialog.group.isr)}</dd>
+                  <dt className="font-semibold text-gray-700">Neto (depositado)</dt>
+                  <dd className="text-right font-semibold tabular-nums">{formatMoney(dialog.group.total, dialog.group.currencyCode)}</dd>
+                </dl>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button onClick={submitStamp} disabled={busy} className="bg-[#3E667D] hover:bg-[#2f5165] text-white">
+                    {busy ? 'Timbrando…' : 'Timbrar'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+            {dialog?.kind === 'received' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Registrar CFDI del distribuidor</DialogTitle>
+                  <DialogDescription>
+                    XML del CFDI que <strong>{dialog.group.sponsorNumber} {dialog.group.sponsorName}</strong> ({dialog.group.regime}) emitió a
+                    Tonic Life por el pago del {formatDateDisplay(dialog.group.paidAt)}. Debe ser de ingreso, con su RFC como emisor y por{' '}
+                    <strong>{formatMoney(dialog.group.total, dialog.group.currencyCode)}</strong> (neto pagado).
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="bonos-xml">Archivo XML</Label>
+                    <Input
+                      id="bonos-xml"
+                      type="file"
+                      accept=".xml,text/xml,application/xml"
+                      onChange={(e) => setXmlFile(e.target.files?.[0] ?? null)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="bonos-xml-notes">Comentario</Label>
+                    <Textarea id="bonos-xml-notes" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Opcional" rows={2} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button onClick={submitReceived} disabled={busy || !xmlFile} className="bg-[#3E667D] hover:bg-[#2f5165] text-white">
+                    {busy ? 'Registrando…' : 'Registrar'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+            {dialog?.kind === 'unlink' && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Quitar CFDI registrado</DialogTitle>
+                  <DialogDescription>
+                    El CFDI {dialog.group.voucher?.folio ?? shortUuid(dialog.group.voucher?.uuid ?? null)} deja de estar ligado al pago de{' '}
+                    <strong>{dialog.group.sponsorNumber} {dialog.group.sponsorName}</strong>; el registro queda como historial y se puede subir otro.
+                  </DialogDescription>
+                </DialogHeader>
+                <div>
+                  <Label htmlFor="bonos-unlink-reason">Motivo</Label>
+                  <Textarea id="bonos-unlink-reason" value={notes} maxLength={300} onChange={(e) => setNotes(e.target.value)} className="mt-1" placeholder="Opcional" rows={2} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDialog(null)} disabled={busy}>Cancelar</Button>
+                  <Button variant="destructive" onClick={submitUnlink} disabled={busy}>
+                    {busy ? 'Quitando…' : 'Quitar'}
                   </Button>
                 </DialogFooter>
               </>

@@ -88,6 +88,34 @@ export function useRevertKitBonusPayment() {
   });
 }
 
+/** Tesorería: emitir el recibo de nómina (CFDI N) de un grupo pagado ASIMILADOS; refresca el reporte pase lo que pase. */
+export function useStampKitBonusPayroll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentIds: string[]) => reportsService.stampKitBonusPayroll(paymentIds),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
+/** Tesorería: registrar el XML del CFDI que emitió el distribuidor por su bono. */
+export function useRegisterKitBonusReceivedCfdi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paymentIds, file, notes }: { paymentIds: string[]; file: File; notes?: string }) =>
+      reportsService.registerKitBonusReceivedCfdi(paymentIds, file, notes),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
+/** Tesorería: quitar un CFDI registrado (los bonos vuelven a quedar sin CFDI). */
+export function useUnlinkKitBonusReceivedCfdi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => reportsService.unlinkKitBonusReceivedCfdi(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
 export function useCashCutByBranch(query: CashCutQuery) {
   return useQuery({
     queryKey: ['reports', 'cash-cut', 'by-branch', query],

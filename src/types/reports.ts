@@ -643,10 +643,65 @@ export interface KitBonusRevertResult {
   reverted: boolean;
 }
 
+/** Comprobante fiscal de un grupo PAGADO (mig 165, 20-oct-2026). */
+export type KitBonusVoucherMode = 'payroll' | 'received_cfdi' | 'none';
+export type KitBonusVoucherStatus =
+  | 'not_stamped'
+  | 'in_progress'
+  | 'error'
+  | 'stamped'
+  | 'cancelled'
+  | 'missing'
+  | 'registered';
+
+export interface KitBonusGroupVoucher {
+  /** payroll = Tonic Life emite el recibo de nómina (ASIMILADOS, MXN); received_cfdi = el distribuidor emite su CFDI y Tesorería lo registra; none = no aplica. */
+  mode: KitBonusVoucherMode;
+  status: KitBonusVoucherStatus;
+  /** invoices.id del recibo de nómina o received_cfdis.id. */
+  id: string | null;
+  uuid: string | null;
+  folio: string | null;
+  issuedAt: string | null;
+  total: number | null;
+  /** Último error del PAC (nómina). */
+  error: string | null;
+  /** Emisor del CFDI recibido. */
+  issuerName: string | null;
+  /** Datos del patrocinador que faltan para timbrar (vacío = listo). */
+  issues: string[];
+  /** true = el comprobante no cubre todos los bonos del grupo. */
+  partial: boolean;
+}
+
+export interface KitBonusPayrollResult {
+  invoiceId: string;
+  status: string;
+  uuid: string | null;
+  folio: string | null;
+  error: string | null;
+}
+
+export interface ReceivedCfdiResult {
+  id: string;
+  uuid: string;
+  issuerName: string | null;
+  total: number;
+  issuedAt: string | null;
+  linked: number;
+}
+
+export interface UnlinkReceivedCfdiResult {
+  id: string;
+  released: number;
+}
+
 /** Un bono (suscrito) dentro del grupo de un patrocinador. */
 export interface KitBonusGroupItem {
   source: 'pos' | 'online';
   itemId: string;
+  /** kit_bonus_payments.id (pagado/excluido); null si está pendiente. */
+  paymentId: string | null;
   buyerNumber: string;
   buyerName: string;
   kitType: string;
@@ -680,6 +735,8 @@ export interface KitBonusGroup {
   /** true = más de un bono pendiente: impuestos calculados sobre la suma. */
   recomputed: boolean;
   items: KitBonusGroupItem[];
+  /** Comprobante del grupo pagado; null en pendientes/excluidos (o API sin la mig 165). */
+  voucher: KitBonusGroupVoucher | null;
 }
 
 export interface KitBonusesResponse {

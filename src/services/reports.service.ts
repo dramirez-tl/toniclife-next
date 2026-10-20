@@ -33,7 +33,10 @@ import type {
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
   KitBonusPaymentsResult,
+  KitBonusPayrollResult,
   KitBonusRevertResult,
+  ReceivedCfdiResult,
+  UnlinkReceivedCfdiResult,
   CashCutQuery,
   CashCutResponse,
 } from '@/types/reports';
@@ -370,6 +373,38 @@ class ReportsService {
   /** Backend: POST /reports/kit-bonuses/payments/:id/revert (el bono vuelve a pendiente). */
   async revertKitBonusPayment(id: string, reason?: string): Promise<KitBonusRevertResult> {
     const response = await api.post<KitBonusRevertResult>(`/reports/kit-bonuses/payments/${id}/revert`, {
+      ...(reason ? { reason } : {}),
+    });
+    return response.data;
+  }
+
+  /** Backend: POST /reports/kit-bonuses/payroll/stamp (recibo de nómina de un grupo pagado ASIMILADOS). */
+  async stampKitBonusPayroll(paymentIds: string[]): Promise<KitBonusPayrollResult> {
+    const response = await api.post<KitBonusPayrollResult>('/reports/kit-bonuses/payroll/stamp', { paymentIds });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/kit-bonuses/payroll/:invoiceId/:ext → descarga el PDF/XML del recibo. */
+  async downloadKitBonusPayrollFile(invoiceId: string, ext: 'pdf' | 'xml', filename: string): Promise<void> {
+    const response = await api.get(`/reports/kit-bonuses/payroll/${invoiceId}/${ext}`, { responseType: 'blob' });
+    saveBlob(response.data as BlobPart, filename, ext === 'pdf' ? 'application/pdf' : 'application/xml');
+  }
+
+  /** Backend: POST /reports/kit-bonuses/received-cfdi (XML del CFDI que emitió el distribuidor por su bono). */
+  async registerKitBonusReceivedCfdi(paymentIds: string[], file: File, notes?: string): Promise<ReceivedCfdiResult> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('paymentIds', JSON.stringify(paymentIds));
+    if (notes) form.append('notes', notes);
+    const response = await api.post<ReceivedCfdiResult>('/reports/kit-bonuses/received-cfdi', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  /** Backend: POST /reports/kit-bonuses/received-cfdi/:id/unlink (quita el CFDI registrado). */
+  async unlinkKitBonusReceivedCfdi(id: string, reason?: string): Promise<UnlinkReceivedCfdiResult> {
+    const response = await api.post<UnlinkReceivedCfdiResult>(`/reports/kit-bonuses/received-cfdi/${id}/unlink`, {
       ...(reason ? { reason } : {}),
     });
     return response.data;
