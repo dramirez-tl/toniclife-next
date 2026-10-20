@@ -489,11 +489,29 @@ export interface SalesByUserQuery {
   startDate: string;
   endDate: string;
   sellerIds?: string[];
+  /** Distribuidor: número (v2 o legacy) o parte del nombre. */
+  customer?: string;
+}
+
+/** Vendedor con ventas en el rango (GET reports/sales/by-user/sellers). */
+export interface SalesByUserSeller {
+  id: string;
+  username: string;
+  name: string;
+  roleCode: string | null;
+  roleName: string | null;
+  sales: number;
 }
 
 export interface SaleByUserRow {
+  /** pos_sales.id: abre el detalle (GET pos/sales/:id). */
+  saleId: string;
   date: string;
   saleNumber: string;
+  paymentMethod: string;
+  units: number;
+  points: number;
+  capturedVia: 'terminal' | 'usuario';
   branchName: string;
   currencyCode: string;
   customerId: string;

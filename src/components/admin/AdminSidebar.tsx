@@ -160,15 +160,18 @@ const navigation: NavItem[] = [
     name: 'Reportes',
     href: '/admin/reportes',
     icon: ChartBarIcon,
-    permissions: ['reports:read', 'reports', 'reports.sales'],
+    // reports:sales_lookup (mig 163): Call Center ve SOLO "Ventas por Usuario"
+    // (consulta de ventas por distribuidor con detalle); los demás reportes
+    // siguen exigiendo reports:read.
+    permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'],
     children: [
-      { name: 'Ventas', href: '/admin/reportes/ventas' },
-      { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal' },
-      { name: 'Ventas por Usuario', href: '/admin/reportes/ventas-usuario' },
-      { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto' },
+      { name: 'Ventas', href: '/admin/reportes/ventas', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      { name: 'Ventas por Usuario', href: '/admin/reportes/ventas-usuario', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'] },
+      { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
       // Formato del sistema anterior (Tesorería): bono por suscrito y corte de caja.
-      { name: 'Bono de Inscripción', href: '/admin/reportes/bonos' },
-      { name: 'Corte de Caja', href: '/admin/reportes/corte-caja' },
+      { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },
     ],
   },
   {

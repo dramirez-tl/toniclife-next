@@ -29,6 +29,7 @@ import type {
   ProductByPeriodResponse,
   SalesByUserQuery,
   SalesByUserResponse,
+  SalesByUserSeller,
   KitBonusesResponse,
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
@@ -314,9 +315,18 @@ class ReportsService {
         params.append('sellerIds', id);
       }
     }
+    if (query.customer?.trim()) params.append('customer', query.customer.trim());
     const response = await api.get<SalesByUserResponse>(
       `/reports/sales/by-user?${params.toString()}`
     );
+    return response.data;
+  }
+
+  /** Vendedores con ventas completadas en el rango (filtro de Ventas por usuario). */
+  async getSalesByUserSellers(startDate: string, endDate: string): Promise<SalesByUserSeller[]> {
+    const response = await api.get<SalesByUserSeller[]>('/reports/sales/by-user/sellers', {
+      params: { startDate, endDate },
+    });
     return response.data;
   }
 

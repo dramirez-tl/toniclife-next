@@ -1,18 +1,23 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSalesByUser } from '@/hooks/useReports';
+// Reportes › Ventas por Usuario — ventas del POS por vendedor y por distribuidor,
+// con detalle de cada venta. La usan Reportes (reports:read) y Call Center
+// (reports:sales_lookup, mig 163) para consultar las compras de un cliente.
+//
+// - Vendedores: salen de las ventas reales del periodo (GET sales/by-user/sellers),
+//   no de los roles: aparecen CEDEAS, Operaciones o la terminal cuando vendieron.
+// - Distribuidor: número (v2 o legacy) o parte del nombre; el API filtra.
+// - Detalle: clic en el folio abre la venta (productos, precios, pagos, puntos).
+
+import { useState, useMemo, useCallback } from 'react';
+import { useSalesByUser, useSalesByUserSellers } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
-import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from '@/components/ui/popover';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Table,
   TableHeader,
@@ -22,15 +27,18 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import type { User } from '@/types/user';
+import { PermissionGuard } from '@/components/auth';
+import { paymentMethodLabel } from '@/lib/delivery-print';
+import { DEFAULT_TIMEZONE, formatDateTimeLocal } from '@/lib/timezone-utils';
+import type { SaleByUserRow } from '@/types/reports';
+import { SaleQuickDetail } from './SaleQuickDetail';
 
 function toDateOnly(dateStr: string): string {
   return dateStr.slice(0, 10);
 }
 
 function formatDateDisplay(dateStr: string): string {
-  const d = toDateOnly(dateStr);
-  const [y, m, day] = d.split('-');
+  const [y, m, day] = toDateOnly(dateStr).split('-');
   return `${day}/${m}/${y}`;
 }
 
@@ -43,63 +51,53 @@ function formatCurrency(value: number, currency: string = 'MXN'): string {
   }).format(value);
 }
 
-function formatSaleDate(isoStr: string): string {
-  const d = new Date(isoStr);
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
+const num = (v: number) => v.toLocaleString('es-MX', { maximumFractionDigits: 2 });
+
+const TH = 'px-4 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap';
 
 export default function VentasUsuarioPage() {
-  // Periods for date range
+  return (
+    <PermissionGuard permissions={['reports:read', 'reports:sales_lookup']}>
+      <VentasUsuarioContent />
+    </PermissionGuard>
+  );
+}
+
+function VentasUsuarioContent() {
   const { data: periods, isLoading: periodsLoading } = usePeriods();
   const { data: currentPeriod } = useCurrentPeriod();
 
-  // Users for seller filter (call_center + sucursales roles)
-  const { data: callCenterUsers } = useUsers({ role: 'call_center', limit: 200 });
-  const { data: sucursalesUsers } = useUsers({ role: 'sucursales', limit: 200 });
-
-  const sellerOptions = useMemo<User[]>(() => {
-    const users: User[] = [];
-    if (callCenterUsers?.data) users.push(...callCenterUsers.data);
-    if (sucursalesUsers?.data) users.push(...sucursalesUsers.data);
-    return users.sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-  }, [callCenterUsers, sucursalesUsers]);
-
-  // Period selector
-  const [selectedPeriodId, setSelectedPeriodId] = useState('');
-
-  // Seller filter (multi-select)
-  const [selectedSellerIds, setSelectedSellerIds] = useState<string[]>([]);
-
-  // Applied query state
-  const [appliedStart, setAppliedStart] = useState('');
-  const [appliedEnd, setAppliedEnd] = useState('');
-  const [appliedSellerIds, setAppliedSellerIds] = useState<string[]>([]);
-
-  const sortedPeriods = useMemo(() => {
-    if (!periods) return [];
-    return [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate));
-  }, [periods]);
-
-  // Auto-select current period
-  useEffect(() => {
-    if (currentPeriod && !selectedPeriodId) {
-      setSelectedPeriodId(currentPeriod.id);
-    }
-  }, [currentPeriod, selectedPeriodId]);
-
+  // Periodo elegido (sin elegir = el actual, sin efectos).
+  const [chosenPeriodId, setChosenPeriodId] = useState('');
+  const selectedPeriodId = chosenPeriodId || currentPeriod?.id || '';
+  const sortedPeriods = useMemo(
+    () => (periods ? [...periods].sort((a, b) => b.startDate.localeCompare(a.startDate)) : []),
+    [periods],
+  );
   const selectedPeriod = useMemo(
     () => periods?.find((p) => p.id === selectedPeriodId),
     [periods, selectedPeriodId],
   );
+  const periodStart = selectedPeriod ? toDateOnly(selectedPeriod.startDate) : '';
+  const periodEnd = selectedPeriod ? toDateOnly(selectedPeriod.endDate) : '';
+
+  // Vendedores con ventas en el periodo elegido.
+  const { data: sellers = [], isLoading: sellersLoading } = useSalesByUserSellers(periodStart, periodEnd);
+  const [selectedSellerIds, setSelectedSellerIds] = useState<string[]>([]);
+  const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false);
+  const sellerName = (id: string) => sellers.find((s) => s.id === id)?.name ?? id;
+
+  // Distribuidor (número o nombre).
+  const [customerInput, setCustomerInput] = useState('');
+
+  // Consulta aplicada (solo cambia al presionar Consultar).
+  const [applied, setApplied] = useState<{ start: string; end: string; sellerIds: string[]; customer: string } | null>(null);
 
   const { data, isLoading, error, isFetching } = useSalesByUser({
-    startDate: appliedStart,
-    endDate: appliedEnd,
-    sellerIds: appliedSellerIds.length > 0 ? appliedSellerIds : undefined,
+    startDate: applied?.start ?? '',
+    endDate: applied?.end ?? '',
+    sellerIds: applied && applied.sellerIds.length > 0 ? applied.sellerIds : undefined,
+    customer: applied?.customer || undefined,
   });
 
   const handleApply = useCallback(() => {
@@ -107,54 +105,58 @@ export default function VentasUsuarioPage() {
       toast.error('Selecciona un periodo');
       return;
     }
-    setAppliedStart(toDateOnly(selectedPeriod.startDate));
-    setAppliedEnd(toDateOnly(selectedPeriod.endDate));
-    setAppliedSellerIds([...selectedSellerIds]);
-  }, [selectedPeriod, selectedSellerIds]);
+    setSellerDropdownOpen(false);
+    setApplied({
+      start: toDateOnly(selectedPeriod.startDate),
+      end: toDateOnly(selectedPeriod.endDate),
+      sellerIds: [...selectedSellerIds],
+      customer: customerInput.trim(),
+    });
+  }, [selectedPeriod, selectedSellerIds, customerInput]);
 
-  const toggleSeller = (id: string) => {
-    setSelectedSellerIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
-  };
+  const toggleSeller = (id: string) =>
+    setSelectedSellerIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
 
-  const clearSellers = () => setSelectedSellerIds([]);
-  const selectAllSellers = () => setSelectedSellerIds(sellerOptions.map((u) => u.id));
+  const rows = useMemo(() => data?.rows ?? [], [data]);
+  const hasData = rows.length > 0;
+  const totals = useMemo(
+    () => ({
+      units: rows.reduce((s, r) => s + (r.units ?? 0), 0),
+      points: rows.reduce((s, r) => s + (r.points ?? 0), 0),
+      customers: new Set(rows.map((r) => r.customerId).filter(Boolean)).size,
+    }),
+    [rows],
+  );
 
-  const hasData = !!data?.rows?.length;
+  const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
 
-  // CSV Export
   const handleExportCSV = () => {
-    if (!hasData || !data) return;
-
-    const headers = ['Fecha', 'No. Documento', 'Sucursal', 'ID Cliente', 'Cliente', 'Usuario', 'Venta Total', 'Venta USD'];
-    const csvRows = data.rows.map((row) => [
-      formatSaleDate(row.date),
+    if (!hasData || !applied) return;
+    const headers = ['Fecha', 'Folio', 'Sucursal', 'No. Distribuidor', 'Distribuidor', 'Vendedor', 'Canal', 'Pago', 'Piezas', 'Puntos', 'Moneda', 'Total'];
+    const csvRows = rows.map((row: SaleByUserRow) => [
+      formatDateTimeLocal(row.date, DEFAULT_TIMEZONE),
       row.saleNumber,
       row.branchName,
       row.customerId,
       row.customerName,
-      row.sellerUsername,
+      row.sellerName || row.sellerUsername,
+      row.capturedVia === 'usuario' ? 'Call center' : 'Terminal',
+      paymentMethodLabel(row.paymentMethod),
+      String(row.units ?? 0),
+      String(row.points ?? 0),
+      row.currencyCode,
       row.total.toFixed(2),
-      row.totalUsd.toFixed(2),
     ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...csvRows.map((r) => r.map((c) => `"${c}"`).join(',')),
-    ].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [headers.join(','), ...csvRows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ventas_usuario_${appliedStart}_${appliedEnd}.csv`;
+    link.download = `ventas_usuario_${applied.start}_${applied.end}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Reporte exportado exitosamente');
+    toast.success('Reporte exportado');
   };
-
-  // Seller dropdown open state
-  const [sellerDropdownOpen, setSellerDropdownOpen] = useState(false);
 
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
@@ -166,7 +168,7 @@ export default function VentasUsuarioPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Ventas por Usuario</h1>
             <p className="text-sm text-white/70 mt-1">
-              Detalle de ventas por vendedor (Call Center / Sucursales)
+              Ventas del POS por vendedor o por distribuidor, con el detalle de cada venta
             </p>
           </div>
           <Button
@@ -183,26 +185,22 @@ export default function VentasUsuarioPage() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[#3E667D]">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-          </svg>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Filtros de busqueda</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-          {/* Period selector */}
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-700">Filtros de búsqueda</h2>
+        <div className="grid grid-cols-1 gap-4 items-end md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Periodo</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">Periodo</label>
             <SearchableSelect
               options={sortedPeriods.map((p) => ({
                 value: p.id,
                 label: `${p.name} (${formatDateDisplay(p.startDate)} - ${formatDateDisplay(p.endDate)})${p.isCurrent ? ' — Actual' : ''}`,
               }))}
               value={selectedPeriodId}
-              onChange={(v) => setSelectedPeriodId(v)}
+              onChange={(v) => {
+                setChosenPeriodId(v);
+                setSelectedSellerIds([]);
+              }}
               disabled={periodsLoading}
               showAllOption={false}
               allLabel="Selecciona un periodo"
@@ -211,26 +209,32 @@ export default function VentasUsuarioPage() {
             />
           </div>
 
-          {/* Seller multi-select */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Usuarios vendedores
-              {selectedSellerIds.length > 0 && (
-                <span className="ml-1 text-[#3E667D]">({selectedSellerIds.length})</span>
-              )}
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">Distribuidor</label>
+            <Input
+              value={customerInput}
+              onChange={(e) => setCustomerInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleApply();
+              }}
+              placeholder="Número o nombre del distribuidor"
+              className="bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">
+              Vendedores
+              {selectedSellerIds.length > 0 && <span className="ml-1 text-[#3E667D]">({selectedSellerIds.length})</span>}
             </label>
             <Popover open={sellerDropdownOpen} onOpenChange={setSellerDropdownOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between bg-gray-50 text-gray-900 text-left font-normal"
-                >
+                <Button type="button" variant="outline" className="w-full justify-between bg-gray-50 text-left font-normal text-gray-900">
                   <span className="truncate">
                     {selectedSellerIds.length === 0
-                      ? 'Todos los usuarios'
+                      ? 'Todos los vendedores'
                       : selectedSellerIds.length === 1
-                        ? sellerOptions.find((u) => u.id === selectedSellerIds[0])?.firstName || '1 seleccionado'
+                        ? sellerName(selectedSellerIds[0])
                         : `${selectedSellerIds.length} seleccionados`}
                   </span>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="ml-2 h-4 w-4 shrink-0 text-gray-400">
@@ -238,45 +242,34 @@ export default function VentasUsuarioPage() {
                   </svg>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-[--radix-popover-trigger-width] min-w-[240px] p-0 max-h-72 overflow-y-auto"
-              >
-                <div className="sticky top-0 bg-white border-b border-gray-100 px-3 py-2 flex gap-2 z-10">
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={selectAllSellers}
-                    className="h-auto p-0 text-xs text-[#3E667D]"
-                  >
+              <PopoverContent align="start" className="w-[--radix-popover-trigger-width] min-w-[280px] max-h-80 overflow-y-auto p-0">
+                <div className="sticky top-0 z-10 flex gap-2 border-b border-gray-100 bg-white px-3 py-2">
+                  <Button type="button" variant="link" size="sm" onClick={() => setSelectedSellerIds(sellers.map((s) => s.id))} className="h-auto p-0 text-xs text-[#3E667D]">
                     Seleccionar todos
                   </Button>
                   <span className="text-gray-300">|</span>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    onClick={clearSellers}
-                    className="h-auto p-0 text-xs text-gray-500"
-                  >
+                  <Button type="button" variant="link" size="sm" onClick={() => setSelectedSellerIds([])} className="h-auto p-0 text-xs text-gray-500">
                     Limpiar
                   </Button>
                 </div>
-                {sellerOptions.length === 0 ? (
-                  <div className="px-3 py-4 text-xs text-gray-400 text-center">No se encontraron usuarios</div>
+                {sellersLoading ? (
+                  <div className="px-3 py-4 text-center text-xs text-gray-400">Cargando vendedores…</div>
+                ) : sellers.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-xs text-gray-400">
+                    {periodStart ? 'Nadie ha vendido en este periodo' : 'Elige un periodo'}
+                  </div>
                 ) : (
-                  sellerOptions.map((u) => (
-                    <label
-                      key={u.id}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      <Checkbox
-                        checked={selectedSellerIds.includes(u.id)}
-                        onCheckedChange={() => toggleSeller(u.id)}
-                      />
-                      <span className="text-gray-900">{u.firstName} {u.lastName}</span>
-                      <span className="ml-auto text-xs text-gray-400">{u.role.name}</span>
+                  sellers.map((s) => (
+                    <label key={s.id} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50">
+                      <Checkbox checked={selectedSellerIds.includes(s.id)} onCheckedChange={() => toggleSeller(s.id)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-gray-900">{s.name}</span>
+                        <span className="block truncate text-[11px] text-gray-400">
+                          {s.username}
+                          {s.roleName ? ` · ${s.roleName}` : ''}
+                        </span>
+                      </span>
+                      <span className="text-xs tabular-nums text-gray-500">{s.sales}</span>
                     </label>
                   ))
                 )}
@@ -284,12 +277,7 @@ export default function VentasUsuarioPage() {
             </Popover>
           </div>
 
-          {/* Apply button */}
-          <Button
-            onClick={() => { handleApply(); setSellerDropdownOpen(false); }}
-            disabled={isFetching || !selectedPeriodId}
-            className="active:scale-[0.98] whitespace-nowrap"
-          >
+          <Button onClick={handleApply} disabled={isFetching || !selectedPeriodId} className="whitespace-nowrap active:scale-[0.98]">
             {isFetching ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -306,115 +294,107 @@ export default function VentasUsuarioPage() {
           </Button>
         </div>
 
-        {/* Active filters chips */}
-        {appliedSellerIds.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+        {applied && (applied.sellerIds.length > 0 || applied.customer) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-gray-500">Filtros:</span>
-            {appliedSellerIds.map((sid) => {
-              const u = sellerOptions.find((s) => s.id === sid);
-              return (
-                <span key={sid} className="inline-flex items-center rounded-full bg-[#3E667D]/10 px-2.5 py-0.5 text-xs font-medium text-[#3E667D]">
-                  {u ? `${u.firstName} ${u.lastName}` : sid}
-                </span>
-              );
-            })}
+            {applied.customer && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                Distribuidor: {applied.customer}
+              </span>
+            )}
+            {applied.sellerIds.map((sid) => (
+              <span key={sid} className="inline-flex items-center rounded-full bg-[#3E667D]/10 px-2.5 py-0.5 text-xs font-medium text-[#3E667D]">
+                {sellerName(sid)}
+              </span>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Summary Cards */}
+      {/* Resumen */}
       {data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Total Ventas MXN</p>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(data.summary.totalSales, 'MXN')}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Total Ventas USD</p>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(data.summary.totalUsd, 'USD')}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Documentos</p>
-            <p className="text-lg font-bold text-gray-900">{data.summary.totalDocuments.toLocaleString()}</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Ticket Promedio</p>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(data.summary.averageTicket, 'MXN')}</p>
-          </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+          {[
+            { label: 'Total MXN', value: formatCurrency(data.summary.totalSales, 'MXN') },
+            { label: 'Total USD', value: formatCurrency(data.summary.totalUsd, 'USD') },
+            { label: 'Ventas', value: data.summary.totalDocuments.toLocaleString() },
+            { label: 'Distribuidores', value: totals.customers.toLocaleString() },
+            { label: 'Piezas', value: num(totals.units) },
+            { label: 'Puntos', value: num(totals.points) },
+          ].map((c) => (
+            <div key={c.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">{c.label}</p>
+              <p className="text-lg font-bold text-gray-900">{c.value}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {/* Tabla */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {isLoading || isFetching ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
             <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-[#3E667D]" />
             <span className="text-sm text-gray-400">Generando reporte...</span>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-red-400">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-              </svg>
-            </div>
-            <p className="text-sm text-red-500 font-medium">Error al cargar el reporte</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <p className="text-sm font-medium text-red-500">Error al cargar el reporte</p>
             <Button variant="link" size="sm" onClick={handleApply} className="text-xs text-[#3E667D]">Reintentar</Button>
           </div>
-        ) : !appliedStart ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-300">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-400">Selecciona un periodo y presiona Consultar</p>
+        ) : !applied ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <p className="text-sm text-gray-400">Elige el periodo, opcionalmente un distribuidor o vendedores, y presiona Consultar</p>
           </div>
         ) : !hasData ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-gray-300">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-400">No se encontraron ventas en el periodo seleccionado</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <p className="text-sm text-gray-400">No se encontraron ventas con esos filtros</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <div className="px-6 py-3 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Detalle de ventas</span>
-              <span className="text-xs text-gray-400">{data.rows.length.toLocaleString()} registros</span>
+            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/50 px-6 py-3">
+              <span className="text-sm font-medium text-gray-700">Detalle de ventas · clic en el folio para ver la venta</span>
+              <span className="text-xs text-gray-400">{rows.length.toLocaleString()} registros</span>
             </div>
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Fecha</TableHead>
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">No. Documento</TableHead>
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Sucursal</TableHead>
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">ID Cliente</TableHead>
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Cliente</TableHead>
-                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Usuario</TableHead>
-                  <TableHead className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta Total</TableHead>
-                  <TableHead className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta USD</TableHead>
+                  <TableHead className={`${TH} text-left`}>Fecha</TableHead>
+                  <TableHead className={`${TH} text-left`}>Folio</TableHead>
+                  <TableHead className={`${TH} text-left`}>Sucursal</TableHead>
+                  <TableHead className={`${TH} text-left`}>Distribuidor</TableHead>
+                  <TableHead className={`${TH} text-left`}>Vendedor</TableHead>
+                  <TableHead className={`${TH} text-left`}>Pago</TableHead>
+                  <TableHead className={`${TH} text-right`}>Piezas</TableHead>
+                  <TableHead className={`${TH} text-right`}>Puntos</TableHead>
+                  <TableHead className={`${TH} text-right`}>Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.rows.map((row, idx) => (
+                {rows.map((row, idx) => (
                   <TableRow
-                    key={`${row.saleNumber}-${idx}`}
-                    className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    key={row.saleId || `${row.saleNumber}-${idx}`}
+                    className={`cursor-pointer border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.04] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    onClick={() => row.saleId && setDetailSaleId(row.saleId)}
                   >
-                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatSaleDate(row.date)}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm font-mono font-medium text-gray-900 whitespace-nowrap">{row.saleNumber}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap max-w-[200px] truncate" title={row.branchName}>{row.branchName}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm font-mono text-gray-500 whitespace-nowrap">{row.customerId}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-[220px] truncate" title={row.customerName}>{row.customerName}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.sellerUsername}</TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap font-medium text-gray-900">
-                      {row.total > 0 ? formatCurrency(row.total, row.currencyCode === 'USD' ? 'USD' : 'MXN') : formatCurrency(0, 'MXN')}
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{formatDateTimeLocal(row.date, DEFAULT_TIMEZONE)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 font-mono text-sm font-medium text-[#3E667D] underline-offset-2 hover:underline">{row.saleNumber}</TableCell>
+                    <TableCell className="max-w-[200px] truncate whitespace-nowrap px-4 py-3 text-sm text-gray-600" title={row.branchName}>{row.branchName}</TableCell>
+                    <TableCell className="max-w-[260px] truncate whitespace-nowrap px-4 py-3 text-sm text-gray-700" title={`${row.customerId} ${row.customerName}`}>
+                      {row.customerId ? <span className="font-mono text-gray-500">{row.customerId} </span> : null}
+                      {row.customerName}
                     </TableCell>
-                    <TableCell className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap text-gray-600">
-                      {row.totalUsd > 0 ? formatCurrency(row.totalUsd, 'USD') : formatCurrency(0, 'USD')}
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
+                      {row.sellerName || row.sellerUsername}
+                      <span className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${row.capturedVia === 'usuario' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'}`}>
+                        {row.capturedVia === 'usuario' ? 'CC' : 'Terminal'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">{paymentMethodLabel(row.paymentMethod)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-700">{row.units ?? 0}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-700">{num(row.points ?? 0)}</TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-900">
+                      {formatCurrency(row.total, row.currencyCode === 'USD' ? 'USD' : 'MXN')}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -422,11 +402,11 @@ export default function VentasUsuarioPage() {
               <TableFooter className="bg-transparent">
                 <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
                   <TableCell colSpan={6} className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
-                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
-                    {formatCurrency(data.summary.totalSales, 'MXN')}
-                  </TableCell>
-                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
-                    {formatCurrency(data.summary.totalUsd, 'USD')}
+                  <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">{num(totals.units)}</TableCell>
+                  <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">{num(totals.points)}</TableCell>
+                  <TableCell className="px-4 py-4 text-right text-sm font-bold tabular-nums text-[#3E667D]">
+                    {formatCurrency(data?.summary.totalSales ?? 0, 'MXN')}
+                    {(data?.summary.totalUsd ?? 0) > 0 ? <span className="block text-xs font-semibold">{formatCurrency(data?.summary.totalUsd ?? 0, 'USD')}</span> : null}
                   </TableCell>
                 </TableRow>
               </TableFooter>
@@ -434,6 +414,8 @@ export default function VentasUsuarioPage() {
           </div>
         )}
       </div>
+
+      <SaleQuickDetail saleId={detailSaleId} onClose={() => setDetailSaleId(null)} />
     </div>
   );
 }
