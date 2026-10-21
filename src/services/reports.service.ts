@@ -37,6 +37,8 @@ import type {
   KitBonusRevertResult,
   ReceivedCfdiResult,
   UnlinkReceivedCfdiResult,
+  SalesByProductDetailQuery,
+  SalesByProductDetailResponse,
   CashCutQuery,
   CashCutResponse,
 } from '@/types/reports';
@@ -411,6 +413,35 @@ class ReportsService {
   }
 
   /** Backend: GET /reports/cash-cut/by-branch (corte de caja de una sucursal). */
+  /** Backend: GET /reports/sales/by-product-detail (cada producto vendido con el folio de su venta). */
+  async getSalesByProductDetail(query: SalesByProductDetailQuery): Promise<SalesByProductDetailResponse> {
+    const response = await api.get<SalesByProductDetailResponse>('/reports/sales/by-product-detail', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.productId ? { productId: query.productId } : {}),
+        ...(query.search ? { search: query.search } : {}),
+      },
+    });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/sales/by-product-detail/xlsx → VENTAS_POR_PRODUCTO_<fecha>.xlsx */
+  async downloadSalesByProductDetailXlsx(query: SalesByProductDetailQuery): Promise<void> {
+    const response = await api.get('/reports/sales/by-product-detail/xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.productId ? { productId: query.productId } : {}),
+        ...(query.search ? { search: query.search } : {}),
+      },
+      responseType: 'blob',
+    });
+    saveBlob(response.data as BlobPart, `VENTAS_POR_PRODUCTO_${downloadStamp()}.xlsx`, XLSX_MIME);
+  }
+
   async getCashCutByBranch(query: CashCutQuery): Promise<CashCutResponse> {
     const response = await api.get<CashCutResponse>('/reports/cash-cut/by-branch', {
       params: {

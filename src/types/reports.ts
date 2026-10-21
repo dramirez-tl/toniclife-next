@@ -788,3 +788,66 @@ export interface CashCutResponse {
   summary: CashCutSummaryRow[];
   rows: CashCutRow[];
 }
+
+// ================================
+// VENTAS POR PRODUCTO CON FOLIO (CEDEAS, 21-oct-2026)
+// ================================
+
+export interface SalesByProductDetailQuery extends DateRangeQuery {
+  branchId?: string;
+  productId?: string;
+  /** Clave o nombre del producto (contiene). */
+  search?: string;
+}
+
+/** Un renglón de venta POS completada (día y hora locales de la sucursal). */
+export interface ProductSaleLine {
+  saleId: string;
+  saleNumber: string;
+  saleDate: string;
+  saleTime: string;
+  branchId: string;
+  branchCode: string;
+  branchName: string;
+  currencyCode: string;
+  customerNumber: string | null;
+  customerName: string;
+  productId: string;
+  productSku: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  points: number;
+  paymentMethod: string;
+  sellerName: string;
+}
+
+export interface ProductSalesSummary {
+  productId: string;
+  productSku: string;
+  productName: string;
+  /** Ventas (folios) distintas. */
+  salesCount: number;
+  units: number;
+  amount: number;
+  points: number;
+  lines: ProductSaleLine[];
+}
+
+export interface SalesByProductTotals {
+  sales: number;
+  lines: number;
+  units: number;
+  amount: number;
+  points: number;
+}
+
+export interface SalesByProductDetailResponse {
+  startDate: string;
+  endDate: string;
+  branchId: string | null;
+  branchLabel: string;
+  totals: SalesByProductTotals;
+  products: ProductSalesSummary[];
+}

@@ -174,6 +174,8 @@ const navigation: NavItem[] = [
       { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Ventas por Usuario', href: '/admin/reportes/ventas-usuario', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'] },
       { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
+      { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
       // Formato del sistema anterior (Tesorería): bono por suscrito y corte de caja.
       { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },

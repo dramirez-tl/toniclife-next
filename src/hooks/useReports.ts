@@ -15,6 +15,7 @@ import type {
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
   CashCutQuery,
+  SalesByProductDetailQuery,
 } from '@/types/reports';
 
 // ================================
@@ -113,6 +114,15 @@ export function useUnlinkKitBonusReceivedCfdi() {
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason?: string }) => reportsService.unlinkKitBonusReceivedCfdi(id, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
+/** Cada producto vendido con el folio de su venta (resurtido de tiendas, CEDEAS). */
+export function useSalesByProductDetail(query: SalesByProductDetailQuery) {
+  return useQuery({
+    queryKey: ['reports', 'sales', 'by-product-detail', query],
+    queryFn: () => reportsService.getSalesByProductDetail(query),
+    enabled: !!query.startDate && !!query.endDate,
   });
 }
 
