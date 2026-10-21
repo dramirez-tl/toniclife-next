@@ -259,6 +259,22 @@ function MovementsListContent({
         render: (m) => inventoryService.getMovementReasonLabel(m.reason),
       },
       {
+        // Referencia y notas capturadas al crear el movimiento: así CEDEAS
+        // identifica cada pedido ("Pedido Mochis octubre") sin abrirlo.
+        key: 'referenceNumber',
+        header: 'Referencia',
+        cellClassName: 'max-w-[260px]',
+        render: (m) =>
+          m.referenceNumber || m.notes ? (
+            <div className="min-w-0" title={[m.referenceNumber, m.notes].filter(Boolean).join(' · ')}>
+              {m.referenceNumber && <p className="truncate font-medium text-gray-800">{m.referenceNumber}</p>}
+              {m.notes && <p className="truncate text-xs text-gray-500">{m.notes}</p>}
+            </div>
+          ) : (
+            <span className="text-gray-300">—</span>
+          ),
+      },
+      {
         key: 'totalItems',
         header: 'Items',
         headerClassName: 'text-center',
@@ -477,7 +493,7 @@ function MovementsListContent({
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Buscar por No. de movimiento..."
+                      placeholder="Buscar por No. de movimiento, referencia o notas..."
                       value={searchInput || ''}
                       onChange={(e) => setSearchInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

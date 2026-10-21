@@ -244,6 +244,22 @@ function TraspasosContent() {
         ),
       },
       {
+        // Motivo y notas que capturó quien pidió el traspaso ("Pedido Mochis
+        // octubre"): CEDEAS identifica así cada pedido sin abrirlo.
+        key: 'reason',
+        header: 'Motivo',
+        cellClassName: 'max-w-[280px]',
+        render: (transfer) =>
+          transfer.reason || transfer.notes ? (
+            <div className="min-w-0" title={[transfer.reason, transfer.notes].filter(Boolean).join(' · ')}>
+              {transfer.reason && <p className="truncate font-medium text-gray-800">{transfer.reason}</p>}
+              {transfer.notes && <p className="truncate text-xs text-gray-500">{transfer.notes}</p>}
+            </div>
+          ) : (
+            <span className="text-gray-300">—</span>
+          ),
+      },
+      {
         key: 'totalItems',
         header: 'Items',
         headerClassName: 'text-center',
@@ -516,7 +532,7 @@ function TraspasosContent() {
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
                   <Input
                     type="text"
-                    placeholder="Buscar por número de movimiento..."
+                    placeholder="Buscar por número, motivo o notas..."
                     value={searchInput}
                     onChange={(e) => {
                       setSearchInput(e.target.value);
