@@ -6,7 +6,9 @@
 // Tamaño de letra: la ventana no hereda la preferencia del admin, así que el
 // llamador pasa `fontScale` (Preferencias → tamaño de letra, 1 = normal) y todo
 // el texto se multiplica por esa escala (--s en el CSS). Precios: la hoja de
-// surtido y el ticket muestran precio unitario e importe por renglón.
+// surtido y el ticket muestran precio unitario e importe por renglón. El ticket
+// va TODO en negritas y lista las piezas de cada kit una por línea (formato del
+// ticket de almacén del sistema anterior).
 
 import type { Delivery } from '@/types/deliveries';
 import { DELIVERY_STATUS_LABELS } from '@/types/deliveries';
@@ -206,53 +208,67 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
   </body></html>`;
 }
 
-/** Ticket de la venta (formato de rollo) para anexar al paquete: cada renglón
- *  con cantidad, precio unitario e importe, y el total de la venta. */
+/** Ticket de la venta (formato de rollo) para anexar al paquete, con el mismo
+ *  detalle que el ticket de almacén del sistema anterior (21-oct-2026, pedido de
+ *  Almacén): columnas CLAVE · CANT · PRECIO · TOTAL, el nombre del producto en
+ *  su renglón y, en kits/paquetes/promos, UNA LÍNEA POR PIEZA ("Cant:N" + casilla
+ *  + nombre + clave) para irlas palomeando al surtir. Todo en negritas, con los
+ *  tamaños de la versión en negritas (base 13 px, clave 12 px, cantidad 14 px).
+ *  Sin lote: el POS no registra el lote al vender (pos_sale_items.lot_number
+ *  siempre vacío), así que no hay un lote confiable que imprimir. */
 export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: number): string {
   const items = d.items ?? [];
   const rows = items
     .map((it) => {
-      const includes = (it.components ?? [])
-        .map((c) => `${c.quantityTotal} ${c.sku ? `${c.sku} ` : ''}${c.name}`)
-        .join(', ');
-      // Producto, clave y cantidad en negritas: Almacén surte leyendo el ticket
-      // en el rollo térmico y pidió que esos tres datos resalten.
+      const comps = it.components ?? [];
+      const children = comps
+        .map(
+          (c) =>
+            `<tr><td colspan="4" class="comp">Cant:${esc(c.quantityTotal)} <span class="check"></span> ${esc(c.name)}${c.sku ? ` <span class="sku">(${esc(c.sku)})</span>` : ''}</td></tr>`,
+        )
+        .join('');
+      // Clave, cantidad, precio y total en un renglón (como el ticket anterior);
+      // el nombre completo abajo. Sin piezas, la casilla va en el producto.
       return `
-      <tr><td colspan="3" class="name"><strong>${esc(it.productName)}</strong><br><strong class="sku">${esc(it.productSku)}</strong>${includes ? `<br><span class="muted">Incluye: ${esc(includes)}</span>` : ''}</td></tr>
-      <tr><td class="num"><strong class="qty">${esc(it.quantity)}</strong></td><td class="num">× ${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num"><strong>${esc(money(it.total, d.currencyCode))}</strong></td></tr>`;
+      <tr class="line"><td class="sku">${esc(it.productSku)}</td><td class="num qty">${esc(it.quantity)}</td><td class="num">${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num">${esc(money(it.total, d.currencyCode))}</td></tr>
+      <tr><td colspan="4" class="name">${comps.length ? '' : '<span class="check"></span> '}${esc(it.productName)}</td></tr>
+      ${children}`;
     })
     .join('');
   const scale = scaleOf(fontScale);
   const css = `
     :root { --s: ${scale}; }
-    body { font-family: "Courier New", Courier, monospace; font-size: calc(13px * var(--s)); margin: 0; padding: 10px; width: 80mm; }
-    .c { text-align: center; } .muted { color: #555; font-size: calc(11px * var(--s)); }
+    body { font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: calc(13px * var(--s)); margin: 0; padding: 10px; width: 80mm; color: #000; }
+    .c { text-align: center; } .muted { color: #444; font-size: calc(11px * var(--s)); }
     table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } td.num { text-align: right; white-space: nowrap; }
-    td.name { padding-top: 5px; }
+    tr.line td { padding-top: 6px; }
+    td.name { padding-top: 0; }
+    td.comp { font-size: calc(12px * var(--s)); padding: 1px 0 1px calc(8px * var(--s)); }
     .sku { font-size: calc(12px * var(--s)); letter-spacing: .02em; }
     .qty { font-size: calc(14px * var(--s)); }
-    th { font-size: calc(11px * var(--s)); text-align: right; font-weight: normal; color: #555; padding: 0; }
+    .check { display: inline-block; width: calc(10px * var(--s)); height: calc(10px * var(--s)); border: 1px solid #000; vertical-align: middle; }
+    th { font-size: calc(11px * var(--s)); text-align: right; padding: 0 0 2px; border-bottom: 1px dashed #333; }
     th.l { text-align: left; }
     hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
-    .tot td { font-weight: bold; font-size: calc(15px * var(--s)); }
+    .tot td { font-size: calc(15px * var(--s)); }
     @media print { @page { margin: 4mm; } }
   `;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ticket ${esc(d.saleNumber)}</title><style>${css}</style></head><body>
-    <div class="c"><strong>TONIC LIFE</strong><br>${esc(d.saleBranchName)}</div>
+    <div class="c">TONIC LIFE<br>${esc(d.saleBranchName)}</div>
     <hr>
-    <div>Folio: <strong>${esc(d.saleNumber)}</strong></div>
+    <div>Folio: ${esc(d.saleNumber)}</div>
     <div>Fecha: ${esc(dateTime(d.saleCreatedAt, timeZone))}</div>
     <div>Cliente: ${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? d.recipientName)}</div>
     <div>Pago: ${esc(paymentMethodLabel(d.paymentMethod))}</div>
     <hr>
     <table>
-      <thead><tr><th class="l">Cant.</th><th>Precio</th><th>Importe</th></tr></thead>
+      <thead><tr><th class="l">CLAVE</th><th>CANT</th><th>PRECIO</th><th>TOTAL</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
     <hr>
     <table class="tot"><tr><td>TOTAL</td><td class="num">${esc(money(d.saleTotal, d.currencyCode))}</td></tr></table>
     <hr>
-    <div><strong>ENTREGA A DOMICILIO</strong></div>
+    <div>ENTREGA A DOMICILIO</div>
     <div>Recibe: ${esc(d.recipientName)}${d.recipientPhone ? ` · ${esc(d.recipientPhone)}` : ''}</div>
     <div>${esc(d.addressText)}</div>
     ${d.reference ? `<div class="muted">Ref.: ${esc(d.reference)}</div>` : ''}
