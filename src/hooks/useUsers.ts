@@ -30,6 +30,30 @@ export function useUser(id: string) {
   });
 }
 
+/** Sucursales asignadas a un usuario (user_branches activas). */
+export function useUserBranches(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['users', 'branches', id ?? ''],
+    queryFn: () => usersService.getBranches(id as string),
+    enabled: !!id && enabled,
+    staleTime: 0,
+  });
+}
+
+/** Reemplaza las sucursales asignadas a un usuario. */
+export function useSetUserBranches() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, branchIds }: { id: string; branchIds: string[] }) =>
+      usersService.setBranches(id, branchIds),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['users', 'branches', id] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'detail', id] });
+    },
+  });
+}
+
 // ================================
 // MUTATION HOOKS
 // ================================

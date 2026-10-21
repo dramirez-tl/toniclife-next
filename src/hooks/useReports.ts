@@ -22,10 +22,13 @@ import type {
 // DASHBOARD
 // ================================
 
-export function useDashboardKPIs(periodId?: string) {
+export function useDashboardKPIs(periodId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['dashboard', 'kpis', periodId ?? 'current'],
     queryFn: () => reportsService.getDashboardKPIs(periodId),
+    // Sesión acotada por sucursal: el API responde 403 (KPIs globales); el
+    // panel muestra otra cosa y no consulta.
+    enabled: options?.enabled ?? true,
     staleTime: 1000 * 60 * 5, // 5 minutes
     placeholderData: (prev) => prev, // mantiene datos al cambiar de periodo
   });

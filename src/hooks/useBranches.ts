@@ -1,8 +1,11 @@
 // useBranches.ts - React Query hooks for Branches API
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 4.2.4
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { branchesService } from '@/services/branches.service';
+import { authService } from '@/services/auth.service';
+import { scopedBranchIdsOf } from '@/lib/branch-scope';
 import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
 
 // Query keys
@@ -19,12 +22,20 @@ export const branchKeys = {
 
 /**
  * Hook to fetch active branches (for selects/dropdowns)
+ *
+ * Sesión acotada por sucursal (CEDEAS Supervisor, 21-oct-2026): solo devuelve
+ * las sucursales de `scopedBranchIds` del login. Es presentación: el API
+ * vuelve a aplicar el alcance en cada reporte (una sucursal fuera = 403).
  */
 export function useActiveBranches() {
+  // Se lee una vez por montaje: la lista cambia solo al volver a iniciar sesión.
+  const scoped = useMemo(() => scopedBranchIdsOf(authService.getStoredUser()), []);
   return useQuery({
     queryKey: branchKeys.active(),
     queryFn: () => branchesService.getActiveBranches(),
     staleTime: 10 * 60 * 1000, // 10 minutes
+    select: (branches) =>
+      scoped ? branches.filter((b) => scoped.includes(b.id)) : branches,
   });
 }
 

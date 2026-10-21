@@ -22,6 +22,10 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAnalytics } from '@/hooks/useReports';
 import { PermissionGuard } from '@/components/auth';
 import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
+import { isBranchScopedUser } from '@/lib/branch-scope';
+import { ScopedReportsLanding } from '@/components/admin/reports/ScopedReportsLanding';
 
 // recharts es pesado y solo corre en cliente: carga diferida con placeholder.
 const SalesTrendChart = dynamic(
@@ -59,11 +63,16 @@ export default function ReportesPage() {
   // Número de periodos de negocio a analizar
   const months = useMemo(() => getMonths(dateRange), [dateRange]);
 
+  // Sesión acotada por sucursal (CEDEAS Supervisor): la analítica es global y
+  // el API la niega; se muestra la portada de sus reportes (months = 0 apaga
+  // la consulta).
+  const branchScoped = isBranchScopedUser(useAppSelector(selectUser));
+
   // Fetch analytics data (la ventana la resuelve el API por periodos 26→25)
   const { data: analyticsData, isLoading, isError, refetch } = useAnalytics({
     startDate: '',
     endDate: '',
-    months,
+    months: branchScoped ? 0 : months,
     limit: 5,
   });
 
@@ -163,6 +172,14 @@ export default function ReportesPage() {
       </span>
     );
   };
+
+  if (branchScoped) {
+    return (
+      <PermissionGuard permissions={['reports:read', 'reports:*']}>
+        <ScopedReportsLanding />
+      </PermissionGuard>
+    );
+  }
 
   return (
     <PermissionGuard permissions={['reports:read', 'reports:*']}>

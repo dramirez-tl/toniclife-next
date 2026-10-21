@@ -26,6 +26,9 @@ export interface NavChild {
   permissions?: string[];
   // Acceso decidido por el API (sonda). Manda sobre `permissions`.
   access?: NavAccessKey;
+  // Oculto para sesiones acotadas por sucursal (CEDEAS Supervisor): el API
+  // les niega este reporte (es global, no se puede acotar).
+  hideWhenBranchScoped?: boolean;
 }
 
 export interface NavItem {
@@ -75,7 +78,13 @@ export function hasAnyPermission(userPermissions: string[], requiredPermissions?
 
 export function filterNavigation(
   items: readonly NavItem[],
-  ctx: { isSuperAdmin: boolean; permissions: string[]; access?: NavAccess },
+  ctx: {
+    isSuperAdmin: boolean;
+    permissions: string[];
+    access?: NavAccess;
+    /** Sesión acotada por sucursal (ver lib/branch-scope.ts). */
+    branchScoped?: boolean;
+  },
 ): NavItem[] {
   // Super admin ve todo (incluidos los items superAdminOnly)
   if (ctx.isSuperAdmin) return [...items];
@@ -94,11 +103,13 @@ export function filterNavigation(
     // Hijo con acceso por sonda: se decide por ella. Con permisos propios: por
     // ellos. Sin nada propio: hereda al padre.
     const children = item.children.filter((child) =>
-      child.access !== undefined
-        ? byAccess(child)
-        : child.permissions
-          ? hasAnyPermission(ctx.permissions, child.permissions)
-          : parentAllowed,
+      ctx.branchScoped && child.hideWhenBranchScoped
+        ? false
+        : child.access !== undefined
+          ? byAccess(child)
+          : child.permissions
+            ? hasAnyPermission(ctx.permissions, child.permissions)
+            : parentAllowed,
     );
     if (children.length === 0) return parentAllowed ? [{ ...item, children: undefined }] : [];
     return [{ ...item, children }];

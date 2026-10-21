@@ -10,6 +10,7 @@ import type {
   UpdateUserDto,
   EmailVerificationStats,
   VerifiedUsersResponse,
+  UserBranchesResponse,
 } from '@/types/user';
 
 class UsersService {
@@ -76,6 +77,21 @@ class UsersService {
    */
   async activate(id: string): Promise<User> {
     const response = await api.patch<User>(`/users/${id}`, { isActive: true });
+    return response.data;
+  }
+
+  /**
+   * Sucursales asignadas (user_branches activas). Para un rol acotado
+   * (CEDEAS Supervisor) son las únicas que ve en reportes.
+   */
+  async getBranches(id: string): Promise<UserBranchesResponse> {
+    const response = await api.get<UserBranchesResponse>(`/users/${id}/branches`);
+    return response.data;
+  }
+
+  /** Reemplaza las sucursales asignadas (las que no vengan se desactivan). */
+  async setBranches(id: string, branchIds: string[]): Promise<UserBranchesResponse> {
+    const response = await api.put<UserBranchesResponse>(`/users/${id}/branches`, { branchIds });
     return response.data;
   }
 

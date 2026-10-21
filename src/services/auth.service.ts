@@ -66,6 +66,10 @@ export interface UserResponse {
   /** Departamento/área del colaborador (users.department_id); null para
    *  distribuidores y usuarios sin área. Ausente en respuestas previas a oct-2026. */
   departmentName?: string | null;
+  /** Sucursales a las que está acotada la sesión (roles como cedeas_supervisor:
+   *  solo ven reportes de estas). null/ausente = sin restricción; [] = rol
+   *  acotado sin sucursales asignadas (no ve nada). Ver lib/branch-scope.ts. */
+  scopedBranchIds?: string[] | null;
 }
 
 export interface AuthResponse {

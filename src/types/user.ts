@@ -44,8 +44,15 @@ export interface User {
   emailVerifiedAt: string | null;
   role: RoleDto;
   permissions: string[];
+  /** Sucursales activas asignadas (user_branches). Solo en GET users/:id. */
+  branchIds?: string[];
   createdAt: string;
   updatedAt: string | null;
+}
+
+/** Respuesta de GET/PUT users/:id/branches. */
+export interface UserBranchesResponse {
+  branchIds: string[];
 }
 
 // ================================

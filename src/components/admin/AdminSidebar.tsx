@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { useLegacySyncReadProbe } from '@/hooks/useMaintenance';
 import { filterNavigation, type NavChild, type NavItem } from '@/lib/admin-nav-filter';
 import { LEGACY_SYNC_PAGE, legacySyncReadAccess } from '@/lib/legacy-sync/access';
+import { isBranchScopedUser } from '@/lib/branch-scope';
 
 // Navegación con permisos requeridos
 const navigation: NavItem[] = [
@@ -177,7 +178,9 @@ const navigation: NavItem[] = [
       // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
       { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
       // Formato del sistema anterior (Tesorería): bono por suscrito y corte de caja.
-      { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      // hideWhenBranchScoped: es global (datos fiscales de patrocinadores); el
+      // API se lo niega a los roles acotados por sucursal (CEDEAS Supervisor).
+      { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', permissions: ['reports:read', 'reports', 'reports.sales'], hideWhenBranchScoped: true },
       { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },
     ],
   },
@@ -337,14 +340,18 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
       error: syncProbe.error,
       loading: syncProbe.isLoading,
     }) === 'allowed';
+  // Sesión acotada por sucursal (CEDEAS Supervisor): se esconden los reportes
+  // globales que el API le niega.
+  const branchScoped = isBranchScopedUser(user);
   const filteredNavigation = useMemo(
     () =>
       filterNavigation(navigation, {
         isSuperAdmin,
         permissions: userPermissions,
         access: { legacySyncRead },
+        branchScoped,
       }),
-    [isSuperAdmin, userPermissions, legacySyncRead],
+    [isSuperAdmin, userPermissions, legacySyncRead, branchScoped],
   );
 
   // Rol sin ningún módulo concedido: solo verá Panel Principal + aviso.

@@ -16,7 +16,11 @@ import {
   useResetEmailVerification,
   useEmailVerificationStats,
   useVerifiedUsers,
+  useUserBranches,
+  useSetUserBranches,
 } from '@/hooks/useUsers';
+import { useActiveBranches } from '@/hooks/useBranches';
+import { isBranchScopedRoleCode } from '@/lib/branch-scope';
 import type { UserQueryParams, User, CreateUserDto, UpdateUserDto, VerifiedUser } from '@/types/user';
 import {
   UserGroupIcon,
@@ -212,6 +216,7 @@ function UsuariosContent() {
   const { data: rolesData } = useRoles();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
+  const setUserBranches = useSetUserBranches();
   const activateUser = useActivateUser();
   const deactivateUser = useDeactivateUser();
   const hardDeleteUser = useHardDeleteUser();
@@ -421,6 +426,16 @@ function UsuariosContent() {
         return;
       }
     }
+    // Rol acotado por sucursal (CEDEAS Supervisor): sus reportes salen solo de
+    // las sucursales marcadas; se guardan aparte (PUT users/:id/branches).
+    const scopedRole = isBranchScopedRoleCode(
+      (rolesData?.data ?? []).find((r) => r.id === formData.roleId)?.code,
+    );
+    const scopedBranchIds: string[] = Array.isArray(formData.branchIds) ? formData.branchIds : [];
+    if (scopedRole && scopedBranchIds.length === 0) {
+      toast.error('Marca al menos una sucursal: con ese rol solo verá reportes de las sucursales asignadas');
+      return;
+    }
     try {
       if (editingUser) {
         const dto: UpdateUserDto = {
@@ -436,6 +451,9 @@ function UsuariosContent() {
           isActive: formData.isActive,
         };
         await updateUser.mutateAsync({ id: editingUser.id, dto });
+        if (scopedRole) {
+          await setUserBranches.mutateAsync({ id: editingUser.id, branchIds: scopedBranchIds });
+        }
         toast.success('Usuario actualizado correctamente');
       } else {
         const dto: CreateUserDto = {
@@ -454,7 +472,10 @@ function UsuariosContent() {
           employeeId: formData.employeeId || undefined,
           branchId: formData.branchId || undefined,
         };
-        await createUser.mutateAsync(dto);
+        const created = await createUser.mutateAsync(dto);
+        if (scopedRole && created?.id) {
+          await setUserBranches.mutateAsync({ id: created.id, branchIds: scopedBranchIds });
+        }
         toast.success(`Usuario creado. Invitación enviada a ${formData.email}`);
       }
       closeModal();
@@ -1502,8 +1523,8 @@ function UserFormModal({
   isSubmitting,
   roles,
 }: UserFormModalProps) {
-  if (!isOpen) return null;
-
+  // (los hooks van ANTES del `if (!isOpen) return null` de abajo: con el
+  // retorno temprano arriba cambiaba el orden de hooks entre renders.)
   const handleChange = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
   };
@@ -1529,8 +1550,31 @@ function UserFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleDepartmentId]);
 
+  // Rol acotado por sucursal (CEDEAS Supervisor, 21-oct-2026): "Sucursales
+  // que puede ver". Al editar se precargan las asignadas (user_branches).
+  const isScopedRole = isBranchScopedRoleCode(selectedRole?.code);
+  const { data: activeBranches } = useActiveBranches();
+  const { data: currentBranches } = useUserBranches(editingUser?.id, isScopedRole);
+  useEffect(() => {
+    if (isScopedRole && currentBranches && formData.branchIds === undefined) {
+      handleChange('branchIds', currentBranches.branchIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScopedRole, currentBranches]);
+  const checkedBranchIds: string[] = Array.isArray(formData.branchIds) ? formData.branchIds : [];
+  const toggleBranch = (id: string) => {
+    handleChange(
+      'branchIds',
+      checkedBranchIds.includes(id)
+        ? checkedBranchIds.filter((b) => b !== id)
+        : [...checkedBranchIds, id],
+    );
+  };
+
   const inputClassName =
     'w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1729,6 +1773,38 @@ function UserFormModal({
                     : 'Área del colaborador (para roles sin departamento vinculado).'}
                 </p>
               </div>
+              {isScopedRole && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Sucursales que puede ver <span className="text-destructive">*</span>
+                  </label>
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-input p-2">
+                    {(activeBranches ?? []).length === 0 ? (
+                      <p className="px-2 py-1 text-xs text-muted-foreground">Cargando sucursales...</p>
+                    ) : (
+                      (activeBranches ?? []).map((b) => (
+                        <label
+                          key={b.id}
+                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checkedBranchIds.includes(b.id)}
+                            onChange={() => toggleBranch(b.id)}
+                            className="h-4 w-4 rounded border-input accent-primary"
+                          />
+                          <span className="font-mono text-xs text-muted-foreground">{b.code}</span>
+                          <span>{b.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Con este rol solo ve reportes (ventas, corte, inventario) de las sucursales
+                    marcadas; sin ninguna no ve nada. Aplica al volver a iniciar sesión.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

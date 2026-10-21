@@ -9,6 +9,10 @@ import { DataTable, type DataTableColumn } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { PermissionGuard } from '@/components/auth';
 import { useDashboardKPIs } from '@/hooks/useReports';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
+import { isBranchScopedUser } from '@/lib/branch-scope';
+import { ScopedReportsLanding } from '@/components/admin/reports/ScopedReportsLanding';
 import type { RecentOrder } from '@/types/reports';
 import {
   UserGroupIcon,
@@ -59,8 +63,17 @@ const getStatusConfig = (status: string) =>
 export default function AdminDashboard() {
   const [periodId, setPeriodId] = useState<string | undefined>(undefined);
   const [countryCode, setCountryCode] = useState('MX'); // por defecto México
-  const { data: kpis, isLoading, error, isFetching } = useDashboardKPIs(periodId);
+  // Sesión acotada por sucursal (CEDEAS Supervisor): los KPIs son globales y
+  // el API los niega; se muestra la portada de sus reportes.
+  const branchScoped = isBranchScopedUser(useAppSelector(selectUser));
+  const { data: kpis, isLoading, error, isFetching } = useDashboardKPIs(periodId, {
+    enabled: !branchScoped,
+  });
   const handleRefresh = () => window.location.reload();
+
+  if (branchScoped) {
+    return <ScopedReportsLanding title="Panel Principal" />;
+  }
 
   const formatTime = (timestamp: string) => {
     if (!timestamp) return '';

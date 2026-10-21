@@ -58,6 +58,28 @@ describe('filterNavigation', () => {
     expect(out[1].children?.[0].href).toBe('/admin/sistema/sync');
   });
 
+  it('sesión acotada por sucursal: oculta los hijos hideWhenBranchScoped', () => {
+    const nav: NavItem[] = [
+      {
+        name: 'Reportes',
+        href: '/admin/reportes',
+        icon: Icon,
+        permissions: ['reports:read'],
+        children: [
+          { name: 'Ventas', href: '/admin/reportes/ventas' },
+          { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', hideWhenBranchScoped: true },
+        ],
+      },
+    ];
+    expect(
+      names(filterNavigation(nav, { isSuperAdmin: false, permissions: ['reports:read'], branchScoped: true })),
+    ).toEqual(['Reportes[Ventas]']);
+    // Sin alcance (o sin la bandera) se ve todo.
+    expect(
+      names(filterNavigation(nav, { isSuperAdmin: false, permissions: ['reports:read'] })),
+    ).toEqual(['Reportes[Ventas,Bono de Inscripción]']);
+  });
+
   it('se conserva el filtrado por permisos de padres e hijos', () => {
     expect(
       names(filterNavigation(NAV, { isSuperAdmin: false, permissions: ['config'] })),
