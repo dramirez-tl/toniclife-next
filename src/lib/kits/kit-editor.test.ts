@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canEditKitFields,
   componentInvalidRows,
+  effectiveRecipeForBranch,
   formatMoneyAmount,
   formatQuantity,
   isKitErrorCode,
@@ -224,5 +225,23 @@ describe('errores KIT_*', () => {
       { componentProductId: '', code: 'X', reason: 'duplicate', label: 'duplicate' },
     ]);
     expect(componentInvalidRows(null)).toEqual([]);
+  });
+});
+
+describe('effectiveRecipeForBranch (composición por sucursal, mig 167)', () => {
+  const rows = [
+    { id: 'g2', componentProductId: 'g-2', quantity: '1', isActive: true, countryId: null, branchId: null, sortOrder: 2 },
+    { id: 'g1', componentProductId: 'g-1', quantity: '1', isActive: true, countryId: null, branchId: null, sortOrder: 1 },
+    { id: 'mx', componentProductId: 'mx-1', quantity: '2', isActive: true, countryId: 'MX', branchId: null, sortOrder: 0 },
+    { id: 'off', componentProductId: 'mx-off', quantity: '2', isActive: false, countryId: 'MX', branchId: null, sortOrder: 1 },
+    { id: 'br', componentProductId: 'br-1', quantity: '3', isActive: true, countryId: null, branchId: 'B', sortOrder: 0 },
+    { id: 'raw', componentProductId: null, quantity: '1', isActive: true, countryId: null, branchId: null, sortOrder: 0 },
+  ];
+  it('con renglones activos del país usa SOLO esos; nunca los de otra sucursal, inactivos ni materias primas', () => {
+    expect(effectiveRecipeForBranch(rows, 'MX').map((r) => r.id)).toEqual(['mx']);
+  });
+  it('sin renglones del país caen los globales, ordenados por sortOrder', () => {
+    expect(effectiveRecipeForBranch(rows, 'US').map((r) => r.id)).toEqual(['g1', 'g2']);
+    expect(effectiveRecipeForBranch(rows, null).map((r) => r.id)).toEqual(['g1', 'g2']);
   });
 });

@@ -16,7 +16,12 @@ import type {
 } from '@/types/kit';
 
 /** `all` = todos los renglones activos (histórico); `global` = solo los sin país. */
-export type KitComponentsScope = 'all' | 'global';
+/**
+ * Qué renglones de la receta pedir: 'all' = todos; 'global' = solo la receta
+ * global (`?countryId=global`); `{ branchId }` = solo la composición PROPIA de
+ * esa sucursal (mig 167; vacío = la sucursal usa la de su país o la global).
+ */
+export type KitComponentsScope = 'all' | 'global' | { branchId: string };
 
 class KitsService {
   /**
@@ -42,9 +47,13 @@ class KitsService {
    * que edita la ficha y la que reemplaza PUT components/bulk sin país.
    */
   async getComponents(kitId: string, scope: KitComponentsScope = 'all'): Promise<KitComponent[]> {
-    const response = await api.get<KitComponent[]>(`/products/${kitId}/components`, {
-      params: scope === 'global' ? { countryId: 'global' } : undefined,
-    });
+    const params =
+      scope === 'global'
+        ? { countryId: 'global' }
+        : typeof scope === 'object'
+          ? { branchId: scope.branchId }
+          : undefined;
+    const response = await api.get<KitComponent[]>(`/products/${kitId}/components`, { params });
     return Array.isArray(response.data) ? response.data : [];
   }
 

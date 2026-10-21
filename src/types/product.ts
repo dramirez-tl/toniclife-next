@@ -227,6 +227,8 @@ export interface ProductComponent {
   isActive: boolean;
   /** País del componente (mig 099). null = global. */
   countryId?: string | null;
+  /** Sucursal dueña del renglón (mig 167). null = global o de país. */
+  branchId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

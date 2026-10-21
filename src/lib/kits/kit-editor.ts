@@ -351,3 +351,28 @@ export function componentInvalidRows(details: Record<string, unknown> | null | u
     }))
     .filter((c) => c.componentProductId !== '' || c.code !== '');
 }
+
+// ================================
+// Composición por sucursal (mig 167)
+// ================================
+
+/**
+ * Receta que una sucursal usa HOY cuando no tiene composición propia: la de su
+ * país si existe, si no la global. Nunca renglones de otra sucursal ni
+ * inactivos ni materias primas. Es lo que se copia al "crear composición
+ * propia" para esa sucursal.
+ */
+export function effectiveRecipeForBranch<
+  T extends {
+    isActive?: boolean;
+    componentProductId?: string | null;
+    countryId?: string | null;
+    branchId?: string | null;
+    sortOrder?: number;
+  },
+>(rows: readonly T[], countryId: string | null): T[] {
+  const base = rows.filter((r) => r.isActive !== false && !!r.componentProductId && !r.branchId);
+  const ofCountry = countryId ? base.filter((r) => r.countryId === countryId) : [];
+  const chosen = ofCountry.length > 0 ? ofCountry : base.filter((r) => !r.countryId);
+  return [...chosen].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}

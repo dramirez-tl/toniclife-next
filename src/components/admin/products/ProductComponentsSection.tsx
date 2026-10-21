@@ -86,7 +86,8 @@ interface ProductComponentsSectionProps {
   recipeLock?: { pendingSales: number; pendingOrders: number } | null;
   /** Ir a la sección Kit (cambiar cómo se surte). */
   onGoToKit?: () => void;
-  /** `global` = solo la receta global (ficha del kit). Default: todos los renglones. */
+  /** `global` = solo la receta global (ficha del kit); `{ branchId }` = la
+   *  composición PROPIA de esa sucursal (se guarda en ese alcance). Default: todos los renglones. */
   scope?: KitComponentsScope;
 }
 
@@ -209,6 +210,8 @@ export function ProductComponentsSection({
           quantity: r.quantity,
           sortOrder: i,
         })),
+        // Composición propia de una sucursal (mig 167): solo ese alcance.
+        ...(typeof scope === 'object' ? { branchId: scope.branchId } : {}),
       });
       setDraft(null);
       setRowErrors(new Map());
@@ -230,7 +233,7 @@ export function ProductComponentsSection({
       toast.error(productAdminErrorMessage(err, 'No se pudieron guardar los componentes'));
       return false;
     }
-  }, [hasInvalidQty, isDirty, onSaved, replaceComponents, rows]);
+  }, [hasInvalidQty, isDirty, onSaved, replaceComponents, rows, scope]);
 
   const discard = useCallback(() => {
     setDraft(null);

@@ -20,6 +20,14 @@ export interface BulkComponentItem {
 
 export interface BulkReplaceComponentsDto {
   components: BulkComponentItem[];
+  /** Alcance por país (mig 099): ausente = receta GLOBAL. */
+  countryId?: string;
+  /**
+   * Alcance por SUCURSAL (mig 167): reemplaza solo la composición propia de
+   * esa sucursal; lista vacía = la sucursal vuelve a la receta de su país o la
+   * global. No se combina con countryId.
+   */
+  branchId?: string;
 }
 
 export interface KitListQueryParams {
