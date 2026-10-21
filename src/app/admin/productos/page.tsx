@@ -9,6 +9,7 @@ import {
   GiftIcon,
   SparklesIcon,
   ClipboardDocumentCheckIcon,
+  IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,8 +19,9 @@ import { useProductPermissions } from '@/components/admin/products/lib/permissio
 import { ProductosTab } from './_tabs/ProductosTab';
 import { KitsTab } from './_tabs/KitsTab';
 import { PromocionesTab } from './_tabs/PromocionesTab';
+import { MembresiasTab } from './_tabs/MembresiasTab';
 
-type Tab = 'productos' | 'kits' | 'promociones';
+type Tab = 'productos' | 'kits' | 'promociones' | 'membresias';
 
 interface TabConfig {
   id: Tab;
@@ -54,6 +56,14 @@ const TABS: TabConfig[] = [
     subtitle: 'Promociones canjeables por puntos acumulados del periodo (MX 4,000/6,000 — US 6,600/9,900)',
     newHref: '/admin/promociones/nuevo',
     newLabel: 'Nueva Promoción',
+  },
+  {
+    id: 'membresias',
+    label: 'Membresías',
+    icon: IdentificationIcon,
+    subtitle: 'Compra N puntos en producto y la membresía Premium es gratis; se enciende por sucursal',
+    newHref: '/admin/membresias/nuevo',
+    newLabel: 'Nueva campaña',
   },
 ];
 
@@ -101,7 +111,8 @@ function PageContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const rawTab = sp.get('tab');
-  const active: Tab = rawTab === 'kits' || rawTab === 'promociones' ? rawTab : 'productos';
+  const active: Tab =
+    rawTab === 'kits' || rawTab === 'promociones' || rawTab === 'membresias' ? rawTab : 'productos';
   const config = TABS.find((t) => t.id === active)!;
   const Icon = config.icon;
   const { canCreate } = useProductPermissions();
@@ -181,6 +192,7 @@ function PageContent() {
         {active === 'productos' && <ProductosTab />}
         {active === 'kits' && <KitsTab />}
         {active === 'promociones' && <PromocionesTab />}
+        {active === 'membresias' && <MembresiasTab />}
       </div>
     </PermissionGuard>
   );
