@@ -329,63 +329,89 @@ export default function AdminDashboard() {
             equivalente en pesos; al final, el consolidado en MXN (misma tasa
             que Ventas por Sucursal). */}
         {countries.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-stretch gap-2 border-t pt-3">
-            <span className="mr-1 self-center text-sm font-medium text-muted-foreground">
-              Ingresos por país:
-            </span>
-            {countries.map((c) => {
-              const active = selectedCountry?.countryId === c.countryId;
-              const foreign = !!c.currencyCode && c.currencyCode !== 'MXN';
-              return (
-                <button
-                  key={c.countryId}
-                  onClick={() => setCountryCode(c.code)}
-                  className={cn(
-                    'flex flex-col items-start justify-center gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors',
-                    active
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-border hover:border-foreground/20',
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{c.name}</span>
-                    <span className="text-sm text-muted-foreground">
+          <div className="mt-3 border-t pt-3">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="text-sm font-medium text-muted-foreground">Ingresos por país</span>
+              {kpis?.fx && (
+                <span className="text-xs text-muted-foreground/70">
+                  Tasa congelada del periodo {kpis.fx.periodName}
+                </span>
+              )}
+            </div>
+            {/* Rejilla uniforme: todas las tarjetas miden lo mismo (3 renglones:
+                país + moneda, importe, equivalencia) y el consolidado es una
+                tarjeta más al final; en móvil ocupa la fila completa. */}
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">
+              {countries.map((c) => {
+                const active = selectedCountry?.countryId === c.countryId;
+                const foreign = !!c.currencyCode && c.currencyCode !== 'MXN';
+                const hasRate = foreign && !!c.rateToMxn && c.revenueMxn != null;
+                return (
+                  <button
+                    key={c.countryId}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setCountryCode(c.code)}
+                    className={cn(
+                      'flex min-h-[5.75rem] flex-col justify-between gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                      active
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:border-foreground/30 hover:bg-muted/40',
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-foreground">{c.name}</span>
+                      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground">
+                        {c.currencyCode ?? '—'}
+                      </span>
+                    </span>
+                    <span className="text-lg font-semibold leading-tight tabular-nums text-foreground">
                       ${c.revenue.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
-                      <span className="ml-1 text-xs text-muted-foreground/70">{c.currencyCode}</span>
+                    </span>
+                    <span className="text-[11px] leading-snug text-muted-foreground">
+                      {!foreign ? (
+                        'Moneda base'
+                      ) : hasRate ? (
+                        <>
+                          1 {c.currencyCode} = {formatRate(c.rateToMxn as number)} MXN
+                          <br />
+                          <span className="tabular-nums">
+                            ≈ ${(c.revenueMxn as number).toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-amber-600">Sin tipo de cambio en el periodo</span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+              {kpis?.fx && (
+                <div
+                  className="col-span-full flex min-h-[5.75rem] flex-col justify-between gap-1 rounded-lg bg-[#3E667D] px-3 py-2.5 text-white sm:col-span-2 xl:col-span-1"
+                  title={`Convertido con la tasa congelada del periodo ${kpis.fx.periodName}`}
+                >
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/70">
+                    <GlobeAltIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Total consolidado</span>
+                    <span className="ml-auto shrink-0 rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white/90">
+                      MXN
                     </span>
                   </span>
-                  {foreign && (
-                    <span className="text-[11px] leading-tight text-muted-foreground/70">
-                      {c.rateToMxn && c.revenueMxn != null
-                        ? `1 ${c.currencyCode} = ${formatRate(c.rateToMxn)} MXN · $${c.revenueMxn.toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN`
-                        : 'Sin tipo de cambio en el periodo'}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {kpis?.fx && (
-              <div
-                className="ml-auto flex min-w-[220px] flex-col justify-center rounded-lg bg-[#3E667D] px-4 py-2 text-white"
-                title={`Convertido con la tasa congelada del periodo ${kpis.fx.periodName}`}
-              >
-                <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/70">
-                  <GlobeAltIcon className="h-3.5 w-3.5" />
-                  Total consolidado (MXN)
-                </span>
-                <span className="text-lg font-semibold leading-tight">
-                  ${kpis.fx.totalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="text-[11px] text-white/70">
-                  {countries.length} países · tasa del periodo
-                  {kpis.fx.missing.length > 0 && (
-                    <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
-                      sin tasa: {kpis.fx.missing.join(', ')}
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
+                  <span className="text-lg font-semibold leading-tight tabular-nums">
+                    ${kpis.fx.totalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-snug text-white/70">
+                    {countries.length} países · tasa del periodo
+                    {kpis.fx.missing.length > 0 && (
+                      <span className="inline-flex items-center rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                        sin tasa: {kpis.fx.missing.join(', ')}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Card>
