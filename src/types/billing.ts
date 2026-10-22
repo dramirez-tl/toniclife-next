@@ -560,6 +560,52 @@ export interface GlobalDayStatus {
   emittedForms?: GlobalDayForm[];
   /** Formas de pago con tickets incluibles que aún no tienen global (`status: 'ready'`). */
   pendingForms?: GlobalPendingForm[];
+  /** Cuadre vendido vs facturado del día (null en días abiertos / no elegibles / con intento en curso). */
+  reconciliation?: GlobalDayReconciliation | null;
+}
+
+export interface GlobalReconciliationBucket {
+  reason: string;
+  label: string;
+  count: number;
+  total: number;
+}
+
+export interface GlobalReconciliationPending {
+  kind: 'pos_sale' | 'order';
+  id: string;
+  folio: string;
+  /** HH:mm en la zona de la sucursal. */
+  time: string;
+  customerName: string | null;
+  total: number;
+  paymentForm: string | null;
+  paymentMethod: string | null;
+  reason: string;
+  label: string;
+  detail: string;
+}
+
+/**
+ * Cuadre del día (Contabilidad, 22-oct-2026): vendido − facturado (globales vivas +
+ * nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente
+ * por facturar (sin global o bloqueado: lo que se factura a mano).
+ */
+export interface GlobalDayReconciliation {
+  salesCount: number;
+  salesTotal: number;
+  inGlobalCount: number;
+  inGlobalTotal: number;
+  nominativeCount: number;
+  nominativeTotal: number;
+  invoicedTotal: number;
+  notInvoiceable: GlobalReconciliationBucket[];
+  notInvoiceableTotal: number;
+  pendingCount: number;
+  pendingTotal: number;
+  pending: GlobalReconciliationPending[];
+  pendingTruncated: boolean;
+  difference: number;
 }
 
 export interface GlobalDayForm {

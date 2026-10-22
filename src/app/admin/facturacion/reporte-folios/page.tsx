@@ -47,6 +47,7 @@ import type {
   FoliosStatusFilter,
 } from '@/types/billing';
 import { FacturamaCfdisTab } from './FacturamaCfdisTab';
+import { ReconciliationSection } from './ReconciliationSection';
 
 const TABS = ['conciliacion', 'pac'] as const;
 type Tab = (typeof TABS)[number];
@@ -358,6 +359,19 @@ function ReporteFoliosContent() {
                 )}
               </div>
             )}
+
+            {/* Cuadre vendido vs facturado por día (por sucursal), como el
+                "Reporte folio Facturama" del sistema anterior. */}
+            <ReconciliationSection
+              branchId={applied.branchId}
+              branchLabel={
+                applied.branchId
+                  ? (branchOptions.find((o) => o.value === applied.branchId)?.label ?? null)
+                  : null
+              }
+              from={applied.startDate}
+              to={applied.endDate}
+            />
 
             {/* Tabla */}
             <Card>
