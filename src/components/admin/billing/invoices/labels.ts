@@ -160,6 +160,9 @@ export const INVOICEABLE_BLOCKER_LABELS: Record<string, string> = {
   invoice_error: 'El intento de factura anterior terminó con error',
   invoice_stamping: 'Se está timbrando en este momento',
   invoice_cancel_pending: 'Su factura tiene una cancelación en proceso ante el SAT',
+  // Contabilidad (22-oct-2026): estos cobros no se facturan, ni nominativa ni global.
+  payment_not_invoiceable:
+    'Cobro en dólares, cashback o promoción: Contabilidad lo registra aparte y no se factura',
 };
 
 /** Intentos que NO impiden facturar: el mismo botón reintenta el timbrado. */
