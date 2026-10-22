@@ -33,6 +33,7 @@ import {
   useViaticoConcepts,
 } from '@/hooks/useViaticos';
 import { daysOfRange, rangeLabel } from '@/lib/viaticos-week';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { ViaticoDayGridView } from './ViaticoDayGrid';
 import { ViaticoProofSection } from './ViaticoProofSection';
 import {
@@ -223,14 +224,20 @@ function ViaticoDetailBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="flex flex-wrap items-center gap-2">
-          <span className="font-mono">{v.folio}</span>
-          <Badge variant={VIATICO_STATUS_VARIANTS[v.status]}>{VIATICO_STATUS_LABELS[v.status]}</Badge>
-        </DialogTitle>
-        <DialogDescription>
-          Solicitado por {v.requesterName}
-          {v.departmentName ? ` · ${v.departmentName}` : ''} el {fmtDate(v.createdAt, true)}
-        </DialogDescription>
+        {/* Quién solicita: miniatura de su expediente de RRHH o sus iniciales. */}
+        <div className="flex items-start gap-3">
+          <EmployeeAvatar photoUrl={v.requesterAvatarUrl} name={v.requesterName} size={44} className="mt-0.5" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              <span className="font-mono">{v.folio}</span>
+              <Badge variant={VIATICO_STATUS_VARIANTS[v.status]}>{VIATICO_STATUS_LABELS[v.status]}</Badge>
+            </DialogTitle>
+            <DialogDescription>
+              Solicitado por {v.requesterName}
+              {v.departmentName ? ` · ${v.departmentName}` : ''} el {fmtDate(v.createdAt, true)}
+            </DialogDescription>
+          </div>
+        </div>
       </DialogHeader>
 
       <div className="grid gap-4 sm:grid-cols-3">

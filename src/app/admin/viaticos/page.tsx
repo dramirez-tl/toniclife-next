@@ -31,6 +31,7 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useViaticoSummary, useViaticos } from '@/hooks/useViaticos';
 import { ViaticoFormModal } from '@/components/admin/viaticos/ViaticoFormModal';
 import { ViaticoDetailModal } from '@/components/admin/viaticos/ViaticoDetailModal';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { viaticosService } from '@/services/viaticos.service';
 import { saveBlob } from '@/lib/download';
 import { addDaysIso, mondayOf, rangeLabel, todayIso, weekLabel } from '@/lib/viaticos-week';
@@ -180,9 +181,13 @@ function ViaticosContent() {
             key: 'requester',
             header: 'Solicitante',
             render: (v: Viatico) => (
-              <div>
-                <p className="text-sm text-foreground">{v.requesterName}</p>
-                {v.departmentName && <p className="text-xs text-muted-foreground">{v.departmentName}</p>}
+              <div className="flex items-center gap-2.5">
+                {/* Foto del expediente de RRHH (miniatura) o iniciales. */}
+                <EmployeeAvatar photoUrl={v.requesterAvatarUrl} name={v.requesterName} size={32} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-foreground">{v.requesterName}</p>
+                  {v.departmentName && <p className="truncate text-xs text-muted-foreground">{v.departmentName}</p>}
+                </div>
               </div>
             ),
           } satisfies DataTableColumn<Viatico>,

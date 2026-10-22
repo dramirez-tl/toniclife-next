@@ -89,6 +89,8 @@ export interface Viatico {
   requesterUserId: string;
   requesterName: string;
   requesterEmail: string | null;
+  /** Miniatura de la foto del expediente de RRHH (URL firmada); null/ausente = iniciales. */
+  requesterAvatarUrl?: string | null;
   departmentId: string | null;
   departmentName: string | null;
   branchId: string | null;
