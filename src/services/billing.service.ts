@@ -4,6 +4,9 @@
 import { apiClient } from '@/lib/api-client';
 import { saveBlob } from '@/lib/download';
 import type {
+  ManualInvoiceCreateResponse,
+  ManualInvoicePreviewResponse,
+  ManualInvoiceRequest,
   FoliosCuadreQuery,
   FoliosCuadreResponse,
   FoliosReportQuery,
@@ -711,6 +714,20 @@ export async function downloadFoliosCuadreXlsx(query: FoliosCuadreQuery): Promis
 }
 
 // ================================
+// FACTURACIÓN LIBRE (Contabilidad)
+// ================================
+
+export async function previewManualInvoices(dto: ManualInvoiceRequest): Promise<ManualInvoicePreviewResponse> {
+  const response = await apiClient.post<ManualInvoicePreviewResponse>(`${BASE_URL}/manual-invoices/preview`, dto);
+  return response.data;
+}
+
+export async function createManualInvoices(dto: ManualInvoiceRequest): Promise<ManualInvoiceCreateResponse> {
+  const response = await apiClient.post<ManualInvoiceCreateResponse>(`${BASE_URL}/manual-invoices`, dto);
+  return response.data;
+}
+
+// ================================
 // STATUS
 // ================================
 
@@ -799,6 +816,8 @@ export const billingService = {
   downloadFoliosReportXlsx,
   getFoliosCuadre,
   downloadFoliosCuadreXlsx,
+  previewManualInvoices,
+  createManualInvoices,
 
   // Status
   getFacturamaStatus,

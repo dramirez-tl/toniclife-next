@@ -160,6 +160,8 @@ const navigation: NavItem[] = [
       { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
       { name: 'Factura Global', href: '/admin/facturacion/global' },
       { name: 'Complemento de Pago', href: '/admin/facturacion/complemento-pago' },
+      // Contabilidad (22-oct-2026): tickets pendientes facturados a mano (PPD).
+      { name: 'Facturación libre', href: '/admin/facturacion/libre', permissions: ['billing:manual'] },
     ],
   },
   {

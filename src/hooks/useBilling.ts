@@ -21,6 +21,7 @@ import type {
   FoliosReportQuery,
   GlobalDaysQuery,
   GlobalPreviewQuery,
+  ManualInvoiceRequest,
   InvoiceListQuery,
   InvoiceableSalesQuery,
   PersonType,
@@ -836,6 +837,27 @@ export function useFoliosReport(query: FoliosReportQuery | null) {
     enabled: !!(query?.startDate && query?.endDate),
     placeholderData: keepPreviousData,
     staleTime: 60 * 1000,
+  });
+}
+
+/** Facturación libre: vista previa (sin timbrar). */
+export function usePreviewManualInvoices() {
+  return useMutation({
+    mutationFn: (dto: ManualInvoiceRequest) => billingService.previewManualInvoices(dto),
+  });
+}
+
+/** Facturación libre: timbrar; al terminar, el cuadre y las facturas se vuelven a leer. */
+export function useCreateManualInvoices() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: ManualInvoiceRequest) => billingService.createManualInvoices(dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: billingKeys.foliosCuadre() });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.globalDays() });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.invoiceableSales() });
+    },
   });
 }
 

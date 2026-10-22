@@ -1167,6 +1167,63 @@ export interface FoliosCuadreResponse {
   generatedAt: string;
 }
 
+// Facturación libre (`POST /billing/manual-invoices[/preview]`, Contabilidad 22-oct-2026).
+export interface ManualInvoiceRequest {
+  saleIds: string[];
+  /** customers.id con datos fiscales; null = público en general. */
+  receiverCustomerId?: string | null;
+  /** PPD por defecto (forma 99). */
+  paymentMethod?: 'PUE' | 'PPD';
+  paymentForm?: string;
+  /** true = todos los tickets en un CFDI; false = uno por ticket. */
+  groupTickets?: boolean;
+  sendEmail?: boolean;
+}
+
+export interface ManualInvoicePreviewItem {
+  saleIds: string[];
+  saleNumbers: string[];
+  receiverRfc: string;
+  receiverName: string;
+  paymentMethod: string;
+  paymentForm: string;
+  itemCount: number;
+  subtotal: number;
+  taxes: number;
+  total: number;
+  warnings: string[];
+}
+
+export interface ManualInvoiceProblem {
+  saleIds: string[];
+  saleNumbers: string[];
+  code: string;
+  message: string;
+}
+
+export interface ManualInvoicePreviewResponse {
+  invoices: ManualInvoicePreviewItem[];
+  errors: ManualInvoiceProblem[];
+  total: number;
+}
+
+export interface ManualInvoiceResult {
+  saleIds: string[];
+  saleNumbers: string[];
+  invoiceId: string | null;
+  folioDisplay: string | null;
+  satUuid: string | null;
+  providerStatus: string | null;
+  total: number | null;
+  error: string | null;
+}
+
+export interface ManualInvoiceCreateResponse {
+  results: ManualInvoiceResult[];
+  stamped: number;
+  failed: number;
+}
+
 /** @deprecated Usa `fiscalRegimeLabel(code, catalog)` con el catálogo del API. */
 export function getFiscalRegimeName(code: string): string {
   const item = FISCAL_REGIMES.find((r) => r.Value === code);
