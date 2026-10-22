@@ -4,6 +4,8 @@
 import { apiClient } from '@/lib/api-client';
 import { saveBlob } from '@/lib/download';
 import type {
+  FoliosCuadreQuery,
+  FoliosCuadreResponse,
   FoliosReportQuery,
   FoliosReportResponse,
   FiscalData,
@@ -684,6 +686,30 @@ export async function downloadFoliosReportXlsx(query: FoliosReportQuery): Promis
   );
 }
 
+/** Cuadre vendido vs facturado por sucursal (todas las de v2 o una). */
+export async function getFoliosCuadre(query: FoliosCuadreQuery): Promise<FoliosCuadreResponse> {
+  const response = await apiClient.get<FoliosCuadreResponse>(
+    `${BASE_URL}/reports/folios/cuadre${toQueryString({ startDate: query.startDate, endDate: query.endDate, branchId: query.branchId })}`,
+  );
+  return response.data;
+}
+
+/** Excel del cuadre con el formato del reporte anterior (REPORTE FOLIO FACTURAMA). */
+export async function downloadFoliosCuadreXlsx(query: FoliosCuadreQuery): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `${BASE_URL}/reports/folios/cuadre/xlsx${toQueryString({ startDate: query.startDate, endDate: query.endDate, branchId: query.branchId })}`,
+    { responseType: 'blob' },
+  );
+  const disposition = String(response.headers?.['content-disposition'] ?? '');
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  saveBlob(
+    response.data as BlobPart,
+    match?.[1] ?? `REPORTE_FOLIO_FACTURAMA_${stamp}.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+}
+
 // ================================
 // STATUS
 // ================================
@@ -771,6 +797,8 @@ export const billingService = {
   // Reporte de folios (conciliación)
   getFoliosReport,
   downloadFoliosReportXlsx,
+  getFoliosCuadre,
+  downloadFoliosCuadreXlsx,
 
   // Status
   getFacturamaStatus,

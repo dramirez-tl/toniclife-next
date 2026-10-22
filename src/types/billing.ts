@@ -1107,6 +1107,66 @@ export interface FoliosReportResponse {
   generatedAt: string;
 }
 
+// Cuadre vendido vs facturado por sucursal (`GET /billing/reports/folios/cuadre`),
+// como el "Reporte folio Facturama" del sistema anterior.
+export const CUADRE_MAX_DAYS_ALL_BRANCHES = 31;
+export const CUADRE_MAX_DAYS_ONE_BRANCH = 62;
+
+export interface FoliosCuadreQuery {
+  startDate: string;
+  endDate: string;
+  branchId?: string;
+}
+
+export interface FoliosCuadreInvoice {
+  id: string;
+  invoiceType: 'global' | 'sale' | string;
+  typeLabel: string;
+  folioDisplay: string;
+  satUuid: string;
+  paymentFormCode: string | null;
+  paymentMethodCode: string | null;
+  total: number;
+  emissionDate: string;
+  saleNumber: string | null;
+}
+
+export interface FoliosCuadreTotals {
+  salesCount: number;
+  salesTotal: number;
+  invoicedTotal: number;
+  inGlobalTotal: number;
+  nominativeTotal: number;
+  notInvoiceable: GlobalReconciliationBucket[];
+  notInvoiceableTotal: number;
+  pendingCount: number;
+  pendingTotal: number;
+  difference: number;
+}
+
+export interface FoliosCuadreDay {
+  localDate: string;
+  status: GlobalDayState | string;
+  invoices: FoliosCuadreInvoice[];
+  reconciliation: GlobalDayReconciliation | null;
+}
+
+export interface FoliosCuadreBranch {
+  branchId: string;
+  branchCode: string | null;
+  branchName: string | null;
+  days: FoliosCuadreDay[];
+  totals: FoliosCuadreTotals;
+}
+
+export interface FoliosCuadreResponse {
+  startDate: string;
+  endDate: string;
+  branches: FoliosCuadreBranch[];
+  totals: FoliosCuadreTotals;
+  generatedAt: string;
+}
+
 /** @deprecated Usa `fiscalRegimeLabel(code, catalog)` con el catálogo del API. */
 export function getFiscalRegimeName(code: string): string {
   const item = FISCAL_REGIMES.find((r) => r.Value === code);

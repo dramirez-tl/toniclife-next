@@ -17,6 +17,7 @@ import type {
   CancelInvoiceDto,
   CreateGlobalInvoiceDto,
   CreatePaymentComplementDto,
+  FoliosCuadreQuery,
   FoliosReportQuery,
   GlobalDaysQuery,
   GlobalPreviewQuery,
@@ -65,6 +66,7 @@ export const billingKeys = {
   status: () => [...billingKeys.all, 'status'] as const,
   facturamaCfdis: (query?: FacturamaCfdisQuery) => [...billingKeys.all, 'facturama-cfdis', query] as const,
   foliosReport: (query?: FoliosReportQuery) => [...billingKeys.all, 'folios-report', query] as const,
+  foliosCuadre: (query?: FoliosCuadreQuery) => [...billingKeys.all, 'folios-cuadre', query] as const,
   // Preparación fiscal (Fase 1). Todo cuelga de `readiness()` para que una
   // sola invalidación recalcule conteos, listados, emisor y bloqueadores.
   readiness: () => [...billingKeys.all, 'readiness'] as const,
@@ -831,6 +833,17 @@ export function useFoliosReport(query: FoliosReportQuery | null) {
   return useQuery({
     queryKey: billingKeys.foliosReport(query ?? undefined),
     queryFn: () => billingService.getFoliosReport(query!),
+    enabled: !!(query?.startDate && query?.endDate),
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Cuadre vendido vs facturado por sucursal: GET /billing/reports/folios/cuadre (tarda unos segundos). */
+export function useFoliosCuadre(query: FoliosCuadreQuery | null) {
+  return useQuery({
+    queryKey: billingKeys.foliosCuadre(query ?? undefined),
+    queryFn: () => billingService.getFoliosCuadre(query!),
     enabled: !!(query?.startDate && query?.endDate),
     placeholderData: keepPreviousData,
     staleTime: 60 * 1000,

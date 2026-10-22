@@ -1,42 +1,40 @@
 'use client';
 
-// ReconciliationSection - CUADRE vendido vs facturado por día de una sucursal
+// ReconciliationSection - CUADRE vendido vs facturado por sucursal y día
 // (Contabilidad, 22-oct-2026), como el "Reporte folio Facturama" del sistema
-// anterior: total vendido − total facturado (globales vivas + nominativas) =
-// diferencia, explicada por lo que NO se factura (cashback, promoción,
-// dólares, $0, crédito) y lo que sigue PENDIENTE por facturar (sin global o
-// bloqueado, p. ej. forma de pago "por definir"), con la lista de esos tickets
-// para facturarlos a mano. Lee GET /billing/global-invoices/days (máx. 62 días).
+// anterior: por sucursal (todas las que facturan en v2 o una), sus CFDI
+// (globales y nominativas), total facturado, total vendido y la diferencia
+// explicada: lo que NO se factura (cashback, promoción, dólares, $0, crédito)
+// y lo PENDIENTE por facturar (sin global o bloqueado, p. ej. forma de pago
+// "por definir"), con la lista de esos tickets para facturarlos a mano.
+// Lee GET /billing/reports/folios/cuadre; Excel con el formato anterior.
 
-import { Fragment, useMemo, useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, ScaleIcon } from '@heroicons/react/24/outline';
-import { Card, CardContent } from '@/components/ui/card';
+import { Fragment, useState } from 'react';
+import { toast } from 'sonner';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useGlobalDays } from '@/hooks/useBilling';
+  ArrowDownTrayIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ScaleIcon,
+} from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { useFoliosCuadre } from '@/hooks/useBilling';
 import { billingErrorMessage } from '@/lib/billing-error';
-import { getPaymentFormName } from '@/types/billing';
-import type { GlobalDayReconciliation, GlobalDayStatus } from '@/types/billing';
-
-/** Mismo tope que GET /billing/global-invoices/days. */
-export const RECONCILIATION_MAX_DAYS = 62;
+import { billingService } from '@/services/billing.service';
+import {
+  CUADRE_MAX_DAYS_ALL_BRANCHES,
+  CUADRE_MAX_DAYS_ONE_BRANCH,
+  getPaymentFormName,
+} from '@/types/billing';
+import type { FoliosCuadreBranch, FoliosCuadreDay, FoliosCuadreTotals } from '@/types/billing';
 
 const money = (v: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(v);
 const fmtDay = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}`;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-const TH = 'px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap';
-const TD = 'px-3 py-2 text-sm whitespace-nowrap';
-
-const DAY_STATE_LABELS: Record<GlobalDayStatus['status'], string> = {
+const DAY_STATE_LABELS: Record<string, string> = {
   not_eligible: 'No facturable',
   no_sales: 'Sin ventas',
   ready: 'Global pendiente',
@@ -66,6 +64,11 @@ export function daysBetween(start: string, end: string): number {
   return Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1;
 }
 
+/** ¿Cuadra? diferencia = no facturable + pendiente (tolerancia de centavos). */
+function squares(t: FoliosCuadreTotals): number {
+  return round2(t.difference - t.notInvoiceableTotal - t.pendingTotal);
+}
+
 interface Props {
   branchId: string | undefined;
   branchLabel: string | null;
@@ -74,39 +77,31 @@ interface Props {
 }
 
 export function ReconciliationSection({ branchId, branchLabel, from, to }: Props) {
-  const tooLong = daysBetween(from, to) > RECONCILIATION_MAX_DAYS;
-  const query = branchId && !tooLong ? { branchId, from, to } : null;
-  const days = useGlobalDays(query);
+  const maxDays = branchId ? CUADRE_MAX_DAYS_ONE_BRANCH : CUADRE_MAX_DAYS_ALL_BRANCHES;
+  const tooLong = daysBetween(from, to) > maxDays;
+  const query = !tooLong ? { startDate: from, endDate: to, branchId } : null;
+  const cuadre = useFoliosCuadre(query);
+  const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openDay, setOpenDay] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
-  const rows = useMemo(
-    () => (days.data ?? []).filter((d) => d.reconciliation && d.reconciliation.salesCount > 0),
-    [days.data],
-  );
-  const sum = useMemo(() => {
-    const acc = {
-      sales: 0, invoiced: 0, inGlobal: 0, nominative: 0, notInvoiceable: 0, pending: 0, pendingCount: 0, difference: 0,
-    };
-    const buckets = new Map<string, { label: string; total: number; count: number }>();
-    for (const d of rows) {
-      const r = d.reconciliation as GlobalDayReconciliation;
-      acc.sales += r.salesTotal;
-      acc.invoiced += r.invoicedTotal;
-      acc.inGlobal += r.inGlobalTotal;
-      acc.nominative += r.nominativeTotal;
-      acc.notInvoiceable += r.notInvoiceableTotal;
-      acc.pending += r.pendingTotal;
-      acc.pendingCount += r.pendingCount;
-      acc.difference += r.difference;
-      for (const b of r.notInvoiceable) {
-        const cur = buckets.get(b.reason) ?? { label: b.label, total: 0, count: 0 };
-        cur.total += b.total;
-        cur.count += b.count;
-        buckets.set(b.reason, cur);
-      }
+  const branches = cuadre.data?.branches ?? [];
+  const totals = cuadre.data?.totals;
+  // Una sola sucursal: su bloque abierto de entrada.
+  const expandedBranch = branches.length === 1 ? branches[0].branchId : openBranch;
+
+  const download = async () => {
+    if (!query) return;
+    setDownloading(true);
+    try {
+      await billingService.downloadFoliosCuadreXlsx(query);
+      toast.success('Excel del cuadre generado');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo generar el Excel del cuadre'));
+    } finally {
+      setDownloading(false);
     }
-    return { ...acc, buckets: Array.from(buckets.values()).sort((a, b) => b.total - a.total) };
-  }, [rows]);
+  };
 
   return (
     <Card>
@@ -115,190 +110,289 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
             <ScaleIcon className="h-4 w-4 text-[#3E667D]" />
             Cuadre: vendido vs facturado
-            {branchLabel && <span className="normal-case tracking-normal text-gray-400">· {branchLabel}</span>}
+            <span className="normal-case tracking-normal text-gray-400">· {branchLabel ?? 'todas las sucursales'}</span>
           </h2>
-          {query && (
-            <span className="text-xs text-gray-400">
-              {fmtDay(from)} – {fmtDay(to)} · día local de la sucursal
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {query && (
+              <span className="text-xs text-gray-400">
+                {fmtDay(from)} – {fmtDay(to)} · día local de cada sucursal
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => void download()}
+              disabled={downloading || !query || branches.length === 0}
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              {downloading ? 'Generando…' : 'Excel cuadre (formato anterior)'}
+            </Button>
+          </div>
         </div>
         <p className="mb-4 text-xs text-gray-400">
-          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano.
+          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano (Facturación libre).
         </p>
 
-        {!branchId ? (
+        {tooLong ? (
           <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
-            Elige una sucursal en los filtros para ver el cuadre por día.
+            El cuadre cubre hasta {maxDays} días{branchId ? '' : ' para todas las sucursales (62 con una sucursal)'}; acorta el rango.
           </p>
-        ) : tooLong ? (
-          <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
-            El cuadre se calcula hasta para {RECONCILIATION_MAX_DAYS} días; acorta el rango.
+        ) : cuadre.isLoading ? (
+          <p className="py-6 text-center text-sm text-gray-400">
+            Calculando el cuadre{branchId ? '' : ' de todas las sucursales'}… puede tardar unos segundos.
           </p>
-        ) : days.isLoading ? (
-          <p className="py-6 text-center text-sm text-gray-400">Calculando el cuadre…</p>
-        ) : days.isError ? (
+        ) : cuadre.isError ? (
           <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-            {billingErrorMessage(days.error, 'No se pudo calcular el cuadre')}
+            {billingErrorMessage(cuadre.error, 'No se pudo calcular el cuadre')}
           </p>
-        ) : rows.length === 0 ? (
+        ) : !totals || branches.length === 0 ? (
           <p className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
-            Sin ventas en el rango (o días todavía abiertos).
+            Sin ventas ni CFDI en el rango (o días todavía abiertos){branchId ? '' : ' en las sucursales que facturan en v2'}.
           </p>
         ) : (
           <>
-            {/* Totales del rango */}
-            <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-              <Kpi label="Vendido" value={money(sum.sales)} />
-              <Kpi
-                label="Facturado"
-                value={money(sum.invoiced)}
-                sub={`globales ${money(sum.inGlobal)} · nominativas ${money(sum.nominative)}`}
-              />
-              <Kpi
-                label="No facturable"
-                value={money(sum.notInvoiceable)}
-                sub={sum.buckets.map((b) => `${b.label} ${money(b.total)}`).join(' · ') || '—'}
-              />
-              <Kpi
-                label="Pendiente por facturar"
-                value={money(sum.pending)}
-                sub={`${sum.pendingCount.toLocaleString()} tickets · facturación manual`}
-                tone={sum.pending > 0 ? 'amber' : 'green'}
-              />
-              <Kpi
-                label="Diferencia (vendido − facturado)"
-                value={money(sum.difference)}
-                sub={
-                  Math.abs(round2(sum.difference - sum.notInvoiceable - sum.pending)) <= 0.05
-                    ? 'cuadra: no facturable + pendiente'
-                    : `no cuadra por ${money(round2(sum.difference - sum.notInvoiceable - sum.pending))}`
-                }
-                tone={Math.abs(round2(sum.difference - sum.notInvoiceable - sum.pending)) <= 0.05 ? 'green' : 'red'}
-              />
-            </div>
+            <TotalsStrip totals={totals} />
 
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <Table>
-                <TableHeader className="bg-gray-50">
-                  <TableRow>
-                    <TableHead className={TH}>Día</TableHead>
-                    <TableHead className={TH}>Estado</TableHead>
-                    <TableHead className={`${TH} text-right`}>Vendido</TableHead>
-                    <TableHead className={`${TH} text-right`}>En globales</TableHead>
-                    <TableHead className={`${TH} text-right`}>Nominativas</TableHead>
-                    <TableHead className={`${TH} text-right`}>No facturable</TableHead>
-                    <TableHead className={`${TH} text-right`}>Pendiente</TableHead>
-                    <TableHead className={`${TH} text-right`}>Diferencia</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((d) => {
-                    const r = d.reconciliation as GlobalDayReconciliation;
-                    const open = openDay === d.localDate;
-                    const canOpen = r.pendingCount > 0;
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className={TH}>Sucursal</th>
+                    <th className={`${TH} text-right`}>Vendido</th>
+                    <th className={`${TH} text-right`}>Facturado</th>
+                    <th className={`${TH} text-right`}>No facturable</th>
+                    <th className={`${TH} text-right`}>Pendiente</th>
+                    <th className={`${TH} text-right`}>Diferencia</th>
+                    <th className={`${TH} text-center`}>Cuadra</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {branches.map((b) => {
+                    const open = expandedBranch === b.branchId;
+                    const gap = squares(b.totals);
                     return (
-                      <Fragment key={d.localDate}>
-                        <TableRow
-                          className={canOpen ? 'cursor-pointer hover:bg-amber-50/40' : undefined}
-                          onClick={() => canOpen && setOpenDay(open ? null : d.localDate)}
+                      <Fragment key={b.branchId}>
+                        <tr
+                          className="cursor-pointer hover:bg-gray-50"
+                          onClick={() => setOpenBranch(open && branches.length > 1 ? null : b.branchId)}
                         >
-                          <TableCell className={`${TD} font-medium`}>
+                          <td className={`${TD} font-medium`}>
                             <span className="inline-flex items-center gap-1.5">
-                              {canOpen ? (
-                                open ? <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRightIcon className="h-3.5 w-3.5 text-gray-400" />
-                              ) : (
-                                <span className="inline-block w-3.5" />
-                              )}
-                              {fmtDay(d.localDate)}
+                              {open ? <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRightIcon className="h-3.5 w-3.5 text-gray-400" />}
+                              {b.branchCode ? `${b.branchCode} - ${b.branchName ?? ''}` : (b.branchName ?? b.branchId)}
+                              <span className="text-xs font-normal text-gray-400">({b.days.length} días)</span>
                             </span>
-                          </TableCell>
-                          <TableCell className={`${TD} text-gray-500`}>
-                            {DAY_STATE_LABELS[d.status] ?? d.status}
-                            {d.emittedForms && d.emittedForms.length > 0 && (
-                              <span className="ml-1 text-xs text-gray-400">
-                                ({d.emittedForms.map((f) => `${f.folioDisplay} · ${getPaymentFormName(f.paymentForm)}`).join(', ')})
+                          </td>
+                          <td className={`${TD} text-right tabular-nums`}>{money(b.totals.salesTotal)}</td>
+                          <td className={`${TD} text-right tabular-nums`}>{money(b.totals.invoicedTotal)}</td>
+                          <td className={`${TD} text-right tabular-nums text-gray-500`} title={b.totals.notInvoiceable.map((x) => `${x.label}: ${money(x.total)}`).join('\n')}>
+                            {money(b.totals.notInvoiceableTotal)}
+                          </td>
+                          <td className={`${TD} text-right tabular-nums font-semibold ${b.totals.pendingTotal > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+                            {money(b.totals.pendingTotal)}
+                            {b.totals.pendingCount > 0 && <span className="ml-1 text-xs font-normal text-amber-700/70">({b.totals.pendingCount})</span>}
+                          </td>
+                          <td className={`${TD} text-right tabular-nums`}>{money(b.totals.difference)}</td>
+                          <td className={`${TD} text-center`}>
+                            {Math.abs(gap) <= 0.05 ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Sí</span>
+                            ) : (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700" title="Diferencia no explicada por no facturable + pendiente">
+                                {money(gap)}
                               </span>
                             )}
-                          </TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums`}>
-                            {money(r.salesTotal)}
-                            <span className="ml-1 text-xs text-gray-400">({r.salesCount})</span>
-                          </TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums`}>{money(r.inGlobalTotal)}</TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums`}>{money(r.nominativeTotal)}</TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums text-gray-500`} title={r.notInvoiceable.map((b) => `${b.label}: ${money(b.total)}`).join('\n')}>
-                            {money(r.notInvoiceableTotal)}
-                          </TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums font-semibold ${r.pendingTotal > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
-                            {money(r.pendingTotal)}
-                            {r.pendingCount > 0 && <span className="ml-1 text-xs font-normal text-amber-700/70">({r.pendingCount})</span>}
-                          </TableCell>
-                          <TableCell className={`${TD} text-right tabular-nums`}>{money(r.difference)}</TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                         {open && (
-                          <TableRow className="bg-amber-50/30 hover:bg-amber-50/30">
-                            <TableCell colSpan={8} className="px-4 py-3">
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
-                                Pendiente por facturar · {fmtDay(d.localDate)}
-                                {r.pendingTruncated && (
-                                  <span className="ml-2 font-normal normal-case text-amber-700">(se muestran los primeros {r.pending.length})</span>
-                                )}
-                              </p>
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
-                                    <th className="px-2 py-1">Ticket</th>
-                                    <th className="px-2 py-1">Hora</th>
-                                    <th className="px-2 py-1">Cliente</th>
-                                    <th className="px-2 py-1">Cobro</th>
-                                    <th className="px-2 py-1">Motivo</th>
-                                    <th className="px-2 py-1 text-right">Importe</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100">
-                                  {r.pending.map((p) => (
-                                    <tr key={`${p.kind}-${p.id}`}>
-                                      <td className="px-2 py-1 font-mono text-xs">{p.folio}</td>
-                                      <td className="px-2 py-1 text-gray-500">{p.time || '—'}</td>
-                                      <td className="px-2 py-1">{p.customerName ?? '—'}</td>
-                                      <td className="px-2 py-1 text-gray-600">
-                                        {posMethodLabel(p.paymentMethod)}
-                                        {p.paymentForm && <span className="ml-1 text-xs text-gray-400">({p.paymentForm})</span>}
-                                      </td>
-                                      <td className="px-2 py-1">
-                                        <span className="font-medium text-amber-800">{p.label}</span>
-                                        <span className="ml-1 text-xs text-gray-500">{p.detail}</span>
-                                      </td>
-                                      <td className="px-2 py-1 text-right tabular-nums">{money(p.total)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </TableCell>
-                          </TableRow>
+                          <tr className="bg-gray-50/60">
+                            <td colSpan={7} className="px-4 py-3">
+                              <BranchDays branch={b} openDay={openDay} setOpenDay={setOpenDay} />
+                            </td>
+                          </tr>
                         )}
                       </Fragment>
                     );
                   })}
-                </TableBody>
-                <TableFooter>
-                  <TableRow className="bg-gray-50 font-semibold">
-                    <TableCell className={TD} colSpan={2}>Total del rango</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums`}>{money(sum.sales)}</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums`}>{money(sum.inGlobal)}</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums`}>{money(sum.nominative)}</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums`}>{money(sum.notInvoiceable)}</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums text-amber-700`}>{money(sum.pending)}</TableCell>
-                    <TableCell className={`${TD} text-right tabular-nums`}>{money(sum.difference)}</TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className={TD}>Total ({branches.length} sucursales)</td>
+                    <td className={`${TD} text-right tabular-nums`}>{money(totals.salesTotal)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{money(totals.invoicedTotal)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{money(totals.notInvoiceableTotal)}</td>
+                    <td className={`${TD} text-right tabular-nums text-amber-700`}>{money(totals.pendingTotal)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>{money(totals.difference)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+const TH = 'px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap';
+const TD = 'px-3 py-2 text-sm whitespace-nowrap';
+
+function TotalsStrip({ totals }: { totals: FoliosCuadreTotals }) {
+  const gap = squares(totals);
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <Kpi label="Vendido" value={money(totals.salesTotal)} sub={`${totals.salesCount.toLocaleString()} tickets`} />
+      <Kpi
+        label="Facturado"
+        value={money(totals.invoicedTotal)}
+        sub={`globales ${money(totals.inGlobalTotal)} · nominativas ${money(totals.nominativeTotal)}`}
+      />
+      <Kpi
+        label="No facturable"
+        value={money(totals.notInvoiceableTotal)}
+        sub={totals.notInvoiceable.map((b) => `${b.label} ${money(b.total)}`).join(' · ') || '—'}
+      />
+      <Kpi
+        label="Pendiente por facturar"
+        value={money(totals.pendingTotal)}
+        sub={`${totals.pendingCount.toLocaleString()} tickets · facturación manual`}
+        tone={totals.pendingTotal > 0 ? 'amber' : 'green'}
+      />
+      <Kpi
+        label="Diferencia (vendido − facturado)"
+        value={money(totals.difference)}
+        sub={Math.abs(gap) <= 0.05 ? 'cuadra: no facturable + pendiente' : `no cuadra por ${money(gap)}`}
+        tone={Math.abs(gap) <= 0.05 ? 'green' : 'red'}
+      />
+    </div>
+  );
+}
+
+function BranchDays({
+  branch,
+  openDay,
+  setOpenDay,
+}: {
+  branch: FoliosCuadreBranch;
+  openDay: string | null;
+  setOpenDay: (v: string | null) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className={TH}>Día</th>
+            <th className={TH}>Estado</th>
+            <th className={TH}>Folios (globales y nominativas)</th>
+            <th className={`${TH} text-right`}>Vendido</th>
+            <th className={`${TH} text-right`}>Facturado</th>
+            <th className={`${TH} text-right`}>No facturable</th>
+            <th className={`${TH} text-right`}>Pendiente</th>
+            <th className={`${TH} text-right`}>Diferencia</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {branch.days.map((d) => {
+            const key = `${branch.branchId}:${d.localDate}`;
+            const open = openDay === key;
+            const r = d.reconciliation;
+            const canOpen = !!r && r.pendingCount > 0;
+            const invoiced = d.invoices.reduce((acc, i) => acc + i.total, 0);
+            return (
+              <Fragment key={d.localDate}>
+                <tr className={canOpen ? 'cursor-pointer hover:bg-amber-50/40' : undefined} onClick={() => canOpen && setOpenDay(open ? null : key)}>
+                  <td className={`${TD} font-medium`}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {canOpen ? (open ? <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" /> : <ChevronRightIcon className="h-3.5 w-3.5 text-gray-400" />) : <span className="inline-block w-3.5" />}
+                      {fmtDay(d.localDate)}
+                    </span>
+                  </td>
+                  <td className={`${TD} text-gray-500`}>{DAY_STATE_LABELS[d.status] ?? d.status}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600">
+                    {d.invoices.length === 0 ? (
+                      <span className="text-gray-400">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {d.invoices.map((i) => (
+                          <span
+                            key={i.id}
+                            className={`rounded-full px-2 py-0.5 ${i.invoiceType === 'global' ? 'bg-violet-100 text-violet-800' : 'bg-gray-100 text-gray-700'}`}
+                            title={`${i.satUuid}${i.saleNumber ? ` · ticket ${i.saleNumber}` : ''}`}
+                          >
+                            {i.invoiceType === 'global' ? 'Global' : 'Nominativa'} {i.folioDisplay}
+                            {i.paymentFormCode && i.invoiceType === 'global' ? ` · ${getPaymentFormName(i.paymentFormCode)}` : ''} · {money(i.total)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className={`${TD} text-right tabular-nums`}>
+                    {r ? money(r.salesTotal) : '—'}
+                    {r && <span className="ml-1 text-xs text-gray-400">({r.salesCount})</span>}
+                  </td>
+                  <td className={`${TD} text-right tabular-nums`}>{money(invoiced)}</td>
+                  <td className={`${TD} text-right tabular-nums text-gray-500`} title={r?.notInvoiceable.map((b) => `${b.label}: ${money(b.total)}`).join('\n')}>
+                    {r ? money(r.notInvoiceableTotal) : '—'}
+                  </td>
+                  <td className={`${TD} text-right tabular-nums font-semibold ${r && r.pendingTotal > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+                    {r ? money(r.pendingTotal) : '—'}
+                    {r && r.pendingCount > 0 && <span className="ml-1 text-xs font-normal text-amber-700/70">({r.pendingCount})</span>}
+                  </td>
+                  <td className={`${TD} text-right tabular-nums`}>{r ? money(round2(r.salesTotal - invoiced)) : '—'}</td>
+                </tr>
+                {open && r && <PendingRow day={d} />}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PendingRow({ day }: { day: FoliosCuadreDay }) {
+  const r = day.reconciliation!;
+  return (
+    <tr className="bg-amber-50/30">
+      <td colSpan={8} className="px-4 py-3">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
+          Pendiente por facturar · {fmtDay(day.localDate)}
+          {r.pendingTruncated && <span className="ml-2 font-normal normal-case text-amber-700">(se muestran los primeros {r.pending.length})</span>}
+        </p>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
+              <th className="px-2 py-1">Ticket</th>
+              <th className="px-2 py-1">Hora</th>
+              <th className="px-2 py-1">Cliente</th>
+              <th className="px-2 py-1">Cobro</th>
+              <th className="px-2 py-1">Motivo</th>
+              <th className="px-2 py-1 text-right">Importe</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-amber-100">
+            {r.pending.map((p) => (
+              <tr key={`${p.kind}-${p.id}`}>
+                <td className="px-2 py-1 font-mono text-xs">{p.folio}</td>
+                <td className="px-2 py-1 text-gray-500">{p.time || '—'}</td>
+                <td className="px-2 py-1">{p.customerName ?? '—'}</td>
+                <td className="px-2 py-1 text-gray-600">
+                  {posMethodLabel(p.paymentMethod)}
+                  {p.paymentForm && <span className="ml-1 text-xs text-gray-400">({p.paymentForm})</span>}
+                </td>
+                <td className="px-2 py-1">
+                  <span className="font-medium text-amber-800">{p.label}</span>
+                  <span className="ml-1 text-xs text-gray-500">{p.detail}</span>
+                </td>
+                <td className="px-2 py-1 text-right tabular-nums">{money(p.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </td>
+    </tr>
   );
 }
 
