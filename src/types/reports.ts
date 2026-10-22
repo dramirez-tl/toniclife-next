@@ -362,6 +362,18 @@ export interface CountryRevenue {
   orders: number;
   revenueGrowth: number;
   ordersGrowth: number;
+  /** Tasa X→MXN congelada del periodo (1 para MXN; null sin tasa). API anterior no la manda. */
+  rateToMxn?: number | null;
+  /** Ingresos convertidos a MXN con esa tasa (null sin tasa). */
+  revenueMxn?: number | null;
+}
+
+/** Consolidado del periodo en MXN con la tasa congelada (como Ventas por Sucursal). */
+export interface DashboardFx {
+  periodName: string;
+  totalMxn: number;
+  /** Monedas con ingresos pero sin tasa capturada en el periodo. */
+  missing: string[];
 }
 
 export interface DashboardKPIs {
@@ -383,6 +395,8 @@ export interface DashboardKPIs {
   nextPeriodId: string | null;
   /** Ingresos/pedidos del periodo por país (dados de alta), México primero. */
   revenueByCountry: CountryRevenue[];
+  /** Total consolidado en MXN (null sin periodo; ausente en API anterior). */
+  fx?: DashboardFx | null;
 }
 
 // ================================

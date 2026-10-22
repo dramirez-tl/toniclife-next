@@ -38,6 +38,14 @@ function formatCurrency(value: number, currency: CurrencyCode = 'MXN'): string {
   }).format(value);
 }
 
+/** Tipo de cambio a MXN: 2 decimales (USD/GTQ) y hasta 4 cuando es muy chico (COP). */
+function formatRate(rate: number): string {
+  return rate.toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: rate < 1 ? 4 : 2,
+  });
+}
+
 function formatDateDisplay(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
@@ -408,18 +416,32 @@ export default function VentasSucursalPage() {
       {/* Summary Cards */}
       {data && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {CURRENCY_CONFIG.map((c) => (
-            <div
-              key={c.key}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{c.flag}</span>
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{c.label}</p>
+          {CURRENCY_CONFIG.map((c) => {
+            // Tasa congelada del periodo y equivalente en pesos (data.fx), sutil
+            // debajo del monto de cada moneda extranjera.
+            const fxRow = c.key === 'MXN' ? null : data.fx?.byCurrency.find((f) => f.currencyCode === c.key) ?? null;
+            return (
+              <div
+                key={c.key}
+                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">{c.flag}</span>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{c.label}</p>
+                </div>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(totalsByKey[c.key], c.key)}</p>
+                {c.key !== 'MXN' && data.fx && (
+                  <p className="mt-1 text-[11px] leading-tight text-gray-400">
+                    {fxRow?.rateToMxn && fxRow.totalMxn != null
+                      ? `1 ${c.key} = ${formatRate(fxRow.rateToMxn)} MXN · ${formatCurrency(fxRow.totalMxn, 'MXN')}`
+                      : totalsByKey[c.key] > 0
+                        ? 'Sin tipo de cambio en el periodo'
+                        : 'Sin ventas en esta moneda'}
+                  </p>
+                )}
               </div>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(totalsByKey[c.key], c.key)}</p>
-            </div>
-          ))}
+            );
+          })}
           <div className="rounded-xl border border-[#3E667D]/30 bg-[#3E667D] p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">🌎</span>

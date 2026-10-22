@@ -29,6 +29,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CalendarDaysIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 
 /** Formatea el rango de un periodo (YYYY-MM-DD) como "26 abr - 25 may". */
@@ -42,6 +43,13 @@ const formatPeriodRange = (start: string, end: string) => {
   };
   return `${fmt(start)} - ${fmt(end)}`;
 };
+
+/** Tipo de cambio a MXN: 2 decimales (USD/GTQ) y hasta 4 cuando es muy chico (COP). */
+const formatRate = (rate: number) =>
+  rate.toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: rate < 1 ? 4 : 2,
+  });
 
 type BadgeVariant = 'success' | 'info' | 'warning' | 'destructive' | 'outline';
 
@@ -316,33 +324,68 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Ingresos por país (desglose + selector; por defecto México) */}
+        {/* Ingresos por país (desglose + selector; por defecto México). Debajo de
+            cada moneda distinta de MXN, su tasa congelada del periodo y el
+            equivalente en pesos; al final, el consolidado en MXN (misma tasa
+            que Ventas por Sucursal). */}
         {countries.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-            <span className="mr-1 text-sm font-medium text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-stretch gap-2 border-t pt-3">
+            <span className="mr-1 self-center text-sm font-medium text-muted-foreground">
               Ingresos por país:
             </span>
             {countries.map((c) => {
               const active = selectedCountry?.countryId === c.countryId;
+              const foreign = !!c.currencyCode && c.currencyCode !== 'MXN';
               return (
                 <button
                   key={c.countryId}
                   onClick={() => setCountryCode(c.code)}
                   className={cn(
-                    'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
+                    'flex flex-col items-start justify-center gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors',
                     active
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
                       : 'border-border hover:border-foreground/20',
                   )}
                 >
-                  <span className="text-sm font-semibold text-foreground">{c.name}</span>
-                  <span className="text-sm text-muted-foreground">
-                    ${c.revenue.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
-                    <span className="ml-1 text-xs text-muted-foreground/70">{c.currencyCode}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{c.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      ${c.revenue.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
+                      <span className="ml-1 text-xs text-muted-foreground/70">{c.currencyCode}</span>
+                    </span>
                   </span>
+                  {foreign && (
+                    <span className="text-[11px] leading-tight text-muted-foreground/70">
+                      {c.rateToMxn && c.revenueMxn != null
+                        ? `1 ${c.currencyCode} = ${formatRate(c.rateToMxn)} MXN · $${c.revenueMxn.toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN`
+                        : 'Sin tipo de cambio en el periodo'}
+                    </span>
+                  )}
                 </button>
               );
             })}
+            {kpis?.fx && (
+              <div
+                className="ml-auto flex min-w-[220px] flex-col justify-center rounded-lg bg-[#3E667D] px-4 py-2 text-white"
+                title={`Convertido con la tasa congelada del periodo ${kpis.fx.periodName}`}
+              >
+                <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/70">
+                  <GlobeAltIcon className="h-3.5 w-3.5" />
+                  Total consolidado (MXN)
+                </span>
+                <span className="text-lg font-semibold leading-tight">
+                  ${kpis.fx.totalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span className="text-[11px] text-white/70">
+                  {countries.length} países · tasa del periodo
+                  {kpis.fx.missing.length > 0 && (
+                    <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                      sin tasa: {kpis.fx.missing.join(', ')}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </Card>
