@@ -366,6 +366,35 @@ export interface CountryRevenue {
   rateToMxn?: number | null;
   /** Ingresos convertidos a MXN con esa tasa (null sin tasa). */
   revenueMxn?: number | null;
+  /** Comparativos (API 22-oct-2026): valores del periodo anterior y del mismo periodo del año pasado. */
+  prevRevenue?: number;
+  prevOrders?: number;
+  lastYearRevenue?: number | null;
+  lastYearOrders?: number | null;
+  revenueGrowthYoy?: number | null;
+  ordersGrowthYoy?: number | null;
+  /** Distribuidores con compra (puntos > 0) en el periodo, en ese país. */
+  buyers?: number;
+  prevBuyers?: number | null;
+  lastYearBuyers?: number | null;
+  buyersGrowth?: number | null;
+  buyersGrowthYoy?: number | null;
+  /** Acervo: distribuidores activos con kit del país (hoy). */
+  activeDistributors?: number;
+}
+
+/** Plantilla de RRHH (global: la ficha no tiene sucursal) con comparativos. */
+export interface DashboardHeadcount {
+  current: number;
+  prev: number | null;
+  lastYear: number | null;
+  growth: number | null;
+  growthYoy: number | null;
+}
+
+export interface DashboardComparison {
+  prevPeriodName: string | null;
+  lastYearPeriodName: string | null;
 }
 
 /** Consolidado del periodo en MXN con la tasa congelada (como Ventas por Sucursal). */
@@ -397,6 +426,10 @@ export interface DashboardKPIs {
   revenueByCountry: CountryRevenue[];
   /** Total consolidado en MXN (null sin periodo; ausente en API anterior). */
   fx?: DashboardFx | null;
+  /** Colaboradores (plantilla RRHH) con comparativos; ausente en API anterior. */
+  collaborators?: DashboardHeadcount;
+  /** Nombres de los periodos contra los que se compara; ausente en API anterior. */
+  comparison?: DashboardComparison | null;
 }
 
 // ================================
