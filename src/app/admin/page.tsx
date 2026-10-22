@@ -460,9 +460,12 @@ export default function AdminDashboard() {
         })}
       </div>
 
+      {/* min-w-0 en las columnas: sin él, la tabla de pedidos (min-w 640px)
+          fija el ancho mínimo de la columna y en móvil la página se desborda
+          a la derecha en vez de desplazarse dentro de la tabla. */}
       <div className="grid gap-6 xl:grid-cols-3">
         {/* Recent Orders + Top Products */}
-        <div className="space-y-6 xl:col-span-2">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           <Card className="gap-0 overflow-hidden p-0">
             <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-4">
               <CardTitle className="flex items-center gap-3 text-lg">
@@ -555,7 +558,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Sidebar: Recent Activity */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card className="gap-0 overflow-hidden p-0">
             <CardHeader className="border-b py-4">
               <CardTitle className="flex items-center gap-3 text-lg">
