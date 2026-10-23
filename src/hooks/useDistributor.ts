@@ -207,10 +207,8 @@ export function useDistributorDashboard(periodId?: string) {
     points: dashboard?.points || pointsQuery.data,
     networkSummary: dashboard?.networkSummary || networkQuery.data,
     commissionsSummary: dashboard?.commissionsSummary,
-    // Solo los lee /distribuidor/ventas; vienen únicamente en el agregado
-    // (ya no hay respaldo /top-performers).
+    // Solo lo lee /distribuidor/ventas; viene únicamente en el agregado.
     salesSummary: dashboard?.salesSummary,
-    topPerformers: dashboard?.topPerformers,
     // Comisiones del periodo anterior al resuelto (viene en el mismo payload;
     // evita una segunda llamada a /dashboard desde la home).
     previousPeriodCommissions: dashboardQuery.data?.previousPeriodCommissions ?? null,

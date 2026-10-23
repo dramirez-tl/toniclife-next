@@ -1212,7 +1212,7 @@
     },
     "sales": {
       "title": "Sales Performance",
-      "subtitle": "Analyze your performance and your network's",
+      "subtitle": "Your purchases and points for the business period",
       "selectPeriod": "Select a period",
       "periodCurrent": " (Current)",
       "periodDates": "From {start} to {end}",
@@ -1228,37 +1228,27 @@
         "retry": "Retry"
       },
       "empty": {
-        "title": "You don't have any sales this period yet",
-        "body": "Share a cart with your customers or your store link to start adding sales and points.",
+        "title": "You don't have any purchases this period yet",
+        "body": "Buy in the online store or at a branch to add sales and points to your period.",
         "shareCart": "Share cart",
         "goToStore": "Go to the store"
       },
       "stats": {
-        "totalSales": "Total Sales",
-        "personalPlusNetwork": "Personal + Network",
         "personalSales": "Personal Sales",
-        "networkSales": "Network Sales",
-        "percentOfTotal": "{percent}% of total",
+        "personalSalesHint": "What you have bought this period",
         "personalOrders": "Personal purchases",
         "averageTicket": "Average ticket: {amount} {currency}",
-        "seeDetail": "See the detail"
+        "seeDetail": "See the detail",
+        "periodPoints": "Period points",
+        "pts": "pts",
+        "pointsQualified": "Qualified this period",
+        "pointsMissing": "You need {missing} more pts to qualify"
       },
       "topProducts": {
         "title": "My most purchased products",
         "units": "{count} units",
         "percentOfTotal": "{percent}% of total",
         "empty": "No purchases with products this period"
-      },
-      "breakdown": {
-        "title": "Sales Distribution",
-        "personalSales": "Personal Sales",
-        "networkSales": "Network Sales",
-        "personalLegend": "Personal ({percent}%)",
-        "networkLegend": "Network ({percent}%)"
-      },
-      "topPerformers": {
-        "title": "Period leaders",
-        "empty": "No leader data for this period"
       },
       "quickActions": {
         "title": "Quick Actions",
@@ -1694,7 +1684,7 @@
     },
     "orders": {
       "title": "My Orders",
-      "subtitle": "Confirm your purchases: order, payment and delivery status.",
+      "subtitle": "Your online store orders and your home deliveries with Call Center: status, payment and shipping.",
       "backToPanel": "Back to Main Panel",
       "buyProducts": "Buy products",
       "exploreProducts": "Explore products",
@@ -1704,6 +1694,15 @@
       "pickupDefaultBranch": "branch",
       "homeDelivery": "Home delivery",
       "points": "{points} pts",
+      "saleNumber": "Ticket {number}",
+      "kindOnline": "Online store",
+      "kindCallCenter": "Call Center · Home delivery",
+      "recipient": "Recipient: {name}",
+      "fulfilledBy": "Shipped by: {branch}",
+      "carrierAndTracking": "{carrier} · Tracking {tracking}",
+      "trackingOnly": "Tracking {tracking}",
+      "shippedOn": "Shipped on {date}",
+      "deliveredOn": "Delivered on {date}",
       "pagination": {
         "previous": "Previous",
         "next": "Next",
@@ -1711,7 +1710,7 @@
       },
       "empty": {
         "title": "You don't have any orders yet",
-        "body": "When you make a purchase, you'll be able to see your order, payment and delivery status here."
+        "body": "When you buy in the online store or request a home delivery with Call Center, you'll see the order, payment and shipping status here."
       },
       "error": {
         "title": "We couldn't load your orders",
@@ -1723,6 +1722,7 @@
         "confirmed": "Confirmed",
         "paid": "Paid",
         "processing": "Processing",
+        "ready": "Ready to ship",
         "shipped": "Shipped",
         "delivered": "Delivered",
         "completed": "Completed",

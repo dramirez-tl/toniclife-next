@@ -50,6 +50,8 @@ const ORDER_STATUS: Record<string, BadgeVariant> = {
   confirmed: 'success',
   paid: 'success',
   processing: 'info',
+  // Entrega a domicilio lista para envío (Almacén ya la surtió).
+  ready: 'info',
   shipped: 'info',
   delivered: 'success',
   completed: 'success',
@@ -190,8 +192,12 @@ export default function MisPedidosPage() {
 }
 
 // ===== Tarjeta de pedido =====
+// Dos tipos: pedido de la tienda en línea (`online`) y entrega a domicilio
+// capturada por Call Center en el POS (`home_delivery`), que además muestra
+// quién recibe, el domicilio, la sucursal que surte y la guía cuando ya se envió.
 
 function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
+  const home = order.kind === 'home_delivery';
   return (
     <Card className="border border-gray-200 transition-shadow hover:shadow-md">
       <CardContent className="p-5">
@@ -200,9 +206,14 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-gray-900">
-                {t('orderNumber', { number: order.orderNumber })}
+                {home
+                  ? t('saleNumber', { number: order.orderNumber })
+                  : t('orderNumber', { number: order.orderNumber })}
               </span>
               {orderStatusBadge(order.status, t)}
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                {home ? t('kindCallCenter') : t('kindOnline')}
+              </span>
             </div>
             <p className="mt-1 text-sm text-gray-500">
               {formatDate(order.orderDate ?? order.createdAt)}
@@ -216,21 +227,51 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
                 </>
               )}
             </p>
-            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-600">
-              {order.delivery === 'pickup' ? (
-                <>
-                  <BuildingStorefrontIcon className="h-4 w-4 text-[#3E667D]" />
-                  {t('pickupAt', {
-                    branch: order.pickupBranchName || t('pickupDefaultBranch'),
-                  })}
-                </>
-              ) : (
-                <>
-                  <TruckIcon className="h-4 w-4 text-[#3E667D]" />
-                  {t('homeDelivery')}
-                </>
-              )}
-            </p>
+            {home ? (
+              <div className="mt-1.5 space-y-0.5 text-sm text-gray-600">
+                <p className="flex items-center gap-1.5">
+                  <TruckIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+                  <span>
+                    {t('homeDelivery')}
+                    {order.fulfillBranchName
+                      ? ` · ${t('fulfilledBy', { branch: order.fulfillBranchName })}`
+                      : ''}
+                  </span>
+                </p>
+                {order.recipientName && (
+                  <p className="text-gray-500">{t('recipient', { name: order.recipientName })}</p>
+                )}
+                {order.addressText && <p className="text-gray-500">{order.addressText}</p>}
+                {order.trackingNumber && (
+                  <p className="font-medium text-[#3E667D]">
+                    {order.carrier
+                      ? t('carrierAndTracking', { carrier: order.carrier, tracking: order.trackingNumber })
+                      : t('trackingOnly', { tracking: order.trackingNumber })}
+                  </p>
+                )}
+                {order.deliveredAt ? (
+                  <p className="text-green-700">{t('deliveredOn', { date: formatDate(order.deliveredAt) })}</p>
+                ) : order.shippedAt ? (
+                  <p className="text-gray-500">{t('shippedOn', { date: formatDate(order.shippedAt) })}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-gray-600">
+                {order.delivery === 'pickup' ? (
+                  <>
+                    <BuildingStorefrontIcon className="h-4 w-4 text-[#3E667D]" />
+                    {t('pickupAt', {
+                      branch: order.pickupBranchName || t('pickupDefaultBranch'),
+                    })}
+                  </>
+                ) : (
+                  <>
+                    <TruckIcon className="h-4 w-4 text-[#3E667D]" />
+                    {t('homeDelivery')}
+                  </>
+                )}
+              </p>
+            )}
           </div>
 
           {/* Derecha: pago + total */}

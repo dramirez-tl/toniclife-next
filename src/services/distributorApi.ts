@@ -105,9 +105,17 @@ export interface OnboardingStatus {
 
 // ===== Mis Pedidos =====
 
+/**
+ * Un pedido de la tienda en línea (`online`) o una entrega a domicilio
+ * capturada por Call Center en el POS (`home_delivery`). Los tickets de
+ * mostrador no vienen aquí (viven en "Detalle de mis compras").
+ */
 export interface MyOrder {
   id: string;
+  kind: 'online' | 'home_delivery';
+  /** order_number (tienda) o sale_number (ticket del POS). */
   orderNumber: string;
+  /** pending | confirmed | paid | processing | ready | shipped | delivered | completed | cancelled */
   status: string;
   paymentStatus: string | null;
   total: number;
@@ -118,6 +126,15 @@ export interface MyOrder {
   pickupBranchName: string | null;
   orderDate: string | null;
   createdAt: string | null;
+  /** Solo entregas a domicilio. */
+  deliveryStatus: string | null;
+  carrier: string | null;
+  trackingNumber: string | null;
+  addressText: string | null;
+  recipientName: string | null;
+  fulfillBranchName: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
 }
 
 export interface MyOrdersResponse {

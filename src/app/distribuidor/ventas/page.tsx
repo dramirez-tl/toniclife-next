@@ -1,5 +1,11 @@
 'use client';
 
+// /distribuidor/ventas - "Rendimiento de Ventas" del distribuidor: SOLO sus
+// compras personales del periodo (ventas, compras, puntos, detalle por ticket
+// y productos más comprados). Las cifras de la red (ventas totales, ventas de
+// red, distribución, líderes) se retiraron el 23-oct-2026 a pedido de Sistemas:
+// se usaban en contra ("venden millones y yo una parte").
+
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -16,13 +22,13 @@ import { PurchasesList } from './PurchasesList';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
-  TrophyIcon,
   UserGroupIcon,
   CurrencyDollarIcon,
   ShoppingBagIcon,
   ShoppingCartIcon,
   ArrowPathIcon,
   CalendarDaysIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 
 /** 'YYYY-MM-DD' → fecha sin desfase de zona horaria. */
@@ -51,12 +57,6 @@ function formatPeriodDates(
     }).format(parseYmd(value));
   return { start: fmt(start, false), end: fmt(end, true) };
 }
-
-const CurrencyBadge = ({ code, className = '' }: { code: string; className?: string }) => (
-  <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1 ${className}`}>
-    {code}
-  </span>
-);
 
 export default function VentasPage() {
   const t = useTranslations('distributor.sales');
@@ -107,7 +107,6 @@ export default function VentasPage() {
 
   const {
     salesSummary,
-    topPerformers,
     points,
     isLoading,
     isRefreshing,
@@ -125,17 +124,17 @@ export default function VentasPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  const fmtPts = (n: number) => Math.round(n).toLocaleString(numLocale);
 
   const personal = salesSummary?.personalSales || 0;
-  const team = salesSummary?.teamSales || 0;
-  const total = salesSummary?.totalSales || 0;
   const orderCount = salesSummary?.orderCount || 0;
   const avgOrder = orderCount > 0 ? personal / orderCount : 0;
-  const personalPercent = total > 0 ? ((personal / total) * 100).toFixed(0) : '0';
-  const teamPercent = total > 0 ? ((team / total) * 100).toFixed(0) : '0';
   const products = salesSummary?.topProducts || [];
-  const performers = topPerformers || [];
   const topProductAmount = products.length > 0 ? Math.max(...products.map((product) => product.amount || 0), 0) : 0;
+  const hasPurchases = personal > 0 || orderCount > 0;
+  const pointsMissing = points
+    ? Math.max(0, points.personalPointsRequired - points.personalPoints)
+    : 0;
 
   const handleRefresh = () => {
     refetch();
@@ -153,8 +152,8 @@ export default function VentasPage() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse bg-white rounded-xl p-6 shadow-sm">
                 <div className="h-8 w-8 bg-gray-200 rounded-lg mb-4" />
                 <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
@@ -277,8 +276,8 @@ export default function VentasPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Estado vacío: invita a la primera venta del periodo */}
-        {total === 0 && (
+        {/* Estado vacío: invita a la primera compra del periodo */}
+        {!hasPurchases && (
           <Card className="mb-8">
             <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -314,48 +313,22 @@ export default function VentasPage() {
           </Card>
         )}
 
-        {/* Main Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Indicadores personales: ventas, compras y puntos del periodo */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <CurrencyDollarIcon className="h-8 w-8 text-white/80" />
+                <ShoppingBagIcon className="h-8 w-8 text-white/80" />
               </div>
-              <p className="text-sm text-white/80 mb-1">{t('stats.totalSales')}</p>
+              <p className="text-sm text-white/80 mb-1">{t('stats.personalSales')}</p>
               <p className="text-3xl font-bold flex items-baseline gap-1">
-                {formatCurrency(total)}
+                {formatCurrency(personal)}
                 <span className="text-xs font-semibold bg-white/20 px-1.5 py-0.5 rounded">{currencyCode}</span>
               </p>
-              <p className="text-xs text-white/70 mt-1">{t('stats.personalPlusNetwork')}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <ShoppingBagIcon className="h-8 w-8 text-blue-500" />
-              </div>
-              <p className="text-sm text-gray-600 mb-1">{t('stats.personalSales')}</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(personal)}<CurrencyBadge code={currencyCode} /></p>
-              <p className="text-xs text-gray-500 mt-1">
-                {t('stats.percentOfTotal', { percent: personalPercent })}
-              </p>
-              <a href="#detalle-compras" className="mt-2 inline-block text-xs font-medium text-[#3E667D] hover:underline">
+              <p className="text-xs text-white/70 mt-1">{t('stats.personalSalesHint')}</p>
+              <a href="#detalle-compras" className="mt-2 inline-block text-xs font-medium text-white/90 underline-offset-2 hover:underline">
                 {t('stats.seeDetail')} ↓
               </a>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <UserGroupIcon className="h-8 w-8 text-purple-500" />
-              </div>
-              <p className="text-sm text-gray-600 mb-1">{t('stats.networkSales')}</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(team)}<CurrencyBadge code={currencyCode} /></p>
-              <p className="text-xs text-gray-500 mt-1">
-                {t('stats.percentOfTotal', { percent: teamPercent })}
-              </p>
             </CardContent>
           </Card>
 
@@ -371,15 +344,34 @@ export default function VentasPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <StarIcon className="h-8 w-8 text-amber-500" />
+              </div>
+              <p className="text-sm text-gray-600 mb-1">{t('stats.periodPoints')}</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {points ? fmtPts(points.personalPoints) : '—'}
+                <span className="ml-1 text-sm font-medium text-gray-400">{t('stats.pts')}</span>
+              </p>
+              {points && (
+                <p className={`text-xs mt-1 ${points.isPersonalQualified ? 'text-green-600' : 'text-gray-500'}`}>
+                  {points.isPersonalQualified
+                    ? t('stats.pointsQualified')
+                    : t('stats.pointsMissing', { missing: fmtPts(pointsMissing) })}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Detalle de mis compras: de dónde sale "Ventas Personales" (sucursal, forma de pago, puntos) */}
         <PurchasesList periodId={dashboardPeriodId} currencyCode={currencyCode} />
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column */}
+          {/* Columna principal: productos más comprados */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Top Products */}
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">{t('topProducts.title')}</h3>
@@ -414,7 +406,7 @@ export default function VentasPage() {
                             {formatCurrency(product.amount)} <span className="text-[10px] font-semibold text-gray-400">{currencyCode}</span>
                           </p>
                           <p className="text-[11px] text-gray-500">
-                            {t('topProducts.percentOfTotal', { percent: total > 0 ? ((product.amount / total) * 100).toFixed(1) : '0' })}
+                            {t('topProducts.percentOfTotal', { percent: personal > 0 ? ((product.amount / personal) * 100).toFixed(1) : '0' })}
                           </p>
                         </div>
                       </div>
@@ -425,94 +417,10 @@ export default function VentasPage() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Sales Breakdown */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">{t('breakdown.title')}</h3>
-                <div className="space-y-4">
-                  {/* Personal vs Team bar */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">{t('breakdown.personalSales')}</span>
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(personal)} <span className="text-[10px] text-gray-400">{currencyCode}</span></span>
-                    </div>
-                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all"
-                        style={{ width: `${total > 0 ? (personal / total) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">{t('breakdown.networkSales')}</span>
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(team)} <span className="text-[10px] text-gray-400">{currencyCode}</span></span>
-                    </div>
-                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-purple-500 rounded-full transition-all"
-                        style={{ width: `${total > 0 ? (team / total) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 mt-4 pt-4 border-t">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded" />
-                      <span className="text-sm text-gray-600">{t('breakdown.personalLegend', { percent: personalPercent })}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-purple-500 rounded" />
-                      <span className="text-sm text-gray-600">{t('breakdown.networkLegend', { percent: teamPercent })}</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Right Column */}
+          {/* Columna lateral */}
           <div className="space-y-6">
-            {/* Top Performers */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrophyIcon className="h-5 w-5 text-yellow-500" />
-                  {t('topPerformers.title')}
-                </h3>
-                {performers.length > 0 ? (
-                  <div className="space-y-3">
-                    {performers.map((performer: { id: string; name: string; sales: number }, index: number) => (
-                      <div key={performer.id} className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-gray-50 text-gray-600'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {performer.name}
-                          </p>
-                        </div>
-                        <p className="text-sm font-bold text-[#3E667D]">
-                          {formatCurrency(performer.sales)} <span className="text-[9px] text-gray-400">{currencyCode}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4 text-sm">
-                    {t('topPerformers.empty')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Quick Actions */}
             <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] via-[#3E667D] to-[#0A4B94] text-white shadow-lg">
               <CardContent className="p-6">

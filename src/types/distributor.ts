@@ -76,11 +76,10 @@ export interface NetworkSummary {
   byLevel: { level: number; count: number; active: number }[];
 }
 
-/** Bloque de ventas del agregado /dashboard. Solo lo lee /distribuidor/ventas. */
+/** Bloque de compras personales del agregado /dashboard. Solo lo lee
+ *  /distribuidor/ventas. Sin ventas de la red (retiradas 23-oct-2026). */
 export interface SalesSummary {
   personalSales: number;
-  teamSales: number;
-  totalSales: number;
   orderCount?: number;
   /** Pedidos en línea + tickets del POS del periodo (mismas filas que personalSales). */
   topProducts: { productId: string | null; productName: string; quantity: number; amount: number; points?: number }[];
@@ -117,19 +116,6 @@ export interface CommissionsSummary {
   currencyCode?: string;
 }
 
-/** Top de la red en el agregado /dashboard. Solo lo lee /distribuidor/ventas
- *  (id, name, sales); el detalle por integrante es opcional. */
-export interface TopPerformer {
-  id: string;
-  name: string;
-  sales: number;
-  code?: string;
-  rank?: RankType;
-  level?: number;
-  newRecruits?: number;
-  avatarUrl?: string;
-}
-
 export interface DistributorDashboard {
   profile: DistributorProfile;
   points: PeriodPoints;
@@ -137,8 +123,6 @@ export interface DistributorDashboard {
   commissionsSummary: CommissionsSummary;
   /** Solo lo lee /distribuidor/ventas. */
   salesSummary?: SalesSummary;
-  /** Solo lo lee /distribuidor/ventas. */
-  topPerformers?: TopPerformer[];
 }
 
 /** Resumen de comisiones del periodo ANTERIOR al resuelto (lo cobrado en el

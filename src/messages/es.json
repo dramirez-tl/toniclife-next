@@ -1212,7 +1212,7 @@
     },
     "sales": {
       "title": "Rendimiento de Ventas",
-      "subtitle": "Analiza tu desempeño y el de tu red",
+      "subtitle": "Tus compras y tus puntos del periodo de negocio",
       "selectPeriod": "Selecciona un periodo",
       "periodCurrent": " (Actual)",
       "periodDates": "Del {start} al {end}",
@@ -1228,37 +1228,27 @@
         "retry": "Reintentar"
       },
       "empty": {
-        "title": "Aún no tienes ventas este periodo",
-        "body": "Comparte un carrito con tus clientes o tu enlace de tienda para empezar a sumar ventas y puntos.",
+        "title": "Aún no tienes compras este periodo",
+        "body": "Compra en la tienda en línea o en sucursal para sumar ventas y puntos a tu periodo.",
         "shareCart": "Compartir carrito",
         "goToStore": "Ir a la tienda"
       },
       "stats": {
-        "totalSales": "Ventas Totales",
-        "personalPlusNetwork": "Personal + Red",
         "personalSales": "Ventas Personales",
-        "networkSales": "Ventas de Red",
-        "percentOfTotal": "{percent}% del total",
+        "personalSalesHint": "Lo que has comprado en el periodo",
         "personalOrders": "Compras personales",
         "averageTicket": "Ticket promedio: {amount} {currency}",
-        "seeDetail": "Ver el detalle"
+        "seeDetail": "Ver el detalle",
+        "periodPoints": "Puntos del periodo",
+        "pts": "pts",
+        "pointsQualified": "Calificado este periodo",
+        "pointsMissing": "Te faltan {missing} pts para calificar"
       },
       "topProducts": {
         "title": "Mis productos más comprados",
         "units": "{count} unidades",
         "percentOfTotal": "{percent}% del total",
         "empty": "No hay compras con productos en este periodo"
-      },
-      "breakdown": {
-        "title": "Distribución de Ventas",
-        "personalSales": "Ventas Personales",
-        "networkSales": "Ventas de Red",
-        "personalLegend": "Personal ({percent}%)",
-        "networkLegend": "Red ({percent}%)"
-      },
-      "topPerformers": {
-        "title": "Líderes del periodo",
-        "empty": "Sin datos de líderes en este periodo"
       },
       "quickActions": {
         "title": "Acciones Rápidas",
@@ -1694,7 +1684,7 @@
     },
     "orders": {
       "title": "Mis Pedidos",
-      "subtitle": "Confirma tus compras: estatus del pedido, pago y entrega.",
+      "subtitle": "Tus pedidos de la tienda en línea y tus entregas a domicilio con Call Center: estatus, pago y envío.",
       "backToPanel": "Volver al Panel Principal",
       "buyProducts": "Comprar productos",
       "exploreProducts": "Explorar productos",
@@ -1704,6 +1694,15 @@
       "pickupDefaultBranch": "sucursal",
       "homeDelivery": "Envío a domicilio",
       "points": "{points} pts",
+      "saleNumber": "Ticket {number}",
+      "kindOnline": "Tienda en línea",
+      "kindCallCenter": "Call Center · Entrega a domicilio",
+      "recipient": "Recibe: {name}",
+      "fulfilledBy": "Surte: {branch}",
+      "carrierAndTracking": "{carrier} · Guía {tracking}",
+      "trackingOnly": "Guía {tracking}",
+      "shippedOn": "Enviado el {date}",
+      "deliveredOn": "Entregado el {date}",
       "pagination": {
         "previous": "Anterior",
         "next": "Siguiente",
@@ -1711,7 +1710,7 @@
       },
       "empty": {
         "title": "Aún no tienes pedidos",
-        "body": "Cuando realices una compra, aquí podrás ver el estatus de tu pedido, el pago y la entrega."
+        "body": "Cuando compres en la tienda en línea o pidas una entrega a domicilio con Call Center, aquí verás el estatus del pedido, el pago y el envío."
       },
       "error": {
         "title": "No pudimos cargar tus pedidos",
@@ -1723,6 +1722,7 @@
         "confirmed": "Confirmado",
         "paid": "Pagado",
         "processing": "En preparación",
+        "ready": "Listo para envío",
         "shipped": "Enviado",
         "delivered": "Entregado",
         "completed": "Completado",
