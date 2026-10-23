@@ -9,7 +9,6 @@ import {
   CommissionSummaryCards,
   CommissionTable,
   CommissionChart,
-  CommissionPercentagesTable,
   CommissionBreakdown,
   RankRoadmap,
 } from '@/components/commissions';
@@ -543,14 +542,10 @@ function ComisionesContent() {
           </Card>
         )}
 
-        {/* Commission structure tables */}
-        {commissionStructure && (
-          <div className="mt-6">
-            <CommissionPercentagesTable
-              structure={commissionStructure}
-            />
-          </div>
-        )}
+        {/* Las tablas "Comisiones por Nivel" y "Comisiones por Generación" (porcentajes
+            de la estructura, nivel máximo, calificados) se retiraron el 23-oct-2026 a
+            pedido de Sistemas; la estructura sigue alimentando "Cómo se calculó tu
+            comisión" y el Consejo Pro. */}
 
         {/* Help CTA - Rediseñado */}
         <Card className="mt-8 overflow-hidden border-0 shadow-xl">
