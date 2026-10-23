@@ -16,6 +16,7 @@ import { ScopedReportsLanding } from '@/components/admin/reports/ScopedReportsLa
 import type { RecentOrder } from '@/types/reports';
 import {
   UserGroupIcon,
+  UserPlusIcon,
   ShoppingBagIcon,
   CurrencyDollarIcon,
   UsersIcon,
@@ -205,11 +206,12 @@ export default function AdminDashboard() {
 
   // Comparativos: vs periodo anterior y vs mismo periodo del año pasado (el
   // API manda los valores base; el % se calcula aquí para que "sin base" sea
-  // null y no 0). Colaboradores es global: la ficha de RRHH no tiene sucursal.
+  // null y no 0). Nuevos inscritos (23-oct-2026, en lugar de Colaboradores):
+  // altas de distribuidores del periodo por país; sin país elegido, el total.
   const prevLabel = shortPeriod(kpis?.comparison?.prevPeriodName) ?? 'periodo anterior';
   const yoyLabel = shortPeriod(kpis?.comparison?.lastYearPeriodName) ?? 'año pasado';
   const countrySuffix = selectedCountry ? ` · ${selectedCountry.name}` : '';
-  const head = kpis?.collaborators;
+  const newAll = kpis?.newDistributors;
   const stats: {
     title: string;
     value: number;
@@ -221,13 +223,16 @@ export default function AdminDashboard() {
     secondary?: string;
   }[] = [
     {
-      title: 'Colaboradores',
-      value: head?.current ?? kpis?.totalUsers ?? 0,
-      prev: head?.prev,
-      lastYear: head?.lastYear,
-      icon: UserGroupIcon,
+      title: `Nuevos inscritos${countrySuffix}`,
+      value: selectedCountry?.newDistributors ?? newAll?.current ?? 0,
+      prev: selectedCountry ? selectedCountry.prevNewDistributors : newAll?.prev,
+      lastYear: selectedCountry ? selectedCountry.lastYearNewDistributors : newAll?.lastYear,
+      icon: UserPlusIcon,
       isCurrency: false,
-      secondary: 'Plantilla de RRHH · todos los países',
+      secondary:
+        newAll && selectedCountry && newAll.current !== selectedCountry.newDistributors
+          ? `Altas del periodo con kit pagado · ${newAll.current.toLocaleString('es-MX')} en todos los países`
+          : 'Altas del periodo con kit pagado',
     },
     {
       title: `Ventas del Periodo${countrySuffix}`,

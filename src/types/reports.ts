@@ -381,6 +381,12 @@ export interface CountryRevenue {
   buyersGrowthYoy?: number | null;
   /** Acervo: distribuidores activos con kit del país (hoy). */
   activeDistributors?: number;
+  /** Nuevos inscritos: distribuidores con alta en el periodo (sin pendientes de kit). API anterior no lo manda. */
+  newDistributors?: number;
+  prevNewDistributors?: number | null;
+  lastYearNewDistributors?: number | null;
+  newDistributorsGrowth?: number | null;
+  newDistributorsGrowthYoy?: number | null;
 }
 
 /** Plantilla de RRHH (global: la ficha no tiene sucursal) con comparativos. */
@@ -428,6 +434,8 @@ export interface DashboardKPIs {
   fx?: DashboardFx | null;
   /** Colaboradores (plantilla RRHH) con comparativos; ausente en API anterior. */
   collaborators?: DashboardHeadcount;
+  /** Nuevos inscritos del periodo (todos los países) con comparativos; ausente en API anterior. */
+  newDistributors?: DashboardHeadcount;
   /** Nombres de los periodos contra los que se compara; ausente en API anterior. */
   comparison?: DashboardComparison | null;
 }
