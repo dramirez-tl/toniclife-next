@@ -409,6 +409,11 @@ export interface DashboardFx {
   totalMxn: number;
   /** Monedas con ingresos pero sin tasa capturada en el periodo. */
   missing: string[];
+  /** Consolidado MXN del periodo anterior / año pasado con la tasa del periodo actual (API anterior no lo manda). */
+  prevTotalMxn?: number | null;
+  lastYearTotalMxn?: number | null;
+  growth?: number | null;
+  growthYoy?: number | null;
 }
 
 export interface DashboardKPIs {

@@ -3,9 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DataTable, type DataTableColumn } from '@/components/ui';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { PermissionGuard } from '@/components/auth';
 import { useDashboardKPIs } from '@/hooks/useReports';
@@ -13,7 +11,6 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { isBranchScopedUser } from '@/lib/branch-scope';
 import { ScopedReportsLanding } from '@/components/admin/reports/ScopedReportsLanding';
-import type { RecentOrder } from '@/types/reports';
 import {
   UserGroupIcon,
   UserPlusIcon,
@@ -23,8 +20,6 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
   ExclamationTriangleIcon,
-  ClockIcon,
-  ChartBarIcon,
   ArrowPathIcon,
   EyeIcon,
   ChevronLeftIcon,
@@ -107,23 +102,6 @@ function Comparison({
   );
 }
 
-type BadgeVariant = 'success' | 'info' | 'warning' | 'destructive' | 'outline';
-
-const statusConfig: Record<string, { label: string; variant: BadgeVariant }> = {
-  completed: { label: 'Completado', variant: 'success' },
-  delivered: { label: 'Entregado', variant: 'success' },
-  paid: { label: 'Pagado', variant: 'success' },
-  processing: { label: 'Procesando', variant: 'info' },
-  shipped: { label: 'Enviado', variant: 'info' },
-  in_transit: { label: 'En tránsito', variant: 'info' },
-  pending: { label: 'Pendiente', variant: 'warning' },
-  cancelled: { label: 'Cancelado', variant: 'destructive' },
-  refunded: { label: 'Reembolsado', variant: 'destructive' },
-};
-
-const getStatusConfig = (status: string) =>
-  statusConfig[status] ?? { label: status, variant: 'outline' as BadgeVariant };
-
 export default function AdminDashboard() {
   const [periodId, setPeriodId] = useState<string | undefined>(undefined);
   const [countryCode, setCountryCode] = useState('MX'); // por defecto México
@@ -138,26 +116,6 @@ export default function AdminDashboard() {
   if (branchScoped) {
     return <ScopedReportsLanding title="Panel Principal" />;
   }
-
-  const formatTime = (timestamp: string) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-
-    if (diffMins < 1) return 'Ahora';
-    if (diffMins < 60) return `Hace ${diffMins}m`;
-    if (diffHours < 24) return `Hace ${diffHours}h`;
-    return date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
-  };
-
-  const formatDate = (timestamp: string) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-  };
 
   // Loading state
   if (isLoading) {
@@ -266,59 +224,6 @@ export default function AdminDashboard() {
     },
   ];
 
-  const recentOrdersColumns: DataTableColumn<RecentOrder>[] = [
-    {
-      key: 'orderNumber',
-      header: 'Pedido',
-      headerClassName: 'text-left py-3 px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider',
-      cellClassName: 'py-4 px-6',
-      render: (order) => (
-        <span className="rounded bg-muted px-2 py-1 font-mono text-sm text-muted-foreground">
-          {order.orderNumber}
-        </span>
-      ),
-    },
-    {
-      key: 'customerName',
-      header: 'Cliente',
-      headerClassName: 'text-left py-3 px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider',
-      cellClassName: 'py-4 px-6',
-      render: (order) => (
-        <p className="text-sm font-medium text-foreground">{order.customerName}</p>
-      ),
-    },
-    {
-      key: 'amount',
-      header: 'Monto',
-      headerClassName: 'text-right py-3 px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider',
-      cellClassName: 'py-4 px-6 text-right',
-      render: (order) => (
-        <p className="text-sm font-semibold text-foreground">
-          ${order.amount.toLocaleString('es-MX')}
-        </p>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Estado',
-      headerClassName: 'text-center py-3 px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider',
-      cellClassName: 'py-4 px-6 text-center',
-      render: (order) => {
-        const status = getStatusConfig(order.status);
-        return <Badge variant={status.variant}>{status.label}</Badge>;
-      },
-    },
-    {
-      key: 'date',
-      header: 'Fecha',
-      headerClassName: 'text-right py-3 px-6 text-xs font-medium text-muted-foreground uppercase tracking-wider',
-      cellClassName: 'py-4 px-6 text-right',
-      render: (order) => (
-        <p className="text-sm text-muted-foreground">{formatDate(order.date)}</p>
-      ),
-    },
-  ];
-
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       {/* Header */}
@@ -328,7 +233,7 @@ export default function AdminDashboard() {
             Panel Principal
           </h1>
           <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            Resumen general del sistema y actividad reciente
+            Resumen del periodo de negocio por país
           </p>
         </div>
 
@@ -436,7 +341,7 @@ export default function AdminDashboard() {
                     aria-pressed={active}
                     onClick={() => setCountryCode(c.code)}
                     className={cn(
-                      'flex min-h-[5.75rem] flex-col justify-between gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
+                      'flex min-h-[7.5rem] flex-col justify-between gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors',
                       active
                         ? 'border-primary bg-primary/5 ring-1 ring-primary'
                         : 'border-border hover:border-foreground/30 hover:bg-muted/40',
@@ -450,6 +355,21 @@ export default function AdminDashboard() {
                     </span>
                     <span className="text-lg font-semibold leading-tight tabular-nums text-foreground">
                       ${c.revenue.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
+                    </span>
+                    {/* Comparativos del país, en su moneda (23-oct-2026). */}
+                    <span className="flex flex-wrap gap-1">
+                      <Comparison
+                        pct={growthPct(c.revenue, c.prevRevenue)}
+                        label={prevLabel}
+                        base={c.prevRevenue}
+                        isCurrency
+                      />
+                      <Comparison
+                        pct={growthPct(c.revenue, c.lastYearRevenue)}
+                        label={yoyLabel}
+                        base={c.lastYearRevenue}
+                        isCurrency
+                      />
                     </span>
                     <span className="text-[11px] leading-snug text-muted-foreground">
                       {!foreign ? (
@@ -471,8 +391,8 @@ export default function AdminDashboard() {
               })}
               {kpis?.fx && (
                 <div
-                  className="col-span-full flex min-h-[5.75rem] flex-col justify-between gap-1 rounded-lg bg-[#3E667D] px-3 py-2.5 text-white sm:col-span-2 xl:col-span-1"
-                  title={`Convertido con la tasa congelada del periodo ${kpis.fx.periodName}`}
+                  className="col-span-full flex min-h-[7.5rem] flex-col justify-between gap-1 rounded-lg bg-[#3E667D] px-3 py-2.5 text-white sm:col-span-2 xl:col-span-1"
+                  title={`Convertido con la tasa congelada del periodo ${kpis.fx.periodName}; los comparativos usan esa misma tasa`}
                 >
                   <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/70">
                     <GlobeAltIcon className="h-3.5 w-3.5 shrink-0" />
@@ -483,6 +403,21 @@ export default function AdminDashboard() {
                   </span>
                   <span className="text-lg font-semibold leading-tight tabular-nums">
                     ${kpis.fx.totalMxn.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  {/* Comparativos del consolidado, con la tasa del periodo actual. */}
+                  <span className="flex flex-wrap gap-1">
+                    <Comparison
+                      pct={growthPct(kpis.fx.totalMxn, kpis.fx.prevTotalMxn)}
+                      label={prevLabel}
+                      base={kpis.fx.prevTotalMxn}
+                      isCurrency
+                    />
+                    <Comparison
+                      pct={growthPct(kpis.fx.totalMxn, kpis.fx.lastYearTotalMxn)}
+                      label={yoyLabel}
+                      base={kpis.fx.lastYearTotalMxn}
+                      isCurrency
+                    />
                   </span>
                   <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-snug text-white/70">
                     {countries.length} países · tasa del periodo
@@ -543,152 +478,9 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* min-w-0 en las columnas: sin él, la tabla de pedidos (min-w 640px)
-          fija el ancho mínimo de la columna y en móvil la página se desborda
-          a la derecha en vez de desplazarse dentro de la tabla. */}
-      <div className="grid gap-6 xl:grid-cols-3">
-        {/* Recent Orders + Top Products */}
-        <div className="min-w-0 space-y-6 xl:col-span-2">
-          <Card className="gap-0 overflow-hidden p-0">
-            <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-4">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <ShoppingBagIcon className="h-4 w-4" />
-                </span>
-                Pedidos Recientes
-              </CardTitle>
-              <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-                <Link href="/admin/pedidos">Ver todos</Link>
-              </Button>
-            </CardHeader>
-            <DataTable<RecentOrder>
-              columns={recentOrdersColumns}
-              data={kpis?.recentOrders ?? []}
-              getRowKey={(order) => order.id}
-              minWidthClassName="min-w-[640px]"
-              emptyState={
-                <>
-                  <ShoppingBagIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm font-medium text-muted-foreground">No hay pedidos recientes</p>
-                  <p className="mt-1 text-xs text-muted-foreground/70">
-                    Cuando se registren nuevas ventas aparecerán aquí.
-                  </p>
-                </>
-              }
-            />
-          </Card>
-
-          {/* Top Products */}
-          <Card className="gap-0 overflow-hidden p-0">
-            <CardHeader className="border-b py-4">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <ChartBarIcon className="h-4 w-4" />
-                </span>
-                Productos Más Vendidos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 sm:p-6">
-              {(kpis?.topProducts ?? []).length === 0 ? (
-                <div className="py-8 text-center">
-                  <ChartBarIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No hay datos de productos</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {(kpis?.topProducts ?? []).map((product, index, arr) => {
-                    const maxSales = arr[0]?.sales ?? 1;
-                    const percentage = Math.max((product.sales / maxSales) * 100, 8);
-                    return (
-                      <div
-                        key={product.productId}
-                        className="rounded-xl border p-3.5 transition-colors hover:bg-muted/50"
-                      >
-                        <div className="mb-2 flex items-center gap-4">
-                          <div
-                            className={cn(
-                              'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold',
-                              index === 0
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {index + 1}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-foreground">
-                              {product.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{product.sales} ventas</p>
-                          </div>
-                          <p className="text-sm font-semibold text-foreground">
-                            ${product.revenue.toLocaleString('es-MX')}
-                          </p>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar: Recent Activity */}
-        <div className="min-w-0 space-y-6">
-          <Card className="gap-0 overflow-hidden p-0">
-            <CardHeader className="border-b py-4">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                  <ClockIcon className="h-4 w-4" />
-                </span>
-                Actividad Reciente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 sm:p-6">
-              {(kpis?.recentActivity ?? []).length === 0 ? (
-                <div className="py-8 text-center">
-                  <ClockIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No hay actividad reciente</p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {(kpis?.recentActivity ?? []).map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex gap-3 rounded-lg p-2 transition-colors hover:bg-muted/50"
-                    >
-                      <div
-                        className={cn(
-                          'mt-2 h-2 w-2 shrink-0 rounded-full',
-                          activity.type === 'user' && 'bg-chart-1',
-                          activity.type === 'order' && 'bg-emerald-500',
-                          activity.type === 'product' && 'bg-amber-500',
-                          activity.type === 'payment' && 'bg-chart-3',
-                          !['user', 'order', 'product', 'payment'].includes(activity.type) &&
-                            'bg-muted-foreground',
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm leading-snug text-foreground">{activity.message}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {formatTime(activity.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Pedidos recientes, productos más vendidos y actividad reciente se
+          quitaron del panel (23-oct-2026): el negocio quiere solo los KPIs del
+          periodo por país con sus comparativos; el detalle vive en Reportes. */}
     </div>
   );
 }
