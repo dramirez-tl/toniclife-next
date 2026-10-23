@@ -71,6 +71,28 @@ export function PurchasesList({ periodId, currencyCode }: PurchasesListProps) {
   };
   const pts = (points: number) => points.toLocaleString(numLocale, { maximumFractionDigits: 0 });
 
+  // Puntos acreditados; si hubo un ajuste, el nominal del ticket tachado al lado
+  // (así la suma de la lista coincide con los puntos del periodo).
+  const pointsCell = (p: DistributorPurchase) => {
+    const adjusted = Math.abs(p.points - p.ticketPoints) > 0.001;
+    return (
+      <span
+        className="inline-flex items-baseline gap-1"
+        title={
+          adjusted
+            ? t('pointsAdjusted', { ticket: pts(p.ticketPoints), credited: pts(p.points) })
+            : undefined
+        }
+      >
+        {adjusted && (
+          <span className="text-xs font-normal text-gray-400 line-through">{pts(p.ticketPoints)}</span>
+        )}
+        <span>{pts(p.points)}</span>
+        <span className="text-[10px] font-normal text-gray-400">{t('pts')}</span>
+      </span>
+    );
+  };
+
   // Hora local de la sucursal; las ventas del sistema anterior solo traen fecha.
   const when = (p: DistributorPurchase) => {
     const base: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
@@ -147,7 +169,7 @@ export function PurchasesList({ periodId, currencyCode }: PurchasesListProps) {
   const hasCancelled = purchases.some((p) => p.status === 'cancelled');
 
   return (
-    <Card className="mb-8">
+    <Card id="detalle-compras" className="mb-8 scroll-mt-24">
       <CardContent className="p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -211,7 +233,7 @@ export function PurchasesList({ periodId, currencyCode }: PurchasesListProps) {
                           <td className="py-3 pr-3 text-gray-700">{branch(p)}</td>
                           <td className="py-3 pr-3 text-gray-700">{paymentsText(p)}</td>
                           <td className="whitespace-nowrap py-3 pr-3 text-right font-medium text-[#3E667D]">
-                            {pts(p.points)} <span className="text-[10px] text-gray-400">{t('pts')}</span>
+                            {pointsCell(p)}
                           </td>
                           <td
                             className={`whitespace-nowrap py-3 pr-3 text-right font-semibold ${
@@ -263,9 +285,7 @@ export function PurchasesList({ periodId, currencyCode }: PurchasesListProps) {
                     <div className="mt-2 text-sm text-gray-700">{branch(p)}</div>
                     <div className="mt-1 text-sm text-gray-700">{paymentsText(p)}</div>
                     <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm font-medium text-[#3E667D]">
-                        {pts(p.points)} {t('pts')}
-                      </span>
+                      <span className="text-sm font-medium text-[#3E667D]">{pointsCell(p)}</span>
                       <span
                         className={`font-semibold ${muted ? 'text-gray-400 line-through' : 'text-gray-900'}`}
                       >

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { localeLanguage } from '@/i18n/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -24,8 +25,43 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
+/** 'YYYY-MM-DD' → fecha sin desfase de zona horaria. */
+function parseYmd(value: string): Date {
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/**
+ * Fechas legibles del periodo elegido ("26 sep" → "26 oct 2026"). Los periodos
+ * van del 26 al 25: verlas aclara por qué una compra del 26 ya cae en el
+ * periodo siguiente.
+ */
+function formatPeriodDates(
+  start: unknown,
+  end: unknown,
+  locale: string,
+): { start: string; end: string } | null {
+  if (typeof start !== 'string' || typeof end !== 'string' || !start || !end) return null;
+  const fmt = (value: string, withYear: boolean) =>
+    new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      ...(withYear ? { year: 'numeric' } : {}),
+      timeZone: 'UTC',
+    }).format(parseYmd(value));
+  return { start: fmt(start, false), end: fmt(end, true) };
+}
+
+const CurrencyBadge = ({ code, className = '' }: { code: string; className?: string }) => (
+  <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1 ${className}`}>
+    {code}
+  </span>
+);
+
 export default function VentasPage() {
   const t = useTranslations('distributor.sales');
+  // Formato de números/fechas según el idioma de la cuenta (no el del navegador).
+  const numLocale = localeLanguage(useLocale()) === 'en' ? 'en-US' : 'es-MX';
   // Tienda solo para distribuidores: sin carrito compartido; vender = comprar en la tienda.
   const { membersOnly } = useStorefrontAccess();
   const user = useAppSelector(selectUser);
@@ -53,6 +89,12 @@ export default function VentasPage() {
   });
   const isCurrentSelected =
     !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
+  const selectedPeriod = sortedPeriods.find((p) => p?.id === selectedPeriodId);
+  const periodDates = formatPeriodDates(
+    selectedPeriod?.startDate ?? selectedPeriod?.start_date,
+    selectedPeriod?.endDate ?? selectedPeriod?.end_date,
+    numLocale,
+  );
 
   // Periodo actual => SIN periodId: la clave queda
   // ['distributor','dashboard','current'], la misma que usan sidebar/topnav,
@@ -83,12 +125,6 @@ export default function VentasPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
-
-  const CurrencyBadge = ({ className = '' }: { className?: string }) => (
-    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1 ${className}`}>
-      {currencyCode}
-    </span>
-  );
 
   const personal = salesSummary?.personalSales || 0;
   const team = salesSummary?.teamSales || 0;
@@ -199,6 +235,11 @@ export default function VentasPage() {
                     {t('pastPeriod')}
                   </span>
                 )}
+                {periodDates && (
+                  <span className="whitespace-nowrap rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-white/90">
+                    {t('periodDates', periodDates)}
+                  </span>
+                )}
               </div>
               {isRefreshing && (
                 <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/90">
@@ -295,10 +336,13 @@ export default function VentasPage() {
                 <ShoppingBagIcon className="h-8 w-8 text-blue-500" />
               </div>
               <p className="text-sm text-gray-600 mb-1">{t('stats.personalSales')}</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(personal)}<CurrencyBadge /></p>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(personal)}<CurrencyBadge code={currencyCode} /></p>
               <p className="text-xs text-gray-500 mt-1">
                 {t('stats.percentOfTotal', { percent: personalPercent })}
               </p>
+              <a href="#detalle-compras" className="mt-2 inline-block text-xs font-medium text-[#3E667D] hover:underline">
+                {t('stats.seeDetail')} ↓
+              </a>
             </CardContent>
           </Card>
 
@@ -308,7 +352,7 @@ export default function VentasPage() {
                 <UserGroupIcon className="h-8 w-8 text-purple-500" />
               </div>
               <p className="text-sm text-gray-600 mb-1">{t('stats.networkSales')}</p>
-              <p className="text-3xl font-bold text-gray-900">{formatCurrency(team)}<CurrencyBadge /></p>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(team)}<CurrencyBadge code={currencyCode} /></p>
               <p className="text-xs text-gray-500 mt-1">
                 {t('stats.percentOfTotal', { percent: teamPercent })}
               </p>
@@ -342,7 +386,7 @@ export default function VentasPage() {
                 {products.length > 0 ? (
                   <div className="space-y-4">
                     {products.map((product, index) => (
-                      <div key={product.productId} className="flex items-center gap-4">
+                      <div key={product.productId ?? product.productName} className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                           index === 0 ? 'bg-yellow-100 text-yellow-700' :
                           index === 1 ? 'bg-gray-100 text-gray-700' :
@@ -353,7 +397,14 @@ export default function VentasPage() {
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{product.productName}</p>
-                          <p className="text-sm text-gray-500">{t('topProducts.units', { count: product.quantity })}</p>
+                          <p className="text-sm text-gray-500">
+                            {product.points != null
+                              ? t('topProducts.unitsAndPoints', {
+                                  count: product.quantity,
+                                  points: Math.round(product.points).toLocaleString(numLocale),
+                                })
+                              : t('topProducts.units', { count: product.quantity })}
+                          </p>
                           <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-[#C8DDF2] rounded-full"
@@ -547,6 +598,12 @@ export default function VentasPage() {
                       <span className="text-gray-600">{t('period.period')}</span>
                       <span className="font-medium text-gray-900">{points.periodName}</span>
                     </div>
+                    {periodDates && (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-600">{t('period.dates')}</span>
+                        <span className="text-right font-medium text-gray-900">{t('periodDates', periodDates)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">{t('period.daysRemaining')}</span>
                       <span className="font-medium text-gray-900">{points.daysRemaining}</span>

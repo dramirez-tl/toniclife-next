@@ -1215,6 +1215,7 @@
       "subtitle": "Analyze your performance and your network's",
       "selectPeriod": "Select a period",
       "periodCurrent": " (Current)",
+      "periodDates": "From {start} to {end}",
       "pastPeriod": "Past period",
       "refreshing": "Refreshing data...",
       "refreshTitle": "Refresh data",
@@ -1238,14 +1239,16 @@
         "personalSales": "Personal Sales",
         "networkSales": "Network Sales",
         "percentOfTotal": "{percent}% of total",
-        "personalOrders": "Personal Orders",
-        "averageTicket": "Average ticket: {amount} {currency}"
+        "personalOrders": "Personal purchases",
+        "averageTicket": "Average ticket: {amount} {currency}",
+        "seeDetail": "See the detail"
       },
       "topProducts": {
-        "title": "Best-Selling Products",
+        "title": "My most purchased products",
         "units": "{count} units",
+        "unitsAndPoints": "{count} units · {points} pts",
         "percentOfTotal": "{percent}% of total",
-        "empty": "No products sold this period"
+        "empty": "No purchases with products this period"
       },
       "breakdown": {
         "title": "Sales Distribution",
@@ -1255,7 +1258,7 @@
         "networkLegend": "Network ({percent}%)"
       },
       "topPerformers": {
-        "title": "Top performers",
+        "title": "Period leaders",
         "empty": "No leader data for this period"
       },
       "quickActions": {
@@ -1273,6 +1276,7 @@
       "period": {
         "title": "Period",
         "period": "Period",
+        "dates": "Dates",
         "daysRemaining": "Days remaining",
         "personalPoints": "Personal points",
         "qualified": "Qualified",
@@ -1310,6 +1314,7 @@
         "summaryTotal": "Total",
         "summaryPoints": "Points",
         "cancelledNote": "Cancelled purchases are shown but do not count.",
+        "pointsAdjusted": "The ticket totals {ticket} pts; {credited} pts were credited (points adjustment)",
         "paymentMethods": {
           "cash": "Cash",
           "card": "Debit card",

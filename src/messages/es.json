@@ -1215,6 +1215,7 @@
       "subtitle": "Analiza tu desempeño y el de tu red",
       "selectPeriod": "Selecciona un periodo",
       "periodCurrent": " (Actual)",
+      "periodDates": "Del {start} al {end}",
       "pastPeriod": "Periodo pasado",
       "refreshing": "Actualizando datos...",
       "refreshTitle": "Actualizar datos",
@@ -1238,14 +1239,16 @@
         "personalSales": "Ventas Personales",
         "networkSales": "Ventas de Red",
         "percentOfTotal": "{percent}% del total",
-        "personalOrders": "Pedidos Personales",
-        "averageTicket": "Ticket promedio: {amount} {currency}"
+        "personalOrders": "Compras personales",
+        "averageTicket": "Ticket promedio: {amount} {currency}",
+        "seeDetail": "Ver el detalle"
       },
       "topProducts": {
-        "title": "Productos Más Vendidos",
+        "title": "Mis productos más comprados",
         "units": "{count} unidades",
+        "unitsAndPoints": "{count} unidades · {points} pts",
         "percentOfTotal": "{percent}% del total",
-        "empty": "No hay productos vendidos en este periodo"
+        "empty": "No hay compras con productos en este periodo"
       },
       "breakdown": {
         "title": "Distribución de Ventas",
@@ -1255,7 +1258,7 @@
         "networkLegend": "Red ({percent}%)"
       },
       "topPerformers": {
-        "title": "Líderes del Mes",
+        "title": "Líderes del periodo",
         "empty": "Sin datos de líderes en este periodo"
       },
       "quickActions": {
@@ -1273,6 +1276,7 @@
       "period": {
         "title": "Periodo",
         "period": "Periodo",
+        "dates": "Fechas",
         "daysRemaining": "Días restantes",
         "personalPoints": "Puntos personales",
         "qualified": "Calificado",
@@ -1310,6 +1314,7 @@
         "summaryTotal": "Total",
         "summaryPoints": "Puntos",
         "cancelledNote": "Las compras canceladas se muestran pero no suman.",
+        "pointsAdjusted": "El ticket suma {ticket} pts; se acreditaron {credited} pts (ajuste de puntos)",
         "paymentMethods": {
           "cash": "Efectivo",
           "card": "Tarjeta de débito",

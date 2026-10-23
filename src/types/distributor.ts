@@ -82,7 +82,8 @@ export interface SalesSummary {
   teamSales: number;
   totalSales: number;
   orderCount?: number;
-  topProducts: { productId: string; productName: string; quantity: number; amount: number }[];
+  /** Pedidos en línea + tickets del POS del periodo (mismas filas que personalSales). */
+  topProducts: { productId: string | null; productName: string; quantity: number; amount: number; points?: number }[];
 }
 
 export interface CommissionsSummary {
@@ -292,7 +293,10 @@ export interface DistributorPurchase {
   countsForPeriod: boolean;
   total: number;
   currencyCode: string;
+  /** Puntos realmente acreditados (movimientos de puntos, con ajustes). */
   points: number;
+  /** Puntos nominales del ticket; difiere de `points` cuando hubo un ajuste. */
+  ticketPoints: number;
   payments: DistributorPurchasePayment[];
   items: DistributorPurchaseItem[];
 }
