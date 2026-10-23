@@ -11,6 +11,7 @@ import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/ho
 import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
+import { PurchasesList } from './PurchasesList';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
@@ -327,6 +328,9 @@ export default function VentasPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Detalle de mis compras: de dónde sale "Ventas Personales" (sucursal, forma de pago, puntos) */}
+        <PurchasesList periodId={dashboardPeriodId} currencyCode={currencyCode} />
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column */}

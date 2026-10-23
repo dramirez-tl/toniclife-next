@@ -17,6 +17,7 @@ import {
   NetworkSummary,
   DashboardResponse,
   RankRoadmapResponse,
+  DistributorPurchasesResponse,
 } from '@/types/distributor';
 
 // Query keys
@@ -26,6 +27,7 @@ export const distributorKeys = {
   profile: () => [...distributorKeys.all, 'profile'] as const,
   points: () => [...distributorKeys.all, 'points'] as const,
   rankRoadmap: (periodId?: string) => [...distributorKeys.all, 'rankRoadmap', periodId ?? 'current'] as const,
+  purchases: (periodId?: string) => [...distributorKeys.all, 'purchases', periodId ?? 'current'] as const,
   networkSummary: () => [...distributorKeys.all, 'networkSummary'] as const,
   referralLink: () => [...distributorKeys.all, 'referralLink'] as const,
   preferences: () => [...distributorKeys.all, 'preferences'] as const,
@@ -84,6 +86,21 @@ export function useRankRoadmap(periodId?: string, enabled = true) {
     // Igual que useDashboard: al cambiar de periodo se conserva el payload
     // anterior (la home y RankRoadmap ya atenuan con isFetching) en vez de
     // colapsar el bloque "siguiente rango" a skeleton.
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+/**
+ * Detalle de mis compras del periodo (/distribuidor/ventas). periodId vacío =
+ * periodo actual en el backend; misma normalización que useDashboard.
+ */
+export function usePurchases(periodId?: string, enabled = true) {
+  return useQuery<DistributorPurchasesResponse>({
+    queryKey: distributorKeys.purchases(periodId),
+    queryFn: () => distributorApi.getPurchases(periodId),
+    staleTime: 2 * 60 * 1000,
+    // Al cambiar de periodo se conserva la lista anterior mientras llega la nueva.
     placeholderData: keepPreviousData,
     enabled,
   });

@@ -251,6 +251,60 @@ export interface RankRoadmapRankRef {
   rankNumber: number;
 }
 
+// ===== Detalle de compras del periodo (GET /distributor/purchases?periodId=) =====
+// Lo lee /distribuidor/ventas: cada ticket del POS y pedido en línea con
+// sucursal, forma(s) de pago, puntos, estado y productos. `summary` cuadra con
+// "Ventas Personales" del dashboard (misma selección de filas).
+
+export type DistributorPurchaseStatus = 'paid' | 'pending' | 'cancelled';
+
+export interface DistributorPurchasePayment {
+  /** Código normalizado (cash, card, credit, transfer, mercado_pago, online, ...). */
+  method: string;
+  amount: number;
+}
+
+export interface DistributorPurchaseItem {
+  name: string;
+  code: string | null;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  /** Puntos de la línea (por unidad x cantidad). */
+  points: number;
+  /** Regalo de campaña de membresía (sin cobro). */
+  gift: boolean;
+}
+
+export interface DistributorPurchase {
+  id: string;
+  source: 'pos' | 'order';
+  folio: string;
+  /** ISO UTC; se muestra en la zona horaria de la sucursal (`timezone`). */
+  date: string;
+  timezone: string;
+  /** Venta del sistema anterior (M-...): hora convencional, se muestra solo la fecha. */
+  legacy: boolean;
+  branchCode: string | null;
+  branchName: string | null;
+  status: DistributorPurchaseStatus;
+  /** TRUE si suma en "Ventas Personales" del periodo. */
+  countsForPeriod: boolean;
+  total: number;
+  currencyCode: string;
+  points: number;
+  payments: DistributorPurchasePayment[];
+  items: DistributorPurchaseItem[];
+}
+
+export interface DistributorPurchasesResponse {
+  period: { id: string; name: string; startDate: string; endDate: string } | null;
+  /** Solo las compras que cuentan: total = Ventas Personales, count = Pedidos Personales. */
+  summary: { total: number; count: number; points: number };
+  /** Más reciente primero. */
+  purchases: DistributorPurchase[];
+}
+
 export interface RankRoadmapResponse {
   period: {
     id: string;

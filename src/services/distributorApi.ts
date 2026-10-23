@@ -7,6 +7,7 @@ import type {
   NetworkSummary,
   DashboardResponse,
   RankRoadmapResponse,
+  DistributorPurchasesResponse,
 } from '@/types/distributor';
 
 // ===== Alta de miembro en la red (Ruta A: sponsor paga / Ruta B: invitación) =====
@@ -244,6 +245,18 @@ class DistributorApi {
    */
   async getRankRoadmap(periodId?: string): Promise<RankRoadmapResponse> {
     const { data } = await api.get<RankRoadmapResponse>('/distributor/rank-roadmap', {
+      params: periodId ? { periodId } : undefined,
+    });
+    return data;
+  }
+
+  /**
+   * Detalle de mis compras del periodo (tickets del POS + pedidos en línea con
+   * sucursal, forma de pago, puntos y productos). Lo lee /distribuidor/ventas.
+   * Backend: GET /distributor/purchases?periodId=<uuid opcional>
+   */
+  async getPurchases(periodId?: string): Promise<DistributorPurchasesResponse> {
+    const { data } = await api.get<DistributorPurchasesResponse>('/distributor/purchases', {
       params: periodId ? { periodId } : undefined,
     });
     return data;
