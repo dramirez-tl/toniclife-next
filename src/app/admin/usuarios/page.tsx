@@ -86,6 +86,11 @@ function UsuariosContent() {
     userPermissions.includes(`${p.split(':')[0]}:*`) ||
     userPermissions.includes('*');
   const canSeeAccounts = hasPerm('users:read');
+  // "Cuentas de sistema" (23-oct-2026): solo super usuarios y administradores,
+  // es decir, el permiso de configuración `config.users` (Administrador lo
+  // tiene; CEDEAS tiene users:* para sus colaboradores pero no debe ver todas
+  // las cuentas del sistema). Sin roles quemados: super_admin pasa por hasPerm.
+  const canSeeSystemAccounts = hasPerm('config.users') || hasPerm('config.users.read');
   const canManageUsers = hasPerm('users:update');
   const canInvite = hasPerm('users:create');
 
@@ -98,8 +103,10 @@ function UsuariosContent() {
   });
 
   let activeTab = get('tab') as TabKey;
-  // Sin users:read, la única pestaña disponible es Distribuidores y clientes.
+  // Sin users:read, la única pestaña disponible es Distribuidores y clientes;
+  // con users:read pero sin config.users, la primera es Colaboradores.
   if (!canSeeAccounts) activeTab = 'distribuidores';
+  else if (activeTab === 'users' && !canSeeSystemAccounts) activeTab = 'colaboradores';
   // La pestaña "Colaboradores" es la misma vista de usuarios filtrada por tipo.
   const isColabTab = activeTab === 'colaboradores';
   const forcedUserType = isColabTab ? 'colaborador' : undefined;
@@ -791,17 +798,19 @@ function UsuariosContent() {
         <div className="mb-6 flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
           {canSeeAccounts && (
             <>
-              <button
-                onClick={() => setParams({ tab: 'users' })}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'users'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                <UserGroupIcon className="h-4 w-4" />
-                Cuentas de sistema
-              </button>
+              {canSeeSystemAccounts && (
+                <button
+                  onClick={() => setParams({ tab: 'users' })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === 'users'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <UserGroupIcon className="h-4 w-4" />
+                  Cuentas de sistema
+                </button>
+              )}
               <button
                 onClick={() => setParams({ tab: 'colaboradores' })}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
