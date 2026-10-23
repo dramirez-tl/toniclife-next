@@ -38,6 +38,9 @@ export interface User {
   currencyCode?: string | null;
   /** Expediente de RRHH ligado a la cuenta (employees.user_id), si existe. */
   employeeId?: string | null;
+  /** Número del expediente ligado (EMP-…) y su NOI, para mostrar que es la misma persona. */
+  employeeNumber?: string | null;
+  employeeNoiNumber?: string | null;
   /** Foto del expediente de RRHH (URL firmada de 15 min); null si no hay expediente o no tiene foto. */
   photoUrl?: string | null;
   isActive: boolean;

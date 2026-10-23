@@ -253,6 +253,12 @@ function EmpleadosContent() {
                 {e.employeeNumber}
                 {e.noiNumber ? ` · NOI ${e.noiNumber}` : ''}
               </p>
+              {/* Cuenta de acceso ligada (employees.user_id): la misma persona que aparece en Usuarios. */}
+              {e.hasSystemAccess && e.email && (
+                <p className="truncate text-xs text-muted-foreground" title="Cuenta de acceso ligada a este expediente">
+                  {e.email}
+                </p>
+              )}
             </div>
           </div>
         );

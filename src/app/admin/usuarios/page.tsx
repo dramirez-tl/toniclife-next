@@ -589,6 +589,17 @@ function UsuariosContent() {
               <p className="text-xs font-medium text-primary">#{user.customerNumber}</p>
             )}
             <p className="text-sm text-muted-foreground">{user.email}</p>
+            {/* Expediente de RRHH ligado (employees.user_id): es la misma persona que aparece en RRHH › Empleados. */}
+            {user.employeeId && user.employeeNumber && (
+              <Link
+                href={`/admin/rrhh/empleados/${user.employeeId}`}
+                className="font-mono text-xs text-muted-foreground hover:text-primary hover:underline"
+                title="Expediente de RRHH ligado a esta cuenta"
+              >
+                {user.employeeNumber}
+                {user.employeeNoiNumber ? ` · NOI ${user.employeeNoiNumber}` : ''}
+              </Link>
+            )}
           </div>
         </div>
       ),
