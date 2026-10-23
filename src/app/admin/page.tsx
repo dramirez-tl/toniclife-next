@@ -15,7 +15,6 @@ import {
   UserGroupIcon,
   UserPlusIcon,
   ShoppingBagIcon,
-  CurrencyDollarIcon,
   UsersIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -201,15 +200,8 @@ export default function AdminDashboard() {
       isCurrency: false,
       secondary: 'Tickets de sucursal + pedidos en línea',
     },
-    {
-      title: `Ingresos del Periodo${countrySuffix}`,
-      value: selectedCountry?.revenue ?? kpis?.totalRevenue ?? 0,
-      prev: selectedCountry?.prevRevenue,
-      lastYear: selectedCountry?.lastYearRevenue,
-      icon: CurrencyDollarIcon,
-      isCurrency: true,
-      currencyCode: selectedCountry?.currencyCode ?? undefined,
-    },
+    // "Ingresos del periodo" ya no va aquí: es la tarjeta del país de arriba
+    // (con sus mismos comparativos), estaba repetida (23-oct-2026).
     {
       title: `Distribuidores con compra${countrySuffix}`,
       value: selectedCountry?.buyers ?? kpis?.activeDistributors ?? 0,
@@ -435,7 +427,7 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Stats Cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
         {stats.map((stat) => (
           <Card
             key={stat.title}
