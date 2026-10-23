@@ -71,27 +71,15 @@ export function PurchasesList({ periodId, currencyCode }: PurchasesListProps) {
   };
   const pts = (points: number) => points.toLocaleString(numLocale, { maximumFractionDigits: 0 });
 
-  // Puntos acreditados; si hubo un ajuste, el nominal del ticket tachado al lado
-  // (así la suma de la lista coincide con los puntos del periodo).
-  const pointsCell = (p: DistributorPurchase) => {
-    const adjusted = Math.abs(p.points - p.ticketPoints) > 0.001;
-    return (
-      <span
-        className="inline-flex items-baseline gap-1"
-        title={
-          adjusted
-            ? t('pointsAdjusted', { ticket: pts(p.ticketPoints), credited: pts(p.points) })
-            : undefined
-        }
-      >
-        {adjusted && (
-          <span className="text-xs font-normal text-gray-400 line-through">{pts(p.ticketPoints)}</span>
-        )}
-        <span>{pts(p.points)}</span>
-        <span className="text-[10px] font-normal text-gray-400">{t('pts')}</span>
-      </span>
-    );
-  };
+  // SOLO los puntos acreditados (p.points): es lo que suma en "Calificado este
+  // periodo". No se muestra el nominal del ticket (p.ticketPoints) ni marcas de
+  // ajuste: cualquier cifra distinta a la del periodo confunde al distribuidor.
+  const pointsCell = (p: DistributorPurchase) => (
+    <span className="inline-flex items-baseline gap-1">
+      <span>{pts(p.points)}</span>
+      <span className="text-[10px] font-normal text-gray-400">{t('pts')}</span>
+    </span>
+  );
 
   // Hora local de la sucursal; las ventas del sistema anterior solo traen fecha.
   const when = (p: DistributorPurchase) => {

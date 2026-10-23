@@ -397,14 +397,9 @@ export default function VentasPage() {
                         </div>
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{product.productName}</p>
-                          <p className="text-sm text-gray-500">
-                            {product.points != null
-                              ? t('topProducts.unitsAndPoints', {
-                                  count: product.quantity,
-                                  points: Math.round(product.points).toLocaleString(numLocale),
-                                })
-                              : t('topProducts.units', { count: product.quantity })}
-                          </p>
+                          {/* Solo unidades: los puntos por producto son nominales del ticket y
+                              no coinciden con lo acreditado en el periodo cuando hubo ajustes. */}
+                          <p className="text-sm text-gray-500">{t('topProducts.units', { count: product.quantity })}</p>
                           <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-[#C8DDF2] rounded-full"

@@ -1246,7 +1246,6 @@
       "topProducts": {
         "title": "Mis productos más comprados",
         "units": "{count} unidades",
-        "unitsAndPoints": "{count} unidades · {points} pts",
         "percentOfTotal": "{percent}% del total",
         "empty": "No hay compras con productos en este periodo"
       },
@@ -1314,7 +1313,6 @@
         "summaryTotal": "Total",
         "summaryPoints": "Puntos",
         "cancelledNote": "Las compras canceladas se muestran pero no suman.",
-        "pointsAdjusted": "El ticket suma {ticket} pts; se acreditaron {credited} pts (ajuste de puntos)",
         "paymentMethods": {
           "cash": "Efectivo",
           "card": "Tarjeta de débito",
