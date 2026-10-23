@@ -4,14 +4,17 @@
 // venta y sucursal, posición antes/después, cupón y regalos. Paginado en el
 // servidor, con filtro por estado.
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { ArrowPathIcon, ReceiptPercentIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useMembershipRedemptions } from '@/hooks/useMembershipCampaigns';
+import { useApplyMembershipToSale, useMembershipRedemptions } from '@/hooks/useMembershipCampaigns';
 import type {
   MembershipRedemption,
   MembershipRedemptionListQueryParams,
@@ -36,6 +39,85 @@ const SALE_STATUS_LABEL: Record<string, string> = {
   canceled: 'Cancelada',
   refunded: 'Devuelta',
 };
+
+/**
+ * "Aplicar a una venta ya cobrada": para ventas hechas antes de encender la
+ * campaña (evento de Toluca, 22-oct-2026) o en las que el cajero no la marcó.
+ * El API valida lo mismo que en caja y otorga posición + cupón; los regalos
+ * quedan como no entregados (no se tocan venta ni inventario).
+ */
+function ApplyToSaleForm({ campaignId }: { campaignId: string }) {
+  const inputId = useId();
+  const [saleNumber, setSaleNumber] = useState('');
+  const apply = useApplyMembershipToSale(campaignId);
+
+  const submit = () => {
+    const folio = saleNumber.trim();
+    if (folio.length < 5) {
+      toast.error('Captura el folio de la venta (p. ej. 253-20261021-0032).');
+      return;
+    }
+    apply.mutate(
+      { saleNumber: folio },
+      {
+        onSuccess: (r) => {
+          if (r.status === 'applied') {
+            toast.success(
+              `Campaña aplicada a ${r.customerName || r.customerNumber || 'el distribuidor'}: posición ${kitTypeLabel(r.kitTypeAfter)}${r.couponCode ? ` · cupón ${r.couponCode}` : ''}.`,
+              { duration: 10000 },
+            );
+            if (r.gifts.length > 0) {
+              toast.info(
+                `Regalos de la campaña (${r.gifts.map((g) => `${formatPoints(g.quantity)} × ${g.name}`).join(', ')}) NO se descontaron del inventario: la sucursal los entrega a mano.`,
+                { duration: 12000 },
+              );
+            }
+          } else {
+            toast.error(
+              `La campaña quedó en estado "${redemptionStatusUi(r.status).label}"${r.error ? `: ${r.error}` : ''}.`,
+              { duration: 12000 },
+            );
+          }
+          setSaleNumber('');
+        },
+        onError: (err) => toast.error(apiErrorMessage(err, 'No se pudo aplicar la campaña a esa venta.')),
+      },
+    );
+  };
+
+  return (
+    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+      <p className="text-sm font-medium text-gray-900">Aplicar a una venta ya cobrada</p>
+      <p className="mt-0.5 text-xs text-gray-600">
+        Para ventas hechas antes de encender la campaña o en las que el cajero no la marcó. Se validan las
+        mismas reglas que en caja (vigencia, sucursal, público, puntos de producto de la venta) y se otorgan la
+        posición y el cupón; los regalos no se descuentan del inventario.
+      </p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="w-64 space-y-1">
+          <Label htmlFor={inputId}>Folio de la venta</Label>
+          <Input
+            id={inputId}
+            value={saleNumber}
+            onChange={(e) => setSaleNumber(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="253-20261021-0032"
+            className="font-mono"
+            disabled={apply.isPending}
+          />
+        </div>
+        <Button type="button" onClick={submit} disabled={apply.isPending || saleNumber.trim().length < 5}>
+          {apply.isPending ? 'Aplicando…' : 'Aplicar campaña'}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function MembershipRedemptionsSection({ campaignId }: { campaignId: string }) {
   const [status, setStatus] = useState<'' | MembershipRedemptionStatus>('');
@@ -224,6 +306,8 @@ export function MembershipRedemptionsSection({ campaignId }: { campaignId: strin
               </Button>
             </div>
           </div>
+
+          <ApplyToSaleForm campaignId={campaignId} />
 
           {isError && !data ? (
             <div className="flex items-center gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

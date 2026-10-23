@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { membershipCampaignsService } from '@/services/membership-campaigns.service';
 import { isMigrationMissingError } from '@/lib/membership-campaigns';
 import type {
+  ApplyMembershipToSaleDto,
   CreateMembershipCampaignDto,
   MembershipCampaignGiftInput,
   MembershipCampaignListQueryParams,
@@ -103,6 +104,19 @@ export const useReplaceMembershipGifts = (id: string) => {
   return useMutation({
     mutationFn: (gifts: MembershipCampaignGiftInput[]) =>
       membershipCampaignsService.replaceGifts(id, gifts),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: membershipCampaignKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: membershipCampaignKeys.lists() });
+    },
+  });
+};
+
+/** Aplica la campaña a una venta ya cobrada; refresca canjes y contadores. */
+export const useApplyMembershipToSale = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: ApplyMembershipToSaleDto) =>
+      membershipCampaignsService.applyToSale(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: membershipCampaignKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: membershipCampaignKeys.lists() });

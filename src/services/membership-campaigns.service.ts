@@ -9,6 +9,7 @@
 
 import api from '@/lib/axios';
 import type {
+  ApplyMembershipToSaleDto,
   CreateMembershipCampaignDto,
   MembershipCampaign,
   MembershipCampaignBranch,
@@ -16,6 +17,7 @@ import type {
   MembershipCampaignGiftInput,
   MembershipCampaignListQueryParams,
   MembershipCampaignListResponse,
+  MembershipRedemption,
   MembershipRedemptionListQueryParams,
   MembershipRedemptionListResponse,
   SetMembershipBranchesDto,
@@ -82,6 +84,21 @@ class MembershipCampaignsService {
     const response = await api.put<MembershipCampaignGift[]>(
       `/membership-campaigns/${id}/gifts`,
       { gifts },
+    );
+    return response.data;
+  }
+
+  /**
+   * Aplica la campaña a una venta YA COBRADA (posición + cupón; los regalos
+   * quedan como no entregados). 400 con el motivo exacto si no aplica.
+   */
+  async applyToSale(
+    id: string,
+    dto: ApplyMembershipToSaleDto,
+  ): Promise<MembershipRedemption> {
+    const response = await api.post<MembershipRedemption>(
+      `/membership-campaigns/${id}/apply-to-sale`,
+      dto,
     );
     return response.data;
   }

@@ -190,6 +190,12 @@ export interface MembershipRedemption {
   createdAt: string;
 }
 
+/** Aplicar la campaña a una venta YA COBRADA (POST :id/apply-to-sale). */
+export interface ApplyMembershipToSaleDto {
+  /** Folio de la venta del POS, p. ej. 253-20261021-0032. */
+  saleNumber: string;
+}
+
 export interface MembershipRedemptionListQueryParams {
   status?: MembershipRedemptionStatus;
   branchId?: string;
