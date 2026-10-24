@@ -38,9 +38,10 @@ function parseYmd(value: string): Date {
 }
 
 /**
- * Fechas legibles del periodo elegido ("26 sep" → "26 oct 2026"). Los periodos
- * van del 26 al 25: verlas aclara por qué una compra del 26 ya cae en el
- * periodo siguiente.
+ * Fechas legibles del periodo elegido ("26 sep" → "31 oct 2026"). Hasta
+ * septiembre de 2026 los periodos iban del 26 al 25 (una compra del 26 caía en
+ * el periodo siguiente); octubre de 2026 cierra el 31 y desde noviembre de 2026
+ * son meses calendario (comunicado DIR-2026/10). Verlas evita confusiones.
  */
 function formatPeriodDates(
   start: unknown,

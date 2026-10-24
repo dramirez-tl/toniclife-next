@@ -518,9 +518,11 @@ function PeriodPreviewSection() {
           <div>
             <h3 className="text-lg font-bold text-gray-900">Previsualización de cierres</h3>
             <p className="max-w-2xl text-sm text-gray-600">
-              Proyección de los 12 periodos del año con la regla de día hábil. Si el día 25
-              cae en domingo o festivo, el cierre se recorre al siguiente día hábil y el
-              periodo siguiente arranca contiguo. No modifica nada.
+              Proyección de los 12 periodos del año con la regla vigente: hasta septiembre de
+              2026 el corte es el día 25 (recorrido al siguiente día hábil si cae en domingo o
+              festivo); octubre de 2026 cierra el 31 y desde noviembre de 2026 cada periodo es
+              el mes calendario, del 1 al último día (comunicado DIR-2026/10). El periodo
+              siguiente siempre arranca contiguo. No modifica nada.
             </p>
           </div>
           <div className="flex items-center gap-2">

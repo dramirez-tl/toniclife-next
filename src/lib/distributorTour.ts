@@ -110,7 +110,7 @@ export function startDistributorTour(): void {
       popover: {
         title: 'Comisiones',
         description:
-          'Lo que ganas por periodo. Recuerda que el periodo de negocio va del 26 al 25; el detalle se refleja al cierre del periodo.',
+          'Lo que ganas por periodo. Desde noviembre de 2026 el periodo de negocio es el mes calendario (del 1 al último día); el detalle se refleja al cierre del periodo.',
       },
     },
     {

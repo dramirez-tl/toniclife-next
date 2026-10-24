@@ -7,14 +7,18 @@
 
 ---
 
-## 📅 REGLA INNEGOCIABLE: Periodos de negocio (26 → 25)
+## 📅 REGLA INNEGOCIABLE: Periodos de negocio (hasta sep-2026: 26 → 25; desde nov-2026: mes calendario)
 
 Los **periodos** (comisiones, ventas, MLM, dashboards, reportes, cualquier métrica
-"del mes/periodo") **NO son meses calendario**. Cada periodo **inicia el día 26**
-del mes anterior y **termina el día 25** del mes que lo nombra (se nombra por el
-mes de FIN).
+"del mes/periodo") se nombran por el mes de FIN y sus fechas las dicta SOLO el API
+(tabla `tonic.commission_periods`). Dos regímenes (comunicado DIR-2026/10):
 
-- Periodo **"Mayo"** = **26-abr → 25-may**. · Periodo **"Enero 2026"** = **26-dic-2025 → 25-ene-2026**.
+- **Hasta SEPTIEMBRE 2026:** del **26** del mes anterior al **25** del mes que lo nombra
+  ("Mayo 2026" = 26-abr → 25-may · "Enero 2026" = 26-dic-2025 → 25-ene-2026).
+- **OCTUBRE 2026 (transición):** 26-sep → 31-oct-2026.
+- **Desde NOVIEMBRE 2026:** **mes calendario**, del 1 al último día natural.
+  Nunca escribas en la UI "del 26 al 25" como regla fija: muestra las fechas que
+  devuelve el API.
 
 **En el frontend:**
 - Cualquier UI de "mes/periodo" (dashboards, reportes, selectores) debe pedir al
@@ -26,7 +30,8 @@ mes de FIN).
 - Para fechas, recuerda que el cliente `postgres` del API ya entrega timestamps en
   UTC explícito; no re-apliques offsets de TZ en el front.
 
-Antes de mostrar/filtrar por "mes/periodo", **confirma que es el rango 26→25**.
+Antes de mostrar/filtrar por "mes/periodo", **confirma que es el rango del periodo
+que devuelve el API** (no un mes calendario ni un 26→25 calculado en el cliente).
 Ver también el `../CLAUDE.md` raíz.
 
 ---
