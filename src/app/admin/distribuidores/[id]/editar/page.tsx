@@ -31,11 +31,32 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
+// Lo que cada estado hace HOY en el sistema (pricing.service, enrollment,
+// shared-cart, Tesorería): cualquier estado distinto de "active" compra a
+// precio público, no puede patrocinar altas ni compartir carrito; "inactive"
+// además queda fuera de la cola de pago de Tesorería. La red y el historial
+// nunca se tocan al cambiar de estado.
 const STATUS_OPTIONS = [
-  { value: 'active', label: 'Activo' },
-  { value: 'inactive', label: 'Inactivo' },
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'suspended', label: 'Suspendido' },
+  {
+    value: 'active',
+    label: 'Activo',
+    desc: 'Opera normal: precio de distribuidor, puede patrocinar altas, compartir carrito y cobrar comisiones.',
+  },
+  {
+    value: 'inactive',
+    label: 'Inactivo',
+    desc: 'Baja (a petición del distribuidor o por dejar de comprar). Conserva su historial y su lugar en la red; compra a precio público, no patrocina ni cobra comisiones. Reversible.',
+  },
+  {
+    value: 'pending',
+    label: 'Pendiente',
+    desc: 'Alta sin terminar: aún no paga su kit de inscripción. Se activa solo al cobrarlo; mientras tanto el panel le pide el kit.',
+  },
+  {
+    value: 'suspended',
+    label: 'Suspendido',
+    desc: 'Bloqueo temporal por decisión de la empresa (revisión, adeudo). Se trata como no activo (precio público, sin patrocinar ni compartir carrito); red e historial se conservan. Reversible.',
+  },
 ];
 
 const CUSTOMER_TYPE_OPTIONS = [
@@ -447,15 +468,19 @@ export default function EditarDistribuidorPage() {
 
           {/* Estado */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-5">Estado de la Cuenta</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Estado de la Cuenta</h2>
+            <p className="text-xs text-gray-500 mb-5">
+              ¿Baja solicitada por el distribuidor o por dejar de comprar? Usa <span className="font-medium text-gray-700">Inactivo</span>.
+              <span className="font-medium text-gray-700"> Suspendido</span> es un bloqueo temporal decidido por la empresa. Ningún estado borra su red ni su historial.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {STATUS_OPTIONS.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer text-sm font-medium transition-colors ${
+                  className={`flex flex-col gap-1.5 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
                     formData.status === opt.value
-                      ? 'border-[#3E667D] bg-[#3E667D]/5 text-[#3E667D]'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      ? 'border-[#3E667D] bg-[#3E667D]/5'
+                      : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <input
@@ -466,7 +491,10 @@ export default function EditarDistribuidorPage() {
                     onChange={handleChange}
                     className="sr-only"
                   />
-                  {opt.label}
+                  <span className={`text-sm font-medium ${formData.status === opt.value ? 'text-[#3E667D]' : 'text-gray-800'}`}>
+                    {opt.label}
+                  </span>
+                  <span className="text-[11px] leading-snug text-gray-500">{opt.desc}</span>
                 </label>
               ))}
             </div>
