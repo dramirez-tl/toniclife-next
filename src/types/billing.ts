@@ -1298,6 +1298,22 @@ export interface ManualFreeCreateResponse {
   error: string | null;
 }
 
+/** Buscador de distribuidores de la factura sin ticket (billing:manual, sin customers:read). */
+export interface ManualCustomerLookup {
+  id: string;
+  customerNumber: string;
+  name: string;
+  status: string;
+  /** true = tiene RFC y régimen en su ficha (sus Datos Fiscales sirven como receptor). */
+  hasRfc: boolean;
+}
+
+export interface ManualCustomerLookupResponse {
+  data: ManualCustomerLookup[];
+  /** true = resultados aproximados (sin coincidencia exacta): rotular "¿quisiste decir…?". */
+  approximate?: boolean;
+}
+
 /** @deprecated Usa `fiscalRegimeLabel(code, catalog)` con el catálogo del API. */
 export function getFiscalRegimeName(code: string): string {
   const item = FISCAL_REGIMES.find((r) => r.Value === code);

@@ -10,6 +10,7 @@ import type {
   ManualFreeCreateResponse,
   ManualFreeInvoiceRequest,
   ManualFreePreviewResponse,
+  ManualCustomerLookupResponse,
   FoliosCuadreQuery,
   FoliosCuadreResponse,
   FoliosReportQuery,
@@ -736,6 +737,19 @@ export async function previewManualFreeInvoice(dto: ManualFreeInvoiceRequest): P
   return response.data;
 }
 
+/**
+ * Factura libre SIN ticket: buscador de distribuidores con billing:manual
+ * (Contabilidad no tiene customers:read para GET customers).
+ */
+export async function searchManualInvoiceCustomers(params: {
+  search?: string;
+  customerNumber?: string;
+  limit?: number;
+}): Promise<ManualCustomerLookupResponse> {
+  const response = await apiClient.get<ManualCustomerLookupResponse>(`${BASE_URL}/manual-invoices/customers`, { params });
+  return response.data;
+}
+
 /** Factura libre SIN ticket: timbrar. */
 export async function createManualFreeInvoice(dto: ManualFreeInvoiceRequest): Promise<ManualFreeCreateResponse> {
   const response = await apiClient.post<ManualFreeCreateResponse>(`${BASE_URL}/manual-invoices/free`, dto);
@@ -835,6 +849,7 @@ export const billingService = {
   createManualInvoices,
   previewManualFreeInvoice,
   createManualFreeInvoice,
+  searchManualInvoiceCustomers,
 
   // Status
   getFacturamaStatus,

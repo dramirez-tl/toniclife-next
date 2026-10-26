@@ -51,12 +51,12 @@ import {
   type FreeLineDraft,
   type FreeOtherReceiver,
 } from '@/lib/billing/manual-free';
-import { customersService } from '@/services/customers.service';
+import { billingService } from '@/services/billing.service';
 import { productsService } from '@/services/products.service';
-import type { Customer } from '@/types/customer';
 import type { Product } from '@/types/product';
 import { CFDI_USES, FISCAL_REGIMES, getPaymentFormName } from '@/types/billing';
 import type {
+  ManualCustomerLookup,
   ManualFreeCreateResponse,
   ManualFreeInvoiceRequest,
   ManualFreePreviewResponse,
@@ -73,6 +73,7 @@ interface PickedCustomer {
   customerNumber: string;
   name: string;
   status: string;
+  hasRfc: boolean;
 }
 
 interface PreviewState {
@@ -80,9 +81,6 @@ interface PreviewState {
   data: ManualFreePreviewResponse | null;
   error: string | null;
 }
-
-const customerName = (c: Customer) =>
-  [c.firstName, c.lastName, c.lastNameMother].filter(Boolean).join(' ').trim() || c.email || '—';
 
 /** Clave + nombre tal como los devuelve products/code/:code (mismo DTO del catálogo). */
 type ProductLike = Pick<Product, 'id' | 'code' | 'name' | 'isActive'>;
@@ -104,15 +102,18 @@ export function ManualFreeInvoiceForm() {
     const t = setTimeout(() => setCustomerTerm(customerSearch.trim()), 300);
     return () => clearTimeout(t);
   }, [customerSearch]);
+  // Buscador propio de facturación (GET billing/manual-invoices/customers,
+  // permiso billing:manual): Contabilidad no tiene customers:read.
   const customers = useQuery({
-    queryKey: ['customers', 'free-invoice', customerTerm],
-    queryFn: () => customersService.getAll({ search: customerTerm, limit: 8 }),
+    queryKey: ['billing', 'manual-invoices', 'customers', customerTerm],
+    queryFn: () => billingService.searchManualInvoiceCustomers({ search: customerTerm, limit: 8 }),
     enabled: !customer && customerTerm.length >= 2,
     staleTime: 60 * 1000,
   });
   const customerResults = customerTerm.length >= 2 ? (customers.data?.data ?? []) : [];
-  const pickCustomer = (c: Customer) => {
-    setCustomer({ id: c.id, customerNumber: c.customerNumber ?? '', name: customerName(c), status: c.status ?? '' });
+  const customersApproximate = customerTerm.length >= 2 && customers.data?.approximate === true;
+  const pickCustomer = (c: ManualCustomerLookup) => {
+    setCustomer({ id: c.id, customerNumber: c.customerNumber, name: c.name, status: c.status, hasRfc: c.hasRfc });
     setCustomerSearch('');
   };
   const clearCustomer = () => {
@@ -129,7 +130,7 @@ export function ManualFreeInvoiceForm() {
     }
     setCustomerBusy(true);
     try {
-      const res = await customersService.getAll({ customerNumber: term, limit: 1 });
+      const res = await billingService.searchManualInvoiceCustomers({ customerNumber: term, limit: 1 });
       const c = res.data[0];
       if (!c) toast.error(`No existe el distribuidor #${term}`);
       else pickCustomer(c);
@@ -389,6 +390,8 @@ export function ManualFreeInvoiceForm() {
                         <span className={customer.status === 'active' ? 'text-emerald-700' : 'text-amber-700'}>{customerStatusLabel(customer.status)}</span>
                         {' · '}
                         {customer.status === 'active' ? 'sus precios de lista' : 'precio público'}
+                        {' · '}
+                        {customer.hasRfc ? 'con RFC' : 'sin RFC en su ficha'}
                       </p>
                     </div>
                     <Button type="button" variant="ghost" size="sm" onClick={clearCustomer} className="shrink-0 text-gray-500">
@@ -420,20 +423,29 @@ export function ManualFreeInvoiceForm() {
                         ) : customerResults.length === 0 ? (
                           <p className="px-3 py-2 text-sm text-gray-500">Sin resultados. Con el número exacto presiona Enter.</p>
                         ) : (
-                          customerResults.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => pickCustomer(c)}
-                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                            >
-                              <span className="min-w-0 truncate">
-                                <span className="mr-1.5 font-mono text-xs text-gray-500">#{c.customerNumber}</span>
-                                <span className="font-medium text-gray-900">{customerName(c)}</span>
-                              </span>
-                              <span className="shrink-0 text-xs text-gray-500">{customerStatusLabel(c.status ?? '')}</span>
-                            </button>
-                          ))
+                          <>
+                            {customersApproximate && (
+                              <p className="border-b border-amber-100 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                                Sin coincidencia exacta; ¿quisiste decir…?
+                              </p>
+                            )}
+                            {customerResults.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => pickCustomer(c)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                              >
+                                <span className="min-w-0 truncate">
+                                  <span className="mr-1.5 font-mono text-xs text-gray-500">#{c.customerNumber}</span>
+                                  <span className="font-medium text-gray-900">{c.name}</span>
+                                </span>
+                                <span className="shrink-0 text-xs text-gray-500">
+                                  {customerStatusLabel(c.status)} · {c.hasRfc ? 'con RFC' : 'sin RFC'}
+                                </span>
+                              </button>
+                            ))}
+                          </>
                         )}
                       </div>
                     )}
@@ -667,7 +679,7 @@ export function ManualFreeInvoiceForm() {
                 disabled={!customer}
                 onSelect={() => setReceiverMode('customer')}
                 title={customer ? `Distribuidor #${customer.customerNumber}` : 'Datos del distribuidor'}
-                subtitle={customer ? 'Sus Datos Fiscales guardados' : 'Elige uno en el paso 1'}
+                subtitle={!customer ? 'Elige uno en el paso 1' : customer.hasRfc ? 'Sus Datos Fiscales guardados' : 'Sin RFC en su ficha: usa «Otros datos»'}
               />
               <ReceiverOption
                 selected={receiverMode === 'other'}
