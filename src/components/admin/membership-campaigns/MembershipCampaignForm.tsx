@@ -130,7 +130,13 @@ export function MembershipCampaignForm({
       set({ imageUrl: saved.imageUrl ?? '' });
       toast.success('Imagen subida; el POS ya la muestra al ofrecer la campaña.');
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'No se pudo subir la imagen.'));
+      // 413 = multer del API ("File too large"): el límite del servidor manda.
+      const status = (err as { response?: { status?: number } } | null)?.response?.status;
+      toast.error(
+        status === 413
+          ? 'El API rechazó la imagen por tamaño: el máximo es 7 MB.'
+          : apiErrorMessage(err, 'No se pudo subir la imagen.'),
+      );
     }
   };
 
