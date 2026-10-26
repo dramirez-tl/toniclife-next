@@ -77,7 +77,7 @@ class MembershipCampaignsService {
   }
 
   /**
-   * Sube la imagen de la campaña (multipart, campo "image": jpg/png/webp ≤ 5 MB)
+   * Sube la imagen de la campaña (multipart, campo "image": jpg/png/webp ≤ 7 MB)
    * a S3; regresa la campaña ya con `imageUrl` pública (la que muestra el POS).
    * Quitarla es `update(id, { imageUrl: null })`.
    */

@@ -82,7 +82,7 @@ const formatEnabledAt = (iso: string) =>
 
 const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MAX_BYTES = 7 * 1024 * 1024;
 
 export function MembershipCampaignForm({
   mode,
@@ -117,7 +117,7 @@ export function MembershipCampaignForm({
       return;
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      toast.error(`La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB; el máximo es 5 MB.`);
+      toast.error(`La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB; el máximo es 7 MB.`);
       return;
     }
     setUploadProgress(0);
@@ -361,7 +361,7 @@ export function MembershipCampaignForm({
                   />
                   <p className="text-xs text-gray-500">
                     {canUpload
-                      ? 'JPG, PNG o WebP, máximo 5 MB. Al subirla queda guardada de inmediato; “Quitar” se aplica al guardar.'
+                      ? 'JPG, PNG o WebP, máximo 7 MB. Al subirla queda guardada de inmediato; “Quitar” se aplica al guardar.'
                       : mode === 'create' && !readOnly
                         ? 'Crea la campaña y después sube el archivo (o pega una liga). Se muestra en el POS al ofrecer la campaña.'
                         : 'Se muestra en el POS al ofrecer la campaña.'}
