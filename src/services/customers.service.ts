@@ -103,6 +103,13 @@ class CustomersService {
       localCurrency: string;
       subtotalLocal: number | null;
       subtotalMxn: number | null;
+      /** Total NETO con el régimen fiscal (moneda local y MXN); ausentes con un API anterior. */
+      totalLocal?: number | null;
+      totalMxn?: number | null;
+      taxRegime?: string | null;
+      taxes?: { isr: number; iva: number; ivaWithholding: number; resico: number };
+      /** 'legacy' = cifra del sistema anterior (congelada); 'v2' = motor de v2. */
+      source?: 'legacy' | 'v2' | null;
       exchangeRate: number | null;
     };
     lastCalculation: {

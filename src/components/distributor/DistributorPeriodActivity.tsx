@@ -108,6 +108,16 @@ function formatDateTime(value: string | null | undefined): string {
   });
 }
 
+/** Régimen de comisión (commission_tax_regimes.code) en palabras. */
+const TAX_REGIME_LABEL: Record<string, string> = {
+  SIN_IMPUESTO: 'sin impuestos',
+  FIC: 'FIC (IVA 16 % − ret. 10.67 %)',
+  RESICO: 'RESICO',
+  MORAL: 'persona moral',
+  FRONTERIZA: 'zona fronteriza',
+  ASIMILADOS: 'asimilados (ISR)',
+};
+
 function formatMxn(value: number): string {
   return value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -527,26 +537,44 @@ export function DistributorPeriodActivity({
                     {stats.commission.status}
                   </span>
                 )}
+                {stats.commission.source === 'legacy' && (
+                  <span
+                    className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                    title="Cifra importada del sistema anterior: es la que se pagó y no se recalcula."
+                  >
+                    sistema anterior · congelada
+                  </span>
+                )}
               </div>
               {stats.commission.exists ? (
                 <div className="text-right">
-                  {/* Moneda del país del distribuidor */}
+                  {/* TOTAL NETO con el régimen fiscal, en la moneda del país del
+                      distribuidor: es la cifra que reconoce como su comisión (el
+                      subtotal bruto se muestra abajo como desglose). */}
                   <p className="text-lg font-bold text-gray-900">
                     $
-                    {formatMxn(
-                      stats.commission.subtotalLocal ?? stats.commission.subtotal,
-                    )}{' '}
+                    {formatMxn(stats.commission.totalLocal ?? stats.commission.total)}{' '}
                     <span className="text-xs font-medium text-gray-400">
-                      {stats.commission.subtotalLocal != null
+                      {stats.commission.totalLocal != null
                         ? stats.commission.localCurrency
                         : stats.commission.currencyCode || ''}
                     </span>
                   </p>
+                  <p className="text-[11px] text-gray-500">
+                    Neto · régimen {TAX_REGIME_LABEL[stats.commission.taxRegime ?? ''] ?? stats.commission.taxRegime ?? 'sin régimen'}
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    Subtotal ${formatMxn(stats.commission.subtotalLocal ?? stats.commission.subtotal)}
+                    {(stats.commission.taxes?.iva ?? 0) > 0 && <> · IVA +${formatMxn(stats.commission.taxes!.iva)}</>}
+                    {(stats.commission.taxes?.ivaWithholding ?? 0) > 0 && <> · Ret. IVA −${formatMxn(stats.commission.taxes!.ivaWithholding)}</>}
+                    {(stats.commission.taxes?.resico ?? 0) > 0 && <> · RESICO −${formatMxn(stats.commission.taxes!.resico)}</>}
+                    {(stats.commission.taxes?.isr ?? 0) > 0 && <> · ISR −${formatMxn(stats.commission.taxes!.isr)}</>}
+                  </p>
                   {/* Equivalente en MXN con el TC registrado del periodo */}
                   {stats.commission.localCurrency !== 'MXN' &&
-                    stats.commission.subtotalMxn != null && (
+                    (stats.commission.totalMxn ?? stats.commission.subtotalMxn) != null && (
                       <p className="text-[11px] text-gray-400">
-                        ≈ ${formatMxn(stats.commission.subtotalMxn)} MXN
+                        ≈ ${formatMxn((stats.commission.totalMxn ?? stats.commission.subtotalMxn)!)} MXN
                         {stats.commission.exchangeRate != null && (
                           <> · TC {formatMxn(stats.commission.exchangeRate)}</>
                         )}
