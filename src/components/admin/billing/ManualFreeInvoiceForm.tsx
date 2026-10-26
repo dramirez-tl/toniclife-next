@@ -22,6 +22,7 @@ import {
   ClipboardDocumentListIcon,
   DocumentPlusIcon,
   ExclamationTriangleIcon,
+  IdentificationIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
   MinusIcon,
@@ -34,6 +35,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Textarea } from '@/components/ui/textarea';
+import { CustomerFiscalDataDialog } from '@/components/admin/billing/CustomerFiscalDataDialog';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useCreateManualFreeInvoice, usePreviewManualFreeInvoice } from '@/hooks/useBilling';
 import { useProducts } from '@/hooks/useProducts';
@@ -98,6 +100,14 @@ export function ManualFreeInvoiceForm() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerTerm, setCustomerTerm] = useState('');
   const [customerBusy, setCustomerBusy] = useState(false);
+  // Ver o editar los datos fiscales del distribuidor sin salir de aquí; al
+  // guardar, `fiscalRev` fuerza otra vista previa (el receptor cambió en BD).
+  const [fiscalOpen, setFiscalOpen] = useState(false);
+  const [fiscalRev, setFiscalRev] = useState(0);
+  const onFiscalSaved = () => {
+    setCustomer((c) => (c ? { ...c, hasRfc: true } : c));
+    setFiscalRev((r) => r + 1);
+  };
   useEffect(() => {
     const t = setTimeout(() => setCustomerTerm(customerSearch.trim()), 300);
     return () => clearTimeout(t);
@@ -285,8 +295,11 @@ export function ManualFreeInvoiceForm() {
     sendEmail: receiverMode === 'public' ? false : sendEmail,
     notes: notes.trim() || undefined,
   });
-  // Notas y correo no cambian cifras: fuera de la llave para no recalcular al teclear.
-  const previewKey = blockers.length === 0 ? JSON.stringify({ ...buildRequest(), notes: undefined, sendEmail: undefined }) : '';
+  // Notas y correo no cambian cifras: fuera de la llave para no recalcular al
+  // teclear. `rev` no viaja al API: solo fuerza otra vista previa cuando se
+  // guardaron datos fiscales del distribuidor.
+  const previewKey =
+    blockers.length === 0 ? JSON.stringify({ req: { ...buildRequest(), notes: undefined, sendEmail: undefined }, rev: fiscalRev }) : '';
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle', data: null, error: null });
   const [result, setResult] = useState<ManualFreeCreateResponse | null>(null);
   const { mutateAsync: previewAsync } = usePreviewManualFreeInvoice();
@@ -301,7 +314,8 @@ export function ManualFreeInvoiceForm() {
     setPreview((p) => ({ ...p, status: 'loading', error: null }));
     const t = setTimeout(async () => {
       try {
-        const data = await previewAsync(JSON.parse(previewKey) as ManualFreeInvoiceRequest);
+        const { req } = JSON.parse(previewKey) as { req: ManualFreeInvoiceRequest };
+        const data = await previewAsync(req);
         if (previewSeq.current === seq) setPreview({ status: 'ready', data, error: null });
       } catch (err) {
         if (previewSeq.current === seq)
@@ -394,10 +408,16 @@ export function ManualFreeInvoiceForm() {
                         {customer.hasRfc ? 'con RFC' : 'sin RFC en su ficha'}
                       </p>
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={clearCustomer} className="shrink-0 text-gray-500">
-                      <XMarkIcon className="h-4 w-4" />
-                      Quitar
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setFiscalOpen(true)} className="gap-1">
+                        <IdentificationIcon className="h-4 w-4" />
+                        Datos fiscales
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={clearCustomer} className="text-gray-500">
+                        <XMarkIcon className="h-4 w-4" />
+                        Quitar
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="relative">
@@ -688,8 +708,13 @@ export function ManualFreeInvoiceForm() {
                 subtitle="Captura RFC, razón social, régimen, uso y CP"
               />
             </div>
-            {receiverMode === 'customer' && (
-              <p className="mt-2 text-xs text-gray-500">Se usan RFC, razón social, régimen, uso y CP de su ficha de Datos Fiscales; si le falta algo, el resumen lo dirá.</p>
+            {customer && (
+              <p className="mt-2 text-xs text-gray-500">
+                {receiverMode === 'customer' && 'Se usan RFC, razón social, régimen, uso y CP de su ficha de Datos Fiscales; si le falta algo, el resumen lo dirá. '}
+                <button type="button" onClick={() => setFiscalOpen(true)} className="font-medium text-[#3E667D] underline-offset-2 hover:underline">
+                  Ver o editar los datos fiscales de #{customer.customerNumber}
+                </button>
+              </p>
             )}
             {receiverMode === 'other' && (
               <div className="mt-3 grid gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:grid-cols-2">
@@ -896,6 +921,17 @@ export function ManualFreeInvoiceForm() {
           </Card>
         )}
       </div>
+
+      {customer && (
+        <CustomerFiscalDataDialog
+          open={fiscalOpen}
+          onOpenChange={setFiscalOpen}
+          customerId={customer.id}
+          customerNumber={customer.customerNumber}
+          customerName={customer.name}
+          onSaved={onFiscalSaved}
+        />
+      )}
     </div>
   );
 }
