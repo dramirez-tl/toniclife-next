@@ -235,8 +235,10 @@ const navigation: NavItem[] = [
       // sus propios permisos y no hereda los del padre (admin-nav-filter).
       { name: 'WhatsApp', href: '/admin/comercial/whatsapp', permissions: ['comercial'] },
       // Reporte de distribuidores (inscritos, activos, calificados, rangos y
-      // ventas por periodo): el API acepta 'comercial' o 'reports:read'.
-      { name: 'Distribuidores', href: '/admin/comercial/distribuidores', permissions: ['comercial', 'reports:read'] },
+      // ventas por periodo): el API acepta 'comercial', 'reports:read' o
+      // 'reports:distributors' (mig 174: Call Center y Operaciones ven SOLO
+      // este hijo de Comercial).
+      { name: 'Distribuidores', href: '/admin/comercial/distribuidores', permissions: ['comercial', 'reports:read', 'reports:distributors'] },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

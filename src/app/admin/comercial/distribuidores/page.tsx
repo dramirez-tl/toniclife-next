@@ -5,7 +5,8 @@
 // y ventas como base, sobre TODOS los distribuidores, con los mismos filtros
 // del dashboard "Mi red" (actividad, estado, rango, periodo de alta, búsqueda)
 // más país y sucursal de alta. Datos: GET /reports/distributors/* (permiso
-// comercial o reports:read). Mismas definiciones que "Mi red": activo = puntos
+// comercial, reports:read o reports:distributors — mig 174, Call Center y
+// Operaciones). Mismas definiciones que "Mi red": activo = puntos
 // personales > 0; calificado ≥ 3,300; en riesgo = compró el periodo anterior y
 // aún no este; inscrito = fecha de alta dentro del periodo 26→25.
 //
