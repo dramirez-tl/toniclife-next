@@ -137,16 +137,6 @@ const formatDate = (dateStr: string, timezone: string = DEFAULT_TIMEZONE) =>
     timeZone: resolveTimeZone(timezone),
   });
 
-function getDefaultDateFrom(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 7);
-  return d.toISOString().split('T')[0];
-}
-
-function getDefaultDateTo(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Efectivo',
   card: 'Tarjeta',
@@ -325,7 +315,12 @@ function downloadCsv(rows: Sale[], filename: string, getBranchTz: (branchName: s
  * formato de ticket térmico (no es comprobante fiscal). Usa los datos del detalle
  * de la venta (items, totales, pagos, puntos).
  */
-function printSaleTicket(sale: Sale, branchTz: string) {
+/**
+ * HTML del ticket de la venta (80 mm, monoespaciado). Lo usan la vista previa
+ * en línea (sin auto-impresión) y "Imprimir / PDF" (abre la ventana de
+ * impresión del navegador, donde se elige la impresora o "Guardar como PDF").
+ */
+function buildSaleTicketHtml(sale: Sale, branchTz: string, opts: { autoPrint: boolean }): string {
   const currency = sale.currencyCode || 'MXN';
   const esc = (s: unknown) =>
     String(s ?? '').replace(/[&<>"]/g, (ch) =>
@@ -420,9 +415,14 @@ function printSaleTicket(sale: Sale, branchTz: string) {
     <hr />
     <div class="c">¡Gracias por su compra!</div>
     <div class="c muted" style="font-size:10px">Reimpreso ${esc(new Date().toLocaleString('es-MX'))}</div>
-    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };</script>
+    ${opts.autoPrint ? '<script>window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };</script>' : ''}
   </body></html>`;
+  return html;
+}
 
+/** Abre el ticket en una ventana e imprime (o "Guardar como PDF" desde el diálogo). */
+function printSaleTicket(sale: Sale, branchTz: string) {
+  const html = buildSaleTicketHtml(sale, branchTz, { autoPrint: true });
   const w = window.open('', '_blank', 'width=380,height=680');
   if (!w) {
     toast.error('Permite las ventanas emergentes para imprimir el ticket');
@@ -433,11 +433,28 @@ function printSaleTicket(sale: Sale, branchTz: string) {
   w.document.close();
 }
 
-function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale | null; onClose: () => void; branchTz?: string }) {
-  // El row de la lista no trae items ni puntos; al abrir, traemos el detalle
-  // completo (GET /pos/sales/:id). Mientras carga se usa el row de la lista.
-  const { data: detail } = useSale(sale?.id ?? '', !!sale?.id);
-  if (!sale) return null;
+/** Vista previa del ticket (mismo HTML que se imprime) dentro de un iframe aislado. */
+function SaleTicketPreview({ sale, branchTz }: { sale: Sale; branchTz: string }) {
+  const html = useMemo(() => buildSaleTicketHtml(sale, branchTz, { autoPrint: false }), [sale, branchTz]);
+  return (
+    <iframe
+      title={`Ticket ${sale.saleNumber}`}
+      srcDoc={html}
+      sandbox=""
+      className="h-[560px] w-full rounded-lg border border-gray-200 bg-white shadow-inner"
+    />
+  );
+}
+
+/**
+ * Detalle de la venta desplegado EN LÍNEA debajo de su renglón (Contabilidad,
+ * 26-oct-2026: sin modal ni otra pantalla), con la vista previa del ticket y
+ * el botón para imprimirlo o guardarlo en PDF.
+ */
+function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale; onClose: () => void; branchTz?: string }) {
+  // El row de la lista no trae items ni puntos; al desplegar, traemos el
+  // detalle completo (GET /pos/sales/:id). Mientras carga se usa el row.
+  const { data: detail } = useSale(sale.id, !!sale.id);
 
   const view = detail ?? sale;
   // (salePointsOf: puntos de la venta = suma de puntos × cantidad de sus renglones)
@@ -493,12 +510,7 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
   ];
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent
-        showCloseButton={false}
-        className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden"
-      >
-        <DialogTitle className="sr-only">Detalle de venta {sale.saleNumber}</DialogTitle>
+    <div className="overflow-hidden rounded-xl border border-[#3E667D]/20 bg-white shadow-sm">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-gray-100">
           <div>
@@ -520,14 +532,16 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
           <button
             type="button"
             onClick={onClose}
+            title="Plegar"
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+        {/* Cuerpo: detalle a la izquierda, ticket a la derecha */}
+        <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
           {/* Info grid */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-xl p-4">
@@ -696,23 +710,34 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 flex gap-2">
+        {/* Ticket: vista previa + imprimir / PDF */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">Ticket</h3>
+            <span className="text-xs text-gray-400">Vista previa · reimpresión</span>
+          </div>
+          {view.items && view.items.length > 0 ? (
+            <SaleTicketPreview sale={view} branchTz={branchTz} />
+          ) : (
+            <div className="flex h-[560px] items-center justify-center rounded-lg border border-dashed border-gray-200 text-sm text-gray-400">
+              Cargando ticket…
+            </div>
+          )}
           <Button
-            variant="outline"
-            className="flex-1"
+            className="w-full"
             onClick={() => printSaleTicket(view, branchTz)}
             disabled={!view.items || view.items.length === 0}
+            title="Abre el diálogo de impresión: elige la impresora o 'Guardar como PDF'"
           >
             <PrinterIcon className="h-4 w-4" />
-            Imprimir ticket
+            Imprimir / guardar PDF
           </Button>
-          <Button variant="ghost" className="flex-1" onClick={onClose}>
-            Cerrar
+          <Button variant="ghost" className="w-full" onClick={onClose}>
+            Plegar detalle
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </div>
   );
 }
 
@@ -794,6 +819,7 @@ function VentasReportesContent() {
     status: 'all',
     paymentMethod: 'all',
     customerNumber: '',
+    search: '',
     page: '1',
     limit: '20',
   });
@@ -805,8 +831,11 @@ function VentasReportesContent() {
   const selectedStatus = get('status');
   const selectedPaymentMethod = get('paymentMethod');
   const selectedCustomerNumber = get('customerNumber');
-  const dateFrom = get('dateFrom') || getDefaultDateFrom();
-  const dateTo = get('dateTo') || getDefaultDateTo();
+  const selectedSearch = get('search');
+  // Fechas OPCIONALES (Contabilidad, 26-oct-2026): sin fechas se listan todas
+  // las ventas; el buscador por folio no necesita rango.
+  const dateFrom = get('dateFrom') || '';
+  const dateTo = get('dateTo') || '';
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
@@ -820,13 +849,28 @@ function VentasReportesContent() {
     return {};
   }, [selectedTerminal]);
 
-  const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  // Detalle desplegado en línea (varias ventas a la vez).
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [customerNumberInput, setCustomerNumberInput] = useState(selectedCustomerNumber);
+  const [searchInput, setSearchInput] = useState(selectedSearch);
 
   // Sync input when URL param changes externally (e.g. navigating with ?customerNumber=...)
   useEffect(() => { setCustomerNumberInput(selectedCustomerNumber); }, [selectedCustomerNumber]);
+  useEffect(() => { setSearchInput(selectedSearch); }, [selectedSearch]);
+  const applySearch = useCallback(
+    (value: string) => setParams({ search: value.trim(), page: '1' }),
+    [setParams],
+  );
   const { mutate: updatePaymentMethod, isPending: isUpdating } = useUpdateSalePaymentMethod();
 
   const handleExportCsv = useCallback(async () => {
@@ -838,8 +882,9 @@ function VentasReportesContent() {
         status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
         paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
         customerNumber: selectedCustomerNumber || undefined,
-        fromDate: dateFrom,
-        toDate: dateTo,
+        search: selectedSearch || undefined,
+        fromDate: dateFrom || undefined,
+        toDate: dateTo || undefined,
         sortBy: 'createdAt' as const,
         sortOrder: 'desc' as const,
       };
@@ -859,7 +904,7 @@ function VentasReportesContent() {
         toast.info('No hay ventas para exportar con los filtros actuales');
         return;
       }
-      const filename = `ventas_${dateFrom}_${dateTo}.csv`;
+      const filename = `ventas_${dateFrom || 'inicio'}_${dateTo || 'hoy'}.csv`;
       downloadCsv(all, filename, (name) => branches.find(b => b.name === name)?.timezone || DEFAULT_TIMEZONE);
       toast.success(`${all.length} ventas exportadas`);
     } catch {
@@ -868,7 +913,7 @@ function VentasReportesContent() {
       setIsExporting(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
+  }, [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
     (paymentMethod: string) => {
@@ -897,13 +942,14 @@ function VentasReportesContent() {
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
     paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
     customerNumber: selectedCustomerNumber || undefined,
-    fromDate: dateFrom,
-    toDate: dateTo,
+    search: selectedSearch || undefined,
+    fromDate: dateFrom || undefined,
+    toDate: dateTo || undefined,
     page: currentPage,
     limit: pageSize,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-  }), [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
+  }), [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo, currentPage, pageSize]);
 
   // Stats server-side (dictamen 3.3.1): SUM/COUNT por moneda y estado con los
   // MISMOS filtros — antes se bajaban hasta 5000 filas y se sumaban en el
@@ -915,9 +961,10 @@ function VentasReportesContent() {
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
     paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
     customerNumber: selectedCustomerNumber || undefined,
-    fromDate: dateFrom,
-    toDate: dateTo,
-  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
+    search: selectedSearch || undefined,
+    fromDate: dateFrom || undefined,
+    toDate: dateTo || undefined,
+  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
   const statsQueryParams = useMemo<SaleQueryParams>(
     () => ({ ...breakdownParams, ...terminalFilter }),
     [breakdownParams, terminalFilter],
@@ -1000,9 +1047,9 @@ function VentasReportesContent() {
           </div>
           <button
             type="button"
-            title="Ver detalle"
-            onClick={() => setDetailSale(sale)}
-            className="mt-0.5 p-1 rounded hover:bg-[#3E667D]/10 text-gray-400 hover:text-[#3E667D] transition-colors flex-shrink-0"
+            title={expandedIds.has(sale.id) ? 'Plegar detalle' : 'Ver detalle'}
+            onClick={() => toggleExpanded(sale.id)}
+            className={`mt-0.5 p-1 rounded hover:bg-[#3E667D]/10 transition-colors flex-shrink-0 ${expandedIds.has(sale.id) ? 'text-[#3E667D]' : 'text-gray-400 hover:text-[#3E667D]'}`}
           >
             <EyeIcon className="h-4 w-4" />
           </button>
@@ -1098,11 +1145,10 @@ function VentasReportesContent() {
         </span>
       ),
     },
-  ], [canEditPayment, setDetailSale, setEditingSale, branches]);
+  ], [canEditPayment, expandedIds, toggleExpanded, setEditingSale, branches]);
 
   return (
     <>
-    <SaleDetailModal sale={detailSale} onClose={() => setDetailSale(null)} branchTz={branches.find(b => b.name === detailSale?.branchName)?.timezone || DEFAULT_TIMEZONE} />
     {editingSale && (
       <EditPaymentModal
         sale={editingSale}
@@ -1122,7 +1168,7 @@ function VentasReportesContent() {
                 <h1 className="text-4xl font-bold">Ventas POS</h1>
               </div>
               <p className="text-white/80 text-lg">
-                Ventas de punto de venta de todas las sucursales
+                Todas las ventas de las sucursales: busca por folio, filtra por fechas si quieres y despliega el detalle con un clic
               </p>
             </div>
             <Link href="/admin/reportes">
@@ -1144,7 +1190,7 @@ function VentasReportesContent() {
                   <p className="text-3xl font-bold text-gray-900">
                     {isLoading ? '...' : totalCount.toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">en el período</p>
+                  <p className="text-xs text-gray-400 mt-1">{dateFrom || dateTo ? 'en el rango de fechas' : 'con los filtros actuales (sin fechas = todas)'}</p>
                 </div>
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <ShoppingCartIcon className="h-5 w-5 text-blue-600" />
@@ -1246,6 +1292,40 @@ function VentasReportesContent() {
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="p-6">
+            {/* Buscador por folio (Contabilidad, 26-oct-2026): sin fechas busca en todas las ventas */}
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Input
+                  type="search"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') applySearch(searchInput);
+                  }}
+                  placeholder="Buscar por folio (ej. 102-20260928-0006 o 0006)…"
+                  aria-label="Buscar por folio"
+                  className="pr-8 font-mono"
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchInput(''); applySearch(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button onClick={() => applySearch(searchInput)} className="sm:w-auto">
+                Buscar folio
+              </Button>
+              {selectedSearch && (
+                <span className="text-xs text-gray-500">
+                  Mostrando folios que contienen <span className="font-mono font-semibold text-gray-700">{selectedSearch}</span>
+                </span>
+              )}
+            </div>
             <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
               {/* Branch */}
               <div className="flex items-center gap-2">
@@ -1304,14 +1384,14 @@ function VentasReportesContent() {
               </div>
             </div>
 
-            {/* Date range row */}
+            {/* Date range row (opcional: vacío = todas las ventas) */}
             <div className="flex flex-col lg:flex-row gap-4 mt-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
                 <Input
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => setParams({ dateFrom: e.target.value })}
+                  onChange={(e) => setParams({ dateFrom: e.target.value || null, page: '1' })}
                   className="w-auto"
                 />
               </div>
@@ -1320,19 +1400,21 @@ function VentasReportesContent() {
                 <Input
                   type="date"
                   value={dateTo}
-                  onChange={(e) => setParams({ dateTo: e.target.value })}
+                  onChange={(e) => setParams({ dateTo: e.target.value || null, page: '1' })}
                   className="w-auto"
                 />
               </div>
-              {(get('dateFrom') || get('dateTo')) && (
+              {dateFrom || dateTo ? (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-gray-500"
-                  onClick={() => setParams({ dateFrom: null, dateTo: null })}
+                  onClick={() => setParams({ dateFrom: null, dateTo: null, page: '1' })}
                 >
                   Limpiar fechas
                 </Button>
+              ) : (
+                <span className="self-center text-xs text-gray-400">Sin fechas se muestran todas las ventas</span>
               )}
 
               {/* Customer number filter */}
@@ -1423,6 +1505,10 @@ function VentasReportesContent() {
         {/* Sales Table */}
         <Card>
           <CardContent className="p-0">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-3">
+              <span className="text-sm font-medium text-gray-700">Clic en una venta para desplegar su detalle y el ticket</span>
+              <span className="text-xs text-gray-400">{totalCount.toLocaleString()} ventas</span>
+            </div>
             <DataTable
               columns={columns}
               data={sales}
@@ -1430,6 +1516,19 @@ function VentasReportesContent() {
               loadingRows={pageSize > 10 ? 10 : pageSize}
               getRowKey={(sale) => sale.id}
               minWidthClassName="min-w-[900px]"
+              rowClassName={(sale) =>
+                `cursor-pointer border-b border-border transition-colors hover:bg-[#3E667D]/[0.04] ${expandedIds.has(sale.id) ? 'bg-[#3E667D]/[0.06]' : ''}`
+              }
+              onRowClick={(sale) => toggleExpanded(sale.id)}
+              renderExpandedRow={(sale) =>
+                expandedIds.has(sale.id) ? (
+                  <SaleDetailPanel
+                    sale={sale}
+                    onClose={() => toggleExpanded(sale.id)}
+                    branchTz={branches.find((b) => b.name === sale.branchName)?.timezone || DEFAULT_TIMEZONE}
+                  />
+                ) : null
+              }
               emptyState={
                 <div className="text-center py-12">
                   <ShoppingCartIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -1437,7 +1536,7 @@ function VentasReportesContent() {
                     No se encontraron ventas
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Intenta ajustar los filtros o el rango de fechas
+                    Revisa el folio buscado o ajusta los filtros
                   </p>
                 </div>
               }

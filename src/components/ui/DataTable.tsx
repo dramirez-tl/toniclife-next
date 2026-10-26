@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ArrowsUpDownIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -70,6 +70,10 @@ interface DataTableProps<T> {
   selectedRowKeys?: string[];
   onSelectedRowKeysChange?: (selectedKeys: string[]) => void;
   rowSelectionMode?: 'single' | 'multiple';
+  /** Clic en la fila (se ignoran clics sobre botones, enlaces e inputs de la fila). */
+  onRowClick?: (item: T, index: number) => void;
+  /** Contenido desplegado DEBAJO de la fila (acordeón); null/undefined = fila plegada. */
+  renderExpandedRow?: (item: T, index: number) => React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -94,6 +98,8 @@ export function DataTable<T>({
   onSelectedRowKeysChange,
   rowSelectionMode = 'multiple',
   initialSort,
+  onRowClick,
+  renderExpandedRow,
 }: DataTableProps<T>) {
   const [internalSortState, setInternalSortState] = useState<DataTableSortState | null>(
     initialSort ?? null
@@ -354,8 +360,21 @@ export function DataTable<T>({
             processedData.map((item, index) => {
               const rowKey = getRowKey(item, index);
               const isSelected = selectedSet.has(rowKey);
+              const expanded = renderExpandedRow ? renderExpandedRow(item, index) : null;
               return (
-              <TableRow key={getRowKey(item, index)} className={resolveRowClass(item, index)}>
+              <Fragment key={rowKey}>
+              <TableRow
+                className={resolveRowClass(item, index)}
+                onClick={
+                  onRowClick
+                    ? (e) => {
+                        // Los controles de la fila (ver, editar, enlaces) no despliegan.
+                        if ((e.target as HTMLElement).closest('button, a, input, select, textarea, label')) return;
+                        onRowClick(item, index);
+                      }
+                    : undefined
+                }
+              >
                 {enableRowSelection && (
                   <TableCell className="px-4 py-4 align-top">
                     <Checkbox
@@ -371,6 +390,14 @@ export function DataTable<T>({
                   </TableCell>
                 ))}
               </TableRow>
+              {expanded != null && expanded !== false && (
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)} className="px-4 py-4 sm:px-6">
+                    {expanded}
+                  </TableCell>
+                </TableRow>
+              )}
+              </Fragment>
             )})
           )}
         </TableBody>
