@@ -317,11 +317,20 @@ export default function DetalleDistribuidorPage() {
                         >
                           {address.type === 'shipping' ? 'Envío' : 'Facturación'}
                         </span>
-                        {address.isDefault && (
-                          <span className="text-xs text-[#3E667D] font-medium">
-                            Predeterminada
-                          </span>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {address.isDefault && (
+                            <span className="text-xs text-[#3E667D] font-medium">
+                              Predeterminada
+                            </span>
+                          )}
+                          <Link
+                            href={`/admin/distribuidores/${customer.id}/direcciones/${address.id}`}
+                            className="inline-flex items-center gap-1 text-xs text-[#3E667D] hover:underline"
+                          >
+                            <PencilIcon className="h-3.5 w-3.5" />
+                            Editar
+                          </Link>
+                        </div>
                       </div>
                       <p className="text-gray-900">
                         {address.street} {address.exteriorNumber}

@@ -24,7 +24,12 @@ export interface CustomerAddress {
   state: string;
   postalCode: string;
   country: string;
+  /** countries.id (el API lo manda; el formulario del admin lo usa para el país del domicilio). */
+  countryId?: string | null;
   phone: string | null;
+  /** Alias (Casa, Oficina…) y referencias de ubicación. */
+  alias?: string | null;
+  reference?: string | null;
   isDefault: boolean;
   createdAt: string;
 }
@@ -173,20 +178,25 @@ export interface UpdateCustomerDto {
 
 export interface CreateAddressDto {
   type: AddressType;
+  alias?: string;
   street: string;
-  exteriorNumber: string;
+  /** Opcional en países donde el número va dentro de la calle (US, GT, CO). */
+  exteriorNumber?: string;
   interiorNumber?: string;
-  neighborhood: string;
+  neighborhood?: string;
   city: string;
   state: string;
-  postalCode: string;
-  country?: string;
+  postalCode?: string;
+  /** countries.id del domicilio. */
+  countryId?: string;
   phone?: string;
+  reference?: string;
   isDefault?: boolean;
 }
 
 export interface UpdateAddressDto {
   type?: AddressType;
+  alias?: string;
   street?: string;
   exteriorNumber?: string;
   interiorNumber?: string;
@@ -194,8 +204,10 @@ export interface UpdateAddressDto {
   city?: string;
   state?: string;
   postalCode?: string;
-  country?: string;
-  phone?: string;
+  countryId?: string;
+  /** null = borrar el teléfono guardado. */
+  phone?: string | null;
+  reference?: string;
   isDefault?: boolean;
 }
 
