@@ -12,11 +12,12 @@
 // edición, lo vuelve a montar con `key` cuando cambia la campaña: así no hay
 // setState dentro de efectos.
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  ArrowUpTrayIcon,
   IdentificationIcon,
   AdjustmentsHorizontalIcon,
   GiftIcon,
@@ -42,6 +43,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCountries } from '@/hooks/useConfig';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useProducts } from '@/hooks/useProducts';
+import { useUploadMembershipCampaignImage } from '@/hooks/useMembershipCampaigns';
 import type { Product } from '@/types/product';
 import type {
   CreateMembershipCampaignDto,
@@ -55,12 +57,15 @@ import {
   COUPON_CHANNEL_OPTIONS,
   POSITION_OPTIONS,
   type MembershipCampaignFormValues,
+  apiErrorMessage,
   toMembershipPayload,
   validateMembershipForm,
 } from '@/lib/membership-campaigns';
 
 interface MembershipCampaignFormProps {
   mode: 'create' | 'edit';
+  /** En edición: habilita "Subir imagen" (POST /membership-campaigns/:id/image). */
+  campaignId?: string;
   initial: MembershipCampaignFormValues;
   /** Sucursales ya guardadas: para mostrar quién y cuándo las habilitó. */
   savedBranches?: MembershipCampaignBranch[];
@@ -75,8 +80,13 @@ interface MembershipCampaignFormProps {
 const formatEnabledAt = (iso: string) =>
   new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
 
+const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp';
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
 export function MembershipCampaignForm({
   mode,
+  campaignId,
   initial,
   savedBranches = [],
   readOnly = false,
@@ -91,6 +101,37 @@ export function MembershipCampaignForm({
   const set = (patch: Partial<MembershipCampaignFormValues>) => {
     setForm((f) => ({ ...f, ...patch }));
     if (errors.length > 0) setErrors([]);
+  };
+
+  // -------- imagen: en edición se sube al API (S3) y queda guardada al instante --------
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadImage = useUploadMembershipCampaignImage();
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const canUpload = !!campaignId && !readOnly;
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo
+    if (!file || !campaignId) return;
+    if (!IMAGE_TYPES.has(file.type)) {
+      toast.error('La imagen debe ser JPG, PNG o WebP.');
+      return;
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      toast.error(`La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB; el máximo es 5 MB.`);
+      return;
+    }
+    setUploadProgress(0);
+    try {
+      const saved = await uploadImage.mutateAsync({
+        id: campaignId,
+        file,
+        onProgress: setUploadProgress,
+      });
+      set({ imageUrl: saved.imageUrl ?? '' });
+      toast.success('Imagen subida; el POS ya la muestra al ofrecer la campaña.');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo subir la imagen.'));
+    }
   };
 
   const { data: countries } = useCountries();
@@ -251,30 +292,80 @@ export function MembershipCampaignForm({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor={inputId('imageUrl')}>URL de imagen</Label>
+              <Label htmlFor={inputId('imageUrl')}>Imagen de la campaña</Label>
               <div className="flex items-start gap-3">
                 {form.imageUrl.trim() ? (
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
+                  <div className="h-20 w-32 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
                     {/* URL libre (cualquier host): next/image exige dominios registrados. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={form.imageUrl.trim()} alt="" className="h-16 w-16 object-cover" />
+                    <img src={form.imageUrl.trim()} alt="" className="h-20 w-32 object-cover" />
                   </div>
                 ) : (
-                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
+                  <div className="flex h-20 w-32 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
                     <PhotoIcon className="h-6 w-6 text-gray-400" />
                   </div>
                 )}
-                <div className="flex-1 space-y-1">
+                <div className="flex-1 space-y-2">
+                  {!readOnly && (
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={IMAGE_ACCEPT}
+                        className="hidden"
+                        onChange={(e) => void handleImageFile(e)}
+                        aria-label="Elegir imagen de la campaña"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!canUpload || uploadImage.isPending}
+                        title={canUpload ? undefined : 'Crea la campaña y después sube la imagen'}
+                      >
+                        {uploadImage.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
+                        )}
+                        {uploadImage.isPending
+                          ? `Subiendo… ${uploadProgress}%`
+                          : form.imageUrl.trim()
+                            ? 'Reemplazar imagen'
+                            : 'Subir imagen'}
+                      </Button>
+                      {form.imageUrl.trim() !== '' && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-700 hover:text-red-800"
+                          onClick={() => set({ imageUrl: '' })}
+                          disabled={uploadImage.isPending}
+                        >
+                          <TrashIcon className="mr-2 h-4 w-4" />
+                          Quitar
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <Input
                     id={inputId('imageUrl')}
                     type="url"
                     value={form.imageUrl}
                     onChange={(e) => set({ imageUrl: e.target.value })}
-                    placeholder="https://…"
+                    placeholder="o pega una liga https://…"
                     maxLength={1000}
-                    disabled={readOnly}
+                    disabled={readOnly || uploadImage.isPending}
                   />
-                  <p className="text-xs text-gray-500">Opcional. Se muestra en el POS al ofrecer la campaña.</p>
+                  <p className="text-xs text-gray-500">
+                    {canUpload
+                      ? 'JPG, PNG o WebP, máximo 5 MB. Al subirla queda guardada de inmediato; “Quitar” se aplica al guardar.'
+                      : mode === 'create' && !readOnly
+                        ? 'Crea la campaña y después sube el archivo (o pega una liga). Se muestra en el POS al ofrecer la campaña.'
+                        : 'Se muestra en el POS al ofrecer la campaña.'}
+                  </p>
                 </div>
               </div>
             </div>

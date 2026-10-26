@@ -99,6 +99,30 @@ export const useUpdateMembershipCampaign = () => {
   });
 };
 
+/**
+ * Sube la imagen (el API la guarda en S3 de inmediato). NO pisa el detalle en
+ * caché: el formulario se remonta con `key=updatedAt` y perdería lo que se
+ * esté editando; toma `imageUrl` de la respuesta y el detalle se refresca al
+ * guardar o al volver a entrar. La lista sí se invalida (miniatura).
+ */
+export const useUploadMembershipCampaignImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      file,
+      onProgress,
+    }: {
+      id: string;
+      file: File;
+      onProgress?: (percent: number) => void;
+    }) => membershipCampaignsService.uploadImage(id, file, onProgress),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: membershipCampaignKeys.lists() });
+    },
+  });
+};
+
 export const useReplaceMembershipGifts = (id: string) => {
   const queryClient = useQueryClient();
   return useMutation({
