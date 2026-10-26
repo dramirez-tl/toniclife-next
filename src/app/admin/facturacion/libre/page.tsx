@@ -214,7 +214,9 @@ function FacturacionLibreContent() {
                 <h1 className="text-3xl font-bold">Facturación libre</h1>
               </div>
               <p className="text-white/80">
-                Tickets pendientes por facturar (sin global o bloqueados) timbrados a mano: uno por ticket o agrupados, a público en general o a un cliente, PPD por defecto
+                {mode === 'free'
+                  ? 'Captura libre como en el punto de venta: distribuidor, productos y a quién se factura. Solo emite el CFDI: no genera venta ni descuenta inventario'
+                  : 'Tickets pendientes por facturar (sin global o bloqueados) timbrados a mano: uno por ticket o agrupados, a público en general o a un cliente, PPD por defecto'}
               </p>
             </div>
             <Link href="/admin/facturacion/reporte-folios">
