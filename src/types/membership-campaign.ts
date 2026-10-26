@@ -66,6 +66,8 @@ export interface MembershipCampaign {
   name: string;
   description: string | null;
   imageUrl: string | null;
+  /** Miniatura WebP generada por el API al subir la imagen (mig 171); null si la liga se pegó a mano. */
+  imageThumbnailUrl?: string | null;
   countryId: string;
   countryCode: string;
   countryName: string;

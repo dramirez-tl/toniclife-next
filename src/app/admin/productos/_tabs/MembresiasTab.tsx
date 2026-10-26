@@ -136,7 +136,7 @@ export function MembresiasTab() {
             <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
               {/* URL libre (cualquier host): next/image exige dominios registrados. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={c.imageUrl} alt="" className="h-10 w-10 object-cover" />
+              <img src={c.imageThumbnailUrl ?? c.imageUrl} alt="" className="h-10 w-10 object-cover" />
             </div>
           ) : (
             <div className="w-10 h-10 rounded-lg bg-[#C8DDF2]/40 flex items-center justify-center flex-shrink-0">

@@ -66,6 +66,8 @@ interface MembershipCampaignFormProps {
   mode: 'create' | 'edit';
   /** En edición: habilita "Subir imagen" (POST /membership-campaigns/:id/image). */
   campaignId?: string;
+  /** Miniatura del servidor para la vista previa (mig 171); el original queda para el POS. */
+  imageThumbnailUrl?: string | null;
   initial: MembershipCampaignFormValues;
   /** Sucursales ya guardadas: para mostrar quién y cuándo las habilitó. */
   savedBranches?: MembershipCampaignBranch[];
@@ -87,6 +89,7 @@ const IMAGE_MAX_BYTES = 7 * 1024 * 1024;
 export function MembershipCampaignForm({
   mode,
   campaignId,
+  imageThumbnailUrl,
   initial,
   savedBranches = [],
   readOnly = false,
@@ -108,6 +111,17 @@ export function MembershipCampaignForm({
   const uploadImage = useUploadMembershipCampaignImage();
   const [uploadProgress, setUploadProgress] = useState(0);
   const canUpload = !!campaignId && !readOnly;
+  // La miniatura vale solo mientras la liga tecleada siga siendo la subida.
+  const [savedImage, setSavedImage] = useState<{ url: string; thumb: string | null }>({
+    url: initial.imageUrl.trim(),
+    thumb: imageThumbnailUrl ?? null,
+  });
+  const typedImageUrl = form.imageUrl.trim();
+  const previewSrc = !typedImageUrl
+    ? null
+    : typedImageUrl === savedImage.url && savedImage.thumb
+      ? savedImage.thumb
+      : typedImageUrl;
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // permite volver a elegir el mismo archivo
@@ -128,6 +142,7 @@ export function MembershipCampaignForm({
         onProgress: setUploadProgress,
       });
       set({ imageUrl: saved.imageUrl ?? '' });
+      setSavedImage({ url: (saved.imageUrl ?? '').trim(), thumb: saved.imageThumbnailUrl ?? null });
       toast.success('Imagen subida; el POS ya la muestra al ofrecer la campaña.');
     } catch (err) {
       // 413 = multer del API ("File too large"): el límite del servidor manda.
@@ -300,14 +315,14 @@ export function MembershipCampaignForm({
             <div className="grid gap-1.5">
               <Label htmlFor={inputId('imageUrl')}>Imagen de la campaña</Label>
               <div className="flex items-start gap-3">
-                {form.imageUrl.trim() ? (
-                  <div className="h-20 w-32 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
+                {previewSrc ? (
+                  <div className="aspect-video w-44 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
                     {/* URL libre (cualquier host): next/image exige dominios registrados. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={form.imageUrl.trim()} alt="" className="h-20 w-32 object-cover" />
+                    <img src={previewSrc} alt="" className="h-full w-full object-cover" />
                   </div>
                 ) : (
-                  <div className="flex h-20 w-32 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
+                  <div className="flex aspect-video w-44 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
                     <PhotoIcon className="h-6 w-6 text-gray-400" />
                   </div>
                 )}
@@ -367,7 +382,7 @@ export function MembershipCampaignForm({
                   />
                   <p className="text-xs text-gray-500">
                     {canUpload
-                      ? 'JPG, PNG o WebP, máximo 7 MB. Al subirla queda guardada de inmediato; “Quitar” se aplica al guardar.'
+                      ? 'JPG, PNG o WebP, máximo 7 MB. Al subirla queda guardada de inmediato con una miniatura para esta vista previa (el POS usa la original); “Quitar” se aplica al guardar.'
                       : mode === 'create' && !readOnly
                         ? 'Crea la campaña y después sube el archivo (o pega una liga). Se muestra en el POS al ofrecer la campaña.'
                         : 'Se muestra en el POS al ofrecer la campaña.'}

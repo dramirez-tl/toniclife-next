@@ -144,6 +144,7 @@ export default function EditarMembresiaPage({ params }: { params: Promise<{ id: 
             key={campaign.updatedAt}
             mode="edit"
             campaignId={campaign.id}
+            imageThumbnailUrl={campaign.imageThumbnailUrl ?? null}
             initial={formFromCampaign(campaign)}
             savedBranches={campaign.branches}
             readOnly={!canUpdate}
