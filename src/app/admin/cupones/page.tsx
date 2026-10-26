@@ -58,12 +58,22 @@ import { PermissionGuard } from '@/components/auth';
 
 type CouponStatus = 'active' | 'scheduled' | 'expired' | 'inactive';
 
+/** Hoy local 'YYYY-MM-DD' (no la fecha UTC, que se adelanta desde las 18:00 en México). */
+function todayLocal(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function couponStatus(c: Coupon): CouponStatus {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocal();
+  // El API manda 'YYYY-MM-DD'; se recorta por si llegara un ISO completo.
+  const from = (c.validFrom || '').slice(0, 10);
+  const until = c.validUntil ? c.validUntil.slice(0, 10) : null;
   if (!c.isActive) return 'inactive';
-  if (c.validFrom > today) return 'scheduled';
+  if (from > today) return 'scheduled';
   if (
-    (c.validUntil && c.validUntil < today) ||
+    (until && until < today) ||
     (c.usageLimit !== null && c.usageCount >= c.usageLimit)
   ) {
     return 'expired';
