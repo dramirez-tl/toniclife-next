@@ -165,6 +165,7 @@ export async function listInvoices(query?: InvoiceListQuery): Promise<PaginatedI
     search: query?.search,
     status: query?.status,
     invoiceType: query?.invoiceType,
+    manualKind: query?.manualKind,
     cfdiType: query?.cfdiType,
     paymentMethod: query?.paymentMethod,
     withBalance: query?.withBalance,

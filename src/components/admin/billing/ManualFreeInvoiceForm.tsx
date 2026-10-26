@@ -87,7 +87,7 @@ interface PreviewState {
 /** Clave + nombre tal como los devuelve products/code/:code (mismo DTO del catálogo). */
 type ProductLike = Pick<Product, 'id' | 'code' | 'name' | 'isActive'>;
 
-export function ManualFreeInvoiceForm() {
+export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void } = {}) {
   // 1 · Quién compra
   const [branchId, setBranchId] = useState('');
   const { data: branches } = useActiveBranches();
@@ -823,6 +823,9 @@ export function ManualFreeInvoiceForm() {
                       <Button type="button" className="w-full">Ver la factura</Button>
                     </Link>
                     <Button type="button" variant="outline" onClick={resetAll}>Nueva factura</Button>
+                    {onViewList && (
+                      <Button type="button" variant="ghost" onClick={onViewList}>Ver facturas emitidas</Button>
+                    )}
                   </div>
                 </>
               )}

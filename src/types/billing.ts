@@ -88,7 +88,9 @@ export type InvoiceType =
   | 'weekly_bonus'
   | 'cedea'
   | 'credit_note'
-  | 'payroll';
+  | 'payroll'
+  /** Facturación libre (mig 169): tickets pendientes a mano o captura sin ticket. */
+  | 'manual';
 
 /** `invoices.cfdi_type` (CHECK real). */
 export type CfdiKind = 'ingreso' | 'egreso' | 'traslado' | 'nomina' | 'pago';
@@ -434,6 +436,8 @@ export interface InvoiceListQuery {
   search?: string;
   status?: InvoiceStatus;
   invoiceType?: InvoiceType;
+  /** Solo manuales: free = captura libre SIN ticket; tickets = tickets pendientes facturados a mano. */
+  manualKind?: 'free' | 'tickets';
   cfdiType?: CfdiKind;
   paymentMethod?: SatPaymentMethodCode;
   withBalance?: boolean;

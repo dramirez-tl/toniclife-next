@@ -25,6 +25,7 @@ export const INVOICE_TYPE_LABELS: Record<InvoiceType, string> = {
   cedea: 'CEDEA',
   credit_note: 'Nota de crédito',
   payroll: 'Nómina',
+  manual: 'Facturación libre',
 };
 
 /** `sale` se etiqueta Venta/Pedido según el origen; una sustituta se marca aparte. */
@@ -40,6 +41,7 @@ export const INVOICE_TYPE_OPTIONS: { value: InvoiceType; label: string }[] = [
   { value: 'sale', label: 'Venta / Pedido' },
   { value: 'global', label: 'Global' },
   { value: 'payment', label: 'Complemento de pago' },
+  { value: 'manual', label: 'Facturación libre' },
 ];
 
 export const INVOICE_STATUS_OPTIONS: { value: InvoiceStatus; label: string }[] = [
