@@ -22,6 +22,7 @@ import type {
   GlobalDaysQuery,
   GlobalPreviewQuery,
   ManualInvoiceRequest,
+  ManualFreeInvoiceRequest,
   InvoiceListQuery,
   InvoiceableSalesQuery,
   PersonType,
@@ -857,6 +858,24 @@ export function useCreateManualInvoices() {
       void queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
       void queryClient.invalidateQueries({ queryKey: billingKeys.globalDays() });
       void queryClient.invalidateQueries({ queryKey: billingKeys.invoiceableSales() });
+    },
+  });
+}
+
+/** Factura libre SIN ticket: vista previa (precios de lista, IVA, receptor, avisos). */
+export function usePreviewManualFreeInvoice() {
+  return useMutation({
+    mutationFn: (dto: ManualFreeInvoiceRequest) => billingService.previewManualFreeInvoice(dto),
+  });
+}
+
+/** Factura libre SIN ticket: timbrar; las facturas se vuelven a leer. */
+export function useCreateManualFreeInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: ManualFreeInvoiceRequest) => billingService.createManualFreeInvoice(dto),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
     },
   });
 }

@@ -1224,6 +1224,80 @@ export interface ManualInvoiceCreateResponse {
   failed: number;
 }
 
+// Factura libre SIN ticket (26-oct-2026): como una venta del punto de venta
+// pero solo el CFDI (distribuidor → precio de lista, productos, receptor).
+export type ManualFreeReceiverMode = 'public' | 'customer' | 'other';
+
+export interface ManualFreeLine {
+  productId: string;
+  quantity: number;
+  /** Precio unitario CON IVA; null/ausente = precio de lista. */
+  unitPrice?: number | null;
+}
+
+export interface ManualFreeReceiver {
+  rfc: string;
+  name: string;
+  taxRegimeCode: string;
+  cfdiUseCode: string;
+  zipCode: string;
+  email?: string | null;
+}
+
+export interface ManualFreeInvoiceRequest {
+  branchId: string;
+  customerId?: string | null;
+  receiverMode: ManualFreeReceiverMode;
+  receiver?: ManualFreeReceiver | null;
+  /** PUE por defecto. */
+  paymentMethod?: 'PUE' | 'PPD';
+  paymentForm?: string;
+  lines: ManualFreeLine[];
+  sendEmail?: boolean;
+  notes?: string;
+}
+
+export interface ManualFreePreviewLine {
+  lineNumber: number;
+  productId: string | null;
+  sku: string;
+  name: string;
+  quantity: number;
+  /** Unitario CON IVA. */
+  unitPrice: number;
+  total: number;
+  taxLabel: string;
+  satProductCode: string;
+  satUnitCode: string;
+}
+
+export interface ManualFreePreviewResponse {
+  branchCode: string;
+  branchName: string;
+  priceType: string;
+  receiverRfc: string;
+  receiverName: string;
+  receiverTaxRegimeCode: string;
+  receiverCfdiUseCode: string;
+  receiverZipCode: string;
+  paymentMethod: string;
+  paymentForm: string;
+  lines: ManualFreePreviewLine[];
+  subtotal: number;
+  taxes: number;
+  total: number;
+  warnings: string[];
+}
+
+export interface ManualFreeCreateResponse {
+  invoiceId: string | null;
+  folioDisplay: string | null;
+  satUuid: string | null;
+  providerStatus: string | null;
+  total: number | null;
+  error: string | null;
+}
+
 /** @deprecated Usa `fiscalRegimeLabel(code, catalog)` con el catálogo del API. */
 export function getFiscalRegimeName(code: string): string {
   const item = FISCAL_REGIMES.find((r) => r.Value === code);

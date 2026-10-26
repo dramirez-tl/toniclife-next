@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useCreateManualInvoices, useFoliosCuadre, usePreviewManualInvoices } from '@/hooks/useBilling';
+import { ManualFreeInvoiceForm } from '@/components/admin/billing/ManualFreeInvoiceForm';
 import { billingErrorMessage } from '@/lib/billing-error';
 import { billingService, type FiscalDataItem } from '@/services/billing.service';
 import { CUADRE_MAX_DAYS_ONE_BRANCH, getPaymentFormName } from '@/types/billing';
@@ -81,6 +82,9 @@ function FacturacionLibreContent() {
   const initialBranch = params.get('branch') ?? '';
   const initialFrom = params.get('from') ?? '';
   const initialTo = params.get('to') ?? '';
+  // Dos maneras de facturar a mano: tickets pendientes del cuadre, o una
+  // captura libre sin ticket (como en el punto de venta, solo el CFDI).
+  const [mode, setMode] = useState<'tickets' | 'free'>(params.get('modo') === 'libre' ? 'free' : 'tickets');
 
   // Filtros (borrador) y lo aplicado.
   const [branchId, setBranchId] = useState(initialBranch);
@@ -221,6 +225,28 @@ function FacturacionLibreContent() {
       </div>
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Qué se va a facturar */}
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 text-sm shadow-sm">
+          <button
+            type="button"
+            onClick={() => setMode('tickets')}
+            className={`rounded-md px-4 py-2 font-medium transition-colors ${mode === 'tickets' ? 'bg-[#3E667D] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            Tickets pendientes
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('free')}
+            className={`rounded-md px-4 py-2 font-medium transition-colors ${mode === 'free' ? 'bg-[#3E667D] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            Factura sin ticket (captura libre)
+          </button>
+        </div>
+
+        {mode === 'free' && <ManualFreeInvoiceForm />}
+
+        {mode === 'tickets' && (
+        <>
         {/* 1. Pendientes */}
         <Card>
           <CardContent className="p-5">
@@ -515,6 +541,8 @@ function FacturacionLibreContent() {
               </div>
             </CardContent>
           </Card>
+        )}
+        </>
         )}
       </div>
     </div>

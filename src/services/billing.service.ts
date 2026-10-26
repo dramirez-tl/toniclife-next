@@ -7,6 +7,9 @@ import type {
   ManualInvoiceCreateResponse,
   ManualInvoicePreviewResponse,
   ManualInvoiceRequest,
+  ManualFreeCreateResponse,
+  ManualFreeInvoiceRequest,
+  ManualFreePreviewResponse,
   FoliosCuadreQuery,
   FoliosCuadreResponse,
   FoliosReportQuery,
@@ -727,6 +730,18 @@ export async function createManualInvoices(dto: ManualInvoiceRequest): Promise<M
   return response.data;
 }
 
+/** Factura libre SIN ticket (26-oct-2026): vista previa con precios de lista resueltos. */
+export async function previewManualFreeInvoice(dto: ManualFreeInvoiceRequest): Promise<ManualFreePreviewResponse> {
+  const response = await apiClient.post<ManualFreePreviewResponse>(`${BASE_URL}/manual-invoices/free/preview`, dto);
+  return response.data;
+}
+
+/** Factura libre SIN ticket: timbrar. */
+export async function createManualFreeInvoice(dto: ManualFreeInvoiceRequest): Promise<ManualFreeCreateResponse> {
+  const response = await apiClient.post<ManualFreeCreateResponse>(`${BASE_URL}/manual-invoices/free`, dto);
+  return response.data;
+}
+
 // ================================
 // STATUS
 // ================================
@@ -818,6 +833,8 @@ export const billingService = {
   downloadFoliosCuadreXlsx,
   previewManualInvoices,
   createManualInvoices,
+  previewManualFreeInvoice,
+  createManualFreeInvoice,
 
   // Status
   getFacturamaStatus,
