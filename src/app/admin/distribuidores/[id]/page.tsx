@@ -559,9 +559,12 @@ function KitPositionGrantButton({
 }) {
   const roles = useAppSelector(selectUserRoles);
   const permissions = useAppSelector(selectUserPermissions);
+  // customers:kit_position (mig 172): Operaciones otorga la posición sin
+  // tener customers:update (edición completa de la ficha).
   const canGrant =
     roles.includes('super_admin') ||
     permissions.includes('customers:update') ||
+    permissions.includes('customers:kit_position') ||
     permissions.includes('customers:*');
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<'basic' | 'premium'>(
