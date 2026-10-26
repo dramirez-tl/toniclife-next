@@ -12,6 +12,7 @@ import type {
   AnalyticsQuery,
   ProductByPeriodQuery,
   SalesByUserQuery,
+  NewDistributorsQuery,
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
   CashCutQuery,
@@ -259,5 +260,18 @@ export function useSalesByUser(query: SalesByUserQuery) {
     queryFn: () => reportsService.getSalesByUser(query),
     enabled: !!query.startDate && !!query.endDate,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ================================
+// NUEVOS INSCRITOS DE LA SEMANA (CALL CENTER, mig 173)
+// ================================
+
+export function useNewDistributors(query: NewDistributorsQuery) {
+  return useQuery({
+    queryKey: ['reports', 'new-distributors', query.weekOf ?? 'current'],
+    queryFn: () => reportsService.getNewDistributors(query),
+    // Las altas de la semana cambian durante el día: caché corta.
+    staleTime: 1000 * 60,
   });
 }

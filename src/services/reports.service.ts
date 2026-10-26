@@ -29,6 +29,8 @@ import type {
   ProductByPeriodResponse,
   SalesByUserQuery,
   SalesByUserResponse,
+  NewDistributorsQuery,
+  NewDistributorsResponse,
   KitBonusesResponse,
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
@@ -324,6 +326,32 @@ class ReportsService {
       `/reports/sales/by-user?${params.toString()}`
     );
     return response.data;
+  }
+
+  // ================================
+  // NUEVOS INSCRITOS DE LA SEMANA (CALL CENTER, mig 173)
+  // ================================
+
+  /** Backend: GET /reports/new-distributors (cohorte semanal mié → mar). */
+  async getNewDistributors(query: NewDistributorsQuery): Promise<NewDistributorsResponse> {
+    const response = await api.get<NewDistributorsResponse>('/reports/new-distributors', {
+      params: query.weekOf ? { weekOf: query.weekOf } : {},
+    });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/new-distributors/xlsx — descarga NUEVOS_INSCRITOS_<inicio>_<fin>.xlsx. */
+  async downloadNewDistributorsXlsx(query: NewDistributorsQuery): Promise<void> {
+    const response = await api.get('/reports/new-distributors/xlsx', {
+      params: query.weekOf ? { weekOf: query.weekOf } : {},
+      responseType: 'blob',
+    });
+    // Content-Disposition no se expone por CORS: el nombre lleva la semana pedida.
+    saveBlob(
+      response.data as BlobPart,
+      `NUEVOS_INSCRITOS_${query.weekOf ?? downloadStamp()}.xlsx`,
+      XLSX_MIME,
+    );
   }
 
   // ================================

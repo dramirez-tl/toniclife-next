@@ -585,6 +585,61 @@ export interface SalesByUserResponse {
 }
 
 // ================================
+// NUEVOS INSCRITOS DE LA SEMANA (CALL CENTER, mig 173)
+// ================================
+
+export interface NewDistributorsQuery {
+  /** Cualquier fecha YYYY-MM-DD de la semana (altas de miércoles a martes). */
+  weekOf?: string;
+}
+
+export interface NewDistributorRow {
+  customerId: string;
+  customerNumber: string;
+  name: string;
+  email: string | null;
+  /** 10 dígitos (8 en GT) o null. */
+  phone: string | null;
+  /** +lada+número (WhatsApp / llamada) o null. */
+  phoneE164: string | null;
+  countryCode: string | null;
+  /** basic | premium | null (sin kit). */
+  kitType: string | null;
+  kitPaid: boolean;
+  status: string | null;
+  /** YYYY-MM-DD */
+  registrationDate: string;
+  branchCode: string | null;
+  branchName: string | null;
+  sponsorNumber: string | null;
+  sponsorName: string | null;
+  /** Última invitación al taller por WhatsApp: queued…read | failed | null. */
+  invitationStatus: string | null;
+  invitationAt: string | null;
+}
+
+export interface NewDistributorsSummary {
+  total: number;
+  withPhone: number;
+  premium: number;
+  basic: number;
+  noKit: number;
+  pending: number;
+  invited: number;
+}
+
+export interface NewDistributorsResponse {
+  /** Martes del taller que cierra la semana. */
+  workshopDate: string;
+  start: string;
+  end: string;
+  prevWeekOf: string;
+  nextWeekOf: string;
+  summary: NewDistributorsSummary;
+  rows: NewDistributorRow[];
+}
+
+// ================================
 // BONO DE INSCRIPCIÓN (REPORTE_BONO_SUSCRIPCION del sistema anterior)
 // ================================
 

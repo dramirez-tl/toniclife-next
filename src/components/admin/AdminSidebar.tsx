@@ -171,11 +171,14 @@ const navigation: NavItem[] = [
     // reports:sales_lookup (mig 163): Call Center ve SOLO "Ventas por Usuario"
     // (consulta de ventas por distribuidor con detalle); los demás reportes
     // siguen exigiendo reports:read.
-    permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'],
+    // reports:new_distributors (mig 173): Call Center también ve "Nuevos
+    // Inscritos" (altas de la semana para invitarlos a los talleres).
+    permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup', 'reports:new_distributors'],
     children: [
       { name: 'Ventas', href: '/admin/reportes/ventas', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Ventas por Usuario', href: '/admin/reportes/ventas-usuario', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'] },
+      { name: 'Nuevos Inscritos', href: '/admin/reportes/nuevos-inscritos', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:new_distributors'] },
       { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
       // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
       { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
