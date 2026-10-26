@@ -1,9 +1,11 @@
 'use client';
 
 // TreasuryTabs — navegación común de Tesorería (contrato §5, patrón común):
-// Resumen | Comisiones | Dispersión y pagos | Retenciones | Validación de datos.
-// Son enlaces (Tabs de ui como contenedor visual) para que cada pantalla
-// conserve sus filtros en la URL. Conserva `?period=` al cambiar de pestaña.
+// Resumen | Comisiones | Dispersión y pagos | Retenciones | Validación de datos
+// | Bono de Inscripción (26-oct-2026: pasó de Reportes a Tesorería, que es
+// quien lo paga). Son enlaces (Tabs de ui como contenedor visual) para que
+// cada pantalla conserve sus filtros en la URL. Conserva `?period=` al cambiar
+// de pestaña.
 
 import Link from 'next/link';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +16,7 @@ export const TREASURY_TABS = [
   'dispersion',
   'retenciones',
   'validacion-datos',
+  'bonos',
 ] as const;
 
 export type TreasuryTab = (typeof TREASURY_TABS)[number];
@@ -27,6 +30,7 @@ export const TREASURY_TAB_META: Record<
   dispersion: { label: 'Dispersión y pagos', href: '/admin/tesoreria/dispersion' },
   retenciones: { label: 'Retenciones', href: '/admin/tesoreria/retenciones' },
   'validacion-datos': { label: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
+  bonos: { label: 'Bono de Inscripción', href: '/admin/tesoreria/bonos' },
 };
 
 interface TreasuryTabsProps {

@@ -643,7 +643,11 @@ export interface NewDistributorsResponse {
 // BONO DE INSCRIPCIÓN (REPORTE_BONO_SUSCRIPCION del sistema anterior)
 // ================================
 
-export type KitBonusPaymentStatus = 'pending' | 'paid' | 'excluded';
+/** held = apartado (26-oct-2026): patrocinador de México/Frontera sin régimen fiscal; no se puede pagar. */
+export type KitBonusPaymentStatus = 'pending' | 'held' | 'paid' | 'excluded';
+
+/** Motivo del apartado (hoy solo falta de régimen fiscal). */
+export type KitBonusHoldReason = 'REGIME_MISSING';
 
 export interface KitBonusesQuery extends DateRangeQuery {
   /** Solo bonos con este estatus de pago (el API filtra) */
@@ -659,8 +663,10 @@ export interface KitBonusRow {
   kitProductId: string;
   buyerId: string;
   sponsorId: string;
-  /** pending (sin registro) | paid (montos congelados) | excluded (no se paga) */
+  /** pending (sin registro) | held (apartado, ver holdReason) | paid (montos congelados) | excluded (no se paga) */
   paymentStatus: KitBonusPaymentStatus;
+  /** REGIME_MISSING = patrocinador MX/FN sin régimen fiscal asignado; null si se puede pagar */
+  holdReason: KitBonusHoldReason | null;
   paymentId: string | null;
   /** YYYY-MM-DD */
   paidAt: string | null;
@@ -722,6 +728,7 @@ export interface KitBonusesSummary {
   total: number;
   byCurrency: KitBonusesByCurrency[];
   byStatus: Record<KitBonusPaymentStatus, KitBonusStatusTotals>;
+  /** Bonos apartados: patrocinador MX/FN sin régimen fiscal (no se pagan hasta capturarlo) */
   missingRegime: number;
   missingRule: number;
   missingRate: number;
@@ -750,6 +757,8 @@ export interface KitBonusPaymentsResult {
   marked: number;
   skipped: number;
   notFound: number;
+  /** Apartados que no se marcaron (API anterior: undefined) */
+  held?: number;
   paidAt: string | null;
 }
 
@@ -837,6 +846,8 @@ export interface KitBonusGroup {
   currencyCode: string;
   regime: string;
   paymentStatus: KitBonusPaymentStatus;
+  /** Motivo del apartado del grupo (held); null en los demás */
+  holdReason: KitBonusHoldReason | null;
   paidAt: string | null;
   paymentReference: string | null;
   bonuses: number;

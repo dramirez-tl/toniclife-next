@@ -132,6 +132,10 @@ const navigation: NavItem[] = [
       { name: 'Dispersión y pagos', href: '/admin/tesoreria/dispersion' },
       { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
       { name: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
+      // 26-oct-2026: el bono por suscrito lo paga Tesorería; salió de Reportes.
+      // hideWhenBranchScoped: es global (datos fiscales de patrocinadores); el
+      // API se lo niega a los roles acotados por sucursal (CEDEAS Supervisor).
+      { name: 'Bono de Inscripción', href: '/admin/tesoreria/bonos', permissions: ['reports:read', 'reports', 'reports.sales'], hideWhenBranchScoped: true },
     ],
   },
   {
@@ -182,10 +186,8 @@ const navigation: NavItem[] = [
       { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
       // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
       { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
-      // Formato del sistema anterior (Tesorería): bono por suscrito y corte de caja.
-      // hideWhenBranchScoped: es global (datos fiscales de patrocinadores); el
-      // API se lo niega a los roles acotados por sucursal (CEDEAS Supervisor).
-      { name: 'Bono de Inscripción', href: '/admin/reportes/bonos', permissions: ['reports:read', 'reports', 'reports.sales'], hideWhenBranchScoped: true },
+      // Formato del sistema anterior: corte de caja (el bono por suscrito vive
+      // en Tesorería desde el 26-oct-2026).
       { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },
     ],
   },

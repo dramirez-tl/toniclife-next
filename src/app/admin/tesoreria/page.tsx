@@ -201,6 +201,11 @@ function TesoreriaContent() {
                 text="Convenios de préstamo / ad-hoc que se descuentan al pagar."
               />
               <QuickLink
+                href="/admin/tesoreria/bonos"
+                title="Bono de Inscripción"
+                text="Bono por suscrito de cada kit vendido (pago semanal); apartados sin datos fiscales, recibos de nómina y CFDI recibidos."
+              />
+              <QuickLink
                 href="/admin/mlm/periodos"
                 title="Periodos y tipo de cambio"
                 text="FX del periodo (USD/COP/GTQ→MXN) congelado para pagar en moneda local."
