@@ -675,6 +675,8 @@ export interface KitBonusRow {
   kitProductId: string;
   buyerId: string;
   sponsorId: string;
+  /** El kit se vendió en una CEDEA (se paga aparte de CEDIS). */
+  saleBranchIsCedea?: boolean;
   /** pending (sin registro) | held (apartado, ver holdReason) | paid (montos congelados) | excluded (no se paga) */
   paymentStatus: KitBonusPaymentStatus;
   /** REGIME_MISSING = patrocinador MX/FN sin régimen fiscal asignado; null si se puede pagar */

@@ -141,6 +141,30 @@ const BRANCH_TYPE_OPTIONS: { key: KitBonusBranchType; label: string; short: stri
 ];
 const branchTypeShort = (t: KitBonusBranchType) => BRANCH_TYPE_OPTIONS.find((o) => o.key === t)?.short ?? t;
 
+/** Badge sutil del canal del kit: CEDIS (sucursal normal) o CEDEA; un grupo que mezcla muestra los dos. */
+function ChannelBadge({ cedea }: { cedea: boolean }) {
+  return cedea ? (
+    <span className="inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 ring-1 ring-inset ring-violet-600/20" title="Kit vendido en una CEDEA (se paga aparte)">
+      CEDEA
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 ring-1 ring-inset ring-gray-300/60" title="Kit vendido en una sucursal normal (CEDIS)">
+      CEDIS
+    </span>
+  );
+}
+
+function GroupChannelBadges({ items }: { items: KitBonusGroupItem[] }) {
+  const hasCedis = items.some((i) => !i.saleBranchIsCedea);
+  const hasCedea = items.some((i) => i.saleBranchIsCedea === true);
+  return (
+    <span className="inline-flex items-center gap-1">
+      {hasCedis && <ChannelBadge cedea={false} />}
+      {hasCedea && <ChannelBadge cedea />}
+    </span>
+  );
+}
+
 const rowKey = (r: KitBonusRow) => `${r.source}:${r.itemId}`;
 
 /** Por qué un bono está apartado (mismo texto que el API en el Excel). */
@@ -541,7 +565,7 @@ function GroupedTable({
   onUnlink,
   onDownload,
 }: GroupedTableProps) {
-  const colSpan = canPay ? 10 : 9;
+  const colSpan = canPay ? 11 : 10;
   return (
     <div className="overflow-x-auto">
       <Table className="min-w-full">
@@ -552,7 +576,7 @@ function GroupedTable({
                 <Checkbox checked={allSelected} onCheckedChange={onToggleAll} disabled={!anyPending} aria-label="Seleccionar todos los patrocinadores pendientes" />
               </TableHead>
             )}
-            {['Estatus', 'ID Upline', 'Upline', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos', 'Comprobante'].map((h) => (
+            {['Estatus', 'ID Upline', 'Upline', 'Canal', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos', 'Comprobante'].map((h) => (
               <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 {h}
               </TableHead>
@@ -584,6 +608,9 @@ function GroupedTable({
                   <TableCell className="px-4 py-3 whitespace-nowrap"><GroupStatusBadge g={g} /></TableCell>
                   <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap tabular-nums">{g.sponsorNumber}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{g.sponsorName}</TableCell>
+                  <TableCell className="px-4 py-3 whitespace-nowrap">
+                    <GroupChannelBadges items={g.items} />
+                  </TableCell>
                   <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap" title={g.sponsorCountry ? COUNTRY_LABEL[g.sponsorCountry] ?? g.sponsorCountry : undefined}>
                     {g.sponsorCountry ?? '—'}
                   </TableCell>
@@ -1366,7 +1393,7 @@ export default function BonosInscripcionPage() {
                         />
                       </TableHead>
                     )}
-                    {['Estatus', 'Fecha compra', 'ID Upline', 'Upline', 'ID', 'Comprador', 'Registro', 'Kit', 'Moneda', 'País', 'Régimen'].map((h) => (
+                    {['Estatus', 'Fecha compra', 'ID Upline', 'Upline', 'Canal', 'ID', 'Comprador', 'Registro', 'Kit', 'Moneda', 'País', 'Régimen'].map((h) => (
                       <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </TableHead>
@@ -1399,6 +1426,9 @@ export default function BonosInscripcionPage() {
                       <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDateDisplay(r.purchaseDate)}</TableCell>
                       <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap tabular-nums">{r.sponsorNumber}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.sponsorName}</TableCell>
+                      <TableCell className="px-4 py-3 whitespace-nowrap">
+                        <ChannelBadge cedea={r.saleBranchIsCedea === true} />
+                      </TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap tabular-nums">{r.buyerNumber}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.buyerName}</TableCell>
                       <TableCell className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{formatDateDisplay(r.registrationDate)}</TableCell>
@@ -1468,7 +1498,7 @@ export default function BonosInscripcionPage() {
                 </TableBody>
                 <TableFooter className="bg-transparent">
                   <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
-                    <TableCell colSpan={canPay ? 12 : 11} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
+                    <TableCell colSpan={canPay ? 13 : 12} className="px-4 py-4 text-sm font-bold text-[#3E667D]">
                       {statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`} ({rows.length}{' '}
                       {rows.length === 1 ? 'bono' : 'bonos'})
                     </TableCell>
