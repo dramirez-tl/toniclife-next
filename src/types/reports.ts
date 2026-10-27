@@ -656,11 +656,16 @@ export type KitBonusPaymentStatus = 'pending' | 'held' | 'paid' | 'excluded';
 /** Motivo del apartado (hoy solo falta de régimen fiscal). */
 export type KitBonusHoldReason = 'REGIME_MISSING';
 
+/** Sucursal donde se vendió el kit: CEDIS (sucursales normales) y CEDEAS se pagan aparte. */
+export type KitBonusBranchType = 'cedis' | 'cedeas' | 'all';
+
 export interface KitBonusesQuery extends DateRangeQuery {
   /** Solo bonos con este estatus de pago (el API filtra) */
   status?: KitBonusPaymentStatus;
   /** País del patrocinador (quien cobra); varios separados por coma: 'MX,FN' */
   country?: string;
+  /** cedis | cedeas | all (el API filtra por branches.is_cedea de la venta del kit; sin valor = todas) */
+  branchType?: KitBonusBranchType;
 }
 
 export interface KitBonusRow {
@@ -866,6 +871,8 @@ export interface KitBonusGroupItem {
   branchCode: string;
   branchName: string;
   saleCountry: string | null;
+  /** El kit se vendió en una CEDEA (se paga aparte de CEDIS). */
+  saleBranchIsCedea?: boolean;
   payments: KitBonusPaymentLine[];
   /** Upline inmediato en la red (puede diferir del patrocinador que cobra); null si no tiene nodo. */
   placementId: string | null;

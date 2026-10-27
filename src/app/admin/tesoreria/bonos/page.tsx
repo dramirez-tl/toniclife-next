@@ -61,6 +61,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import type {
+  KitBonusBranchType,
   KitBonusGroup,
   KitBonusGroupItem,
   KitBonusGroupVoucher,
@@ -126,6 +127,19 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'paid', label: 'Pagados' },
   { key: 'excluded', label: 'No pagados' },
 ];
+
+/**
+ * Sucursal donde se vendió el kit (27-oct-2026): los inscritos en CEDEAS se
+ * pagan aparte de los de CEDIS (sucursales normales). El API filtra por
+ * branches.is_cedea, así que totales, Excel y "marcar pagados" respetan el
+ * filtro; por defecto CEDIS.
+ */
+const BRANCH_TYPE_OPTIONS: { key: KitBonusBranchType; label: string; short: string }[] = [
+  { key: 'cedis', label: 'CEDIS · sucursales', short: 'CEDIS' },
+  { key: 'cedeas', label: 'CEDEAS', short: 'CEDEAS' },
+  { key: 'all', label: 'Todas', short: 'CEDIS + CEDEAS' },
+];
+const branchTypeShort = (t: KitBonusBranchType) => BRANCH_TYPE_OPTIONS.find((o) => o.key === t)?.short ?? t;
 
 const rowKey = (r: KitBonusRow) => `${r.source}:${r.itemId}`;
 
@@ -428,6 +442,11 @@ function GroupEnrollments({ g }: { g: KitBonusGroup }) {
                   <p className="text-gray-500">
                     Sucursal {i.branchCode} · {i.branchName}
                     {i.saleCountry ? ` (${i.saleCountry})` : ''}
+                    {i.saleBranchIsCedea && (
+                      <span className="ml-1.5 inline-flex items-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-inset ring-violet-600/20">
+                        CEDEA
+                      </span>
+                    )}
                   </p>
                 </td>
                 <td className="px-4 py-2.5">
@@ -706,10 +725,18 @@ export default function BonosInscripcionPage() {
     setSelected(new Set());
   };
 
+  // CEDIS / CEDEAS por la sucursal de la venta del kit (se pagan aparte); CEDIS por defecto.
+  const [branchType, setBranchType] = useState<KitBonusBranchType>('cedis');
+  const changeBranchType = (t: KitBonusBranchType) => {
+    setBranchType(t);
+    setSelected(new Set());
+  };
+
   const { data, isLoading, isFetching, error, refetch } = useKitBonuses({
     startDate: appliedStart,
     endDate: appliedEnd,
     ...(countryParam ? { country: countryParam } : {}),
+    branchType,
   });
   useEffect(() => {
     if (!data) return;
@@ -760,8 +787,11 @@ export default function BonosInscripcionPage() {
         endDate: appliedEnd,
         ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
         ...(countryParam ? { country: countryParam } : {}),
+        branchType,
       });
-      toast.success(statusFilter === 'all' ? 'Excel generado' : `Excel generado (solo ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()})`);
+      toast.success(
+        `Excel generado (${branchTypeShort(branchType)}${statusFilter === 'all' ? '' : ` · solo ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toLowerCase()}`})`,
+      );
     } catch {
       toast.error('No se pudo generar el Excel');
     } finally {
@@ -830,7 +860,7 @@ export default function BonosInscripcionPage() {
       return next;
     });
 
-  const filtersLabel = `${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}`;
+  const filtersLabel = `${branchTypeShort(branchType)} · ${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}`;
   // Sin selección se marcan los pendientes VISIBLES (respetando país y estatus),
   // nunca todo el rango: cada tesorería marca solo lo que pagó.
   const openMark = (kind: 'paid' | 'excluded') => {
@@ -1079,6 +1109,30 @@ export default function BonosInscripcionPage() {
             {countries.size > 0 && (
               <span className="text-xs text-gray-400">Totales, Excel y marcar pagados: solo {countryParam?.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ')}</span>
             )}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Sucursal del kit:</span>
+            {BRANCH_TYPE_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                onClick={() => changeBranchType(o.key)}
+                className={chipClass(branchType === o.key)}
+                title={
+                  o.key === 'cedeas'
+                    ? 'Kits vendidos en una CEDEA (se pagan aparte)'
+                    : o.key === 'cedis'
+                      ? 'Kits vendidos en sucursales normales (CEDIS)'
+                      : 'Sin separar CEDIS y CEDEAS'
+                }
+              >
+                {o.label}
+              </button>
+            ))}
+            <span className="text-xs text-gray-400">
+              Los inscritos en CEDEAS se pagan aparte; se decide por la sucursal donde se vendió el kit. Totales, Excel y marcar
+              pagados: solo {branchTypeShort(branchType)}.
+            </span>
           </div>
           <p className="mt-3 text-xs text-gray-400">
             Solo kits vendidos en este sistema (ventas POS completadas y pedidos en línea pagados). Las semanas
