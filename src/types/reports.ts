@@ -455,6 +455,10 @@ export interface MonthlySalesTrend {
   sales: number;
   orders: number;
   customers: number;
+  /** Periodo de negocio del punto (27-oct-2026): nombre y rango de la tabla de periodos. */
+  periodName?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface TopProductWithGrowth {
@@ -467,6 +471,8 @@ export interface TopProductWithGrowth {
 
 export interface TopDistributor {
   customerId: string;
+  /** Número de distribuidor (27-oct-2026). */
+  customerNumber?: string;
   name: string;
   sales: number;
   orders: number;
@@ -482,9 +488,10 @@ export interface CategoryPerformance {
   growth: number;
 }
 
+/** La ventana se resuelve por número de periodos de negocio; las fechas son opcionales (compatibilidad). */
 export interface AnalyticsQuery {
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   months?: number;
   limit?: number;
 }

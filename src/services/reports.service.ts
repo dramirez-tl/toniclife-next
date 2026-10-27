@@ -284,8 +284,10 @@ class ReportsService {
   async getAnalytics(query: AnalyticsQuery): Promise<AnalyticsResponse> {
     const params = new URLSearchParams();
 
-    params.append('startDate', query.startDate);
-    params.append('endDate', query.endDate);
+    // La ventana se resuelve por periodos (months); las fechas ya no se mandan
+    // vacías (el API las rechazaba con 400).
+    if (query.startDate) params.append('startDate', query.startDate);
+    if (query.endDate) params.append('endDate', query.endDate);
     if (query.months) params.append('months', String(query.months));
     if (query.limit) params.append('limit', String(query.limit));
 
