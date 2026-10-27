@@ -920,12 +920,36 @@ export interface KitBonusGroup {
   voucher: KitBonusGroupVoucher | null;
 }
 
+/** Bono PAGADO cuyo kit se canceló después: la venta ya no es candidata y hay que revertir el pago (27-oct-2026). */
+export interface KitBonusPaidCancelled {
+  /** kit_bonus_payments.id (para revertir) */
+  id: string;
+  source: 'pos' | 'online';
+  documentNumber: string;
+  sponsorNumber: string;
+  sponsorName: string;
+  buyerNumber: string;
+  buyerName: string;
+  kitCode: string;
+  /** YYYY-MM-DD de la compra del kit */
+  saleDate: string;
+  currencyCode: string;
+  subtotal: number;
+  total: number;
+  paidAt: string | null;
+  saleStatus: string;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+}
+
 export interface KitBonusesResponse {
   startDate: string;
   endDate: string;
   periodName: string | null;
   rates: Record<string, number>;
   summary: KitBonusesSummary;
+  /** Bonos pagados cuyo kit se canceló después (API anterior: undefined). */
+  paidCancelled?: KitBonusPaidCancelled[];
   /** Una fila por bono; con varios pendientes del mismo patrocinador, impuestos prorrateados del cálculo sobre la suma. */
   rows: KitBonusRow[];
   /** Compactado por patrocinador: lo que se deposita. */

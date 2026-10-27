@@ -369,6 +369,8 @@ class ReportsService {
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.status ? { status: query.status } : {}),
         ...(query.country ? { country: query.country } : {}),
+        // CEDIS / CEDEAS por la sucursal del kit (27-oct-2026); 'all' = sin filtro.
+        ...(query.branchType && query.branchType !== 'all' ? { branchType: query.branchType } : {}),
       },
     });
     return response.data;
@@ -383,10 +385,12 @@ class ReportsService {
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.status ? { status: query.status } : {}),
         ...(query.country ? { country: query.country } : {}),
+        ...(query.branchType && query.branchType !== 'all' ? { branchType: query.branchType } : {}),
       },
       responseType: 'blob',
     });
     const suffix =
+      (query.branchType === 'cedis' ? '_CEDIS' : query.branchType === 'cedeas' ? '_CEDEAS' : '') +
       (query.country ? `_${query.country.replace(/,/g, '-')}` : '') +
       (query.status ? `_${query.status.toUpperCase()}` : '');
     saveBlob(

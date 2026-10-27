@@ -230,7 +230,7 @@ function StatusBadge({ row }: { row: KitBonusRow }) {
 
 type DialogMode =
   | { kind: 'paid' | 'excluded'; count: number; all: boolean }
-  | { kind: 'revert'; row: KitBonusRow }
+  | { kind: 'revert'; paymentId: string; label: string }
   | { kind: 'stamp'; group: KitBonusGroup }
   | { kind: 'received'; group: KitBonusGroup }
   | { kind: 'unlink'; group: KitBonusGroup }
@@ -1024,9 +1024,9 @@ export default function BonosInscripcionPage() {
   };
 
   const submitRevert = async () => {
-    if (!dialog || dialog.kind !== 'revert' || !dialog.row.paymentId) return;
+    if (!dialog || dialog.kind !== 'revert' || !dialog.paymentId) return;
     try {
-      await revertMutation.mutateAsync({ id: dialog.row.paymentId, reason: notes.trim() || undefined });
+      await revertMutation.mutateAsync({ id: dialog.paymentId, reason: notes.trim() || undefined });
       toast.success('Registro revertido: el bono vuelve a pendiente');
       setDialog(null);
     } catch {
@@ -1166,6 +1166,51 @@ export default function BonosInscripcionPage() {
             anteriores al cambio de sistema se siguen bajando del sistema anterior.
           </p>
         </div>
+
+        {/* Bonos pagados cuyo kit se canceló después (27-oct-2026): el reporte ya no los
+            lista (solo ventas completadas) y el pago quedaría invisible; hay que revertirlo. */}
+        {data?.paidCancelled && data.paidCancelled.length > 0 && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 space-y-2">
+            <p>
+              <strong>{data.paidCancelled.length}</strong> {data.paidCancelled.length === 1 ? 'bono pagado de un kit que se canceló después' : 'bonos pagados de kits que se cancelaron después'}
+              : el bono ya no procede y hay que <strong>revertir</strong> el registro de pago (vuelve a pendiente solo si la venta se reactiva).
+            </p>
+            <ul className="space-y-1">
+              {data.paidCancelled.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-mono text-xs">{p.documentNumber}</span>
+                  <span>
+                    {p.sponsorNumber} {p.sponsorName} · inscrito {p.buyerNumber} {p.buyerName} · kit {p.kitCode} · bono{' '}
+                    {formatMoney(p.total, p.currencyCode)}
+                    {p.paidAt ? ` pagado ${formatDateDisplay(p.paidAt)}` : ''}
+                  </span>
+                  <span className="text-xs text-rose-600">
+                    {p.saleStatus === 'cancelled' ? 'Venta cancelada' : `Venta ${p.saleStatus}`}
+                    {p.cancelledAt ? ` el ${formatDateDisplay(p.cancelledAt)}` : ''}
+                    {p.cancellationReason ? `: ${p.cancellationReason}` : ''}
+                  </span>
+                  {canPay && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setNotes(`Kit ${p.kitCode} de ${p.documentNumber} cancelado después de pagar el bono`);
+                        setDialog({
+                          kind: 'revert',
+                          paymentId: p.id,
+                          label: `El bono de ${p.sponsorNumber} por el kit ${p.kitCode} (${p.documentNumber}, venta cancelada)`,
+                        });
+                      }}
+                      className="rounded-md border border-rose-300 bg-white px-2 py-0.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                    >
+                      Revertir
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Avisos */}
         {summary && (summary.missingRegime > 0 || summary.missingRule > 0 || summary.missingRate > 0) && (
@@ -1482,8 +1527,13 @@ export default function BonosInscripcionPage() {
                             <button
                               type="button"
                               onClick={() => {
+                                if (!r.paymentId) return;
                                 setNotes('');
-                                setDialog({ kind: 'revert', row: r });
+                                setDialog({
+                                  kind: 'revert',
+                                  paymentId: r.paymentId,
+                                  label: `El bono de ${r.sponsorNumber} por el kit ${r.kitCode} (${r.documentId})`,
+                                });
                               }}
                               disabled={busy}
                               className="text-xs text-[#3E667D] hover:underline disabled:opacity-50"
@@ -1577,8 +1627,7 @@ export default function BonosInscripcionPage() {
                 <DialogHeader>
                   <DialogTitle>Revertir registro de pago</DialogTitle>
                   <DialogDescription>
-                    El bono de {dialog.row.sponsorNumber} por el kit {dialog.row.kitCode} ({dialog.row.documentId}) vuelve a pendiente; el registro
-                    actual queda como historial.
+                    {dialog.label} vuelve a pendiente; el registro actual queda como historial.
                   </DialogDescription>
                 </DialogHeader>
                 <div>
