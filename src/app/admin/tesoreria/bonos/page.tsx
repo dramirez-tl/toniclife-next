@@ -25,8 +25,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowDownTrayIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import { TreasuryHeader, TreasuryTabs } from '@/components/admin/treasury';
+import { paymentMethodLabel } from '@/lib/delivery-print';
 import {
   useKitBonuses,
   useMarkKitBonusPayments,
@@ -59,7 +60,15 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import type { KitBonusGroup, KitBonusGroupVoucher, KitBonusHoldReason, KitBonusPaymentStatus, KitBonusRow } from '@/types/reports';
+import type {
+  KitBonusGroup,
+  KitBonusGroupItem,
+  KitBonusGroupVoucher,
+  KitBonusHoldReason,
+  KitBonusPaymentLine,
+  KitBonusPaymentStatus,
+  KitBonusRow,
+} from '@/types/reports';
 
 /** Mismo tope que el API para el rango. */
 const MAX_RANGE_DAYS = 366;
@@ -322,6 +331,145 @@ function GroupStatusBadge({ g }: { g: KitBonusGroup }) {
   );
 }
 
+/** Métodos de pago que no cubre paymentMethodLabel: códigos de payment_methods (pedidos en línea). */
+const PAYMENT_CODE_LABEL: Record<string, string> = {
+  credit_card: 'Tarjeta de crédito',
+  debit_card: 'Tarjeta de débito',
+  bank_transfer: 'Transferencia',
+  spei: 'SPEI',
+  oxxo: 'OXXO',
+  paypal: 'PayPal',
+  square: 'Square',
+  santander: 'Santander',
+  points: 'Puntos',
+  cash_usd: 'Efectivo USD',
+  to_be_defined: 'Por definir',
+};
+const CARD_TYPE_LABEL: Record<string, string> = { credit: 'crédito', debit: 'débito' };
+
+function kitPaymentLabel(p: KitBonusPaymentLine): string {
+  const base = PAYMENT_CODE_LABEL[p.method] ?? paymentMethodLabel(p.method);
+  const card = p.cardType ? ` ${CARD_TYPE_LABEL[p.cardType.toLowerCase()] ?? p.cardType}` : '';
+  return `${base}${card}`;
+}
+
+/** Documento con el que se compró el kit: el pedido en línea o la venta en Reportes › Ventas (buscador por folio). */
+function documentHref(i: KitBonusGroupItem): string {
+  return i.source === 'online'
+    ? `/admin/pedidos/${i.documentUuid}`
+    : `/admin/reportes/ventas?search=${encodeURIComponent(i.documentId)}`;
+}
+
+/**
+ * Desplegable de un patrocinador (27-oct-2026): a quién inscribió, con qué kit
+ * y clave, cómo se pagó el kit (métodos y montos), en qué sucursal se registró
+ * y a quién impactó en la red (el patrocinador que cobra y, si difiere, bajo
+ * quién quedó colocado).
+ */
+function GroupEnrollments({ g }: { g: KitBonusGroup }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-[#3E667D]/15 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#3E667D]">
+          Inscritos por {g.sponsorNumber} · {g.sponsorName} ({g.items.length})
+        </p>
+        <p className="text-[11px] text-gray-400">Pago del kit en la moneda de la sucursal · bono en {g.currencyCode}</p>
+      </div>
+      <table className="min-w-full text-xs">
+        <thead className="bg-gray-50/80">
+          <tr>
+            {['Inscrito', 'Kit y clave', 'Compra', 'Cómo se pagó el kit', 'Impactó a'].map((h) => (
+              <th key={h} className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                {h}
+              </th>
+            ))}
+            <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-500">Bono</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {g.items.map((i) => {
+            const placedElsewhere = !!i.placementId && i.placementId !== g.sponsorId;
+            return (
+              <tr key={`${i.source}:${i.itemId}`} className="align-top">
+                <td className="px-4 py-2.5">
+                  <Link href={`/admin/distribuidores/${i.buyerId}`} className="font-medium text-[#3E667D] hover:underline" title="Ver la ficha del inscrito">
+                    <span className="font-mono">{i.buyerNumber}</span> {i.buyerName}
+                  </Link>
+                  <p className="text-gray-500">Alta {formatDateDisplay(i.registrationDate)}</p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p className="font-medium text-gray-900">{i.kitName || KIT_LABEL[i.kitType] || i.kitType}</p>
+                  <p className="text-gray-500">
+                    Clave <span className="font-mono text-gray-700">{i.kitCode || '—'}</span> · {KIT_LABEL[i.kitType] ?? i.kitType}
+                    {i.units > 1 ? ` · ${i.units} pzas` : ''}
+                  </p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p className="text-gray-900">
+                    {formatDateDisplay(i.purchaseDate)} ·{' '}
+                    <Link
+                      href={documentHref(i)}
+                      className="font-mono text-[#3E667D] hover:underline"
+                      title={i.source === 'online' ? 'Ver el pedido' : 'Ver la venta en Reportes › Ventas'}
+                    >
+                      {i.documentId}
+                    </Link>{' '}
+                    <span className="text-gray-400">({i.source === 'online' ? 'en línea' : 'POS'})</span>
+                  </p>
+                  <p className="text-gray-500">
+                    Sucursal {i.branchCode} · {i.branchName}
+                    {i.saleCountry ? ` (${i.saleCountry})` : ''}
+                  </p>
+                </td>
+                <td className="px-4 py-2.5">
+                  {i.payments.length === 0 ? (
+                    <p className="text-amber-700">Sin registro de pago</p>
+                  ) : (
+                    <ul className="space-y-0.5">
+                      {i.payments.map((p, idx) => (
+                        <li key={idx} className="text-gray-900">
+                          {kitPaymentLabel(p)} <span className="tabular-nums">{formatMoney(p.amount, i.saleCurrency)}</span>
+                          {p.reference ? <span className="text-gray-400"> · ref. {p.reference}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-gray-500">
+                    Kit {formatMoney(i.kitAmount, i.saleCurrency)}
+                    {Math.abs(i.documentTotal - i.kitAmount) > 0.005 ? ` · ticket ${formatMoney(i.documentTotal, i.saleCurrency)}` : ''}
+                  </p>
+                </td>
+                <td className="px-4 py-2.5">
+                  <p className="text-gray-900">
+                    <span className="font-mono">{g.sponsorNumber}</span> {g.sponsorName}{' '}
+                    <span className="text-gray-400">(patrocinador, cobra el bono)</span>
+                  </p>
+                  {placedElsewhere ? (
+                    <p className="text-amber-700">
+                      En la red quedó bajo{' '}
+                      <Link href={`/admin/distribuidores/${i.placementId}`} className="font-medium hover:underline">
+                        <span className="font-mono">{i.placementNumber}</span> {i.placementName}
+                      </Link>
+                    </p>
+                  ) : i.placementId ? (
+                    <p className="text-gray-500">En la red quedó directamente bajo el patrocinador</p>
+                  ) : (
+                    <p className="text-rose-700">Sin nodo en la red (revisar en su ficha)</p>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums">
+                  <p className="text-gray-900">{formatAmount(i.subtotal)}</p>
+                  <p className="text-gray-500">neto {formatAmount(i.total)}</p>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 interface GroupedTableProps {
   groups: KitBonusGroup[];
   canPay: boolean;
@@ -439,7 +587,11 @@ function GroupedTable({
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={g.items.map((i) => `${i.buyerNumber} ${i.buyerName}`).join(' · ')}>
+                  <TableCell
+                    className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate cursor-pointer decoration-dotted underline-offset-2 hover:underline hover:text-[#3E667D]"
+                    title={`${g.items.map((i) => `${i.buyerNumber} ${i.buyerName}`).join(' · ')} — clic para ver el detalle de cada inscrito`}
+                    onClick={() => onToggleExpand(g.key)}
+                  >
                     {g.items.map((i) => i.buyerName).join(', ')}
                   </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
@@ -460,23 +612,22 @@ function GroupedTable({
                   <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.resico ? formatAmount(g.resico) : '—'}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-right font-semibold text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(g.total, g.currencyCode)}</TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
-                    <button type="button" onClick={() => onToggleExpand(g.key)} className="text-xs text-[#3E667D] hover:underline">
-                      {open ? 'Ocultar' : 'Ver bonos'}
+                    <button
+                      type="button"
+                      onClick={() => onToggleExpand(g.key)}
+                      className="inline-flex items-center gap-1 rounded-md border border-[#3E667D]/20 px-2 py-1 text-xs font-medium text-[#3E667D] hover:bg-[#3E667D]/5"
+                      aria-expanded={open}
+                      title="Ver a quién inscribió, con qué kit, cómo se pagó y dónde se registró"
+                    >
+                      {open ? <ChevronUpIcon className="h-3.5 w-3.5" /> : <ChevronDownIcon className="h-3.5 w-3.5" />}
+                      {open ? 'Ocultar' : `Ver inscritos (${g.items.length})`}
                     </button>
                   </TableCell>
                 </TableRow>
                 {open && (
                   <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
-                    <TableCell colSpan={colSpan + 7} className="px-6 py-2">
-                      <ul className="space-y-0.5 text-xs text-gray-600">
-                        {g.items.map((i) => (
-                          <li key={`${i.source}:${i.itemId}`}>
-                            <span className="font-mono text-gray-500">{i.buyerNumber}</span> {i.buyerName} · {KIT_LABEL[i.kitType] ?? i.kitType}{' '}
-                            <span className="text-gray-400">{i.kitCode}</span> · {formatDateDisplay(i.purchaseDate)} · {i.documentId} · bono{' '}
-                            {formatAmount(i.subtotal)} → neto {formatAmount(i.total)}
-                          </li>
-                        ))}
-                      </ul>
+                    <TableCell colSpan={colSpan + 7} className="px-6 py-3">
+                      <GroupEnrollments g={g} />
                     </TableCell>
                   </TableRow>
                 )}

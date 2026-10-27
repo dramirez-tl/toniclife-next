@@ -820,18 +820,50 @@ export interface UnlinkReceivedCfdiResult {
   released: number;
 }
 
-/** Un bono (suscrito) dentro del grupo de un patrocinador. */
+/** Un pago del documento con el que se compró el kit (POS: pos_payments; en línea: el método del pedido). */
+export interface KitBonusPaymentLine {
+  /** Código del método: los del POS (cash, card, credit, transfer, deposit…) o payment_methods.code en pedidos. */
+  method: string;
+  /** Monto en la moneda de la sucursal de la venta. */
+  amount: number;
+  cardType: string | null;
+  reference: string | null;
+}
+
+/**
+ * Un bono (suscrito) dentro del grupo de un patrocinador. Desde el 27-oct-2026
+ * trae el detalle de la inscripción (kit y clave, pago, sucursal y colocación
+ * en la red) para el desplegable de la vista por patrocinador.
+ */
 export interface KitBonusGroupItem {
   source: 'pos' | 'online';
   itemId: string;
   /** kit_bonus_payments.id (pagado/excluido); null si está pendiente. */
   paymentId: string | null;
+  buyerId: string;
   buyerNumber: string;
   buyerName: string;
+  registrationDate: string | null;
   kitType: string;
   kitCode: string;
+  kitName: string;
+  units: number;
   purchaseDate: string;
   documentId: string;
+  /** pos_sales.id | orders.id (enlace al pedido). */
+  documentUuid: string;
+  /** Importe de la línea del kit y total del ticket/pedido, en la moneda de la sucursal de la venta. */
+  kitAmount: number;
+  documentTotal: number;
+  saleCurrency: string;
+  branchCode: string;
+  branchName: string;
+  saleCountry: string | null;
+  payments: KitBonusPaymentLine[];
+  /** Upline inmediato en la red (puede diferir del patrocinador que cobra); null si no tiene nodo. */
+  placementId: string | null;
+  placementNumber: string | null;
+  placementName: string | null;
   subtotal: number;
   total: number;
 }
