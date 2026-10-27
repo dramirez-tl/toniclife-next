@@ -55,6 +55,7 @@ import { campanaSeleccionada, opcionesSelector } from '@/lib/whatsapp-campaign/r
 import { AttributionPanel } from './components/AttributionPanel';
 import { BranchesTable } from './components/BranchesTable';
 import { CampaignHeader } from './components/CampaignHeader';
+import { ChannelHealthCard } from './components/ChannelHealthCard';
 import { DashboardFooter } from './components/DashboardFooter';
 import { EffectPanel } from './components/EffectPanel';
 import { EvolutionChart } from './components/EvolutionChart';
@@ -263,12 +264,15 @@ function WhatsAppContent() {
   if (campaigns.isError) {
     return (
       <PageShell>
-        <ErrorState
-          error={campaigns.error}
-          fallback="Error al cargar las campañas de WhatsApp."
-          onRetry={() => void campaigns.refetch()}
-          retrying={campaigns.isFetching}
-        />
+        <div className="grid gap-5">
+          <ChannelHealthCard />
+          <ErrorState
+            error={campaigns.error}
+            fallback="Error al cargar las campañas de WhatsApp."
+            onRetry={() => void campaigns.refetch()}
+            retrying={campaigns.isFetching}
+          />
+        </div>
       </PageShell>
     );
   }
@@ -276,18 +280,21 @@ function WhatsAppContent() {
   if (!selected) {
     return (
       <PageShell>
-        <Card>
-          <CardContent className="flex items-start gap-3 p-6 text-sm">
-            <ChatBubbleLeftRightIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">Todavía no hay campañas registradas</p>
-              <p className="text-muted-foreground">
-                Las campañas aparecen aquí cuando Sistemas las registra con su población (grupo con
-                campaña y grupo de control) y sus envíos.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-5">
+          <ChannelHealthCard />
+          <Card>
+            <CardContent className="flex items-start gap-3 p-6 text-sm">
+              <ChatBubbleLeftRightIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">Todavía no hay campañas registradas</p>
+                <p className="text-muted-foreground">
+                  Las campañas aparecen aquí cuando Sistemas las registra con su población (grupo con
+                  campaña y grupo de control) y sus envíos.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </PageShell>
     );
   }
@@ -298,6 +305,7 @@ function WhatsAppContent() {
   return (
     <PageShell>
       <div className="grid gap-5">
+        <ChannelHealthCard />
         {opciones.length > 1 && (
           <label className="grid max-w-md gap-1 text-xs font-medium text-muted-foreground">
             Campaña
