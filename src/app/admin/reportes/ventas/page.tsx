@@ -19,7 +19,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useSalesStats, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
-import type { Sale, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
+import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import { toast } from 'sonner';
@@ -488,6 +488,87 @@ function SaleTicketPreview({ sale, branchTz }: { sale: Sale; branchTz: string })
  * 26-oct-2026: sin modal ni otra pantalla), con la vista previa del ticket y
  * el botón para imprimirlo o guardarlo en PDF.
  */
+const ENROLLEE_STATUS: Record<string, { label: string; cls: string }> = {
+  active: { label: 'Activo', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
+  pending: { label: 'Pendiente de activar', cls: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
+  inactive: { label: 'Inactivo', cls: 'bg-gray-100 text-gray-600 ring-gray-400/30' },
+  suspended: { label: 'Suspendido', cls: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+};
+const KIT_POSITION_LABEL: Record<string, string> = { basic: 'Básico', premium: 'Premium' };
+
+/**
+ * Venta con kit de inscripción (27-oct-2026): a quién inscribió ese kit. El
+ * inscrito es el cliente de la venta (el cobro del kit lo activa); si el kit
+ * se vendió a Público general no inscribe a nadie y se avisa.
+ */
+function SaleEnrollmentCard({ enrollment, saleDate }: { enrollment: SaleEnrollment; saleDate?: string }) {
+  const c = enrollment.customer;
+  const kits = enrollment.kits
+    .map((k) => `${k.name} (${k.code}${k.kitPosition ? ` · ${KIT_POSITION_LABEL[k.kitPosition] ?? k.kitPosition}` : ''}${k.quantity > 1 ? ` ×${k.quantity}` : ''})`)
+    .join(', ');
+  if (!c) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-xs font-medium text-amber-700 mb-1">Kit de inscripción sin inscrito</p>
+        <p className="text-sm text-amber-800">{kits}</p>
+        <p className="text-xs text-amber-700 mt-1">
+          Se vendió a Público general: no activa a ningún distribuidor ni genera bono de inscripción. Si fue una inscripción real, hay que
+          ligarla al nuevo distribuidor (registrarlo y volver a cobrar el kit a su número).
+        </p>
+      </div>
+    );
+  }
+  const status = ENROLLEE_STATUS[c.status] ?? { label: c.status, cls: 'bg-gray-100 text-gray-600 ring-gray-400/30' };
+  const sameDay = !!saleDate && !!c.registrationDate && saleDate.slice(0, 10) === c.registrationDate.slice(0, 10);
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <p className="text-xs font-medium text-emerald-800">Inscripción con kit · {kits}</p>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${status.cls}`}>{status.label}</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+        <div>
+          <p className="text-xs text-gray-500">Nuevo inscrito</p>
+          <Link
+            href={`/admin/distribuidores/${c.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-[#3E667D] hover:underline"
+            title="Ver la ficha (pestaña nueva)"
+          >
+            <span className="font-mono">{c.customerNumber}</span> {c.fullName}
+          </Link>
+          <p className="text-xs text-gray-500">
+            Alta {c.registrationDate ? c.registrationDate.slice(0, 10).split('-').reverse().join('/') : '—'}
+            {sameDay ? ' · el mismo día de la venta' : ''}
+            {c.kitType ? ` · kit en ficha: ${KIT_POSITION_LABEL[c.kitType] ?? c.kitType}` : ''}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">Patrocinador</p>
+          {c.sponsorId ? (
+            <Link
+              href={`/admin/distribuidores/${c.sponsorId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#3E667D] hover:underline"
+              title="Ver la ficha del patrocinador (pestaña nueva)"
+            >
+              <span className="font-mono">{c.sponsorNumber}</span> {c.sponsorName}
+            </Link>
+          ) : (
+            <p className="text-gray-400">Sin patrocinador</p>
+          )}
+          <p className="text-xs text-gray-500">
+            Sucursal de la ficha: {c.branchCode ? `${c.branchCode} · ${c.branchName ?? ''}` : '—'}
+            {c.countryCode ? ` (${c.countryCode})` : ''}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale; onClose: () => void; branchTz?: string }) {
   // El row de la lista no trae items ni puntos; al desplegar, traemos el
   // detalle completo (GET /pos/sales/:id). Mientras carga se usa el row.
@@ -634,6 +715,9 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
               </span>
             </div>
           </div>
+
+          {/* Kit de inscripción: a quién inscribió (o aviso si fue a Público general) */}
+          {view.enrollment && <SaleEnrollmentCard enrollment={view.enrollment} saleDate={view.createdAt} />}
 
           {/* Items (ticket) */}
           {view.items && view.items.length > 0 ? (

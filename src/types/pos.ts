@@ -259,6 +259,39 @@ export interface Sale {
   pointsBalanceBefore?: number;
   /** Saldo de puntos del periodo del cliente DESPUÉS de esta venta. */
   pointsBalanceAfter?: number;
+  /** Solo si la venta trae kit de inscripción (27-oct-2026): a quién inscribió; customer null = vendido a Público general. */
+  enrollment?: SaleEnrollment;
+}
+
+export interface SaleEnrollmentKit {
+  code: string;
+  name: string;
+  /** basic | premium */
+  kitPosition: string | null;
+  quantity: number;
+}
+
+export interface SaleEnrollmentCustomer {
+  id: string;
+  customerNumber: string;
+  fullName: string;
+  /** active | pending | inactive | suspended */
+  status: string;
+  kitType: string | null;
+  /** YYYY-MM-DD */
+  registrationDate: string | null;
+  sponsorId: string | null;
+  sponsorNumber: string | null;
+  sponsorName: string | null;
+  branchCode: string | null;
+  branchName: string | null;
+  countryCode: string | null;
+}
+
+export interface SaleEnrollment {
+  kits: SaleEnrollmentKit[];
+  /** El inscrito (cliente de la venta); null = kit vendido sin inscrito ligado. */
+  customer: SaleEnrollmentCustomer | null;
 }
 
 export interface CreateSaleItemInput {
