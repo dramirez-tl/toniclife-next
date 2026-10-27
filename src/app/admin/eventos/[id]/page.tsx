@@ -297,17 +297,86 @@ function EventHeader({
   const s = event.stats;
   const place = [event.venueName, event.city, event.state].filter(Boolean).join(' · ');
   const schedule = formatEventSchedule(event);
-  const chips: { label: string; value: string; accent?: string }[] = [
-    { label: 'Sucursales', value: s.branches.toLocaleString('es-MX') },
-    { label: 'Asignados', value: formatAllotment(s.allotted, UNLIMITED_ALLOTMENT) },
+  // Cada tarjeta explica qué cuenta y da un ejemplo con los números reales del
+  // evento (27-oct-2026: "no se entiende"). Definiciones = events.service.ts.
+  const n = (v: number) => v.toLocaleString('es-MX');
+  const unlimited = s.allotted >= UNLIMITED_ALLOTMENT;
+  const mainCode = event.productCode || event.code;
+  const cuadra = !unlimited && s.soldUnits + s.remaining === s.allotted;
+  const claves = (event.products ?? []).filter((p) => p.isActive);
+  const emitidosDetalle = claves.length
+    ? claves
+        .map(
+          (p) =>
+            `${p.productCode}${p.label ? ` ${p.label}` : ''} ${n(p.soldUnits)}${p.ticketsPerUnit > 1 ? ` × ${p.ticketsPerUnit}` : ''}`,
+        )
+        .join(' + ')
+    : null;
+  const emitidosSuma = claves.reduce((acc, p) => acc + p.soldUnits * p.ticketsPerUnit, 0);
+  const pctIngresados = s.ticketsIssued > 0 ? Math.round((s.ticketsCheckedIn / s.ticketsIssued) * 100) : 0;
+  const chips: { label: string; value: string; accent?: string; hint: string; example?: string }[] = [
+    {
+      label: 'Sucursales',
+      value: n(s.branches),
+      hint: event.linkedProduct
+        ? 'Sucursales con existencia del producto del boleto: solo ellas lo venden en su POS.'
+        : 'Sucursales con boletos asignados: solo ellas ven el evento en su POS.',
+      example: `Ej.: ${n(s.branches)} sucursales pueden cobrar la clave ${mainCode}.`,
+    },
+    {
+      label: 'Asignados',
+      value: formatAllotment(s.allotted, UNLIMITED_ALLOTMENT),
+      hint: unlimited
+        ? 'Sin tope: cada sucursal vende sin límite de boletos.'
+        : event.linkedProduct
+          ? 'Total repartido entre las sucursales: lo que aún tienen en existencia más lo ya vendido desde que se creó el evento.'
+          : 'Total de boletos repartidos entre las sucursales (suma de lo asignado a cada una en la pestaña Sucursales).',
+      example: unlimited
+        ? undefined
+        : cuadra
+          ? `Ej.: ${n(s.allotted)} = ${n(s.soldUnits)} vendidos + ${n(s.remaining)} restantes.`
+          : `Ej.: ${n(s.allotted)} repartidos; ${n(s.remaining)} siguen disponibles.`,
+    },
     {
       label: 'Restantes',
-      value: s.allotted >= UNLIMITED_ALLOTMENT ? 'Sin límite' : s.remaining.toLocaleString('es-MX'),
+      value: unlimited ? 'Sin límite' : n(s.remaining),
+      hint: unlimited
+        ? 'No se descuenta nada: no hay tope.'
+        : 'Boletos que todavía se pueden vender (existencia de la clave principal en esas sucursales). En 0, el POS marca AGOTADO.',
+      example: unlimited
+        ? undefined
+        : cuadra
+          ? `Ej.: ${n(s.allotted)} asignados − ${n(s.soldUnits)} vendidos = ${n(s.remaining)}.`
+          : `Ej.: quedan ${n(s.remaining)} por vender.`,
     },
-    { label: 'Vendidos', value: s.soldUnits.toLocaleString('es-MX') },
-    { label: 'Boletos emitidos', value: s.ticketsIssued.toLocaleString('es-MX') },
-    { label: 'Ingresados', value: s.ticketsCheckedIn.toLocaleString('es-MX'), accent: 'text-emerald-700' },
-    { label: 'Cancelados', value: s.ticketsCancelled.toLocaleString('es-MX'), accent: s.ticketsCancelled > 0 ? 'text-red-700' : undefined },
+    {
+      label: 'Vendidos',
+      value: n(s.soldUnits),
+      hint: `Unidades cobradas de la clave principal ${mainCode} en ventas completadas desde que se creó el evento; una venta cancelada deja de contar.`,
+      example: `Ej.: ${n(s.soldUnits)} compras${event.ticketsPerUnit > 1 ? `, cada una con ${event.ticketsPerUnit} boletos` : ', un boleto cada una'}.`,
+    },
+    {
+      label: 'Boletos emitidos',
+      value: n(s.ticketsIssued),
+      hint: 'Boletos vigentes con QR generados al cobrar, contando todas las claves del evento (titular + invitado). No incluye cancelados.',
+      example: emitidosDetalle
+        ? `Ej.: ${emitidosDetalle} = ${n(emitidosSuma)}${emitidosSuma !== s.ticketsIssued ? ` (vigentes: ${n(s.ticketsIssued)})` : ''}.`
+        : `Ej.: ${n(s.ticketsIssued)} boletos enviados por correo con su QR.`,
+    },
+    {
+      label: 'Ingresados',
+      value: n(s.ticketsCheckedIn),
+      accent: 'text-emerald-700',
+      hint: 'Boletos ya escaneados en la puerta el día del evento (pestaña Entrada).',
+      example: `Ej.: ${n(s.ticketsCheckedIn)} de ${n(s.ticketsIssued)} han entrado${s.ticketsIssued > 0 ? ` (${pctIngresados} %)` : ''}.`,
+    },
+    {
+      label: 'Cancelados',
+      value: n(s.ticketsCancelled),
+      accent: s.ticketsCancelled > 0 ? 'text-red-700' : undefined,
+      hint: 'Boletos anulados porque su venta se canceló: ya no sirven para entrar y no cuentan en emitidos.',
+      example: `Ej.: ${n(s.ticketsCancelled)} boletos cancelados${s.ticketsCancelled > 0 ? '; en la entrada su QR sale como "cancelado"' : ''}.`,
+    },
   ];
 
   return (
@@ -411,9 +480,15 @@ function EventHeader({
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           {chips.map((c) => (
-            <div key={c.label} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <div
+              key={c.label}
+              className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+              title={c.example ? `${c.hint}\n${c.example}` : c.hint}
+            >
               <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">{c.label}</p>
               <p className={`text-lg font-bold tabular-nums ${c.accent ?? 'text-gray-900'}`}>{c.value}</p>
+              <p className="mt-1 text-[11px] leading-snug text-gray-500">{c.hint}</p>
+              {c.example && <p className="mt-0.5 text-[11px] italic leading-snug text-gray-400">{c.example}</p>}
             </div>
           ))}
         </div>
