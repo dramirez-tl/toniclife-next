@@ -423,8 +423,19 @@ function GroupedTable({
                   <TableCell className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap tabular-nums">
                     {g.bonuses}
                     {g.recomputed && (
-                      <span className="ml-1 rounded bg-[#3E667D]/10 px-1 text-[10px] font-semibold text-[#3E667D]" title="Más de un bono: impuestos calculados sobre la suma">
+                      <span
+                        className="ml-1 rounded bg-[#3E667D]/10 px-1 text-[10px] font-semibold text-[#3E667D]"
+                        title={`Impuestos calculados sobre la suma de la semana${g.weekStart ? ` ${g.weekStart} a ${g.weekEnd ?? g.weekStart}` : ''} (ISR por tabla progresiva)`}
+                      >
                         Σ
+                      </span>
+                    )}
+                    {g.priorPaidSubtotal > 0 && (
+                      <span
+                        className="ml-1 rounded bg-amber-50 px-1 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20"
+                        title={`ISR acumulado: esta semana ya se pagaron ${g.priorPaidBonuses} bono(s) de este patrocinador por ${formatAmount(g.priorPaidSubtotal)} con ISR ${formatAmount(g.priorPaidIsr)}; este grupo retiene ISR(total de la semana) menos eso`}
+                      >
+                        acum.
                       </span>
                     )}
                   </TableCell>

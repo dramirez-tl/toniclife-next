@@ -858,8 +858,15 @@ export interface KitBonusGroup {
   ivaWithholding: number;
   resico: number;
   total: number;
-  /** true = más de un bono pendiente: impuestos calculados sobre la suma. */
+  /** true = impuestos recalculados: más de un bono pendiente y/o ISR acumulado con lo ya pagado de la semana. */
   recomputed: boolean;
+  /** Semana (lunes–domingo) de la compra de los kits del grupo; null si mezcla semanas (pagos). */
+  weekStart: string | null;
+  weekEnd: string | null;
+  /** Lo ya PAGADO de la misma canasta (patrocinador, moneda, régimen, semana): entra al tramo del ISR acumulado. */
+  priorPaidBonuses: number;
+  priorPaidSubtotal: number;
+  priorPaidIsr: number;
   items: KitBonusGroupItem[];
   /** Comprobante del grupo pagado; null en pendientes/excluidos (o API sin la mig 165). */
   voucher: KitBonusGroupVoucher | null;
