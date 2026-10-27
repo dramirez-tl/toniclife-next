@@ -1042,30 +1042,44 @@ export default function BonosInscripcionPage() {
               </button>
             </div>
             {canPay && (
-              <div className="flex flex-wrap items-center gap-2">
+              // Acciones a la derecha: la leyenda arriba y los botones juntos en
+              // una sola fila (antes la leyenda larga partía los botones en dos
+              // renglones).
+              <div className="flex w-full flex-col items-start gap-1.5 lg:ml-auto lg:w-auto lg:items-end">
                 <span className="text-xs text-gray-500">
-                  {selectedVisible.length
-                    ? `${selectedVisible.length} ${selectedVisible.length === 1 ? 'bono seleccionado' : 'bonos seleccionados'}${selectedGroupCount ? ` · ${selectedGroupCount} ${selectedGroupCount === 1 ? 'patrocinador' : 'patrocinadores'}` : ''}`
-                    : `Sin selección: aplica a los ${visiblePending.length} pendientes visibles (${filtersLabel})`}
+                  {selectedVisible.length ? (
+                    <>
+                      <span className="font-semibold text-gray-700">{selectedVisible.length}</span>{' '}
+                      {selectedVisible.length === 1 ? 'bono seleccionado' : 'bonos seleccionados'}
+                      {selectedGroupCount ? ` · ${selectedGroupCount} ${selectedGroupCount === 1 ? 'patrocinador' : 'patrocinadores'}` : ''}
+                    </>
+                  ) : (
+                    <>
+                      Sin selección: aplica a los <span className="font-semibold text-gray-700">{visiblePending.length}</span> pendientes visibles
+                      <span className="hidden sm:inline"> · {filtersLabel}</span>
+                    </>
+                  )}
                 </span>
-                <Button size="sm" onClick={() => openMark('paid')} disabled={busy || visiblePending.length === 0} className="bg-green-700 hover:bg-green-800 text-white">
-                  Marcar como pagados
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || visiblePending.length === 0}>
-                  Marcar como no pagados
-                </Button>
-                {view === 'grouped' && readyPayroll.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={stampAllReady}
-                    disabled={busy}
-                    className="border-[#3E667D] text-[#3E667D] hover:bg-[#3E667D]/5"
-                    title="Emite el recibo de nómina (CFDI) de cada pago ASIMILADOS que aún no lo tiene y ya trae RFC, CURP y CP; uno por uno"
-                  >
-                    {stampAllProgress ? `Timbrando ${stampAllProgress}…` : `Timbrar recibos (${readyPayroll.length})`}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={() => openMark('paid')} disabled={busy || visiblePending.length === 0} className="bg-green-700 hover:bg-green-800 text-white">
+                    Marcar como pagados
                   </Button>
-                )}
+                  <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || visiblePending.length === 0}>
+                    Marcar como no pagados
+                  </Button>
+                  {view === 'grouped' && readyPayroll.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={stampAllReady}
+                      disabled={busy}
+                      className="border-[#3E667D] text-[#3E667D] hover:bg-[#3E667D]/5"
+                      title="Emite el recibo de nómina (CFDI) de cada pago ASIMILADOS que aún no lo tiene y ya trae RFC, CURP y CP; uno por uno"
+                    >
+                      {stampAllProgress ? `Timbrando ${stampAllProgress}…` : `Timbrar recibos (${readyPayroll.length})`}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>
