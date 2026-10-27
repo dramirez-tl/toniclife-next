@@ -28,7 +28,6 @@ import {
   CurrencyDollarIcon,
   ChartBarIcon,
   BuildingStorefrontIcon,
-  FunnelIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
@@ -431,6 +430,44 @@ function printSaleTicket(sale: Sale, branchTz: string) {
   w.document.open();
   w.document.write(html);
   w.document.close();
+}
+
+/** Celda compacta del resumen (conteos / ticket promedio). */
+function StatTile({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = 'text-gray-900',
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: string;
+}) {
+  return (
+    <div className="min-w-0 border-gray-100 px-4 py-3 [&:nth-child(even)]:border-l md:[&:not(:first-child)]:border-l">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+        <Icon className={`h-3.5 w-3.5 ${tone}`} />
+        {label}
+      </div>
+      <p className={`mt-0.5 truncate text-2xl font-bold leading-tight ${tone}`} title={value}>
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 truncate text-[11px] text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+/** Etiqueta + control de la barra de filtros (misma altura y ancho en la cuadrícula). */
+function FilterField({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`grid min-w-0 gap-1 ${className}`}>
+      <span className="text-xs font-medium text-gray-500">{label}</span>
+      {children}
+    </div>
+  );
 }
 
 /** Vista previa del ticket (mismo HTML que se imprime) dentro de un iframe aislado. */
@@ -1180,120 +1217,68 @@ function VentasReportesContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards — Fila 1: conteos */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Ventas</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {isLoading ? '...' : totalCount.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{dateFrom || dateTo ? 'en el rango de fechas' : 'con los filtros actuales (sin fechas = todas)'}</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <ShoppingCartIcon className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completadas</p>
-                  <p className="text-3xl font-bold text-green-600">
-                    {isStatsLoading ? '...' : pageStats.activeCount.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">en filtros actuales</p>
-                </div>
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Canceladas</p>
-                  <p className="text-3xl font-bold text-red-500">
-                    {isStatsLoading ? '...' : pageStats.cancelledCount.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">en filtros actuales</p>
-                </div>
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <XCircleIcon className="h-5 w-5 text-red-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ticket Promedio</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {isStatsLoading ? '...' : formatCurrency(pageStats.avgTicketMXN, 'MXN')}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">MXN · completadas</p>
-                </div>
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <ChartBarIcon className="h-5 w-5 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stats Cards — Fila 2: montos por moneda */}
-        {!isStatsLoading && pageStats.currencies.length > 0 && (
-          <div className={`grid gap-4 mb-8 ${pageStats.currencies.length === 1 ? 'grid-cols-1 max-w-sm' : pageStats.currencies.length === 2 ? 'grid-cols-2 max-w-xl' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-            {pageStats.currencies.map((currency) => {
-              const active = pageStats.totals[currency] || 0;
-              const cancelled = pageStats.cancelledTotals[currency] || 0;
-              return (
-                <Card key={currency} className="border-l-4 border-l-[#3E667D]">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-                          Ventas {currency}
-                        </p>
-                        <p className="text-2xl font-bold text-[#3E667D] truncate">
-                          {formatCurrency(active, currency)}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {pageStats.activeCount} completadas en filtros
-                        </p>
-                        {cancelled > 0 && (
-                          <p className="text-xs text-red-400 mt-0.5">
-                            {formatCurrency(cancelled, currency)} cancelado
-                          </p>
-                        )}
+        {/* Resumen compacto (26-oct-2026): conteos y montos por moneda en una sola franja */}
+        <Card className="mb-4">
+          <CardContent className="p-0">
+            <div className="grid grid-cols-2 md:grid-cols-4">
+              <StatTile
+                label="Total ventas"
+                icon={ShoppingCartIcon}
+                value={isLoading ? '…' : totalCount.toLocaleString()}
+                hint={dateFrom || dateTo ? 'en el rango de fechas' : 'sin fechas = todas'}
+              />
+              <StatTile
+                label="Completadas"
+                icon={CheckCircleIcon}
+                tone="text-green-600"
+                value={isStatsLoading ? '…' : pageStats.activeCount.toLocaleString()}
+                hint="con los filtros actuales"
+              />
+              <StatTile
+                label="Canceladas"
+                icon={XCircleIcon}
+                tone="text-red-500"
+                value={isStatsLoading ? '…' : pageStats.cancelledCount.toLocaleString()}
+                hint="con los filtros actuales"
+              />
+              <StatTile
+                label="Ticket promedio"
+                icon={ChartBarIcon}
+                tone="text-purple-600"
+                value={isStatsLoading ? '…' : formatCurrency(pageStats.avgTicketMXN, 'MXN')}
+                hint="MXN · completadas"
+              />
+            </div>
+            {!isStatsLoading && pageStats.currencies.length > 0 && (
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-gray-100 bg-gray-50/60 px-4 py-2.5 md:grid-cols-4">
+                {pageStats.currencies.map((currency) => {
+                  const active = pageStats.totals[currency] || 0;
+                  const cancelled = pageStats.cancelledTotals[currency] || 0;
+                  return (
+                    <div key={currency} className="min-w-0">
+                      <div className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                        <CurrencyDollarIcon className="h-3.5 w-3.5 text-[#3E667D]" />
+                        Ventas {currency}
                       </div>
-                      <div className="w-10 h-10 bg-[#3E667D]/10 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
-                        <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
-                      </div>
+                      <p className="truncate text-base font-semibold text-[#3E667D]" title={formatCurrency(active, currency)}>
+                        {formatCurrency(active, currency)}
+                      </p>
+                      {cancelled > 0 && (
+                        <p className="truncate text-[11px] text-red-400">{formatCurrency(cancelled, currency)} cancelado</p>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-        {isStatsLoading && <div className="h-24 mb-8" />}
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="p-6">
+          <CardContent className="space-y-4 p-4 sm:p-5">
             {/* Buscador por folio (Contabilidad, 26-oct-2026): sin fechas busca en todas las ventas */}
-            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Input
                   type="search"
@@ -1320,31 +1305,30 @@ function VentasReportesContent() {
               <Button onClick={() => applySearch(searchInput)} className="sm:w-auto">
                 Buscar folio
               </Button>
-              {selectedSearch && (
-                <span className="text-xs text-gray-500">
-                  Mostrando folios que contienen <span className="font-mono font-semibold text-gray-700">{selectedSearch}</span>
-                </span>
-              )}
             </div>
-            <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-              {/* Branch */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
+            {selectedSearch && (
+              <p className="-mt-2 text-xs text-gray-500">
+                Mostrando folios que contienen <span className="font-mono font-semibold text-gray-700">{selectedSearch}</span>
+              </p>
+            )}
+
+            {/* Filtros en cuadrícula: cada control en su celda (los selects son w-full y en fila se desbordaban) */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <FilterField label="Sucursal">
                 <SearchableSelect
                   options={branches.map((b) => ({ value: b.id, label: b.name }))}
                   value={selectedBranch}
                   onChange={(val) => setParams({ branch: val, terminal: null })}
                   placeholder="Buscar sucursal..."
-                  allLabel="Todas las Sucursales"
+                  allLabel="Todas las sucursales"
                   allValue="all"
-                  className="w-[220px]"
+                  className="w-full"
                 />
-              </div>
+              </FilterField>
 
               {/* Terminal (licencia POS) — solo con una sucursal elegida */}
               {selectedBranch !== 'all' && (
-                <div className="flex items-center gap-2">
-                  <ComputerDesktopIcon className="h-5 w-5 text-gray-400" />
+                <FilterField label="Terminal">
                   <SearchableSelect
                     options={terminalOptions}
                     value={selectedTerminal}
@@ -1352,100 +1336,98 @@ function VentasReportesContent() {
                     placeholder="Buscar terminal..."
                     allLabel="Todas las terminales"
                     allValue="all"
-                    className="w-[240px]"
+                    className="w-full"
                   />
-                </div>
+                </FilterField>
               )}
 
-              {/* Status */}
-              <SearchableSelect
-                options={STATUS_OPTIONS}
-                value={selectedStatus}
-                onChange={(val) => setParams({ status: val })}
-                allLabel="Todos los Estados"
-                allValue="all"
-              />
+              <FilterField label="Estado">
+                <SearchableSelect
+                  options={STATUS_OPTIONS}
+                  value={selectedStatus}
+                  onChange={(val) => setParams({ status: val })}
+                  allLabel="Todos los estados"
+                  allValue="all"
+                  className="w-full"
+                />
+              </FilterField>
 
-              {/* Payment Method */}
-              <SearchableSelect
-                options={PAYMENT_OPTIONS}
-                value={selectedPaymentMethod}
-                onChange={(val) => setParams({ paymentMethod: val })}
-                allLabel="Todos los Métodos"
-                allValue="all"
-              />
-
-              {/* Export CSV */}
-              <div className="lg:ml-auto">
-                <Button variant="outline" onClick={handleExportCsv} disabled={isExporting}>
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  {isExporting ? 'Exportando...' : 'Exportar CSV'}
-                </Button>
-              </div>
+              <FilterField label="Método de pago">
+                <SearchableSelect
+                  options={PAYMENT_OPTIONS}
+                  value={selectedPaymentMethod}
+                  onChange={(val) => setParams({ paymentMethod: val })}
+                  allLabel="Todos los métodos"
+                  allValue="all"
+                  className="w-full"
+                />
+              </FilterField>
             </div>
 
-            {/* Date range row (opcional: vacío = todas las ventas) */}
-            <div className="flex flex-col lg:flex-row gap-4 mt-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
+            {/* Fechas (opcionales: vacío = todas las ventas), cliente y exportación */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <FilterField label="Desde" className="w-full sm:w-44">
                 <Input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setParams({ dateFrom: e.target.value || null, page: '1' })}
-                  className="w-auto"
                 />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500 whitespace-nowrap">Hasta</label>
+              </FilterField>
+              <FilterField label="Hasta" className="w-full sm:w-44">
                 <Input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setParams({ dateTo: e.target.value || null, page: '1' })}
-                  className="w-auto"
                 />
-              </div>
+              </FilterField>
               {dateFrom || dateTo ? (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500"
+                  className="self-start text-gray-500 lg:self-end"
                   onClick={() => setParams({ dateFrom: null, dateTo: null, page: '1' })}
                 >
                   Limpiar fechas
                 </Button>
               ) : (
-                <span className="self-center text-xs text-gray-400">Sin fechas se muestran todas las ventas</span>
+                <span className="pb-2 text-xs text-gray-400">Sin fechas se muestran todas las ventas</span>
               )}
 
-              {/* Customer number filter */}
-              <div className="flex items-center gap-2 lg:ml-auto">
-                <UserIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={customerNumberInput}
-                    onChange={(e) => setCustomerNumberInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') setParams({ customerNumber: customerNumberInput.trim(), page: '1' });
-                    }}
-                    placeholder="No. distribuidor / cliente"
-                    className="w-[200px] pr-8"
-                  />
-                  {customerNumberInput && (
-                    <button
-                      type="button"
-                      onClick={() => { setCustomerNumberInput(''); setParams({ customerNumber: '', page: '1' }); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </button>
-                  )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end lg:ml-auto">
+                <FilterField label="No. distribuidor / cliente" className="w-full sm:w-56">
+                  <div className="relative">
+                    <UserIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      type="text"
+                      value={customerNumberInput}
+                      onChange={(e) => setCustomerNumberInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') setParams({ customerNumber: customerNumberInput.trim(), page: '1' });
+                      }}
+                      placeholder="Número exacto"
+                      className="pl-8 pr-8"
+                    />
+                    {customerNumberInput && (
+                      <button
+                        type="button"
+                        onClick={() => { setCustomerNumberInput(''); setParams({ customerNumber: '', page: '1' }); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label="Limpiar número"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </FilterField>
+                <div className="flex gap-2">
+                  <Button onClick={() => setParams({ customerNumber: customerNumberInput.trim(), page: '1' })}>
+                    Buscar
+                  </Button>
+                  <Button variant="outline" onClick={handleExportCsv} disabled={isExporting}>
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    {isExporting ? 'Exportando...' : 'Exportar CSV'}
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => setParams({ customerNumber: customerNumberInput.trim(), page: '1' })}
-                >
-                  Buscar
-                </Button>
               </div>
             </div>
           </CardContent>
