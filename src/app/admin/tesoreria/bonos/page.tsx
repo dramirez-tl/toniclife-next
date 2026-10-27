@@ -392,7 +392,14 @@ function GroupEnrollments({ g }: { g: KitBonusGroup }) {
             return (
               <tr key={`${i.source}:${i.itemId}`} className="align-top">
                 <td className="px-4 py-2.5">
-                  <Link href={`/admin/distribuidores/${i.buyerId}`} className="font-medium text-[#3E667D] hover:underline" title="Ver la ficha del inscrito">
+                  {/* Los enlaces abren en pestaña nueva: la revisión (filtros, desplegables) se queda como está. */}
+                  <Link
+                    href={`/admin/distribuidores/${i.buyerId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-[#3E667D] hover:underline"
+                    title="Ver la ficha del inscrito (pestaña nueva)"
+                  >
                     <span className="font-mono">{i.buyerNumber}</span> {i.buyerName}
                   </Link>
                   <p className="text-gray-500">Alta {formatDateDisplay(i.registrationDate)}</p>
@@ -409,8 +416,10 @@ function GroupEnrollments({ g }: { g: KitBonusGroup }) {
                     {formatDateDisplay(i.purchaseDate)} ·{' '}
                     <Link
                       href={documentHref(i)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="font-mono text-[#3E667D] hover:underline"
-                      title={i.source === 'online' ? 'Ver el pedido' : 'Ver la venta en Reportes › Ventas'}
+                      title={i.source === 'online' ? 'Ver el pedido (pestaña nueva)' : 'Ver la venta en Reportes › Ventas (pestaña nueva)'}
                     >
                       {i.documentId}
                     </Link>{' '}
@@ -447,7 +456,13 @@ function GroupEnrollments({ g }: { g: KitBonusGroup }) {
                   {placedElsewhere ? (
                     <p className="text-amber-700">
                       En la red quedó bajo{' '}
-                      <Link href={`/admin/distribuidores/${i.placementId}`} className="font-medium hover:underline">
+                      <Link
+                        href={`/admin/distribuidores/${i.placementId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium hover:underline"
+                        title="Ver la ficha del upline (pestaña nueva)"
+                      >
                         <span className="font-mono">{i.placementNumber}</span> {i.placementName}
                       </Link>
                     </p>
