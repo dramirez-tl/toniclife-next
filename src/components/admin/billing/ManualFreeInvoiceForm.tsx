@@ -129,6 +129,8 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
   const clearCustomer = () => {
     setCustomer(null);
     setReceiverMode((m) => (m === 'customer' ? 'public' : m));
+    // Sin distribuidor el receptor vuelve a público en general, que siempre es PUE.
+    if (receiverMode === 'customer') setPaymentMethod('PUE');
   };
   // Enter con puro número = búsqueda exacta por número de distribuidor.
   const lookupCustomer = async () => {
@@ -690,9 +692,12 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
             <div className="grid gap-3 sm:grid-cols-3">
               <ReceiverOption
                 selected={receiverMode === 'public'}
-                onSelect={() => setReceiverMode('public')}
+                onSelect={() => {
+                  setReceiverMode('public');
+                  setPaymentMethod('PUE');
+                }}
                 title="Público en general"
-                subtitle="RFC XAXX010101000 · sin correo"
+                subtitle="RFC XAXX010101000 · se emite como factura global del día · siempre PUE · sin correo"
               />
               <ReceiverOption
                 selected={receiverMode === 'customer'}
@@ -753,7 +758,9 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
                 <p className="mb-1.5 text-xs font-medium text-gray-600">Método de pago</p>
                 <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-sm">
                   <Segment active={paymentMethod === 'PUE'} onClick={() => setPaymentMethod('PUE')} label="PUE" hint="una exhibición" />
-                  <Segment active={paymentMethod === 'PPD'} onClick={() => setPaymentMethod('PPD')} label="PPD" hint="parcialidades · forma 99" />
+                  {receiverMode !== 'public' && (
+                    <Segment active={paymentMethod === 'PPD'} onClick={() => setPaymentMethod('PPD')} label="PPD" hint="parcialidades · forma 99" />
+                  )}
                 </div>
                 {paymentMethod === 'PUE' && (
                   <select value={paymentForm} onChange={(e) => setPaymentForm(e.target.value)} className="mt-2 h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm" aria-label="Forma de pago">
