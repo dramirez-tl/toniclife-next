@@ -5,6 +5,7 @@ import type {
   CatalogBulkAction,
   StoreCountryCode,
 } from '@/services/products-admin.service';
+import type { ProductOnlineAudience } from '@/types/product';
 
 /** sessionStorage: filtros del listado, para que "Regresar" en la ficha vuelva a ellos. */
 export const PRODUCTS_LIST_RETURN_KEY = 'tl_admin_products_list_qs';
@@ -102,6 +103,35 @@ export const CREATE_PRODUCT_TYPES = PRODUCTS_TAB_TYPES;
 export const SELLABLE_TYPES = ['finished_good', 'pack'];
 
 // ================================
+// Audiencia en línea (products.online_audience, mig 177 — "dos tiendas", Bloque 2, 28-oct-2026)
+// ================================
+export const ONLINE_AUDIENCE_LABEL: Record<ProductOnlineAudience, string> = {
+  none: 'No se vende en línea',
+  members: 'Distribuidores',
+  public: 'Público',
+};
+
+/** Opciones de los selectores (ficha, filtro del listado y acción masiva). */
+export const ONLINE_AUDIENCE_OPTIONS: { value: ProductOnlineAudience; label: string }[] = [
+  { value: 'members', label: ONLINE_AUDIENCE_LABEL.members },
+  { value: 'public', label: ONLINE_AUDIENCE_LABEL.public },
+  { value: 'none', label: ONLINE_AUDIENCE_LABEL.none },
+];
+
+export const ONLINE_AUDIENCE_HELP: Record<ProductOnlineAudience, string> = {
+  members: 'Solo distribuidores y clientes con sesión lo ven y lo compran.',
+  public: 'Cualquiera lo ve y lo compra en la tienda pública; los distribuidores también.',
+  none: 'No aparece en la tienda en línea (sigue en POS si está habilitado).',
+};
+
+/** Insignia del encabezado de la ficha (no se pinta en kits de inscripción). */
+export const ONLINE_AUDIENCE_BADGE: Record<ProductOnlineAudience, { label: string; variant: 'success' | 'info' | 'secondary' }> = {
+  public: { label: 'En línea: público', variant: 'success' },
+  members: { label: 'En línea: distribuidores', variant: 'info' },
+  none: { label: 'No se vende en línea', variant: 'secondary' },
+};
+
+// ================================
 // Países
 // ================================
 export const STORE_COUNTRY_NAME: Record<StoreCountryCode, string> = {
@@ -173,6 +203,9 @@ export const STOREFRONT_REASON_LABEL: Record<string, string> = {
   no_public_price: 'no tiene precio público vigente',
   out_of_stock: 'no tiene existencias (se muestra como Agotado)',
   country_not_ready: 'la tienda de ese país aún no está abierta',
+  // Audiencia (Bloque 2): `not_online` bloquea; `members_only` solo informa (sí se lista, con sesión).
+  not_online: 'está marcado como "No se vende en línea"',
+  members_only: 'solo lo ven distribuidores y clientes con sesión',
 };
 
 /** Sección de la ficha donde se corrige cada razón. */
@@ -184,13 +217,18 @@ export const STOREFRONT_REASON_SECTION: Record<string, ProductSectionId> = {
   no_slug: 'seo',
   no_public_price: 'precios',
   out_of_stock: 'inventario',
+  not_online: 'tienda',
+  members_only: 'tienda',
 };
 
 export const storefrontReasonLabel = (reason: string): string =>
   STOREFRONT_REASON_LABEL[reason] ?? reason;
 
-/** `out_of_stock` es disponibilidad, no candado: el producto sí se lista (Agotado). */
-export const isBlockingReason = (reason: string): boolean => reason !== 'out_of_stock';
+/**
+ * `out_of_stock` es disponibilidad, no candado: el producto sí se lista (Agotado).
+ * `members_only` tampoco bloquea: se lista para distribuidores y clientes con sesión.
+ */
+export const isBlockingReason = (reason: string): boolean => reason !== 'out_of_stock' && reason !== 'members_only';
 
 // ================================
 // Salud del catálogo
@@ -235,6 +273,10 @@ const HEALTH_ISSUE_META: Record<string, HealthIssueMeta> = {
   kit_recipe_empty: { label: 'Kit activo que se arma sin receta', short: 'Sin receta', section: 'componentes' },
   kit_no_position: { label: 'Kit de inscripción sin posición', short: 'Sin posición', section: 'basica' },
   kit_phantom_own_stock: { label: 'Existencia propia que ninguna venta usa', short: 'Existencia fantasma', section: 'inventario' },
+  // Audiencia (Bloque 2): marcado para el PÚBLICO sin precio público vigente en el país
+  // (la vitrina pública no lo muestra) o sin foto (muestra el monograma). No bloquean.
+  public_no_public_price: { label: 'Al público sin precio público', short: 'Público sin precio', section: 'precios' },
+  public_no_image: { label: 'Al público sin imagen', short: 'Público sin imagen', section: 'imagenes' },
 };
 
 /** `no_public_price:MX` → { base: 'no_public_price', country: 'MX' } (en reglas de zona el sufijo es la zona: `FN`). */
@@ -262,7 +304,13 @@ export function healthIssueLabel(code: string, short = false): string {
 export const HEALTH_ISSUE_BASES: string[] = Object.keys(HEALTH_ISSUE_META);
 
 /** Reglas que se evalúan por país (llegan como `<base>:<CC>`). */
-export const COUNTRY_SCOPED_ISSUES = new Set(['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price']);
+export const COUNTRY_SCOPED_ISSUES = new Set([
+  'no_public_price',
+  'zero_price',
+  'price_incoherent',
+  'suspicious_low_price',
+  'public_no_public_price',
+]);
 
 /** Reglas que se evalúan por ZONA de precio del país (llegan como `<base>:<ZONA>`, p. ej. `zone_price_missing:FN`). */
 export const ZONE_SCOPED_ISSUES = new Set(['zone_price_missing']);
@@ -360,6 +408,12 @@ export const BULK_ACTIONS: BulkActionMeta[] = [
   { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
   { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
   { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
+  {
+    action: 'set_audience',
+    label: 'Cambiar a quién se vende en línea',
+    scope: 'Cambiar la audiencia en línea de',
+    note: 'Se omiten los kits de inscripción y los tipos que la tienda no vende (solo productos y paquetes).',
+  },
   { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true, note: `Solo afecta a los productos seleccionados en esta página. ${BULK_POS_BRANCH_HINT}` },
   {
     action: 'deactivate',

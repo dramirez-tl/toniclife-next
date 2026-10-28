@@ -23,14 +23,20 @@ import {
   COUNTRY_SCOPED_ISSUES,
   CREATE_PRODUCT_TYPES,
   HEALTH_ISSUE_BASES,
+  ONLINE_AUDIENCE_BADGE,
+  ONLINE_AUDIENCE_HELP,
+  ONLINE_AUDIENCE_LABEL,
+  ONLINE_AUDIENCE_OPTIONS,
   PRODUCTS_TAB_TYPES,
   SELLABLE_TYPES,
   STOREFRONT_REASON_LABEL,
+  STOREFRONT_REASON_SECTION,
   ZONE_SCOPED_ISSUES,
   bulkResultMessage,
   healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
+  isBlockingReason,
   issueAppliesTo,
   issueCodeFor,
   isPriceZone,
@@ -38,6 +44,7 @@ import {
   priceZoneStoreName,
   priceZonesOf,
 } from './labels';
+import { PRODUCT_ONLINE_AUDIENCES } from '@/types/product';
 
 // --- catalog-admin.dto.ts:42-49 ---
 const API_CATALOG_PRODUCT_TYPES = ['finished_good', 'pack', 'kit', 'promotional', 'service', 'raw_material'];
@@ -54,6 +61,8 @@ const API_CATALOG_BULK_ACTIONS = [
   'feature',
   'unfeature',
   'set_category',
+  // Audiencia en línea (Bloque 2, mig 177): exige `audience`; omite kits y tipos no vendibles.
+  'set_audience',
 ];
 // --- catalog-admin.dto.ts (CatalogBulkSkipReason) ---
 const API_BULK_SKIP_REASONS = ['enrollment_kit', 'not_sellable_type', 'kit_not_ready', 'not_found', 'unchanged'];
@@ -79,6 +88,10 @@ const API_HEALTH_RULE_CODES = [
   'components_missing',
   'visible_not_sellable_type',
   'zone_price_missing',
+  // Audiencia en línea (Bloque 2, mig 177): marcado al público sin precio público del país / sin foto.
+  // Van ANTES de las reglas de kits, en el mismo orden que el API (el bloque estricto compara ordenado).
+  'public_no_public_price',
+  'public_no_image',
   'kit_recipe_empty',
   'kit_no_position',
   'kit_phantom_own_stock',
@@ -86,11 +99,21 @@ const API_HEALTH_RULE_CODES = [
 // --- catalog-health.lib.ts (reglas por ZONA de precio: llegan como <regla>:<ZONA>, hoy solo FN) ---
 const API_PER_ZONE_RULES = ['zone_price_missing'];
 // --- catalog-health.lib.ts (reglas con perCountry: true) ---
-const API_PER_COUNTRY_RULES = ['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price'];
+const API_PER_COUNTRY_RULES = [
+  'no_public_price',
+  'zero_price',
+  'price_incoherent',
+  'suspicious_low_price',
+  'public_no_public_price',
+];
 // --- storefront-status.lib.ts (StorefrontBlockReason) ---
 const API_STOREFRONT_REASONS = [
   'inactive',
   'hidden',
+  // Audiencia en línea (Bloque 2, mig 177): `not_online` bloquea; `members_only` solo informa.
+  // Van justo después de `hidden`, como en el API (el bloque estricto compara ordenado).
+  'not_online',
+  'members_only',
   'not_sellable_type',
   'enrollment_kit',
   'no_slug',
@@ -262,6 +285,57 @@ describe('captura de precios: zonas de precio', () => {
   });
 });
 
+describe('audiencia en línea (products.online_audience, Bloque 2)', () => {
+  it('cada audiencia del API tiene etiqueta, ayuda e insignia; las opciones van members → public → none', () => {
+    expect([...PRODUCT_ONLINE_AUDIENCES].sort()).toEqual(['members', 'none', 'public']);
+    for (const audience of PRODUCT_ONLINE_AUDIENCES) {
+      expect(ONLINE_AUDIENCE_LABEL[audience]).toBeTruthy();
+      expect(ONLINE_AUDIENCE_HELP[audience]).toBeTruthy();
+      expect(ONLINE_AUDIENCE_BADGE[audience].label).toBeTruthy();
+    }
+    expect(ONLINE_AUDIENCE_LABEL).toEqual({ none: 'No se vende en línea', members: 'Distribuidores', public: 'Público' });
+    expect(ONLINE_AUDIENCE_OPTIONS.map((o) => o.value)).toEqual(['members', 'public', 'none']);
+    expect(ONLINE_AUDIENCE_OPTIONS.map((o) => o.label)).toEqual(['Distribuidores', 'Público', 'No se vende en línea']);
+  });
+
+  it('not_online bloquea y members_only solo informa; ambas se corrigen en Clasificación y tienda', () => {
+    expect(isBlockingReason('not_online')).toBe(true);
+    expect(isBlockingReason('members_only')).toBe(false);
+    expect(isBlockingReason('out_of_stock')).toBe(false);
+    expect(isBlockingReason('hidden')).toBe(true);
+    expect(STOREFRONT_REASON_SECTION.not_online).toBe('tienda');
+    expect(STOREFRONT_REASON_SECTION.members_only).toBe('tienda');
+    expect(STOREFRONT_REASON_LABEL.not_online).toBe('está marcado como "No se vende en línea"');
+  });
+
+  it('reglas de salud del público: la de precio es por país (<regla>:<CC>), la de imagen no', () => {
+    expect(issueCodeFor('public_no_public_price', 'US')).toBe('public_no_public_price:US');
+    expect(issueCodeFor('public_no_image', 'US')).toBe('public_no_image');
+    expect(healthIssueLabel('public_no_public_price:MX')).toBe('Al público sin precio público (MX)');
+    expect(healthIssueLabel('public_no_image', true)).toBe('Público sin imagen');
+    expect(healthIssueMeta('public_no_public_price:MX').section).toBe('precios');
+    expect(healthIssueMeta('public_no_image').section).toBe('imagenes');
+  });
+
+  it('la acción masiva set_audience existe, no es destructiva, no pide products:delete y explica lo omitido', () => {
+    const meta = BULK_ACTIONS.find((a) => a.action === 'set_audience');
+    expect(meta).toBeDefined();
+    expect(meta?.needsDelete).toBeUndefined();
+    expect(meta?.destructive).toBeUndefined();
+    expect(meta?.note).toContain('kits de inscripción');
+    expect(
+      bulkResultMessage(
+        { action: 'set_audience', label: meta?.label ?? '' },
+        { updated: 2, skipped: [{ reason: 'enrollment_kit' }, { reason: 'not_sellable_type' }] },
+      ),
+    ).toEqual({
+      tone: 'warning',
+      message: 'Cambiar a quién se vende en línea: 2 actualizados · 2 omitidos (1 kit de inscripción, 1 tipo que la tienda no vende)',
+      hint: undefined,
+    });
+  });
+});
+
 // Repo hermano (solo en desarrollo local; en Vercel/CI no existe y la prueba se omite).
 const API_PRODUCTS_DIR = resolve(process.cwd(), '../toniclife-api/src/modules/products');
 const API_DTO_PATH = resolve(API_PRODUCTS_DIR, 'catalog-admin/dto/catalog-admin.dto.ts');
@@ -272,7 +346,13 @@ const HAS_API_REPO = [API_DTO_PATH, API_HEALTH_LIB_PATH, API_HEALTH_SERVICE_PATH
   existsSync(p),
 );
 
-const quoted = (text: string): string[] => Array.from(text.matchAll(/'([^']+)'/g)).map((m) => m[1]);
+// Se quitan los comentarios (de bloque y `// …`) ANTES de extraer literales: un comentario
+// del API como "solo productos online_audience = 'public'" dentro de una unión no es un
+// código (Bloque 2, 28-oct-2026). Las regiones leídas aquí no llevan `//` ni `/*` en strings.
+const stripComments = (text: string): string =>
+  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+const quoted = (text: string): string[] =>
+  Array.from(stripComments(text).matchAll(/'([^']+)'/g)).map((m) => m[1]);
 
 // La regla de zona (`zone_price_missing:<ZONA>`) la agrega el API en un cambio
 // aparte: mientras su HealthRuleCode no la tenga, la copia se compara SIN ella y

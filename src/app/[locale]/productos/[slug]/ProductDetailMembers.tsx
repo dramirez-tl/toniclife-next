@@ -1,17 +1,22 @@
 'use client';
 
-// Detalle de producto con la tienda SOLO PARA DISTRIBUIDORES
-// (storefront.access_mode = members): el SSR anónimo no puede cotizar (el API
-// responde 401 STF_MEMBERS_ONLY), así que el cliente consulta con el JWT de la
-// sesión y pinta el mismo ProductDetailClient (precio por rol, puntos, carrito).
-// Sin sesión nunca se llega aquí: el middleware manda a /login antes.
+// Detalle de producto consultado CON LA SESIÓN del cliente (JWT), cuando el SSR
+// anónimo no puede cotizar:
+//  - tienda SOLO PARA DISTRIBUIDORES (storefront.access_mode = members): el API
+//    responde 401 STF_MEMBERS_ONLY al anónimo; sin sesión el middleware manda a /login;
+//  - modo público con cookie de sesión (Bloque 2 "dos tiendas", 28-oct-2026): el
+//    anónimo recibe 404 en los productos `members`; con el JWT sí se ven.
+// Pinta el mismo ProductDetailClient (precio por rol, puntos, carrito). Un 404 con
+// access token vencido NO se da por bueno a la primera: el API trata el token vencido
+// como visitante (sin 401, axios no refresca), así que `useStorefrontNotFoundRecovery`
+// refresca una vez y vuelve a consultar antes de mostrar "Producto no encontrado".
 
 import { useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { parseLocale } from '@/i18n/config';
 import { Link } from '@/i18n/routing';
-import { useStorefrontProduct } from '@/hooks/useStorefront';
+import { useStorefrontNotFoundRecovery, useStorefrontProduct } from '@/hooks/useStorefront';
 import { UnavailableInCountry } from '@/components/storefront/UnavailableInCountry';
 import { localizedPath } from '@/lib/storefront/seo';
 import { productPath } from '@/lib/storefront/slug';
@@ -28,7 +33,10 @@ export function ProductDetailMembers({ slug }: { slug: string }) {
   const router = useRouter();
   const { lang, country } = parseLocale(locale);
   const ctx = useMemo(() => ({ country, lang }), [country, lang]);
-  const { data, isLoading, isError, error, refetch } = useStorefrontProduct(ctx, slug);
+  const { data, isLoading, isError, error, errorUpdatedAt, refetch } = useStorefrontProduct(ctx, slug);
+  const status = isError ? httpStatus(error) : undefined;
+  // 404 con sesión: ¿token vencido (el API lo atendió como visitante) o producto que no existe para él?
+  const recoveringNotFound = useStorefrontNotFoundRecovery(status === 404, `${slug}:${errorUpdatedAt}`);
   // Marca de tiempo del dato del cliente (ProductDetailClient la usa para su `initialData`).
   const [fetchedAt] = useState(() => Date.now());
 
@@ -39,7 +47,8 @@ export function ProductDetailMembers({ slug }: { slug: string }) {
     }
   }, [data, locale, router, slug]);
 
-  if (isLoading) {
+  // Mientras se decide si el 404 era por el token vencido, sigue el spinner (no un "no encontrado" fugaz).
+  if (isLoading || recoveringNotFound) {
     return (
       <div className="flex min-h-[55vh] items-center justify-center" role="status" aria-live="polite">
         <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[#3E667D]" />
@@ -48,7 +57,6 @@ export function ProductDetailMembers({ slug }: { slug: string }) {
   }
 
   if (isError) {
-    const status = httpStatus(error);
     if (status === 404 || status === 400) return <ProductNotFound />;
     return (
       <section className="mx-auto flex min-h-[55vh] max-w-xl flex-col items-center justify-center px-4 py-16 text-center sm:px-6">

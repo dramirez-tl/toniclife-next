@@ -4,7 +4,10 @@
 //   ok                      → HTML con h1, precio, imagen, JSON-LD Product/Offer/BreadcrumbList
 //   moved                   → permanentRedirect (308) al slug canónico
 //   unavailable_in_country  → pantalla propia con `noindex`
-//   404                     → notFound() con HTTP 404 REAL (ver not-found.tsx)
+//   404                     → notFound() con HTTP 404 REAL (ver not-found.tsx). Con cookie de
+//                             sesión (`accessToken`) se pinta ProductDetailMembers, que consulta
+//                             con el JWT: el anónimo no ve los productos solo para distribuidores
+//                             (Bloque 2 "dos tiendas", 28-oct-2026); sin cookie, 404 real.
 //   429 / 5xx / sin respuesta → `fetchStorefrontDetail` reintenta UNA vez (el SSR comparte
 //                             la cuota del throttle del API tras la IP de Vercel); si
 //                             persiste, error.tsx con "Reintentar". NUNCA un 404 falso:
@@ -15,6 +18,7 @@
 
 import { cache } from 'react';
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { CountryNotReady } from '@/components/storefront/CountryNotReady';
@@ -50,6 +54,17 @@ function readSlug(raw: string): string {
   }
 }
 
+/**
+ * Hay sesión en el navegador (cookie `accessToken` que deja el login). El SSR
+ * anónimo recibe 404 en los productos solo para distribuidores: con sesión, el
+ * cliente los consulta con su JWT (`ProductDetailMembers`, noindex), como en el
+ * modo `members`. Leer cookies vuelve la ruta dinámica; el Data Cache del fetch
+ * anónimo (120 s) se conserva.
+ */
+async function hasSessionCookie(): Promise<boolean> {
+  return (await cookies()).has('accessToken');
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug: rawSlug } = await params;
   if (!routing.locales.includes(locale)) return {};
@@ -69,6 +84,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const result = await getDetail(country, lang, slug);
   if (!result.ok) {
     const missing = result.status === 404 || result.status === 400;
+    // Bloque 2: con sesión, el 404 anónimo puede ser un producto solo para distribuidores (noindex).
+    if (missing && (await hasSessionCookie())) return buildNoIndexMetadata('Tonic Life');
     return buildNoIndexMetadata(missing ? t('product.notFound.metaTitle') : t('product.error.title'));
   }
   if (result.data.status === 'ok') {
@@ -102,8 +119,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const result = await getDetail(country, lang, slug);
   if (!result.ok) {
-    // 404 (no existe, oculto, kit, sin slug…) o 400 (slug que el API rechaza) = no encontrado.
-    if (result.status === 404 || result.status === 400) notFound();
+    // 404 (no existe, oculto, kit, sin slug, solo para distribuidores…) o 400 (slug que el
+    // API rechaza) = no encontrado. Bloque 2 (28-oct-2026): con cookie de sesión el cliente
+    // vuelve a consultar con su JWT (el anónimo no ve los productos `members`); sin ella, 404 real.
+    if (result.status === 404 || result.status === 400) {
+      if (await hasSessionCookie()) return <ProductDetailMembers slug={slug} />;
+      notFound();
+    }
     throw new StorefrontUnavailableError('/storefront/products/:slug', result.status);
   }
 

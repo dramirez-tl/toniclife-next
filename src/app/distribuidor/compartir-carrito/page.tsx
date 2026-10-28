@@ -78,6 +78,9 @@ function CompartirCarritoContent() {
     categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
     isActive: true,
     isVisibleEcommerce: true,
+    // Bloque 2 (28-oct-2026): solo lo que se vende en línea (distribuidores o público);
+    // el API rechaza en servidor cualquier línea "No se vende en línea" al crear el carrito.
+    onlineAudience: ['members', 'public'],
     branchId: ECOMMERCE_BRANCH_ID,
     search: search.trim() || undefined,
     limit: 60,

@@ -42,6 +42,21 @@ export const KIT_POSITION_LABEL: Record<KitPosition, string> = {
 };
 
 // ================================
+// AUDIENCIA EN LÍNEA (products.online_audience, mig 177 — "dos tiendas", Bloque 2, 28-oct-2026)
+// ================================
+/**
+ * A quién se vende el producto en la tienda en línea: `none` = no se vende en
+ * línea; `members` = solo con sesión de cliente (default de BD, fail-closed);
+ * `public` = cualquiera lo ve y lo compra (el cliente con sesión también).
+ * Los kits de inscripción quedan fuera (siguen por `enrollment.web_kit_payment_enabled`).
+ */
+export const PRODUCT_ONLINE_AUDIENCES = ['none', 'members', 'public'] as const;
+export type ProductOnlineAudience = (typeof PRODUCT_ONLINE_AUDIENCES)[number];
+export const DEFAULT_PRODUCT_ONLINE_AUDIENCE: ProductOnlineAudience = 'members';
+export const isProductOnlineAudience = (v: unknown): v is ProductOnlineAudience =>
+  typeof v === 'string' && (PRODUCT_ONLINE_AUDIENCES as readonly string[]).includes(v);
+
+// ================================
 // CATEGORY TYPES (matches CategoryDto from category.dto.ts)
 // ================================
 export interface Category {
@@ -118,6 +133,8 @@ export interface Product {
   weightKg?: string;
   volumeCm3?: string;
   isVisibleEcommerce: boolean;
+  /** A quién se vende en línea (mig 177). Sin efecto en kits de inscripción. */
+  onlineAudience: ProductOnlineAudience;
   isFeatured: boolean;
   availableInPos: boolean;
   slug?: string;
@@ -323,6 +340,12 @@ export interface ProductQueryParams {
   inStock?: boolean;
   isActive?: boolean;
   isVisibleEcommerce?: boolean;
+  /**
+   * Solo productos con esa audiencia en línea (mig 177). `products.service`
+   * la manda como lista separada por comas (`members,public`): el API acepta
+   * esa forma y la repetida, pero NO la `onlineAudience[]=` que axios armaría.
+   */
+  onlineAudience?: ProductOnlineAudience[];
   isFeatured?: boolean;
   availableInPos?: boolean;
   productType?: ProductType;
@@ -415,6 +438,8 @@ export interface CreateProductDto {
   weightKg?: number;
   volumeCm3?: number;
   isVisibleEcommerce?: boolean;
+  /** A quién se vende en línea; el API asume `members` si no viene. No aplica a kits. */
+  onlineAudience?: ProductOnlineAudience;
   isFeatured?: boolean;
   availableInPos?: boolean;
   slug?: string;

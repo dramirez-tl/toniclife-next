@@ -18,7 +18,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { AdminProduct, CatalogAdminRow, StorefrontStatusEntry } from '@/services/products-admin.service';
+import { isProductOnlineAudience } from '@/types/product';
 import {
+  ONLINE_AUDIENCE_BADGE,
   SCORE_TONE_CLASS,
   countryName,
   healthIssueLabel,
@@ -105,6 +107,12 @@ export function ProductHeader({
                       {entry.sellable ? `En tienda ${entry.countryCode}` : `Fuera de tienda ${entry.countryCode}`}
                     </Badge>
                   ))}
+                  {/* Audiencia en línea (Bloque 2, mig 177): los kits de inscripción no la tienen ("Inscripción en línea"). */}
+                  {product.productType !== 'kit' && isProductOnlineAudience(product.onlineAudience) ? (
+                    <Badge variant={ONLINE_AUDIENCE_BADGE[product.onlineAudience].variant}>
+                      {ONLINE_AUDIENCE_BADGE[product.onlineAudience].label}
+                    </Badge>
+                  ) : null}
                   <Badge variant={product.availableInPos ? 'info' : 'secondary'}>
                     {product.availableInPos ? 'POS' : 'Sin POS'}
                   </Badge>

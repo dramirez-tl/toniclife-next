@@ -70,6 +70,20 @@ describe('shouldRecoverViewerPrice', () => {
     expect(shouldRecoverViewerPrice({ ...base, accessToken: VALID })).toBe(false);
   });
 
+  // Bloque 2 "dos tiendas" (28-oct-2026): para la audiencia anónima un producto
+  // `members` responde 404, así que un token vencido se ve como "no encontrado".
+  it('404 de un detalle (producto solo para distribuidores) + token vencido = refrescar', () => {
+    expect(shouldRecoverViewerPrice({ ...base, tier: undefined, notFound: true })).toBe(true);
+    expect(shouldRecoverViewerPrice({ ...base, tier: null, notFound: true })).toBe(true);
+  });
+
+  it('404 con token vigente = 404 real; sin sesión de cliente o sin la señal: nunca', () => {
+    expect(shouldRecoverViewerPrice({ ...base, tier: undefined, notFound: true, accessToken: VALID })).toBe(false);
+    expect(shouldRecoverViewerPrice({ ...base, tier: undefined, notFound: true, hasCustomerSession: false })).toBe(false);
+    expect(shouldRecoverViewerPrice({ ...base, tier: undefined, notFound: false })).toBe(false);
+    expect(shouldRecoverViewerPrice({ ...base, tier: undefined })).toBe(false);
+  });
+
   it('guarda anti-bucle: en vuelo o dentro del minuto', () => {
     expect(shouldRecoverViewerPrice({ ...base, inFlight: true })).toBe(false);
     expect(shouldRecoverViewerPrice({ ...base, lastAttemptAt: NOW - RECOVERY_COOLDOWN_MS + 1 })).toBe(false);
@@ -121,6 +135,42 @@ describe('attemptViewerPriceRecovery', () => {
     });
     expect(result).toBe(false);
     expect(refresh).not.toHaveBeenCalled();
+    expect(getViewerSessionStatus()).toBe('idle');
+
+    // Tampoco con la señal de "no encontrado" (Bloque 2): un 404 de invitado es real.
+    expect(
+      await attemptViewerPriceRecovery({
+        hasCustomerSession: false,
+        tier: undefined,
+        notFound: true,
+        getAccessToken: () => EXPIRED,
+        refresh,
+        now: () => NOW,
+      }),
+    ).toBe(false);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('404 con sesión de cliente (Bloque 2): token vencido = UN refresh y true; token vigente = sin refresh', async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const notFound = (token: string) => ({
+      hasCustomerSession: true,
+      tier: undefined,
+      notFound: true,
+      getAccessToken: () => token,
+      refresh,
+      now: () => NOW,
+    });
+    expect(await attemptViewerPriceRecovery(notFound(EXPIRED))).toBe(true);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(getViewerSessionStatus()).toBe('recovered');
+    // El refetch volvió a dar 404 (p. ej. producto `none`): con el token ya vigente NO se repite.
+    expect(await attemptViewerPriceRecovery(notFound(VALID))).toBe(false);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    resetViewerSessionForTests();
+    expect(await attemptViewerPriceRecovery(notFound(VALID))).toBe(false);
+    expect(refresh).toHaveBeenCalledTimes(1);
     expect(getViewerSessionStatus()).toBe('idle');
   });
 });

@@ -1,8 +1,9 @@
 'use client';
 
 // StorefrontStatusPanel — "Dónde se vende": por país, si el producto aparece en
-// la tienda y, si no, POR QUÉ en claro, con acceso directo a la sección de la
-// ficha que lo corrige. Fuente: GET /products/:id/storefront-status.
+// la tienda (y para quién: público o solo distribuidores, Bloque 2) y, si no,
+// POR QUÉ en claro, con acceso directo a la sección de la ficha que lo corrige.
+// Fuente: GET /products/:id/storefront-status.
 
 import { CheckCircle2, ExternalLink, Loader2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,13 +25,20 @@ interface StorefrontStatusPanelProps {
   compact?: boolean;
 }
 
+/** Sufijo cuando SÍ aparece: para quién está en línea (products.online_audience, mig 177). */
+const AUDIENCE_SUFFIX: Record<string, string> = {
+  members: ' (solo distribuidores y clientes con sesión)',
+  public: ' (público y distribuidores)',
+};
+
 /** Texto único y legible: "No aparece en México: no tiene precio público vigente". */
 export function storefrontSentence(entry: StorefrontStatusEntry): string {
   const country = countryName(entry.countryCode);
   if (entry.sellable) {
+    const suffix = AUDIENCE_SUFFIX[entry.audience] ?? '';
     return entry.reasons.includes('out_of_stock')
-      ? `Aparece en ${country} como Agotado`
-      : `Aparece en la tienda de ${country}`;
+      ? `Aparece en ${country} como Agotado${suffix}`
+      : `Aparece en la tienda de ${country}${suffix}`;
   }
   const blocking = entry.reasons.filter(isBlockingReason);
   const reasons = (blocking.length > 0 ? blocking : entry.reasons).map(storefrontReasonLabel);

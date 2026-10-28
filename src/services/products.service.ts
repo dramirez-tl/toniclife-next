@@ -39,7 +39,12 @@ class ProductsService {
    * Get paginated list of products
    */
   async getProducts(params?: ProductQueryParams): Promise<ProductListResponse> {
-    const response = await api.get<ProductListResponse>('/products', { params });
+    // Bloque 2 (28-oct-2026): `onlineAudience` viaja como lista separada por comas.
+    // axios serializaría el arreglo como `onlineAudience[]=` y el API (forbidNonWhitelisted) lo rechazaría.
+    const query = params?.onlineAudience?.length
+      ? { ...params, onlineAudience: params.onlineAudience.join(',') }
+      : params;
+    const response = await api.get<ProductListResponse>('/products', { params: query });
     return response.data;
   }
 

@@ -9,8 +9,11 @@
 // ya existe (`authService.refreshToken()`, el mismo `POST /auth/refresh` del
 // interceptor) y se evita cualquier bucle:
 //  - solo con sesión de CLIENTE (usuario con `customerId`), nunca invitados;
-//  - solo si el API contestó `tier: 'public'` Y el access token local está
-//    vencido (un token vigente + tier público = es su precio real: no se refresca);
+//  - solo si el API contestó `tier: 'public'` (o 404 en un detalle: desde el
+//    Bloque 2 "dos tiendas", 28-oct-2026, un producto `members` NO EXISTE para la
+//    audiencia anónima, así que un token vencido se ve como "no encontrado") Y el
+//    access token local está vencido (token vigente + tier público o 404 = es su
+//    precio real / un 404 real: no se refresca);
 //  - un intento a la vez y, como máximo, uno por minuto para toda la pestaña.
 // El módulo es puro salvo por su estado en memoria; el refresh se INYECTA.
 
@@ -54,6 +57,12 @@ export interface RecoveryDecisionInput {
   hasCustomerSession: boolean;
   /** Tier con el que el API cotizó la respuesta REAL (no un placeholder). */
   tier: StorefrontPriceTier | null | undefined;
+  /**
+   * El API respondió 404 a un detalle (`STF_PRODUCT_NOT_FOUND`). Para la audiencia
+   * anónima un producto `members` no existe (Bloque 2, 28-oct-2026): con sesión de
+   * cliente y token vencido es la misma señal que `tier: 'public'`.
+   */
+  notFound?: boolean;
   accessToken: string | null | undefined;
   nowMs: number;
   lastAttemptAt: number | null;
@@ -61,7 +70,9 @@ export interface RecoveryDecisionInput {
 }
 
 export function shouldRecoverViewerPrice(input: RecoveryDecisionInput): boolean {
-  if (!input.hasCustomerSession || input.tier !== 'public') return false;
+  // Señal de que el API pudo atenderlo como VISITANTE: precio público o "no encontrado".
+  const servedAsVisitor = input.tier === 'public' || input.notFound === true;
+  if (!input.hasCustomerSession || !servedAsVisitor) return false;
   if (input.inFlight) return false;
   if (input.lastAttemptAt !== null && input.nowMs - input.lastAttemptAt < RECOVERY_COOLDOWN_MS) return false;
   return isAccessTokenExpired(input.accessToken, input.nowMs);
@@ -102,6 +113,8 @@ export function getServerViewerSessionStatus(): ViewerSessionStatus {
 export interface RecoveryAttemptInput {
   hasCustomerSession: boolean;
   tier: StorefrontPriceTier | null | undefined;
+  /** 404 de un detalle con sesión de cliente (ver `RecoveryDecisionInput.notFound`). */
+  notFound?: boolean;
   getAccessToken: () => string | null;
   /** El refresh EXISTENTE (p. ej. `() => authService.refreshToken()`). */
   refresh: () => Promise<unknown>;
@@ -146,6 +159,7 @@ export async function attemptViewerPriceRecovery(input: RecoveryAttemptInput): P
   const decide = shouldRecoverViewerPrice({
     hasCustomerSession: input.hasCustomerSession,
     tier: input.tier,
+    notFound: input.notFound,
     accessToken: input.getAccessToken(),
     nowMs: now(),
     lastAttemptAt,

@@ -67,7 +67,15 @@ const HEALTH_CARDS: { id: string; title: string; help: string; bases: string[]; 
     bases: ['zone_price_missing'],
     onlyCountry: 'MX',
   },
-  { id: 'preciobajo', title: 'Precio sospechosamente bajo', help: 'Ya se ven en la tienda con un precio público simbólico (material interno, cortesías). Revísalos y, si no deben venderse, ocúltalos de la tienda.', bases: ['suspicious_low_price'] },
+  // Audiencia en línea (Bloque 2, mig 177): lo marcado para el PÚBLICO sin precio público del país o sin foto.
+  {
+    id: 'publico',
+    title: 'Al público sin precio o sin imagen',
+    help: 'Marcados para venderse al público pero sin precio público del país o sin foto: la tienda pública no los muestra bien.',
+    bases: ['public_no_public_price', 'public_no_image'],
+  },
+  // Desde el Bloque 2 el API solo evalúa esta regla sobre productos al público ('public').
+  { id: 'preciobajo', title: 'Precio sospechosamente bajo', help: 'Marcados para el público con un precio simbólico (material interno, cortesías). Revísalos y, si no deben venderse al público, cámbialos a Distribuidores o No se vende en línea.', bases: ['suspicious_low_price'] },
   { id: 'nombres', title: 'Nombres por normalizar', help: 'En mayúsculas, con espacios sobrantes o duplicados.', bases: ['name_uppercase', 'name_untrimmed', 'duplicate_name'] },
   { id: 'slugs', title: 'URLs fuera de convención', help: 'Sin URL o que no siguen clave-nombre.', bases: ['no_slug', 'slug_off_convention'] },
   { id: 'fiscal', title: 'Sin regla fiscal o clave SAT', help: 'Necesarias para facturar en México.', bases: ['no_tax_rule', 'no_sat_code'], onlyCountry: 'MX' },
@@ -250,7 +258,8 @@ function SaludContent() {
           <Info className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <p>
             Un producto aparece en la tienda de un país cuando está activo, visible en tienda, es producto o
-            paquete, tiene URL y precio público vigente en ese país.
+            paquete, tiene URL y precio público vigente en ese país. A quién aparece (público o solo
+            distribuidores) lo decide &quot;Se vende en línea a&quot; en su ficha.
           </p>
         </div>
 

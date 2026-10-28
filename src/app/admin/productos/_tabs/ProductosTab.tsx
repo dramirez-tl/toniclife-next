@@ -6,9 +6,9 @@
 // y paginación (estado en la URL con useQueryFilters). Los kits y las
 // promociones NO salen aquí: tienen su pestaña y su editor.
 //
-//  - Filtros: búsqueda, clave exacta, categoría, tipo, estado, en tienda, POS,
-//    destacado, país de referencia, con/sin precio, con/sin imagen y
-//    "Le falta…" (multi). Chips removibles.
+//  - Filtros: búsqueda, clave exacta, categoría, tipo, estado, en tienda, a quién
+//    se vende en línea (Bloque 2, mig 177), POS, destacado, país de referencia,
+//    con/sin precio, con/sin imagen y "Le falta…" (multi). Chips removibles.
 //  - Selección POR PÁGINA (nunca "todos los resultados") con acciones masivas
 //    seguras: `expectedCount` + ConfirmDialog con el alcance real; desactivar
 //    exige escribir DESACTIVAR.
@@ -60,6 +60,9 @@ import {
   BULK_ACTIONS,
   CATALOG_LIST_SORT_KEYS,
   HEALTH_ISSUE_BASES,
+  ONLINE_AUDIENCE_HELP,
+  ONLINE_AUDIENCE_LABEL,
+  ONLINE_AUDIENCE_OPTIONS,
   PRODUCTS_LIST_RETURN_KEY,
   PRODUCTS_TAB_TYPES,
   PRODUCT_TYPE_LABEL,
@@ -89,6 +92,7 @@ import { formatCurrency } from '@/lib/currency';
 import { canEnableBranchCatalog } from '@/lib/inventory/branch-catalog';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
+import { isProductOnlineAudience, type ProductOnlineAudience } from '@/types/product';
 import {
   STORE_COUNTRY_CODES,
   productsAdminService,
@@ -130,6 +134,9 @@ export function ProductosTab() {
   const status = get('status') as 'all' | 'active' | 'inactive';
   const tipo = get('tipo');
   const tienda = get('tienda');
+  // Audiencia en línea (Bloque 2, mig 177): un valor fuera del enum se ignora (no se manda al API).
+  const audienciaRaw = get('audiencia');
+  const audiencia: ProductOnlineAudience | '' = isProductOnlineAudience(audienciaRaw) ? audienciaRaw : '';
   const pos = get('pos');
   const destacado = get('destacado');
   const paisRaw = get('pais');
@@ -173,6 +180,7 @@ export function ProductosTab() {
     if (status === 'inactive') params.isActive = false;
     const visible = triState(tienda);
     if (visible !== undefined) params.visibleEcommerce = visible;
+    if (audiencia) params.audience = [audiencia];
     const inPos = triState(pos);
     if (inPos !== undefined) params.availableInPos = inPos;
     const featured = triState(destacado);
@@ -187,7 +195,7 @@ export function ProductosTab() {
       params.sortDir = dir;
     }
     return params;
-  }, [country, tipo, search, sku, categoryId, status, tienda, pos, destacado, precio, imagen, missing, orden, dir]);
+  }, [country, tipo, search, sku, categoryId, status, tienda, audiencia, pos, destacado, precio, imagen, missing, orden, dir]);
 
   const listParams = useMemo<CatalogAdminListParams>(
     () => ({ ...filterParams, page: currentPage, limit: pageSize }),
@@ -214,13 +222,14 @@ export function ProductosTab() {
 
   const [bulkMeta, setBulkMeta] = useState<BulkActionMeta | null>(null);
   const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [bulkAudience, setBulkAudience] = useState<ProductOnlineAudience | ''>('');
   const [duplicateSource, setDuplicateSource] = useState<CatalogAdminRow | null>(null);
   const [activeTarget, setActiveTarget] = useState<ProductActiveTarget | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [enableBranchOpen, setEnableBranchOpen] = useState(false);
 
   const hasActiveFilters = Boolean(
-    search || sku || categoryId || status !== 'all' || tipo || tienda || pos || destacado || precio || imagen || missing.length > 0,
+    search || sku || categoryId || status !== 'all' || tipo || tienda || audiencia || pos || destacado || precio || imagen || missing.length > 0,
   );
 
   const resetFilters = () => {
@@ -233,6 +242,7 @@ export function ProductosTab() {
       status: null,
       tipo: null,
       tienda: null,
+      audiencia: null,
       pos: null,
       destacado: null,
       precio: null,
@@ -259,6 +269,7 @@ export function ProductosTab() {
         ids: selectedIds,
         action: bulkMeta.action,
         categoryId: bulkMeta.action === 'set_category' ? bulkCategoryId : undefined,
+        audience: bulkMeta.action === 'set_audience' && bulkAudience ? bulkAudience : undefined,
         expectedCount: selectedIds.length,
       });
       // `updated` cuenta solo lo que cambió; lo que ya estaba así llega como
@@ -308,7 +319,7 @@ export function ProductosTab() {
       };
       const csv = buildCsv(
         [
-          'Clave', 'Nombre', 'Tipo', 'Categoría', 'Activo', 'Visible en tienda', 'POS', 'Destacado',
+          'Clave', 'Nombre', 'Tipo', 'Categoría', 'Activo', 'Visible en tienda', 'Se vende en línea a', 'POS', 'Destacado',
           'Precio público MX', 'Precio público US', 'Precio público CO', 'Precio público GT',
           'Se vende en MX', 'Se vende en US', 'Ficha %', 'Pendientes', 'URL', 'Actualizado',
         ],
@@ -319,6 +330,7 @@ export function ProductosTab() {
           r.categoryName ?? '',
           r.isActive,
           r.isVisibleEcommerce,
+          ONLINE_AUDIENCE_LABEL[r.onlineAudience],
           r.availableInPos,
           r.isFeatured,
           r.publicPrices.MX ?? '',
@@ -441,6 +453,16 @@ export function ProductosTab() {
       ),
     },
     {
+      // Audiencia en línea (Bloque 2): para quién está en línea; "En tienda" dice si pasa el candado.
+      key: 'onlineAudience',
+      header: 'En línea a',
+      render: (row) => (
+        <span className={`text-sm ${row.onlineAudience === 'none' ? 'text-gray-600' : 'text-gray-800'}`}>
+          {ONLINE_AUDIENCE_LABEL[row.onlineAudience]}
+        </span>
+      ),
+    },
+    {
       key: 'score',
       header: 'Ficha',
       sortable: true,
@@ -555,6 +577,7 @@ export function ProductosTab() {
   if (tipo) chips.push({ key: 'tipo', label: `Tipo: ${productTypeLabel(tipo)}`, clear: () => setParams({ tipo: null }) });
   if (status !== 'all') chips.push({ key: 'status', label: status === 'active' ? 'Activos' : 'Inactivos', clear: () => setParams({ status: null }) });
   if (tienda) chips.push({ key: 'tienda', label: tienda === 'si' ? 'Visibles en tienda' : 'Ocultos de la tienda', clear: () => setParams({ tienda: null }) });
+  if (audiencia) chips.push({ key: 'audiencia', label: `En línea a: ${ONLINE_AUDIENCE_LABEL[audiencia]}`, clear: () => setParams({ audiencia: null }) });
   if (pos) chips.push({ key: 'pos', label: pos === 'si' ? 'Disponibles en POS' : 'Sin POS', clear: () => setParams({ pos: null }) });
   if (destacado) chips.push({ key: 'dest', label: destacado === 'si' ? 'Destacados' : 'No destacados', clear: () => setParams({ destacado: null }) });
   if (precio) chips.push({ key: 'precio', label: `${precio === 'con' ? 'Con' : 'Sin'} precio público en ${country}`, clear: () => setParams({ precio: null }) });
@@ -729,6 +752,19 @@ export function ProductosTab() {
                 <SearchableSelect id={`${ids}-tienda`} options={YES_NO} value={tienda} onChange={(v) => setParams({ tienda: v || null })} allLabel="Indistinto" className="w-full" />
               </div>
               <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-audiencia`} className="mb-1 block text-xs">
+                  Se vende en línea a
+                </Label>
+                <SearchableSelect
+                  id={`${ids}-audiencia`}
+                  options={ONLINE_AUDIENCE_OPTIONS}
+                  value={audiencia}
+                  onChange={(v) => setParams({ audiencia: v || null })}
+                  allLabel="Indistinto"
+                  className="w-full"
+                />
+              </div>
+              <div className="lg:col-span-3">
                 <Label htmlFor={`${ids}-pos`} className="mb-1 block text-xs">
                   Disponible en POS
                 </Label>
@@ -884,6 +920,7 @@ export function ProductosTab() {
                         key={meta.action}
                         onSelect={() => {
                           setBulkCategoryId('');
+                          setBulkAudience('');
                           setBulkMeta(meta);
                         }}
                         className={meta.destructive ? 'text-red-700 focus:text-red-800' : undefined}
@@ -911,7 +948,7 @@ export function ProductosTab() {
                 data={rows}
                 isLoading={list.isLoading && !list.data}
                 getRowKey={(row) => row.id}
-                minWidthClassName="min-w-[1180px]"
+                minWidthClassName="min-w-[1300px]"
                 sortingMode="server"
                 sortState={sortState}
                 onSortChange={handleSortChange}
@@ -975,7 +1012,9 @@ export function ProductosTab() {
         confirmText={bulkMeta?.confirmText}
         destructive={bulkMeta?.destructive}
         isPending={bulk.isPending}
-        disabled={bulkMeta?.action === 'set_category' && !bulkCategoryId}
+        disabled={
+          (bulkMeta?.action === 'set_category' && !bulkCategoryId) || (bulkMeta?.action === 'set_audience' && !bulkAudience)
+        }
         onConfirm={runBulk}
       >
         <div className="space-y-3">
@@ -991,6 +1030,21 @@ export function ProductosTab() {
                 placeholder="Elige una categoría"
                 className="w-full"
               />
+            </div>
+          ) : null}
+          {bulkMeta?.action === 'set_audience' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`${ids}-bulk-audience`}>Se vende en línea a</Label>
+              <SearchableSelect
+                id={`${ids}-bulk-audience`}
+                options={ONLINE_AUDIENCE_OPTIONS}
+                value={bulkAudience}
+                onChange={(v) => setBulkAudience(isProductOnlineAudience(v) ? v : '')}
+                showAllOption={false}
+                placeholder="Elige a quién se vende en línea"
+                className="w-full"
+              />
+              {bulkAudience ? <p className="text-xs text-gray-600">{ONLINE_AUDIENCE_HELP[bulkAudience]}</p> : null}
             </div>
           ) : null}
           <ul className="max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-sm">

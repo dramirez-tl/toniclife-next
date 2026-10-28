@@ -1,8 +1,9 @@
 'use client';
 
 // (4) Clasificación y tienda — categoría, visibilidad por canal (tienda / POS),
-// destacado, orden en tienda y el panel "Dónde se vende" con las razones por
-// país cuando el producto NO aparece en la tienda.
+// a quién se vende en línea (products.online_audience, mig 177 — Bloque 2
+// "dos tiendas", 28-oct-2026), destacado, orden en tienda y el panel "Dónde se
+// vende" con las razones por país cuando el producto NO aparece en la tienda.
 
 import { useId, useMemo } from 'react';
 import Link from 'next/link';
@@ -12,17 +13,19 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCategories } from '@/hooks/useProducts';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
-import { SELLABLE_TYPES, productTypeLabel } from '../../lib/labels';
+import { ONLINE_AUDIENCE_HELP, ONLINE_AUDIENCE_OPTIONS, SELLABLE_TYPES, productTypeLabel } from '../../lib/labels';
 import { useStorefrontStatus } from '../../useProductsAdmin';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 import { StorefrontStatusPanel } from '../StorefrontStatusPanel';
-import { SwitchField, TextField } from '../fields';
+import { FieldFrame, SwitchField, TextField } from '../fields';
 import { useSectionForm } from '../useSectionForm';
 
 const schema = z.object({
   categoryId: z.string(),
   isVisibleEcommerce: z.boolean(),
+  // Mismos valores que products.online_audience (CHECK de la mig 177).
+  onlineAudience: z.enum(['none', 'members', 'public']),
   availableInPos: z.boolean(),
   isFeatured: z.boolean(),
   sortOrder: z
@@ -36,8 +39,15 @@ type StoreValues = z.infer<typeof schema>;
 export function StoreSection() {
   const { mode, productId, product, patchProduct, goToSection, hasKitSection } = useProductForm();
   const categorySelectId = useId();
+  const audienceSelectId = useId();
   const { data: categories = [] } = useCategories({ isActive: true });
   const status = useStorefrontStatus(productId, mode === 'edit');
+
+  // Audiencia en línea (Bloque 2): los kits de inscripción quedan fuera (siguen
+  // por "Inscripción en línea" de la sección Kit); los paquetes SÍ la tienen
+  // aunque sus interruptores de canal vivan en la sección Paquete. En el alta
+  // solo se oculta cuando se está creando un kit (`?tipo=kit`).
+  const showAudience = product ? product.productType !== 'kit' : !hasKitSection;
 
   // Kits y paquetes: "Punto de venta" e "Inscripción en línea" se editan en la
   // sección Kit (un solo formulario por campo); un kit nuevo nace fuera de ambos.
@@ -45,11 +55,21 @@ export function StoreSection() {
     () => ({
       categoryId: product?.categoryId ?? '',
       isVisibleEcommerce: product?.isVisibleEcommerce ?? !hasKitSection,
+      // Default de BD (fail-closed): nada sale al público hasta marcarlo aquí.
+      onlineAudience: product?.onlineAudience ?? 'members',
       availableInPos: product?.availableInPos ?? !hasKitSection,
       isFeatured: product?.isFeatured ?? false,
       sortOrder: String(product?.sortOrder ?? 0),
     }),
-    [product?.categoryId, product?.isVisibleEcommerce, product?.availableInPos, product?.isFeatured, product?.sortOrder, hasKitSection],
+    [
+      product?.categoryId,
+      product?.isVisibleEcommerce,
+      product?.onlineAudience,
+      product?.availableInPos,
+      product?.isFeatured,
+      product?.sortOrder,
+      hasKitSection,
+    ],
   );
 
   const section = useSectionForm<StoreValues>({
@@ -60,6 +80,7 @@ export function StoreSection() {
       const dto: AdminUpdateProductDto = {};
       if (dirty.categoryId) dto.categoryId = v.categoryId || null;
       if (dirty.isVisibleEcommerce && !hasKitSection) dto.isVisibleEcommerce = v.isVisibleEcommerce;
+      if (dirty.onlineAudience && showAudience) dto.onlineAudience = v.onlineAudience;
       if (dirty.availableInPos && !hasKitSection) dto.availableInPos = v.availableInPos;
       if (dirty.isFeatured) dto.isFeatured = v.isFeatured;
       if (dirty.sortOrder) dto.sortOrder = v.sortOrder === '' ? 0 : Number(v.sortOrder);
@@ -68,6 +89,7 @@ export function StoreSection() {
     toCreate: (v) => ({
       categoryId: v.categoryId || undefined,
       ...(hasKitSection ? {} : { isVisibleEcommerce: v.isVisibleEcommerce, availableInPos: v.availableInPos }),
+      ...(showAudience ? { onlineAudience: v.onlineAudience } : {}),
       isFeatured: v.isFeatured,
       sortOrder: v.sortOrder === '' ? 0 : Number(v.sortOrder),
     }),
@@ -137,24 +159,54 @@ export function StoreSection() {
               .
             </p>
           ) : (
-            <>
-              <SwitchField
-                control={control}
-                name="isVisibleEcommerce"
-                label="Visible en tienda"
-                help={
-                  notSellableType
-                    ? `La tienda no vende productos de tipo "${productTypeLabel(product?.productType)}" aunque este interruptor esté encendido.`
-                    : 'Además debe estar activo, tener URL y precio público vigente en el país.'
-                }
-              />
-              <SwitchField
-                control={control}
-                name="availableInPos"
-                label="Disponible en POS"
-                help="El punto de venta lo ofrece en los países donde tenga precio."
-              />
-            </>
+            <SwitchField
+              control={control}
+              name="isVisibleEcommerce"
+              label="Visible en tienda"
+              help={
+                notSellableType
+                  ? `La tienda no vende productos de tipo "${productTypeLabel(product?.productType)}" aunque este interruptor esté encendido.`
+                  : 'Además debe estar activo, tener URL y precio público vigente en el país.'
+              }
+            />
+          )}
+          {showAudience ? (
+            <Controller
+              control={control}
+              name="onlineAudience"
+              render={({ field, fieldState }) => (
+                <FieldFrame
+                  id={audienceSelectId}
+                  label="Se vende en línea a"
+                  error={fieldState.error?.message}
+                  help={
+                    notSellableType
+                      ? `La tienda no vende productos de tipo "${productTypeLabel(product?.productType)}" aunque se marque una audiencia.`
+                      : `${ONLINE_AUDIENCE_HELP[field.value]} Además debe estar activo, visible en tienda, tener URL y precio público vigente en el país.`
+                  }
+                >
+                  <SearchableSelect
+                    id={audienceSelectId}
+                    options={ONLINE_AUDIENCE_OPTIONS}
+                    value={field.value}
+                    onChange={field.onChange}
+                    showAllOption={false}
+                    disabled={section.readOnly}
+                    className="w-full"
+                    aria-invalid={!!fieldState.error}
+                    aria-describedby={fieldState.error ? `${audienceSelectId}-error` : `${audienceSelectId}-help`}
+                  />
+                </FieldFrame>
+              )}
+            />
+          ) : null}
+          {hasKitSection ? null : (
+            <SwitchField
+              control={control}
+              name="availableInPos"
+              label="Disponible en POS"
+              help="El punto de venta lo ofrece en los países donde tenga precio."
+            />
           )}
           <SwitchField
             control={control}
@@ -169,8 +221,8 @@ export function StoreSection() {
             <h3 className="mb-1 text-sm font-semibold text-gray-900">Dónde se vende</h3>
             <p className="mb-3 text-xs text-gray-600">
               Un producto aparece en la tienda de un país cuando está activo, visible en tienda, es producto
-              o paquete, tiene URL y precio público vigente en ese país. Refleja lo guardado, no los cambios
-              pendientes.
+              o paquete, tiene URL y precio público vigente en ese país. A quién aparece lo decide
+              &quot;Se vende en línea a&quot;. Refleja lo guardado, no los cambios pendientes.
             </p>
             <StorefrontStatusPanel
               entries={status.data}

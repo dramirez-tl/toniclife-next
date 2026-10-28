@@ -12,12 +12,14 @@
 import api from '@/lib/axios';
 import { hydrateBlobErrorBody } from '@/components/admin/products/lib/errors';
 import { slugsForRevalidateRequest } from '@/lib/storefront/revalidate-input';
-import type {
-  Product,
-  ProductImage,
-  ProductPrice,
-  ProductType,
-  KitPosition,
+import {
+  isProductOnlineAudience,
+  type Product,
+  type ProductImage,
+  type ProductOnlineAudience,
+  type ProductPrice,
+  type ProductType,
+  type KitPosition,
 } from '@/types/product';
 
 // ================================
@@ -54,7 +56,10 @@ export type HealthIssueBase =
   | 'visible_not_sellable_type'
   | 'kit_recipe_empty'
   | 'kit_no_position'
-  | 'kit_phantom_own_stock';
+  | 'kit_phantom_own_stock'
+  // Audiencia en línea (Bloque 2): marcado al público sin precio público del país / sin foto.
+  | 'public_no_public_price'
+  | 'public_no_image';
 
 export interface HealthIssueCount {
   code: string;
@@ -87,6 +92,8 @@ export interface CatalogAdminRow {
   imageUrl: string | null;
   isActive: boolean;
   isVisibleEcommerce: boolean;
+  /** A quién se vende en línea (mig 177); `members` si el API aún no lo manda. */
+  onlineAudience: ProductOnlineAudience;
   availableInPos: boolean;
   isFeatured: boolean;
   sortOrder: number | null;
@@ -112,6 +119,8 @@ export interface CatalogAdminListParams {
   productType?: string[];
   isActive?: boolean;
   visibleEcommerce?: boolean;
+  /** Audiencia en línea (claves repetidas `audience=members&audience=public`). */
+  audience?: ProductOnlineAudience[];
   availableInPos?: boolean;
   isFeatured?: boolean;
   /** ISO2: país de referencia para precio, orden por precio y reglas por país. */
@@ -146,12 +155,15 @@ export type CatalogBulkAction =
   | 'disable_pos'
   | 'feature'
   | 'unfeature'
-  | 'set_category';
+  | 'set_category'
+  | 'set_audience';
 
 export interface CatalogBulkDto {
   ids: string[];
   action: CatalogBulkAction;
   categoryId?: string;
+  /** Obligatoria con `action: 'set_audience'` (400 PRD_BULK_INVALID si falta). Kits de inscripción omitidos. */
+  audience?: ProductOnlineAudience;
   /** Debe coincidir con `ids.length`; si no, 409 PRD_COUNT_MISMATCH y no se escribe. */
   expectedCount: number;
 }
@@ -239,7 +251,10 @@ export type StorefrontBlockReason =
   | 'no_slug'
   | 'no_public_price'
   | 'out_of_stock'
-  | 'country_not_ready';
+  | 'country_not_ready'
+  // Audiencia (Bloque 2): `not_online` bloquea; `members_only` solo informa (sí se lista, con sesión).
+  | 'not_online'
+  | 'members_only';
 
 export interface StorefrontStatusEntry {
   countryCode: string;
@@ -247,6 +262,8 @@ export interface StorefrontStatusEntry {
   sellable: boolean;
   reasons: string[];
   url: string | null;
+  /** Para quién está en línea; `members_only` en `reasons` es informativo. */
+  audience: ProductOnlineAudience;
 }
 
 // ================================
@@ -340,6 +357,8 @@ export interface AdminUpdateProductDto {
   weightKg?: number | null;
   volumeCm3?: number | null;
   isVisibleEcommerce?: boolean;
+  /** A quién se vende en línea (mig 177). Sin la migración aplicada: 503 PRD_MIGRATION_PENDING. */
+  onlineAudience?: ProductOnlineAudience;
   isFeatured?: boolean;
   availableInPos?: boolean;
   slug?: string;
@@ -417,6 +436,7 @@ function normalizeRow(raw: unknown): CatalogAdminRow | null {
     imageUrl: str(raw.imageUrl),
     isActive: bool(raw.isActive),
     isVisibleEcommerce: bool(raw.isVisibleEcommerce),
+    onlineAudience: isProductOnlineAudience(raw.onlineAudience) ? raw.onlineAudience : 'members',
     availableInPos: bool(raw.availableInPos),
     isFeatured: bool(raw.isFeatured),
     sortOrder: num(raw.sortOrder),
@@ -690,6 +710,7 @@ class ProductsAdminService {
         sellable: bool(e.sellable),
         reasons: strList(e.reasons),
         url: str(e.url),
+        audience: isProductOnlineAudience(e.audience) ? e.audience : 'members',
       }))
       .filter((e) => e.countryCode !== '');
   }

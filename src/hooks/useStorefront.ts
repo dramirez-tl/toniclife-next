@@ -11,8 +11,13 @@
 // de axios nunca refresca. `useViewerPriceRecovery` lo detecta (sesión de cliente +
 // `tier: 'public'` + token local vencido), pide UNA vez el refresh existente y
 // vuelve a consultar. Guardas anti-bucle en `lib/storefront/viewer-session`.
+//
+// NO ENCONTRADO (Bloque 2 "dos tiendas", 28-oct-2026): para la audiencia anónima un
+// producto `members` responde 404, así que un cliente con token vencido vería
+// "Producto no encontrado". `useStorefrontNotFoundRecovery` aplica la misma
+// recuperación (un refresh, un refetch) antes de dar el 404 por bueno.
 
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/auth.service';
 import { storefrontService } from '@/services/storefront.service';
@@ -109,6 +114,48 @@ function useViewerPriceRecovery(tier: StorefrontPriceTier | undefined): void {
       cancelled = true;
     };
   }, [hasCustomerSession, tier, queryClient]);
+}
+
+/**
+ * Bloque 2 (28-oct-2026): para el visitante anónimo un producto `members` NO EXISTE
+ * (404 STF_PRODUCT_NOT_FOUND). Si un cliente con sesión recibe ese 404 y su access
+ * token local ya venció, el API lo atendió como visitante (el guard opcional no da
+ * 401, así que axios no refresca): se pide UNA vez el refresh existente y se vuelve
+ * a consultar. Devuelve `true` mientras el intento (y el refetch que dispara) sigue
+ * en curso, para no pintar "no encontrado" antes de saber si era por el token.
+ * Token vigente, invitado/staff o refresh rechazado: `false` enseguida (404 real).
+ * `episode` identifica ESE 404 (slug + `errorUpdatedAt`): si el refetch vuelve a dar
+ * 404 llega como episodio nuevo y, con el token ya vigente, no refresca (sin bucle).
+ */
+export function useStorefrontNotFoundRecovery(notFound: boolean, episode: string): boolean {
+  const { hasCustomerSession } = useStorefrontViewer();
+  const queryClient = useQueryClient();
+  // Episodio cuyo intento ya terminó sin recuperar nada: ese 404 es real.
+  const [settled, setSettled] = useState<string | null>(null);
+  const active = notFound && hasCustomerSession;
+
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    void attemptViewerPriceRecovery({
+      hasCustomerSession: true,
+      tier: undefined,
+      notFound: true,
+      getAccessToken: () => authService.getAccessToken(),
+      refresh: () => authService.refreshToken(),
+    }).then(async (recovered) => {
+      // Solo quien inició el intento recibe `true`: una sola invalidación (listado,
+      // detalle, relacionados y sugerencias). Se espera el refetch: si el 404 persiste
+      // llega como episodio nuevo y, con token vigente, se da por real.
+      if (recovered) await queryClient.invalidateQueries({ queryKey: storefrontKeys.all });
+      if (!cancelled) setSettled(episode);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, episode, queryClient]);
+
+  return active && settled !== episode;
 }
 
 /**
