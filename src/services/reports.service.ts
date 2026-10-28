@@ -425,6 +425,8 @@ class ReportsService {
     if (payload.apply) form.append('apply', 'true');
     if (payload.excludeRows?.length) form.append('excludeRows', JSON.stringify(payload.excludeRows));
     if (payload.tieBreak) form.append('tieBreak', payload.tieBreak);
+    if (payload.window) form.append('window', payload.window);
+    if (payload.windowDays) form.append('windowDays', String(payload.windowDays));
     const response = await api.post<KitBonusImportResult>('/reports/kit-bonuses/payments/import', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

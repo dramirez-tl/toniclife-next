@@ -1050,6 +1050,9 @@ export interface ImportKitBonusPaymentsPayload {
   /** Renglones del Excel que no se marcan */
   excludeRows?: number[];
   tieBreak?: 'oldest' | 'none';
+  /** before_paid = los windowDays días anteriores a la fecha de pago (default del admin); page = startDate..endDate */
+  window?: 'page' | 'before_paid';
+  windowDays?: number;
 }
 export interface KitBonusesResponse {
   startDate: string;

@@ -8,6 +8,13 @@
 // "Marcar pagados" (mismo camino que marcar a mano: montos congelados) y, si
 // se deja la casilla, la página timbra uno por uno los recibos de nómina de los
 // grupos ASIMILADOS que quedaron listos.
+//
+// Ventana del cruce: Tesorería paga semanas atrasadas y mezcla CEDIS y CEDEAS
+// en la misma hoja (con el Excel real del 27-oct-2026: 71 de 83 renglones
+// casan buscando 60 días antes del pago en todas las sucursales, contra 44 con
+// la semana y el filtro CEDIS de la página), por eso el default es "60 días
+// antes de la fecha de pago · todas las sucursales"; se puede usar el rango y
+// los filtros de la página.
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -31,6 +38,10 @@ import type {
   KitBonusImportRow,
   KitBonusImportRowStatus,
 } from '@/types/reports';
+
+type WindowMode = 'before_paid' | 'page';
+type BranchScope = 'all' | 'page';
+const WINDOW_DAYS_OPTIONS = [30, 60, 90, 120] as const;
 
 interface Props {
   open: boolean;
@@ -114,6 +125,9 @@ export function KitBonusImportDialog({
   const [preview, setPreview] = useState<KitBonusImportResult | null>(null);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [stampAfter, setStampAfter] = useState(true);
+  const [windowMode, setWindowMode] = useState<WindowMode>('before_paid');
+  const [windowDays, setWindowDays] = useState<number>(60);
+  const [branchScope, setBranchScope] = useState<BranchScope>('all');
   const [applying, setApplying] = useState(false);
 
   const working = importMutation.isPending || applying;
@@ -127,6 +141,9 @@ export function KitBonusImportDialog({
     setPreview(null);
     setExcluded(new Set());
     setStampAfter(true);
+    setWindowMode('before_paid');
+    setWindowDays(60);
+    setBranchScope('all');
   };
 
   const close = (next: boolean) => {
@@ -135,28 +152,41 @@ export function KitBonusImportDialog({
     onOpenChange(next);
   };
 
-  const basePayload = (f: File) => ({
-    file: f,
-    startDate,
-    endDate,
-    branchType,
-    ...(country ? { country } : {}),
-    ...(sheet ? { sheet } : {}),
-    ...(paidAt ? { paidAt } : {}),
-    ...(reference.trim() ? { reference: reference.trim() } : {}),
-    tieBreak,
-  });
+  interface Overrides {
+    sheet?: string;
+    tieBreak?: 'oldest' | 'none';
+    windowMode?: WindowMode;
+    windowDays?: number;
+    branchScope?: BranchScope;
+  }
 
-  const runPreview = async (override?: { sheet?: string; tieBreak?: 'oldest' | 'none' }) => {
+  const basePayload = (f: File, o: Overrides = {}) => {
+    const scope = o.branchScope ?? branchScope;
+    const mode = o.windowMode ?? windowMode;
+    const sheetName = o.sheet ?? sheet;
+    return {
+      file: f,
+      startDate,
+      endDate,
+      branchType: scope === 'all' ? ('all' as const) : branchType,
+      ...(country && scope === 'page' ? { country } : {}),
+      ...(sheetName ? { sheet: sheetName } : {}),
+      ...(paidAt ? { paidAt } : {}),
+      ...(reference.trim() ? { reference: reference.trim() } : {}),
+      tieBreak: o.tieBreak ?? tieBreak,
+      window: mode,
+      ...(mode === 'before_paid' ? { windowDays: o.windowDays ?? windowDays } : {}),
+    };
+  };
+
+  const runPreview = async (override: Overrides = {}) => {
     if (!file) {
       toast.error('Elige el Excel de pagos');
       return;
     }
     try {
       const r = await importMutation.mutateAsync({
-        ...basePayload(file),
-        ...(override?.sheet !== undefined ? { sheet: override.sheet } : {}),
-        ...(override?.tieBreak ? { tieBreak: override.tieBreak } : {}),
+        ...basePayload(file, override),
         apply: false,
       });
       setPreview(r);
@@ -221,8 +251,9 @@ export function KitBonusImportDialog({
           <DialogDescription>
             El Excel con el que depositó Tesorería: una fila por <strong>ID upline</strong> con la <strong>suma</strong> de sus bonos
             (como la hoja &ldquo;Etiquetas de fila · Suma de SUBTOTAL&rdquo;). Cada renglón se cruza con los bonos <strong>pendientes</strong> del
-            patrocinador en {filtersLabel}: casa si el monto es la suma de todos sus grupos pendientes o de algunos (semanas pagadas
-            juntas). Lo que casa se marca pagado con los montos congelados del sistema (ISR por semana).
+            patrocinador en la ventana elegida (por defecto los 60 días anteriores a la fecha de pago, en todas las sucursales):
+            casa si el monto es la suma de todos sus grupos pendientes o de algunos (semanas pagadas juntas). Lo que casa se marca
+            pagado con los montos congelados del sistema (ISR por semana).
           </DialogDescription>
         </DialogHeader>
 
@@ -315,10 +346,54 @@ export function KitBonusImportDialog({
               <option value="none">dejar en duda (no marcar)</option>
             </select>
           </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <span>Buscar bonos pendientes:</span>
+            <select
+              value={windowMode === 'page' ? 'page' : String(windowDays)}
+              disabled={working}
+              onChange={(e) => {
+                const v = e.target.value;
+                const next: Overrides = v === 'page' ? { windowMode: 'page' } : { windowMode: 'before_paid', windowDays: Number(v) };
+                setWindowMode(next.windowMode!);
+                if (next.windowDays) setWindowDays(next.windowDays);
+                if (preview) void runPreview(next);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+            >
+              {WINDOW_DAYS_OPTIONS.map((d) => (
+                <option key={d} value={String(d)}>
+                  {d} días antes de la fecha de pago
+                </option>
+              ))}
+              <option value="page">en el rango de la página</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <span>Sucursal del kit:</span>
+            <select
+              value={branchScope}
+              disabled={working}
+              onChange={(e) => {
+                const v = e.target.value as BranchScope;
+                setBranchScope(v);
+                if (preview) void runPreview({ branchScope: v });
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs"
+            >
+              <option value="all">todas (CEDIS + CEDEAS)</option>
+              <option value="page">las del filtro de la página</option>
+            </select>
+          </label>
         </div>
 
         {preview && s && (
           <>
+            <p className="text-xs text-gray-500">
+              Bonos pendientes buscados del <strong>{dateDisplay(preview.startDate)}</strong> al <strong>{dateDisplay(preview.endDate)}</strong>
+              {' · '}
+              {branchScope === 'all' ? 'todas las sucursales (CEDIS + CEDEAS)' : filtersLabel}
+              {' · '}pago del <strong>{dateDisplay(paidAt || preview.paidAt)}</strong>
+            </p>
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                 {s.rows} renglones · Excel {money(s.excelAmount)}
