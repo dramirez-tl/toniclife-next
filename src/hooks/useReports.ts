@@ -15,6 +15,7 @@ import type {
   NewDistributorsQuery,
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
+  ImportKitBonusPaymentsPayload,
   CashCutQuery,
   SalesByProductDetailQuery,
 } from '@/types/reports';
@@ -81,6 +82,17 @@ export function useMarkKitBonusPayments() {
   return useMutation({
     mutationFn: (payload: MarkKitBonusPaymentsPayload) => reportsService.markKitBonusPayments(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] }),
+  });
+}
+
+/** Tesorería: carga masiva de pagos desde el Excel (vista previa o aplicar); al aplicar refresca el reporte. */
+export function useImportKitBonusPayments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ImportKitBonusPaymentsPayload) => reportsService.importKitBonusPayments(payload),
+    onSuccess: (result) => {
+      if (result.applied) void queryClient.invalidateQueries({ queryKey: ['reports', 'kit-bonuses'] });
+    },
   });
 }
 

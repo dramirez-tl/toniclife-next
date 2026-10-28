@@ -34,6 +34,8 @@ import type {
   KitBonusesResponse,
   KitBonusesQuery,
   MarkKitBonusPaymentsPayload,
+  ImportKitBonusPaymentsPayload,
+  KitBonusImportResult,
   KitBonusPaymentsResult,
   KitBonusPayrollResult,
   KitBonusRevertResult,
@@ -403,6 +405,29 @@ class ReportsService {
   /** Backend: POST /reports/kit-bonuses/payments (Tesorería: pagado congela montos / no pagado con motivo). */
   async markKitBonusPayments(payload: MarkKitBonusPaymentsPayload): Promise<KitBonusPaymentsResult> {
     const response = await api.post<KitBonusPaymentsResult>('/reports/kit-bonuses/payments', payload);
+    return response.data;
+  }
+
+  /**
+   * Backend: POST /reports/kit-bonuses/payments/import (multipart). Excel de Tesorería (una fila por
+   * ID upline con la suma de sus bonos): sin apply = vista previa; con apply marca pagados los que casan.
+   */
+  async importKitBonusPayments(payload: ImportKitBonusPaymentsPayload): Promise<KitBonusImportResult> {
+    const form = new FormData();
+    form.append('file', payload.file);
+    form.append('startDate', payload.startDate);
+    form.append('endDate', payload.endDate);
+    if (payload.branchType && payload.branchType !== 'all') form.append('branchType', payload.branchType);
+    if (payload.country) form.append('country', payload.country);
+    if (payload.sheet) form.append('sheet', payload.sheet);
+    if (payload.paidAt) form.append('paidAt', payload.paidAt);
+    if (payload.reference) form.append('reference', payload.reference);
+    if (payload.apply) form.append('apply', 'true');
+    if (payload.excludeRows?.length) form.append('excludeRows', JSON.stringify(payload.excludeRows));
+    if (payload.tieBreak) form.append('tieBreak', payload.tieBreak);
+    const response = await api.post<KitBonusImportResult>('/reports/kit-bonuses/payments/import', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   }
 

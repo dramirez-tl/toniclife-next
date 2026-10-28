@@ -942,6 +942,115 @@ export interface KitBonusPaidCancelled {
   cancellationReason: string | null;
 }
 
+/** Carga masiva de pagos desde el Excel de Tesorería (28-oct-2026): una fila por ID upline con la suma de sus bonos. */
+export type KitBonusImportRowStatus =
+  | 'matched'
+  | 'matched_oldest'
+  | 'ambiguous'
+  | 'amount_mismatch'
+  | 'not_found'
+  | 'already_paid'
+  | 'held'
+  | 'invalid';
+export interface KitBonusImportGroupRef {
+  key: string;
+  paymentStatus: KitBonusPaymentStatus;
+  weekStart: string | null;
+  weekEnd: string | null;
+  bonuses: number;
+  subtotal: number;
+  isr: number;
+  total: number;
+  regime: string;
+  currencyCode: string;
+}
+export interface KitBonusImportRow {
+  /** Renglón del Excel (1-based) */
+  row: number;
+  sponsorNumber: string;
+  sponsorName: string | null;
+  /** Monto bruto (subtotal) del Excel */
+  amount: number;
+  excelIsr: number | null;
+  excelNet: number | null;
+  status: KitBonusImportRowStatus;
+  /** Grupos pendientes que se marcan */
+  groups: KitBonusImportGroupRef[];
+  /** Lo que tiene el patrocinador cuando no casa o hay duda */
+  candidates: KitBonusImportGroupRef[];
+  computedIsr: number | null;
+  /** ISR del Excel − calculado (aviso) */
+  isrDiff: number | null;
+  message: string;
+  /** true = se marca al aplicar */
+  selected: boolean;
+}
+export interface KitBonusImportInvalidRow {
+  row: number;
+  reason: string;
+}
+export interface KitBonusImportSummary {
+  rows: number;
+  matched: number;
+  matchedOldest: number;
+  ambiguous: number;
+  amountMismatch: number;
+  notFound: number;
+  alreadyPaid: number;
+  held: number;
+  invalid: number;
+  matchedAmount: number;
+  excelAmount: number;
+  isrWarnings: number;
+}
+export interface KitBonusImportPayrollGroup {
+  key: string;
+  sponsorNumber: string;
+  sponsorName: string;
+  regime: string;
+  currencyCode: string;
+  bonuses: number;
+  subtotal: number;
+  isr: number;
+  total: number;
+  /** kit_bonus_payments.id del grupo pagado (para timbrar) */
+  paymentIds: string[];
+  voucher: KitBonusGroupVoucher | null;
+}
+export interface KitBonusImportResult {
+  fileName: string;
+  sheets: string[];
+  sheet: string;
+  /** YYYY-MM-DD usada / propuesta */
+  paidAt: string;
+  paidAtHint: string | null;
+  reference: string | null;
+  startDate: string;
+  endDate: string;
+  rows: KitBonusImportRow[];
+  invalid: KitBonusImportInvalidRow[];
+  summary: KitBonusImportSummary;
+  applied: boolean;
+  marked: number;
+  /** Grupos pagados por esta carga (con comprobante) para timbrar los recibos */
+  payroll: KitBonusImportPayrollGroup[];
+}
+export interface ImportKitBonusPaymentsPayload {
+  file: File;
+  startDate: string;
+  endDate: string;
+  branchType?: KitBonusBranchType;
+  country?: string;
+  /** Hoja (nombre o índice 1-based); sin valor = la primera */
+  sheet?: string;
+  paidAt?: string;
+  reference?: string;
+  /** true = marca pagados; false/omitido = vista previa */
+  apply?: boolean;
+  /** Renglones del Excel que no se marcan */
+  excludeRows?: number[];
+  tieBreak?: 'oldest' | 'none';
+}
 export interface KitBonusesResponse {
   startDate: string;
   endDate: string;

@@ -25,8 +25,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import { TreasuryHeader, TreasuryTabs } from '@/components/admin/treasury';
+import { KitBonusImportDialog } from '@/components/admin/treasury/KitBonusImportDialog';
 import { paymentMethodLabel } from '@/lib/delivery-print';
 import {
   useKitBonuses,
@@ -66,6 +67,7 @@ import type {
   KitBonusGroupItem,
   KitBonusGroupVoucher,
   KitBonusHoldReason,
+  KitBonusImportResult,
   KitBonusPaymentLine,
   KitBonusPaymentStatus,
   KitBonusRow,
@@ -780,6 +782,8 @@ export default function BonosInscripcionPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [stampAllProgress, setStampAllProgress] = useState<string | null>(null);
+  // Carga masiva de pagos desde el Excel de Tesorería (28-oct-2026).
+  const [importOpen, setImportOpen] = useState(false);
 
   const applyDates = useCallback((from: string, to: string) => {
     if (!from || !to) {
@@ -947,6 +951,61 @@ export default function BonosInscripcionPage() {
     }
     setStampAllProgress(null);
     if (ok > 0) toast.success(`${ok} ${ok === 1 ? 'recibo timbrado' : 'recibos timbrados'}`);
+  };
+
+  // Carga masiva (28-oct-2026): ya marcados los pagos del Excel, timbra uno por
+  // uno los recibos de nómina de los grupos ASIMILADOS que quedaron listos
+  // (mismo criterio que "Timbrar recibos"); se detiene en el primer rechazo.
+  const handleImported = async (result: KitBonusImportResult, stampAfter: boolean) => {
+    toast.success(
+      `${result.marked} ${result.marked === 1 ? 'bono marcado' : 'bonos marcados'} como pagados desde ${result.fileName} (hoja "${result.sheet}")`,
+    );
+    setSelected(new Set());
+    if (!stampAfter) return;
+    const targets = result.payroll.filter(
+      (g) =>
+        g.voucher?.mode === 'payroll' &&
+        (g.voucher.status === 'not_stamped' || g.voucher.status === 'error' || g.voucher.status === 'cancelled') &&
+        g.voucher.issues.length === 0 &&
+        g.paymentIds.length > 0,
+    );
+    const skipped = result.payroll.length - targets.length;
+    if (targets.length === 0) {
+      toast.info(
+        skipped
+          ? `Ningún recibo listo para timbrar: ${skipped} ${skipped === 1 ? 'grupo' : 'grupos'} sin datos fiscales, de otro régimen o ya con comprobante`
+          : 'Ningún recibo de nómina por timbrar',
+      );
+      return;
+    }
+    let ok = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const g = targets[i];
+      setStampAllProgress(`${i + 1}/${targets.length}`);
+      setBusyKey(g.key);
+      try {
+        const r = await stampMutation.mutateAsync(g.paymentIds);
+        if (r.status === 'stamped' || r.status === 'sent') {
+          ok++;
+          continue;
+        }
+        toast.error(
+          r.status === 'error'
+            ? `El PAC rechazó el recibo de ${g.sponsorName}: ${r.error ?? 'sin detalle'}`
+            : `Recibo de ${g.sponsorName} en proceso (${r.status}); actualiza en unos segundos`,
+        );
+        break;
+      } catch (err) {
+        toast.error(apiErrorMessage(err, `No se pudo timbrar el recibo de ${g.sponsorName}`));
+        break;
+      } finally {
+        setBusyKey(null);
+      }
+    }
+    setStampAllProgress(null);
+    const summary = `${ok} de ${targets.length} ${targets.length === 1 ? 'recibo timbrado' : 'recibos timbrados'}${skipped ? ` · ${skipped} sin recibo (sin datos fiscales, otro régimen o ya con comprobante)` : ''}`;
+    if (ok === targets.length) toast.success(summary);
+    else toast.warning(`${summary}. Los que faltan se timbran con "Timbrar recibos"`);
   };
 
   const submitReceived = async () => {
@@ -1359,6 +1418,17 @@ export default function BonosInscripcionPage() {
                   <Button size="sm" variant="outline" onClick={() => openMark('excluded')} disabled={busy || visiblePending.length === 0}>
                     Marcar como no pagados
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImportOpen(true)}
+                    disabled={busy || !appliedStart || !appliedEnd}
+                    className="border-green-700 text-green-800 hover:bg-green-50"
+                    title="Sube el Excel con el que depositó Tesorería (una fila por ID upline con la suma de sus bonos): se marcan pagados los que casan con los pendientes del rango y, si quieres, se timbran los recibos de nómina"
+                  >
+                    <ArrowUpTrayIcon className="h-4 w-4" aria-hidden />
+                    Subir Excel de pagos
+                  </Button>
                   {view === 'grouped' && readyPayroll.length > 0 && (
                     <Button
                       size="sm"
@@ -1565,6 +1635,19 @@ export default function BonosInscripcionPage() {
             </div>
           )}
         </div>
+
+        {/* Carga masiva de pagos desde el Excel de Tesorería (28-oct-2026) */}
+        <KitBonusImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          startDate={appliedStart}
+          endDate={appliedEnd}
+          branchType={branchType}
+          country={countryParam}
+          filtersLabel={filtersLabel}
+          busy={busy}
+          onApplied={handleImported}
+        />
 
         {/* Diálogo: marcar pagados / no pagados / revertir */}
         <Dialog open={dialog !== null} onOpenChange={(open) => !open && !busy && setDialog(null)}>
