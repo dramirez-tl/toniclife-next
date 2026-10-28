@@ -17,11 +17,16 @@ const LOCALIZABLE_BASE_RE = /^\/(productos|quiz|carrito|checkout)(\/|$)/;
 // enlaza el bloque de consentimiento y los archivos de rastreo.
 const SUBDOMAIN_PASSTHROUGH_RE = /^\/(terminos|privacidad|robots\.txt|sitemap\.xml)(\/|$)/;
 
-// ── Maintenance / Countdown gate ───────────────────────────────────────────
-// Set LAUNCH_DATE in .env to enable the maintenance gate.
-// Users can bypass it via /config_sistemas (sets a cookie).
-// After the launch date passes, the gate disables itself automatically.
+// ── Candado de lanzamiento / contador ─────────────────────────────────────
+// Con LAUNCH_DATE en las variables del entorno (producción en Vercel:
+// LAUNCH_DATE=2026-11-02T06:00:00-06:00 = lunes 2-nov-2026 6:00 a. m. CDMX,
+// junto con NEXT_PUBLIC_LAUNCH_DATE para el contador de /mantenimiento) todo
+// visitante ve /mantenimiento ("Estamos trabajando para ti" + contador) hasta
+// esa hora; después el candado se apaga solo, sin redeploy. El equipo puede
+// saltárselo con la cookie de /config_sistemas. Staging no define la variable.
 const LAUNCH_DATE = process.env.LAUNCH_DATE || '';
+// Lo que un rastreador necesita aun con el candado puesto.
+const LAUNCH_GATE_PASSTHROUGH_RE = /^\/(robots\.txt|sitemap\.xml|manifest\.webmanifest)$/;
 
 function isBeforeLaunch(): boolean {
   if (!LAUNCH_DATE) return false;
@@ -117,13 +122,19 @@ export async function middleware(request: NextRequest) {
   if (
     pathname !== '/mantenimiento' &&
     pathname !== '/config_sistemas' &&
+    !LAUNCH_GATE_PASSTHROUGH_RE.test(pathname) &&
     isBeforeLaunch() &&
     !bypassCountdown
   ) {
     return NextResponse.redirect(new URL('/mantenimiento', request.url));
   }
-  // If launch date has passed but user is still on /mantenimiento, send them home
-  if (pathname === '/mantenimiento' && !isBeforeLaunch()) {
+  // Pasada la fecha (o sin candado, como en staging) /mantenimiento manda al
+  // inicio, salvo ?preview=1 para revisar la página antes del lanzamiento.
+  if (
+    pathname === '/mantenimiento' &&
+    !isBeforeLaunch() &&
+    !request.nextUrl.searchParams.has('preview')
+  ) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

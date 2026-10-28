@@ -527,7 +527,7 @@ npm run lint             # ESLint
   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
   - `NEXT_PUBLIC_BASE_URL` — para `metadataBase` en `app/layout.tsx`.
     **Pendiente documentar en `.env.example`.**
-  - `LAUNCH_DATE` / `NEXT_PUBLIC_LAUNCH_DATE` — countdown gate opcional.
+  - `LAUNCH_DATE` / `NEXT_PUBLIC_LAUNCH_DATE` — candado de lanzamiento opcional (producción: `2026-11-02T06:00:00-06:00`, lunes 2-nov-2026 6:00 a. m. CDMX; `/mantenimiento` muestra "Estamos trabajando para ti" + contador y el candado se apaga solo; bypass con la cookie de `/config_sistemas`).
 - `vercel.json` NO está en git — config vive en la UI de Vercel.
 - Se usa `@vercel/analytics` — el `<Analytics />` está en el layout raíz.
 - `next.config.ts` fija `output: 'standalone'` (también listo para Docker
