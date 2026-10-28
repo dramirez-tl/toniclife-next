@@ -4,7 +4,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersService } from '@/services/orders.service';
 import type {
+  Order,
   OrderQueryParams,
+  TrackingInfo,
   UpdateOrderStatusDto,
   UpdateShippingDto,
   CancelOrderDto,
@@ -33,19 +35,36 @@ export function useMyOrders(params: OrderQueryParams = {}) {
   });
 }
 
-export function useMyOrder(id: string | null) {
+/** Opciones de consulta que la confirmación post-pago necesita (polling mientras el webhook confirma). */
+export interface MyOrderQueryOptions<T> {
+  enabled?: boolean;
+  refetchInterval?:
+    | number
+    | false
+    | ((query: { state: { data?: T; dataUpdateCount: number } }) => number | false);
+  retry?: number | boolean;
+}
+
+/** Clave de React Query del detalle de un pedido del cliente (la usa la confirmación para leer su estado). */
+export const myOrderQueryKey = (id: string | null) => ['orders', 'my-orders', id] as const;
+
+export function useMyOrder(id: string | null, options: MyOrderQueryOptions<Order> = {}) {
   return useQuery({
-    queryKey: ['orders', 'my-orders', id],
+    queryKey: myOrderQueryKey(id),
     queryFn: () => ordersService.getMyOrder(id!),
-    enabled: !!id,
+    enabled: !!id && (options.enabled ?? true),
+    refetchInterval: options.refetchInterval,
+    retry: options.retry,
   });
 }
 
-export function useMyOrderTracking(id: string | null) {
+export function useMyOrderTracking(id: string | null, options: MyOrderQueryOptions<TrackingInfo> = {}) {
   return useQuery({
     queryKey: ['orders', 'my-orders', id, 'tracking'],
     queryFn: () => ordersService.getMyOrderTracking(id!),
-    enabled: !!id,
+    enabled: !!id && (options.enabled ?? true),
+    refetchInterval: options.refetchInterval,
+    retry: options.retry,
   });
 }
 

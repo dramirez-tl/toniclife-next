@@ -577,6 +577,95 @@
       "bannerTitle": "Compras en línea muy pronto",
       "bannerBody": "Estamos afinando los últimos detalles de la tienda. Puedes armar tu carrito y revisar tu pedido; el pago se habilitará en breve.",
       "blocked": "Las compras en línea estarán disponibles muy pronto. Gracias por tu paciencia."
+    },
+    "confirmation": {
+      "loading": "Cargando la confirmación de tu pedido…",
+      "title": "¡Pedido confirmado!",
+      "thanks": "Gracias por tu compra",
+      "thanksName": "Gracias por tu compra, {name}",
+      "received": "Recibimos tu pedido y lo estamos preparando con cuidado",
+      "orderNumber": "Número de pedido",
+      "awaitingTitle": "Estamos confirmando tu pago…",
+      "awaitingBody": "Tu banco ya autorizó el cargo; en unos segundos verás tu pedido confirmado. No cierres esta página.",
+      "awaitingTimeout": "Tu pago está en proceso. En cuanto se confirme te avisaremos por correo; también puedes revisarlo en Mis pedidos.",
+      "failedTitle": "No pudimos procesar tu pago",
+      "failedBody": "El cargo no se completó y no se generó ningún cobro. Puedes intentarlo de nuevo desde tu carrito.",
+      "backToCart": "Volver al carrito",
+      "cancelledTitle": "Pedido cancelado",
+      "cancelledBody": "El pedido {number} fue cancelado. Si tienes dudas, contáctanos.",
+      "myOrders": "Ver mis pedidos",
+      "emailNotice": {
+        "title": "Confirmación enviada por correo electrónico",
+        "body": "Te enviamos un correo con todos los detalles de tu pedido. Si no lo encuentras, revisa tu carpeta de spam."
+      },
+      "whatsNext": "¿Qué sigue?",
+      "steps": {
+        "confirmed": {
+          "title": "Pedido confirmado",
+          "hint": "Recibimos tu pedido y el pago está confirmado"
+        },
+        "preparing": {
+          "title": "En preparación",
+          "hint": "Almacén está surtiendo y empacando tus productos"
+        },
+        "ready": {
+          "title": "Listo para envío",
+          "hint": "Tu paquete está listo y en espera de la paquetería"
+        },
+        "shipped": {
+          "title": "Enviado",
+          "hint": "Te avisaremos por correo con la paquetería y el número de guía"
+        },
+        "delivered": {
+          "title": "Entregado",
+          "hint": "Te avisaremos cuando tu pedido sea entregado"
+        },
+        "pickupDelivered": {
+          "title": "Entregado en mostrador",
+          "hint": "Pasa por tu pedido a {branch}; te lo entregamos en mostrador"
+        }
+      },
+      "details": "Detalles del pedido",
+      "itemFallback": "Producto",
+      "quantity": "Cantidad: {count}",
+      "subtotal": "Subtotal",
+      "shipping": "Envío",
+      "free": "Gratis",
+      "discount": "Descuento",
+      "tax": "IVA",
+      "total": "Total",
+      "shippingAddress": "Dirección de envío",
+      "pickupTitle": "Recoger en sucursal",
+      "pickupAt": "Recoger en {branch}",
+      "pickupDefaultBranch": "la sucursal seleccionada",
+      "addressUnavailable": "La dirección de envío se muestra en Mis pedidos.",
+      "fulfilledBy": "Surte: {branch}",
+      "carrierAndTracking": "{carrier} · Guía {tracking}",
+      "trackingOnly": "Guía {tracking}",
+      "trackingLink": "Rastrear en la paquetería",
+      "payment": "Método de pago",
+      "paymentConfirmed": "Pago con tarjeta confirmado",
+      "pointsTitle": "¡Ganaste {points} puntos!",
+      "pointsBody": "Ya cuentan para tu periodo; revísalos en tu panel",
+      "viewPoints": "Ver mi panel",
+      "trackTitle": "Sigue tu pedido",
+      "trackBody": "Consulta el estatus, la paquetería y la guía en Mis pedidos",
+      "trackCta": "Ver mis pedidos",
+      "shopTitle": "Sigue comprando",
+      "shopBody": "Descubre más productos para tu bienestar",
+      "shopCta": "Explorar productos",
+      "helpTitle": "¿Necesitas ayuda?",
+      "helpBody": "Nuestro equipo de soporte está disponible para asistirte",
+      "helpCenter": "Centro de ayuda",
+      "contact": "Contactar soporte",
+      "notFoundTitle": "Pedido no encontrado",
+      "notFoundBody": "No encontramos ese pedido. Revisa el enlace de tu correo de confirmación o consulta Mis pedidos.",
+      "errorTitle": "No pudimos cargar tu pedido",
+      "errorBody": "Revisa tu conexión e inténtalo de nuevo. Si ya pagaste, tu pedido está a salvo: lo verás en Mis pedidos y en tu correo.",
+      "goToProducts": "Ir a productos",
+      "print": "Imprimir confirmación",
+      "share": "Compartir",
+      "shareText": "Mi pedido {number} ha sido confirmado"
     }
   },
   "quiz": {
@@ -1674,6 +1763,9 @@
       "trackingOnly": "Guía {tracking}",
       "shippedOn": "Enviado el {date}",
       "deliveredOn": "Entregado el {date}",
+      "pickupDelivered": "Entregado en mostrador el {date}",
+      "preparing": "Almacén está preparando tu pedido",
+      "awaitingPickup": "Listo para que pases por él a {branch}",
       "pagination": {
         "previous": "Anterior",
         "next": "Siguiente",

@@ -577,6 +577,95 @@
       "bannerTitle": "Online purchases coming soon",
       "bannerBody": "We're putting the final touches on the store. You can build your cart and review your order; checkout will be enabled shortly.",
       "blocked": "Online purchases will be available very soon. Thank you for your patience."
+    },
+    "confirmation": {
+      "loading": "Loading your order confirmation…",
+      "title": "Order confirmed!",
+      "thanks": "Thank you for your purchase",
+      "thanksName": "Thank you for your purchase, {name}",
+      "received": "We received your order and are preparing it with care",
+      "orderNumber": "Order number",
+      "awaitingTitle": "We are confirming your payment…",
+      "awaitingBody": "Your bank already authorized the charge; in a few seconds you will see your order confirmed. Please keep this page open.",
+      "awaitingTimeout": "Your payment is being processed. We will email you as soon as it is confirmed; you can also check it in My Orders.",
+      "failedTitle": "We could not process your payment",
+      "failedBody": "The charge did not go through and nothing was billed. You can try again from your cart.",
+      "backToCart": "Back to cart",
+      "cancelledTitle": "Order cancelled",
+      "cancelledBody": "Order {number} was cancelled. If you have any questions, contact us.",
+      "myOrders": "View my orders",
+      "emailNotice": {
+        "title": "Confirmation sent by email",
+        "body": "We sent you an email with all the details of your order. If you cannot find it, check your spam folder."
+      },
+      "whatsNext": "What happens next?",
+      "steps": {
+        "confirmed": {
+          "title": "Order confirmed",
+          "hint": "We received your order and the payment is confirmed"
+        },
+        "preparing": {
+          "title": "Being prepared",
+          "hint": "The warehouse is picking and packing your products"
+        },
+        "ready": {
+          "title": "Ready to ship",
+          "hint": "Your package is ready and waiting for the carrier"
+        },
+        "shipped": {
+          "title": "Shipped",
+          "hint": "We will email you the carrier and tracking number"
+        },
+        "delivered": {
+          "title": "Delivered",
+          "hint": "We will let you know when your order is delivered"
+        },
+        "pickupDelivered": {
+          "title": "Picked up at the counter",
+          "hint": "Pick up your order at {branch}; we will hand it to you at the counter"
+        }
+      },
+      "details": "Order details",
+      "itemFallback": "Product",
+      "quantity": "Quantity: {count}",
+      "subtotal": "Subtotal",
+      "shipping": "Shipping",
+      "free": "Free",
+      "discount": "Discount",
+      "tax": "Tax",
+      "total": "Total",
+      "shippingAddress": "Shipping address",
+      "pickupTitle": "Pick up in store",
+      "pickupAt": "Pick up at {branch}",
+      "pickupDefaultBranch": "the selected branch",
+      "addressUnavailable": "The shipping address is shown in My Orders.",
+      "fulfilledBy": "Shipped by: {branch}",
+      "carrierAndTracking": "{carrier} · Tracking {tracking}",
+      "trackingOnly": "Tracking {tracking}",
+      "trackingLink": "Track with the carrier",
+      "payment": "Payment method",
+      "paymentConfirmed": "Card payment confirmed",
+      "pointsTitle": "You earned {points} points!",
+      "pointsBody": "They already count toward your period; check them in your panel",
+      "viewPoints": "View my panel",
+      "trackTitle": "Track your order",
+      "trackBody": "Check the status, carrier and tracking number in My Orders",
+      "trackCta": "View my orders",
+      "shopTitle": "Keep shopping",
+      "shopBody": "Discover more products for your wellness",
+      "shopCta": "Explore products",
+      "helpTitle": "Need help?",
+      "helpBody": "Our support team is available to assist you",
+      "helpCenter": "Help center",
+      "contact": "Contact support",
+      "notFoundTitle": "Order not found",
+      "notFoundBody": "We could not find that order. Check the link in your confirmation email or go to My Orders.",
+      "errorTitle": "We could not load your order",
+      "errorBody": "Check your connection and try again. If you already paid, your order is safe: you will see it in My Orders and in your email.",
+      "goToProducts": "Go to products",
+      "print": "Print confirmation",
+      "share": "Share",
+      "shareText": "My order {number} has been confirmed"
     }
   },
   "quiz": {
@@ -1674,6 +1763,9 @@
       "trackingOnly": "Tracking {tracking}",
       "shippedOn": "Shipped on {date}",
       "deliveredOn": "Delivered on {date}",
+      "pickupDelivered": "Picked up at the counter on {date}",
+      "preparing": "The warehouse is preparing your order",
+      "awaitingPickup": "Ready for pickup at {branch}",
       "pagination": {
         "previous": "Previous",
         "next": "Next",

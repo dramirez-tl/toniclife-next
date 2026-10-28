@@ -61,6 +61,11 @@ export interface Order {
   total: string;
   totalPoints: number;
   totalBusinessValue: string;
+  /**
+   * Moneda del cobro (order_payments.currency_code). La manda el API desde el
+   * Bloque 1 (28-oct-2026); pedidos migrados o un API anterior no la traen.
+   */
+  currencyCode?: string;
 
   // v2.0 fields
   source?: string;
@@ -166,6 +171,28 @@ export interface CancelOrderDto {
   reason: string;
 }
 
+/**
+ * Entrega de almacén de un pedido web (pos_sale_deliveries con order_id, mig 176,
+ * 28-oct-2026). Espejo de OrderDeliverySummaryDto del API. El avance operativo
+ * (surtido, envío, entrega) vive aquí; orders.status se queda en 'confirmed'.
+ */
+export interface OrderDeliverySummary {
+  id: string;
+  /** pending | ready | shipped | delivered | cancelled */
+  status: string;
+  statusLabel: string;
+  mode: 'shipping' | 'pickup';
+  fulfillBranchName: string;
+  carrier: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  requestedAt: string;
+  readyAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+}
+
 export interface TrackingInfo {
   orderNumber: string;
   status: string;
@@ -181,6 +208,8 @@ export interface TrackingInfo {
     notes?: string;
     createdAt: string;
   }[];
+  /** Entrega de almacén del pedido web; ausente si aún no existe (o API anterior a la mig 176). */
+  delivery?: OrderDeliverySummary;
 }
 
 export interface Payment {

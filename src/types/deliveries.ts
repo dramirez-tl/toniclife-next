@@ -1,7 +1,15 @@
-// deliveries.ts - Entregas a domicilio de ventas POS (API: pos/deliveries, mig 161).
-// Call Center las captura al cobrar en el POS; Almacén las surte desde el admin.
+// deliveries.ts - Entregas a domicilio de ventas POS (API: pos/deliveries, mig 161)
+// y, desde la mig 176 (28-oct-2026), también de PEDIDOS WEB pagados en línea.
+// Call Center captura las del POS al cobrar; las de pedidos web las crea el API
+// al confirmarse el pago; Almacén surte ambas desde el admin.
 
 export type DeliveryStatus = 'pending' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
+
+/** Origen de la entrega: venta del POS (sale_id) o pedido web (order_id). */
+export type DeliveryKind = 'pos_sale' | 'order';
+
+/** Envío con paquetería o recoger en sucursal (solo pedidos web; el POS siempre envía). */
+export type DeliveryMode = 'shipping' | 'pickup';
 
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   pending: 'Pendiente de surtir',
@@ -9,6 +17,16 @@ export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   shipped: 'Enviado',
   delivered: 'Entregado',
   cancelled: 'Cancelado',
+};
+
+export const DELIVERY_KIND_LABELS: Record<DeliveryKind, string> = {
+  pos_sale: 'Venta POS',
+  order: 'Pedido web',
+};
+
+export const DELIVERY_MODE_LABELS: Record<DeliveryMode, string> = {
+  shipping: 'Envío a domicilio',
+  pickup: 'Recoger en sucursal',
 };
 
 export interface DeliveryQuery {
@@ -21,6 +39,9 @@ export interface DeliveryQuery {
   includeUnpaid?: boolean;
   customerId?: string;
   search?: string;
+  /** Solo ventas POS o solo pedidos web; sin filtro = ambas. */
+  /** pos_sale | order | all (sin valor el API devuelve solo ventas POS). */
+  kind?: DeliveryKind | 'all';
   page?: number;
   limit?: number;
 }
@@ -51,12 +72,24 @@ export interface Delivery {
   id: string;
   status: DeliveryStatus;
   statusLabel: string;
-  saleId: string;
+  /** Venta POS o pedido web (mig 176). */
+  kind: DeliveryKind;
+  /** Envío a domicilio o recoger en sucursal (POS siempre 'shipping'). */
+  deliveryMode: DeliveryMode;
+  /** Venta del POS; null cuando la entrega es de un pedido web. */
+  saleId: string | null;
+  /** Pedido web; null cuando la entrega es de una venta POS. */
+  orderId: string | null;
+  /** Folio del pedido web (= saleNumber cuando kind === 'order'). */
+  orderNumber: string | null;
+  /** Folio: sale_number del POS u order_number del pedido web. */
   saleNumber: string;
+  /** POS: pos_sales.status; pedido web: 'completed' si está pagado (confirmed), si no orders.status. */
   saleStatus: string;
   saleCreatedAt: string;
   saleTotal: number;
   currencyCode: string;
+  /** Pedido web: código del método de pago (credit_card, stripe…). */
   paymentMethod: string;
   saleBranchId: string;
   saleBranchName: string;
@@ -84,7 +117,9 @@ export interface Delivery {
   fulfillBranchName: string;
   carrier: string | null;
   trackingNumber: string | null;
-  requestedById: string;
+  /** Null en pedidos web de compradores sin usuario (invitados). */
+  requestedById: string | null;
+  /** Call Center / usuario que capturó; 'Tienda en línea' en pedidos web. */
   requestedByName: string;
   requestedAt: string;
   readyAt: string | null;
@@ -112,7 +147,7 @@ export interface Delivery {
 
 export interface ShipmentDeliverySummary {
   id: string;
-  saleId: string;
+  saleId: string | null;
   saleNumber: string;
   status: DeliveryStatus;
   statusLabel: string;

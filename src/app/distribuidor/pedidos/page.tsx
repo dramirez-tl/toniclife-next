@@ -23,10 +23,22 @@ import type { MyOrder } from '@/services/distributorApi';
 
 // ===== Helpers de formato =====
 
-const currencyFmt = new Intl.NumberFormat('es-MX', {
-  style: 'currency',
-  currency: 'MXN',
-});
+// Moneda POR PEDIDO (hay distribuidores en USD): un formateador por código,
+// cacheado; sin código (API anterior a la mig 176) se asume MXN.
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+function currencyFormatter(code: string | null | undefined): Intl.NumberFormat {
+  const currency = (code || 'MXN').toUpperCase();
+  let fmt = currencyFormatters.get(currency);
+  if (!fmt) {
+    try {
+      fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency });
+    } catch {
+      fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+    }
+    currencyFormatters.set(currency, fmt);
+  }
+  return fmt;
+}
 
 function formatDate(value: string | null): string {
   if (!value) return '—';
@@ -193,11 +205,17 @@ export default function MisPedidosPage() {
 
 // ===== Tarjeta de pedido =====
 // Dos tipos: pedido de la tienda en línea (`online`) y entrega a domicilio
-// capturada por Call Center en el POS (`home_delivery`), que además muestra
-// quién recibe, el domicilio, la sucursal que surte y la guía cuando ya se envió.
+// capturada por Call Center en el POS (`home_delivery`). Ambos muestran la
+// entrega de almacén (sucursal que surte, guía, enviado/entregado) cuando
+// existe: las del POS siempre; las de pedidos web desde la mig 176 (se crea al
+// confirmarse el pago). Un pedido web para recoger en sucursal no lleva
+// domicilio ni guía: solo "Recoger en…" y "Entregado en mostrador el…".
 
 function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
   const home = order.kind === 'home_delivery';
+  const pickup = order.deliveryMode === 'pickup' || (!home && order.delivery === 'pickup');
+  const showsFulfillment = home || !!order.deliveryStatus;
+  const currencyFmt = currencyFormatter(order.currencyCode);
   return (
     <Card className="border border-gray-200 transition-shadow hover:shadow-md">
       <CardContent className="p-5">
@@ -227,22 +245,31 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
                 </>
               )}
             </p>
-            {home ? (
+            {showsFulfillment ? (
               <div className="mt-1.5 space-y-0.5 text-sm text-gray-600">
                 <p className="flex items-center gap-1.5">
-                  <TruckIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+                  {pickup ? (
+                    <BuildingStorefrontIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+                  ) : (
+                    <TruckIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+                  )}
                   <span>
-                    {t('homeDelivery')}
-                    {order.fulfillBranchName
+                    {pickup
+                      ? t('pickupAt', {
+                          branch:
+                            order.pickupBranchName || order.fulfillBranchName || t('pickupDefaultBranch'),
+                        })
+                      : t('homeDelivery')}
+                    {!pickup && order.fulfillBranchName
                       ? ` · ${t('fulfilledBy', { branch: order.fulfillBranchName })}`
                       : ''}
                   </span>
                 </p>
-                {order.recipientName && (
+                {!pickup && order.recipientName && (
                   <p className="text-gray-500">{t('recipient', { name: order.recipientName })}</p>
                 )}
-                {order.addressText && <p className="text-gray-500">{order.addressText}</p>}
-                {order.trackingNumber && (
+                {!pickup && order.addressText && <p className="text-gray-500">{order.addressText}</p>}
+                {!pickup && order.trackingNumber && (
                   <p className="font-medium text-[#3E667D]">
                     {order.carrier
                       ? t('carrierAndTracking', { carrier: order.carrier, tracking: order.trackingNumber })
@@ -250,9 +277,21 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
                   </p>
                 )}
                 {order.deliveredAt ? (
-                  <p className="text-green-700">{t('deliveredOn', { date: formatDate(order.deliveredAt) })}</p>
-                ) : order.shippedAt ? (
+                  <p className="text-green-700">
+                    {pickup
+                      ? t('pickupDelivered', { date: formatDate(order.deliveredAt) })
+                      : t('deliveredOn', { date: formatDate(order.deliveredAt) })}
+                  </p>
+                ) : order.shippedAt && !pickup ? (
                   <p className="text-gray-500">{t('shippedOn', { date: formatDate(order.shippedAt) })}</p>
+                ) : order.deliveryStatus === 'ready' && pickup ? (
+                  <p className="text-[#3E667D]">
+                    {t('awaitingPickup', {
+                      branch: order.pickupBranchName || order.fulfillBranchName || t('pickupDefaultBranch'),
+                    })}
+                  </p>
+                ) : order.deliveryStatus === 'pending' && order.status !== 'cancelled' ? (
+                  <p className="text-gray-500">{t('preparing')}</p>
                 ) : null}
               </div>
             ) : (

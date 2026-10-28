@@ -20,6 +20,7 @@ export const deliveriesService = {
     if (query.includeUnpaid) params.append('includeUnpaid', '1');
     if (query.customerId) params.append('customerId', query.customerId);
     if (query.search) params.append('search', query.search);
+    if (query.kind) params.append('kind', query.kind);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
     const qs = params.toString();

@@ -126,7 +126,14 @@ export interface MyOrder {
   pickupBranchName: string | null;
   orderDate: string | null;
   createdAt: string | null;
-  /** Solo entregas a domicilio. */
+  /** Moneda del pedido (ISO 4217); el API anterior a la mig 176 no la manda. */
+  currencyCode: string;
+  /** Pedido web: envío o recoger en sucursal (null en entregas del POS y en API anterior). */
+  deliveryMode: 'shipping' | 'pickup' | null;
+  /**
+   * Estado de la entrega de almacén: entregas del POS y, desde la mig 176
+   * (28-oct-2026), pedidos web pagados (pending | ready | shipped | delivered | cancelled).
+   */
   deliveryStatus: string | null;
   carrier: string | null;
   trackingNumber: string | null;

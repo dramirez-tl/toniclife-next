@@ -438,11 +438,12 @@ export const useAuthenticatedCheckout = () => {
   });
 };
 
-/** Sucursales disponibles para recoger (todos los países). */
-export const usePickupBranches = () => {
+/** Sucursales disponibles para recoger (todos los países). `enabled` = false evita la consulta (p. ej. sin sesión). */
+export const usePickupBranches = (enabled = true) => {
   return useQuery({
     queryKey: [...cartKeys.checkout(), 'pickup-branches'],
     queryFn: () => cartService.getPickupBranches(),
+    enabled,
     staleTime: 10 * 60 * 1000, // 10 min — cambian poco
   });
 };

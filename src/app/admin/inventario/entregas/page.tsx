@@ -1,16 +1,20 @@
 'use client';
 
 // Entregas a domicilio (Almacén): pedidos que Call Center cobra en el POS en
-// modo staff con domicilio confirmado. Almacén los surte, los marca listos,
-// enviados (paquetería + guía) y entregados; puede ver la orden de surtido y
-// el ticket e imprimirlos. Sin fechas, el API muestra desde HOY más todo lo
-// que siga abierto (las ventas anteriores al arranque se surtieron en el legacy).
+// modo staff con domicilio confirmado y, desde la mig 176 (28-oct-2026), los
+// PEDIDOS WEB pagados en línea (badge "Pedido web"; se crean solos al confirmarse
+// el pago). Almacén los surte, los marca listos, enviados (paquetería + guía) y
+// entregados; un pedido web para RECOGER en sucursal solo se marca "entregado en
+// mostrador". Puede ver la orden de surtido y el ticket e imprimirlos. Sin
+// fechas, el API muestra desde HOY más todo lo que siga abierto (las ventas
+// anteriores al arranque se surtieron en el legacy).
 
 import { Fragment, Suspense, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import {
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   CheckCircleIcon,
   ClockIcon,
   EyeIcon,
@@ -46,21 +50,37 @@ import {
   useUpdateDeliveryStatus,
 } from '@/hooks/useDeliveries';
 import {
+  DELIVERY_KIND_LABELS,
+  DELIVERY_MODE_LABELS,
   DELIVERY_STATUS_LABELS,
   type Delivery,
+  type DeliveryKind,
   type DeliveryQuery,
   type DeliveryStatus,
 } from '@/types/deliveries';
+import { buildPickingSheetHtml, buildTicketHtml, printHtml } from '@/lib/delivery-print';
 import {
-  buildPickingSheetHtml,
-  buildTicketHtml,
+  DELIVERY_DETAIL_ONLY_ACTIONS,
+  availableDeliveryActions,
+  deliveryActionTitle,
+  deliveryCancelNotice,
+  deliveryDocLabel,
+  deliveryModeOf,
+  deliveryPaymentNotice,
+  deliveryPaymentShort,
   paymentMethodLabel,
-  printHtml,
-} from '@/lib/delivery-print';
+  type DeliveryAction,
+} from '@/lib/deliveries/actions';
 import { currentFontScale } from '@/lib/preferences';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 type Tab = 'open' | DeliveryStatus | 'all';
+
+const KIND_OPTIONS: { value: 'all' | DeliveryKind; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'pos_sale', label: 'Ventas POS' },
+  { value: 'order', label: 'Pedidos web' },
+];
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'open', label: 'Abiertas' },
@@ -80,7 +100,35 @@ const STATUS_STYLE: Record<DeliveryStatus, { bg: string; text: string; icon: Rea
   cancelled: { bg: 'bg-gray-100', text: 'text-gray-600', icon: <NoSymbolIcon className="h-3 w-3" /> },
 };
 
-type ActionType = 'ready' | 'shipped' | 'delivered' | 'cancelled' | 'edit' | 'unready' | 'unship';
+type ActionType = DeliveryAction;
+
+/** Ícono y color del botón de cada acción en la tabla. */
+const ACTION_BUTTON: Record<ActionType, { Icon: typeof CheckCircleIcon; className?: string }> = {
+  ready: { Icon: CheckCircleIcon, className: 'text-blue-700 hover:bg-blue-50' },
+  shipped: { Icon: TruckIcon, className: 'text-indigo-700 hover:bg-indigo-50' },
+  delivered: { Icon: CheckCircleIcon, className: 'text-green-700 hover:bg-green-50' },
+  edit: { Icon: PencilSquareIcon },
+  unready: { Icon: ArrowUturnLeftIcon },
+  unship: { Icon: ArrowUturnLeftIcon },
+  cancelled: { Icon: NoSymbolIcon, className: 'text-red-600 hover:bg-red-50' },
+};
+
+/** Badges de origen y modo (solo cuando aportan: pedido web / recoger en sucursal). */
+function KindBadges({ d }: { d: Pick<Delivery, 'kind' | 'deliveryMode'> }) {
+  if (d.kind !== 'order') return null;
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1">
+      <span className="inline-flex items-center rounded-full bg-[#C8DDF2] px-2 py-0.5 text-[11px] font-medium text-[#2f5165]">
+        {DELIVERY_KIND_LABELS.order}
+      </span>
+      {deliveryModeOf(d) === 'pickup' ? (
+        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+          {DELIVERY_MODE_LABELS.pickup}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /** Renglón de la tabla: la primera entrega del envío + todas las que lo comparten en esta vista. */
 type DeliveryRowItem = Delivery & { members: Delivery[] };
@@ -141,11 +189,14 @@ function EntregasContent() {
   const { get, getNumber, setParams } = useQueryFilters({
     tab: 'open',
     branch: 'all',
+    kind: 'all',
     page: '1',
     limit: '50',
   });
   const tab = (get('tab') || 'open') as Tab;
   const branchFilter = get('branch');
+  const kindRaw = get('kind');
+  const kindFilter: 'all' | DeliveryKind = kindRaw === 'order' || kindRaw === 'pos_sale' ? kindRaw : 'all';
   const fromDate = get('from');
   const toDate = get('to');
   const search = get('search');
@@ -174,10 +225,13 @@ function EntregasContent() {
       toDate: toDate || undefined,
       search: search || undefined,
       includeUnpaid: includeUnpaid || undefined,
+      // Sin kind el API devuelve SOLO ventas POS (fail-closed para la terminal);
+      // el admin pide 'all' explícito para ver ventas y pedidos web juntos.
+      kind: kindFilter,
       page,
       limit,
     }),
-    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, page, limit],
+    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, kindFilter, page, limit],
   );
 
   const { data, isLoading, isFetching, refetch } = useDeliveries(query);
@@ -211,7 +265,7 @@ function EntregasContent() {
     () => [
       {
         key: 'sale',
-        header: 'Venta',
+        header: 'Venta / Pedido',
         render: (d) =>
           d.members.length > 1 || d.shipmentSize > 1 ? (
             <div>
@@ -246,21 +300,20 @@ function EntregasContent() {
               >
                 {d.saleNumber}
               </button>
+              <KindBadges d={d} />
               <p className="text-xs text-gray-500">
                 {formatDateTime(d.saleCreatedAt, timeZone)} · {paymentMethodLabel(d.paymentMethod)}
               </p>
               <p className="text-xs text-gray-700">{formatMoney(d.saleTotal, d.currencyCode)}</p>
-              {d.saleStatus !== 'completed' && (
-                <p className="text-xs font-medium text-red-600">
-                  Venta {d.saleStatus === 'pending' ? 'sin cobrar' : d.saleStatus}
-                </p>
+              {deliveryPaymentShort(d) && (
+                <p className="text-xs font-medium text-red-600">{deliveryPaymentShort(d)}</p>
               )}
             </div>
           ),
       },
       {
         key: 'customer',
-        header: 'Distribuidor · recibe',
+        header: kindFilter === 'order' ? 'Comprador · recibe' : 'Distribuidor · recibe',
         render: (d) => (
           <div className="text-sm">
             {d.members.length > 1 ? (
@@ -291,7 +344,11 @@ function EntregasContent() {
           <div className="text-sm">
             <p>{d.addressText}</p>
             {d.reference ? <p className="text-xs text-gray-500">Ref.: {d.reference}</p> : null}
-            {d.notes ? <p className="text-xs text-amber-700">Call Center: {d.notes}</p> : null}
+            {d.notes ? (
+              <p className="text-xs text-amber-700">
+                {d.kind === 'order' ? 'Comprador' : 'Call Center'}: {d.notes}
+              </p>
+            ) : null}
           </div>
         ),
       },
@@ -351,65 +408,30 @@ function EntregasContent() {
             <Button variant="ghost" size="icon-sm" title="Ver orden y ticket" onClick={() => setDetailId(d.id)}>
               <EyeIcon className="h-4 w-4" />
             </Button>
-            {canAct && d.status === 'pending' && d.saleStatus === 'completed' && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-blue-700 hover:bg-blue-50"
-                title="Marcar listo para envío"
-                onClick={() => setAction({ type: 'ready', delivery: d })}
-              >
-                <CheckCircleIcon className="h-4 w-4" />
-              </Button>
-            )}
-            {canAct && (d.status === 'pending' || d.status === 'ready') && d.saleStatus === 'completed' && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-indigo-700 hover:bg-indigo-50"
-                title="Marcar enviado (paquetería y guía)"
-                onClick={() => setAction({ type: 'shipped', delivery: d })}
-              >
-                <TruckIcon className="h-4 w-4" />
-              </Button>
-            )}
-            {canAct && d.status === 'shipped' && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-green-700 hover:bg-green-50"
-                  title="Marcar entregado"
-                  onClick={() => setAction({ type: 'delivered', delivery: d })}
-                >
-                  <CheckCircleIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Corregir paquetería o guía"
-                  onClick={() => setAction({ type: 'edit', delivery: d })}
-                >
-                  <PencilSquareIcon className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {canAct && (d.status === 'pending' || d.status === 'ready') && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-red-600 hover:bg-red-50"
-                title="Cancelar entrega"
-                onClick={() => setAction({ type: 'cancelled', delivery: d })}
-              >
-                <NoSymbolIcon className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Acciones según estado, modo (envío / recoger), cobro y origen (pedido web: sin cancelar);
+                las correcciones hacia atrás (regresar a pendiente / no se envió) solo en el detalle. */}
+            {availableDeliveryActions(d, canAct)
+              .filter((a) => !DELIVERY_DETAIL_ONLY_ACTIONS.includes(a))
+              .map((a) => {
+                const { Icon, className } = ACTION_BUTTON[a];
+                return (
+                  <Button
+                    key={a}
+                    variant="ghost"
+                    size="icon-sm"
+                    className={className}
+                    title={deliveryActionTitle(a, deliveryModeOf(d))}
+                    onClick={() => setAction({ type: a, delivery: d })}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </Button>
+                );
+              })}
           </div>
         ),
       },
     ],
-    [canAct, timeZone],
+    [canAct, timeZone, kindFilter],
   );
 
   return (
@@ -422,8 +444,9 @@ function EntregasContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">Entregas a domicilio</h1>
             <p className="mt-1 text-sm text-white/70">
-              Pedidos cobrados por Call Center en el POS con domicilio confirmado. Surte, marca listo, enviado
-              (con guía) y entregado. Se actualiza solo cada minuto.
+              Pedidos cobrados por Call Center en el POS con domicilio confirmado y pedidos web pagados en
+              línea. Surte, marca listo, enviado (con guía) y entregado; los pedidos para recoger en sucursal
+              se marcan entregados en mostrador. Se actualiza solo cada minuto.
             </p>
           </div>
           <button
@@ -464,7 +487,7 @@ function EntregasContent() {
       </div>
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-6">
         <div className="md:col-span-2">
           <Label htmlFor="deliveries-search">Buscar</Label>
           <form
@@ -478,12 +501,24 @@ function EntregasContent() {
               id="deliveries-search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Folio, número de distribuidor, quien recibe o guía"
+              placeholder="Folio (venta o pedido TL…), número de distribuidor, quien recibe o guía"
             />
             <Button type="submit" variant="outline" size="icon" title="Buscar">
               <MagnifyingGlassIcon className="h-4 w-4" />
             </Button>
           </form>
+        </div>
+        <div>
+          <Label htmlFor="deliveries-kind">Tipo</Label>
+          <SearchableSelect
+            id="deliveries-kind"
+            className="mt-1"
+            options={KIND_OPTIONS}
+            value={kindFilter}
+            onChange={(v) => setParams({ kind: v === 'all' ? '' : v, page: '1' })}
+            showAllOption={false}
+            placeholder="Todas"
+          />
         </div>
         <div>
           <Label htmlFor="deliveries-branch">Sucursal que surte</Label>
@@ -519,14 +554,14 @@ function EntregasContent() {
             onChange={(e) => setParams({ to: e.target.value })}
           />
         </div>
-        <div className="flex items-center gap-2 md:col-span-5">
+        <div className="flex items-center gap-2 md:col-span-6">
           <Checkbox
             id="deliveries-unpaid"
             checked={includeUnpaid}
             onCheckedChange={(v) => setParams({ unpaid: v === true ? '1' : '' })}
           />
           <Label htmlFor="deliveries-unpaid" className="text-sm font-normal text-gray-700">
-            Incluir ventas todavía sin cobrar
+            Incluir ventas y pedidos todavía sin cobrar
           </Label>
           <span className="text-xs text-gray-500">
             · Sin fechas se muestran las capturadas hoy y todas las que siguen abiertas.
@@ -611,12 +646,17 @@ function DeliveryDetailDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
-            Entrega {d?.saleNumber ?? ''}
+            {d ? deliveryDocLabel(d) : 'Entrega'}
             {d ? <StatusBadge status={d.status} label={d.statusLabel} /> : null}
+            {d && d.kind === 'order' && deliveryModeOf(d) === 'pickup' ? (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                {DELIVERY_MODE_LABELS.pickup}
+              </span>
+            ) : null}
           </DialogTitle>
           <DialogDescription>
             {d
-              ? `Surte ${d.fulfillBranchCode} ${d.fulfillBranchName} · capturó ${d.requestedByName} el ${formatDateTime(d.requestedAt, timeZone)}`
+              ? `${deliveryModeOf(d) === 'pickup' ? 'Entrega en mostrador' : 'Surte'} ${d.fulfillBranchCode} ${d.fulfillBranchName} · capturó ${d.requestedByName ?? (d.kind === 'order' ? 'Tienda en línea' : 'Call Center')} el ${formatDateTime(d.requestedAt, timeZone)}`
               : 'Cargando…'}
           </DialogDescription>
         </DialogHeader>
@@ -654,49 +694,59 @@ function DeliveryDetailDialog({
 
             {view === 'order' ? <OrderView d={d} timeZone={timeZone} /> : <TicketView d={d} timeZone={timeZone} />}
 
-            {d.saleStatus !== 'completed' && (
-              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-                La venta está {d.saleStatus === 'pending' ? 'sin cobrar' : d.saleStatus}; no se puede surtir.
-              </p>
+            {deliveryPaymentNotice(d) && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{deliveryPaymentNotice(d)}</p>
+            )}
+            {/* Un pedido web no se cancela desde aquí: quedaría pagado y sin surtido (ver canCancelDelivery). */}
+            {deliveryCancelNotice(d) && (
+              <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">{deliveryCancelNotice(d)}</p>
             )}
           </div>
         )}
 
         {d && canAct ? (
           <DialogFooter className="flex-wrap gap-2 sm:justify-start">
-            {d.status === 'pending' && d.saleStatus === 'completed' && (
-              <Button onClick={() => onAction('ready', d)}>
-                <CheckCircleIcon className="mr-1 h-4 w-4" /> Listo para envío
-              </Button>
-            )}
-            {(d.status === 'pending' || d.status === 'ready') && d.saleStatus === 'completed' && (
-              <Button onClick={() => onAction('shipped', d)}>
-                <TruckIcon className="mr-1 h-4 w-4" /> Enviado
-              </Button>
-            )}
-            {d.status === 'ready' && (
-              <Button variant="outline" onClick={() => onAction('unready', d)}>
-                Regresar a pendiente
-              </Button>
-            )}
-            {d.status === 'shipped' && (
-              <>
-                <Button onClick={() => onAction('delivered', d)}>
-                  <CheckCircleIcon className="mr-1 h-4 w-4" /> Entregado
+            {/* Botones según estado, modo, cobro y origen (recoger: solo "Entregado en mostrador" / cancelar;
+                pedido web: sin "Cancelar entrega"). */}
+            {availableDeliveryActions(d, canAct).map((a) => {
+              const mode = deliveryModeOf(d);
+              if (a === 'ready')
+                return (
+                  <Button key={a} onClick={() => onAction(a, d)}>
+                    <CheckCircleIcon className="mr-1 h-4 w-4" /> Listo para envío
+                  </Button>
+                );
+              if (a === 'shipped')
+                return (
+                  <Button key={a} onClick={() => onAction(a, d)}>
+                    <TruckIcon className="mr-1 h-4 w-4" /> Enviado
+                  </Button>
+                );
+              if (a === 'delivered')
+                return (
+                  <Button key={a} onClick={() => onAction(a, d)}>
+                    <CheckCircleIcon className="mr-1 h-4 w-4" />{' '}
+                    {mode === 'pickup' ? 'Entregado en mostrador' : 'Entregado'}
+                  </Button>
+                );
+              if (a === 'edit')
+                return (
+                  <Button key={a} variant="outline" onClick={() => onAction(a, d)}>
+                    <PencilSquareIcon className="mr-1 h-4 w-4" /> Corregir guía
+                  </Button>
+                );
+              if (a === 'cancelled')
+                return (
+                  <Button key={a} variant="outline" className="text-red-600" onClick={() => onAction(a, d)}>
+                    <NoSymbolIcon className="mr-1 h-4 w-4" /> Cancelar entrega
+                  </Button>
+                );
+              return (
+                <Button key={a} variant="outline" onClick={() => onAction(a, d)}>
+                  {deliveryActionTitle(a, mode)}
                 </Button>
-                <Button variant="outline" onClick={() => onAction('edit', d)}>
-                  <PencilSquareIcon className="mr-1 h-4 w-4" /> Corregir guía
-                </Button>
-                <Button variant="outline" onClick={() => onAction('unship', d)}>
-                  No se envió (regresar a listo)
-                </Button>
-              </>
-            )}
-            {(d.status === 'pending' || d.status === 'ready') && (
-              <Button variant="outline" className="text-red-600" onClick={() => onAction('cancelled', d)}>
-                <NoSymbolIcon className="mr-1 h-4 w-4" /> Cancelar entrega
-              </Button>
-            )}
+              );
+            })}
           </DialogFooter>
         ) : null}
       </DialogContent>
@@ -706,6 +756,8 @@ function DeliveryDetailDialog({
 
 function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
   const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
+  const isOrder = d.kind === 'order';
+  const pickup = deliveryModeOf(d) === 'pickup';
   const items = d.items ?? [];
   const units = consolidated
     ? (d.shipmentItems ?? []).reduce((s, it) => s + it.quantity, 0)
@@ -714,7 +766,9 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
     <div className="space-y-3 text-sm">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-md border border-gray-200 p-3">
-          <p className="text-xs uppercase text-gray-500">{consolidated ? 'Envío consolidado' : 'Distribuidor'}</p>
+          <p className="text-xs uppercase text-gray-500">
+            {consolidated ? 'Envío consolidado' : isOrder ? 'Comprador' : 'Distribuidor'}
+          </p>
           {consolidated ? (
             <ul className="space-y-0.5">
               {d.shipmentDeliveries!.map((s) => (
@@ -744,18 +798,20 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           </p>
         </div>
         <div className="rounded-md border border-gray-200 p-3">
-          <p className="text-xs uppercase text-gray-500">Enviar a</p>
+          <p className="text-xs uppercase text-gray-500">{pickup ? 'Entregar en mostrador' : 'Enviar a'}</p>
           <p className="font-medium">{d.addressText}</p>
           {d.reference ? <p className="text-xs text-gray-600">Ref.: {d.reference}</p> : null}
           {d.notes ? (
-            <p className="mt-2 text-xs text-amber-700">Indicaciones de Call Center: {d.notes}</p>
+            <p className="mt-2 text-xs text-amber-700">
+              {isOrder ? 'Indicaciones del comprador' : 'Indicaciones de Call Center'}: {d.notes}
+            </p>
           ) : null}
         </div>
       </div>
       <p className="text-xs text-gray-600">
         {consolidated
           ? `${d.shipmentDeliveries!.length} ventas en un solo paquete · ${formatMoney(d.shipmentDeliveries!.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode)} en total`
-          : `Venta ${d.saleNumber} del ${formatDateTime(d.saleCreatedAt, timeZone)} · ${paymentMethodLabel(d.paymentMethod)} · ${formatMoney(d.saleTotal, d.currencyCode)}`}
+          : `${deliveryDocLabel(d)} del ${formatDateTime(d.saleCreatedAt, timeZone)} · ${paymentMethodLabel(d.paymentMethod)} · ${formatMoney(d.saleTotal, d.currencyCode)}`}
       </p>
       <table className="w-full text-sm">
         <thead>
@@ -932,7 +988,7 @@ function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
         <span>{formatMoney(d.saleTotal, d.currencyCode)}</span>
       </div>
       <hr className="my-2 border-dashed" />
-      <p className="font-bold">ENTREGA A DOMICILIO</p>
+      <p className="font-bold">{deliveryModeOf(d) === 'pickup' ? 'RECOGER EN SUCURSAL' : 'ENTREGA A DOMICILIO'}</p>
       <p>
         Recibe: {d.recipientName}
         {d.recipientPhone ? ` · ${d.recipientPhone}` : ''}
@@ -953,16 +1009,6 @@ function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
 // Acciones: listo / enviado / entregado / cancelar / corregir guía
 // ================================
 
-const ACTION_TITLES: Record<ActionType, string> = {
-  ready: 'Marcar listo para envío',
-  shipped: 'Marcar enviado',
-  delivered: 'Marcar entregado',
-  cancelled: 'Cancelar entrega',
-  edit: 'Corregir paquetería o guía',
-  unready: 'Regresar a pendiente',
-  unship: 'Regresar a listo (no se envió)',
-};
-
 function DeliveryActionDialog({
   action,
   onClose,
@@ -982,6 +1028,9 @@ function DeliveryActionDialog({
 
   if (!action) return null;
   const { type, delivery } = action;
+  const isOrder = delivery.kind === 'order';
+  const mode = deliveryModeOf(delivery);
+  const title = deliveryActionTitle(type, mode);
 
   const submit = async () => {
     try {
@@ -1015,7 +1064,11 @@ function DeliveryActionDialog({
         toast.success(
           status === 'cancelled'
             ? 'Entrega cancelada'
-            : `Entrega ${delivery.saleNumber}: ${DELIVERY_STATUS_LABELS[status].toLowerCase()}`,
+            : `${deliveryDocLabel(delivery)}: ${
+                status === 'delivered' && mode === 'pickup'
+                  ? 'entregado en mostrador'
+                  : DELIVERY_STATUS_LABELS[status].toLowerCase()
+              }`,
         );
       }
       onClose();
@@ -1029,9 +1082,9 @@ function DeliveryActionDialog({
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{ACTION_TITLES[type]}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {delivery.saleNumber} · {delivery.recipientName} · {delivery.addressText}
+            {deliveryDocLabel(delivery)} · {delivery.recipientName} · {delivery.addressText}
           </DialogDescription>
         </DialogHeader>
 
@@ -1070,6 +1123,7 @@ function DeliveryActionDialog({
                 className="mt-1"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+                // Solo ventas POS llegan aquí: a un pedido web nunca se le ofrece "Cancelar entrega".
                 placeholder="Obligatorio. Se le avisa a quien capturó la venta."
                 maxLength={300}
                 rows={3}
@@ -1092,7 +1146,17 @@ function DeliveryActionDialog({
           )}
           {type === 'delivered' && (
             <p className="text-sm text-gray-600">
-              Se marcará como entregado al distribuidor; se le avisa a quien capturó la venta.
+              {mode === 'pickup'
+                ? 'Confirma que el comprador recogió su pedido en mostrador; quedará como entregado en Mis pedidos y en el rastreo.'
+                : isOrder
+                  ? 'Se marcará como entregado al comprador; quedará como entregado en Mis pedidos y en el rastreo del pedido.'
+                  : 'Se marcará como entregado al distribuidor; se le avisa a quien capturó la venta.'}
+            </p>
+          )}
+          {type === 'shipped' && isOrder && (
+            <p className="text-sm text-gray-600">
+              Al comprador le llega un correo con la paquetería y la guía; si la capturas después, se le avisa
+              en ese momento.
             </p>
           )}
         </div>
@@ -1102,7 +1166,7 @@ function DeliveryActionDialog({
             Volver
           </Button>
           <Button onClick={submit} disabled={busy} className={type === 'cancelled' ? 'bg-red-600 hover:bg-red-700' : ''}>
-            {busy ? 'Guardando…' : ACTION_TITLES[type]}
+            {busy ? 'Guardando…' : title}
           </Button>
         </DialogFooter>
       </DialogContent>

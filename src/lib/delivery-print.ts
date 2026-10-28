@@ -10,27 +10,17 @@
 // va TODO en negritas y lista las piezas de cada kit una por línea (formato del
 // ticket de almacén del sistema anterior).
 
+//
+// Desde la mig 176 (28-oct-2026) también se imprimen PEDIDOS WEB: el título dice
+// "Pedido web TL…", la caja "Distribuidor" pasa a "Comprador" y, si es para
+// recoger en sucursal, "Enviar a" pasa a "Entregar en mostrador".
+
 import type { Delivery } from '@/types/deliveries';
-import { DELIVERY_STATUS_LABELS } from '@/types/deliveries';
+import { DELIVERY_MODE_LABELS, DELIVERY_STATUS_LABELS } from '@/types/deliveries';
+import { deliveryDocLabel, deliveryModeOf, paymentMethodLabel } from '@/lib/deliveries/actions';
 
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: 'Efectivo',
-  card: 'Tarjeta',
-  credit: 'Tarjeta de crédito',
-  transfer: 'Transferencia',
-  deposit: 'Depósito',
-  mixed: 'Mixto',
-  usd_cash: 'Efectivo USD',
-  mercado_pago: 'Mercado Pago',
-  promotion: 'Promoción',
-  cashback: 'Cashback',
-  undefined: 'Sin definir',
-};
-
-export function paymentMethodLabel(method: string | null | undefined): string {
-  if (!method) return '—';
-  return PAYMENT_LABELS[method] ?? method;
-}
+// Compatibilidad: el nombre vivía aquí; ahora la regla está en lib/deliveries/actions.
+export { paymentMethodLabel } from '@/lib/deliveries/actions';
 
 function esc(value: string | number | null | undefined): string {
   return String(value ?? '')
@@ -161,7 +151,9 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
     .join('');
   const units = items.reduce((s, it) => s + it.quantity, 0);
   const sales = consolidated ? (d.shipmentDeliveries ?? []) : [];
-  const title = consolidated ? `Envío consolidado · ${sales.length} ventas` : d.saleNumber;
+  const isOrder = d.kind === 'order';
+  const pickup = deliveryModeOf(d) === 'pickup';
+  const title = consolidated ? `Envío consolidado · ${sales.length} ventas` : deliveryDocLabel(d);
   const distributorBox = consolidated
     ? `<div class="muted">Ventas en este paquete</div>
        <table style="margin-top:4px"><tbody>${sales
@@ -170,14 +162,14 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
              `<tr><td>${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td><td class="num">${esc(money(s.saleTotal, d.currencyCode))}</td></tr>`,
          )
          .join('')}</tbody></table>`
-    : `<div class="muted">Distribuidor</div>
-       <div class="big">${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? '')}</div>`;
+    : `<div class="muted">${isOrder ? 'Comprador' : 'Distribuidor'}</div>
+       <div class="big">${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? d.recipientName)}</div>`;
   const foot = withPrices
     ? `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td><td class="num">Total</td><td class="num">${esc(money(d.saleTotal, d.currencyCode))}</td></tr></tfoot>`
     : `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td></tr></tfoot>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${baseCss(scaleOf(fontScale))}</style></head><body>
     <h1>Hoja de surtido · ${esc(title)}</h1>
-    <div class="muted">Entrega a domicilio · ${esc(DELIVERY_STATUS_LABELS[d.status] ?? d.status)} · Surte: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
+    <div class="muted">${esc(DELIVERY_MODE_LABELS[deliveryModeOf(d)])} · ${esc(DELIVERY_STATUS_LABELS[d.status] ?? d.status)} · ${pickup ? 'Entrega en mostrador' : 'Surte'}: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
     <div class="grid">
       <div class="box">
         ${distributorBox}
@@ -185,17 +177,17 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         <div><strong>${esc(d.recipientName)}</strong>${d.recipientPhone ? ` · Tel. ${esc(d.recipientPhone)}` : ''}</div>
       </div>
       <div class="box">
-        <div class="muted">Enviar a</div>
+        <div class="muted">${pickup ? 'Entregar en mostrador' : 'Enviar a'}</div>
         <div><strong>${esc(d.addressText)}</strong></div>
         ${d.reference ? `<div class="muted" style="margin-top:4px">Ref.: ${esc(d.reference)}</div>` : ''}
-        ${d.notes ? `<div style="margin-top:6px"><span class="muted">Indicaciones de Call Center:</span> ${esc(d.notes)}</div>` : ''}
+        ${d.notes ? `<div style="margin-top:6px"><span class="muted">${isOrder ? 'Indicaciones del comprador' : 'Indicaciones de Call Center'}:</span> ${esc(d.notes)}</div>` : ''}
       </div>
     </div>
     <div class="muted" style="margin-top:8px">${
       consolidated
         ? `${sales.length} ventas · ${esc(money(sales.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode))} en total`
-        : `Venta ${esc(d.saleNumber)} del ${esc(dateTime(d.saleCreatedAt, timeZone))} · ${esc(paymentMethodLabel(d.paymentMethod))} · ${esc(money(d.saleTotal, d.currencyCode))}`
-    } · Capturó ${esc(d.requestedByName)} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
+        : `${esc(deliveryDocLabel(d))} del ${esc(dateTime(d.saleCreatedAt, timeZone))} · ${esc(paymentMethodLabel(d.paymentMethod))} · ${esc(money(d.saleTotal, d.currencyCode))}`
+    } · Capturó ${esc(d.requestedByName ?? (isOrder ? 'Tienda en línea' : 'Call Center'))} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
     <h2>Productos (${items.length} renglón(es) · ${units} pieza(s))</h2>
     <table>
       <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th>${withPrices ? '<th class="num">P. unit.</th><th class="num">Importe</th>' : ''}</tr></thead>
@@ -203,8 +195,12 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
       ${foot}
     </table>
     ${d.warehouseNotes ? `<div class="box"><span class="muted">Observaciones de Almacén:</span> ${esc(d.warehouseNotes)}</div>` : ''}
-    <div class="box"><span class="muted">Paquetería:</span> ${esc(d.carrier ?? '____________________')} &nbsp;&nbsp; <span class="muted">Guía:</span> ${esc(d.trackingNumber ?? '____________________')}</div>
-    <div class="sign"><div>Surtió</div><div>Revisó</div><div>Empacó</div></div>
+    ${
+      pickup
+        ? `<div class="box"><span class="muted">Recibió en mostrador (nombre y firma):</span> ____________________________________ &nbsp;&nbsp; <span class="muted">Fecha:</span> ______________</div>`
+        : `<div class="box"><span class="muted">Paquetería:</span> ${esc(d.carrier ?? '____________________')} &nbsp;&nbsp; <span class="muted">Guía:</span> ${esc(d.trackingNumber ?? '____________________')}</div>`
+    }
+    <div class="sign"><div>Surtió</div><div>Revisó</div><div>${pickup ? 'Entregó' : 'Empacó'}</div></div>
   </body></html>`;
 }
 
@@ -268,7 +264,7 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
     <hr>
     <table class="tot"><tr><td>TOTAL</td><td class="num">${esc(money(d.saleTotal, d.currencyCode))}</td></tr></table>
     <hr>
-    <div>ENTREGA A DOMICILIO</div>
+    <div>${deliveryModeOf(d) === 'pickup' ? 'RECOGER EN SUCURSAL' : 'ENTREGA A DOMICILIO'}${d.kind === 'order' ? ' · PEDIDO WEB' : ''}</div>
     <div>Recibe: ${esc(d.recipientName)}${d.recipientPhone ? ` · ${esc(d.recipientPhone)}` : ''}</div>
     <div>${esc(d.addressText)}</div>
     ${d.reference ? `<div class="muted">Ref.: ${esc(d.reference)}</div>` : ''}

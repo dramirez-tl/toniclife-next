@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
+  ArrowTopRightOnSquareIcon,
   PrinterIcon,
   EnvelopeIcon,
   TruckIcon,
@@ -45,7 +46,9 @@ import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceB
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { OrderStatus } from '@/types/order';
+import { OrderStatus, type OrderDeliverySummary } from '@/types/order';
+import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
+import { deliveryStatusClasses } from '@/lib/deliveries/actions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 
@@ -92,6 +95,88 @@ const formatDate = (dateString: string | Date) => {
 function apiErrorMessage(err: unknown): string | undefined {
   const data = (err as { response?: { data?: { message?: string } } } | null | undefined)?.response?.data;
   return data?.message;
+}
+
+/**
+ * Tarjeta "Entrega": estado de almacén del pedido web (se crea sola al
+ * confirmarse el pago; Almacén la avanza en Inventario › Entregas a domicilio).
+ * Sin entrega y pedido confirmado nativo: aviso de que se crea al pagar.
+ */
+function OrderDeliveryCard({
+  delivery,
+  orderNumber,
+  showEmptyNotice,
+}: {
+  delivery: OrderDeliverySummary | undefined;
+  orderNumber: string;
+  showEmptyNotice: boolean;
+}) {
+  if (!delivery && !showEmptyNotice) return null;
+  const href = `/admin/inventario/entregas?search=${encodeURIComponent(orderNumber)}&tab=all`;
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <TruckIcon className="h-5 w-5 text-gray-400" />
+        Entrega
+      </h2>
+      {delivery ? (
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${deliveryStatusClasses(delivery.status)}`}
+            >
+              {delivery.statusLabel || delivery.status}
+            </span>
+            <span className="text-xs text-gray-500">
+              {DELIVERY_MODE_LABELS[delivery.mode] ?? delivery.mode}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-500">{delivery.mode === 'pickup' ? 'Entrega en mostrador:' : 'Surte:'}</span>{' '}
+            <span className="font-medium text-gray-900">{delivery.fulfillBranchName}</span>
+          </div>
+          {(delivery.carrier || delivery.trackingNumber) && (
+            <div>
+              <span className="text-gray-500">Paquetería · guía:</span>{' '}
+              <span className="font-medium text-gray-900">{delivery.carrier ?? '—'}</span>
+              {delivery.trackingNumber && (
+                <>
+                  {' · '}
+                  {delivery.trackingUrl ? (
+                    <a
+                      href={delivery.trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[#3E667D] hover:underline inline-flex items-center gap-1"
+                    >
+                      {delivery.trackingNumber}
+                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                    </a>
+                  ) : (
+                    <span className="font-mono text-gray-900">{delivery.trackingNumber}</span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-1 text-xs text-gray-500">
+            <p>Capturada: {formatDate(delivery.requestedAt)}</p>
+            {delivery.readyAt && <p>Lista: {formatDate(delivery.readyAt)}</p>}
+            {delivery.shippedAt && <p>Enviada: {formatDate(delivery.shippedAt)}</p>}
+            {delivery.deliveredAt && (
+              <p>{delivery.mode === 'pickup' ? 'Entregada en mostrador' : 'Entregada'}: {formatDate(delivery.deliveredAt)}</p>
+            )}
+            {delivery.cancelledAt && <p>Cancelada: {formatDate(delivery.cancelledAt)}</p>}
+          </div>
+          <Link href={href} className="block text-center text-sm text-[#3E667D] hover:underline">
+            Abrir en Entregas a domicilio →
+          </Link>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">Sin entrega registrada (se crea al confirmarse el pago).</p>
+      )}
+    </div>
+  );
 }
 
 export default function OrderDetailAdminPage() {
@@ -490,12 +575,15 @@ export default function OrderDetailAdminPage() {
             {/* Status Card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
+              {/* Un pedido pagado se queda en "confirmado": el API rechaza cualquier
+                  otra transición (400) y los reportes/CFDI lo filtran así. El avance
+                  operativo (surtido, envío, entrega) vive en Entregas a domicilio. */}
               <SearchableSelect
                 options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
                 value={order.status}
                 onChange={handleStatusChange}
                 showAllOption={false}
-                disabled={updateStatus.isPending}
+                disabled={updateStatus.isPending || order.status === 'confirmed'}
                 className="w-full mb-3"
               />
               <div className="flex justify-center">
@@ -505,7 +593,20 @@ export default function OrderDetailAdminPage() {
                   {currentStatusOption?.label || order.status}
                 </span>
               </div>
+              {order.status === 'confirmed' && (
+                <p className="mt-3 text-xs text-gray-500">
+                  El avance de un pedido web (surtido, envío, entrega) se lleva en Entregas a domicilio; el
+                  pedido sigue confirmado. Para anularlo usa &quot;Cancelar pedido&quot; en el menú.
+                </p>
+              )}
             </div>
+
+            {/* Entrega de almacén (pos_sale_deliveries con order_id, mig 176) */}
+            <OrderDeliveryCard
+              delivery={tracking?.delivery}
+              orderNumber={order.orderNumber}
+              showEmptyNotice={order.status === 'confirmed' && (order.source ?? '').startsWith('ecommerce')}
+            />
 
             {/* Customer Info */}
             <div className="bg-white rounded-lg shadow p-6">
