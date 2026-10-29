@@ -250,6 +250,26 @@ function apiErrorMessage(err: unknown, fallback: string): string {
 /** kit_bonus_payments.id de los bonos del grupo (los pagados siempre lo traen). */
 const groupPaymentIds = (g: KitBonusGroup) => g.items.map((i) => i.paymentId).filter((id): id is string => !!id);
 
+/** Rechazos del PAC seguidos que detienen una tanda de timbrado (síntoma de un problema general, no de un patrocinador). */
+const MAX_CONSECUTIVE_PAC_REJECTIONS = 3;
+
+/** Resumen de una tanda de timbrado: cuántos salieron, cuántos rechazó el PAC y si se detuvo antes de tiempo. */
+function toastStampBatchSummary(r: { ok: number; failed: number; stoppedEarly: boolean; pending: number; skipped?: number }) {
+  const parts = [`${r.ok} ${r.ok === 1 ? 'recibo timbrado' : 'recibos timbrados'}`];
+  if (r.failed) parts.push(`${r.failed} ${r.failed === 1 ? 'rechazado' : 'rechazados'} por el PAC (ver "Error PAC" en cada fila)`);
+  if (r.skipped) parts.push(`${r.skipped} sin recibo (sin datos fiscales, otro régimen o ya con comprobante)`);
+  const summary = parts.join(' · ');
+  if (r.stoppedEarly) {
+    toast.error(
+      `${summary}. Se detuvo tras ${MAX_CONSECUTIVE_PAC_REJECTIONS} rechazos seguidos: revisa el motivo antes de continuar (quedan ${r.pending} sin intentar)`,
+    );
+  } else if (r.failed) {
+    toast.warning(`${summary}. Corrige los datos de esos patrocinadores y vuelve a "Timbrar recibos"`);
+  } else {
+    toast.success(summary);
+  }
+}
+
 /** Grupo ASIMILADOS al que se le puede (volver a) emitir el recibo: sin recibo vivo y con datos completos. */
 function isPayrollReady(g: KitBonusGroup): boolean {
   const v = g.voucher;
@@ -938,24 +958,40 @@ export default function BonosInscripcionPage() {
     await stampGroup(g);
   };
 
-  // Uno por uno (cada recibo es una llamada al PAC); se detiene en el primer error del PAC.
+  // Uno por uno (cada recibo es una llamada al PAC). Un rechazo del PAC es casi
+  // siempre un dato de ESE patrocinador (RFC, nombre fiscal), así que la tanda
+  // sigue con los demás (28-oct-2026: antes se detenía en el primero y los 36
+  // restantes quedaban sin intentar); solo se detiene tras varios rechazos
+  // seguidos, señal de un problema general que hay que revisar antes.
   const stampAllReady = async () => {
     const targets = readyPayroll;
     if (targets.length === 0) return;
     let ok = 0;
+    let failed = 0;
+    let streak = 0;
+    let stoppedEarly = false;
     for (let i = 0; i < targets.length; i++) {
       setStampAllProgress(`${i + 1}/${targets.length}`);
       const done = await stampGroup(targets[i]);
-      if (!done) break;
-      ok++;
+      if (done) {
+        ok++;
+        streak = 0;
+        continue;
+      }
+      failed++;
+      streak++;
+      if (streak >= MAX_CONSECUTIVE_PAC_REJECTIONS) {
+        stoppedEarly = true;
+        break;
+      }
     }
     setStampAllProgress(null);
-    if (ok > 0) toast.success(`${ok} ${ok === 1 ? 'recibo timbrado' : 'recibos timbrados'}`);
+    toastStampBatchSummary({ ok, failed, stoppedEarly, pending: targets.length - ok - failed });
   };
 
   // Carga masiva (28-oct-2026): ya marcados los pagos del Excel, timbra uno por
   // uno los recibos de nómina de los grupos ASIMILADOS que quedaron listos
-  // (mismo criterio que "Timbrar recibos"); se detiene en el primer rechazo.
+  // (mismo criterio y misma regla de rechazos que "Timbrar recibos").
   const handleImported = async (result: KitBonusImportResult, stampAfter: boolean) => {
     toast.success(
       `${result.marked} ${result.marked === 1 ? 'bono marcado' : 'bonos marcados'} como pagados desde ${result.fileName} (hoja "${result.sheet}")`,
@@ -979,33 +1015,50 @@ export default function BonosInscripcionPage() {
       return;
     }
     let ok = 0;
+    let failed = 0;
+    let streak = 0;
+    let stoppedEarly = false;
     for (let i = 0; i < targets.length; i++) {
       const g = targets[i];
       setStampAllProgress(`${i + 1}/${targets.length}`);
       setBusyKey(g.key);
+      let done = false;
       try {
         const r = await stampMutation.mutateAsync(g.paymentIds);
         if (r.status === 'stamped' || r.status === 'sent') {
-          ok++;
-          continue;
+          done = true;
+        } else {
+          toast.error(
+            r.status === 'error'
+              ? `El PAC rechazó el recibo de ${g.sponsorName}: ${r.error ?? 'sin detalle'}`
+              : `Recibo de ${g.sponsorName} en proceso (${r.status}); actualiza en unos segundos`,
+          );
         }
-        toast.error(
-          r.status === 'error'
-            ? `El PAC rechazó el recibo de ${g.sponsorName}: ${r.error ?? 'sin detalle'}`
-            : `Recibo de ${g.sponsorName} en proceso (${r.status}); actualiza en unos segundos`,
-        );
-        break;
       } catch (err) {
         toast.error(apiErrorMessage(err, `No se pudo timbrar el recibo de ${g.sponsorName}`));
-        break;
       } finally {
         setBusyKey(null);
       }
+      if (done) {
+        ok++;
+        streak = 0;
+        continue;
+      }
+      failed++;
+      streak++;
+      if (streak >= MAX_CONSECUTIVE_PAC_REJECTIONS) {
+        stoppedEarly = true;
+        break;
+      }
     }
     setStampAllProgress(null);
-    const summary = `${ok} de ${targets.length} ${targets.length === 1 ? 'recibo timbrado' : 'recibos timbrados'}${skipped ? ` · ${skipped} sin recibo (sin datos fiscales, otro régimen o ya con comprobante)` : ''}`;
-    if (ok === targets.length) toast.success(summary);
-    else toast.warning(`${summary}. Los que faltan se timbran con "Timbrar recibos"`);
+    toastStampBatchSummary({
+      ok,
+      failed,
+      stoppedEarly,
+      pending: targets.length - ok - failed,
+      skipped,
+    });
   };
 
   const submitReceived = async () => {
