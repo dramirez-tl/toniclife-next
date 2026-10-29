@@ -22,6 +22,7 @@ import { selectUserRoles } from '@/store';
 import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
+import { saleTotalsPresentation, ticketLineAmount } from '@/lib/pos-ticket-totals';
 import { toast } from 'sonner';
 import {
   ShoppingCartIcon,
@@ -343,7 +344,7 @@ function buildSaleTicketHtml(sale: Sale, branchTz: string, opts: { autoPrint: bo
       (it) => `
       <div class="it">
         <div class="it-name">${esc(it.productName)}</div>
-        <div class="it-line"><span>${esc(it.quantity)} x ${money(it.unitPrice)}</span><span>${money(it.total)}</span></div>
+        <div class="it-line"><span>${esc(it.quantity)} x ${money(it.unitPrice)}</span><span>${money(ticketLineAmount(sale, it))}</span></div>
       </div>`,
     )
     .join('');
@@ -364,6 +365,11 @@ function buildSaleTicketHtml(sale: Sale, branchTz: string, opts: { autoPrint: bo
     0,
   );
   const taxLabel = currency === 'USD' ? 'Sales tax' : 'IVA';
+  // Desglose del ticket (pos-ticket-totals.ts): sin descuento global, Subtotal /
+  // IVA / TOTAL como siempre; con cupón o descuento global, Subtotal bruto,
+  // Cupón −D, TOTAL e "IVA incluido" debajo (29-oct-2026); en US Subtotal sin
+  // impuesto, Descuento en el espacio del precio, Sales tax y TOTAL.
+  const totals = saleTotalsPresentation(sale);
 
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8" />
   <title>Ticket ${esc(sale.saleNumber)}</title>
@@ -394,10 +400,11 @@ function buildSaleTicketHtml(sale: Sale, branchTz: string, opts: { autoPrint: bo
     <hr />
     ${itemsHtml || '<div class="muted">(sin productos)</div>'}
     <hr />
-    <div class="row"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div>
-    ${sale.discountAmount > 0 ? `<div class="row"><span>Descuento</span><span>-${money(sale.discountAmount)}</span></div>` : ''}
-    <div class="row"><span>${taxLabel}</span><span>${money(sale.taxAmount)}</span></div>
-    <div class="row b tot"><span>TOTAL</span><span>${money(sale.total)} ${esc(currency)}</span></div>
+    <div class="row"><span>Subtotal</span><span>${money(totals.subtotal)}</span></div>
+    ${totals.discount ? `<div class="row"><span>${totals.discount.couponCode ? `Cupón ${esc(totals.discount.couponCode)}` : 'Descuento'}</span><span>-${money(totals.discount.amount)}</span></div>` : ''}
+    ${totals.tax != null ? `<div class="row"><span>${taxLabel}</span><span>${money(totals.tax)}</span></div>` : ''}
+    <div class="row b tot"><span>TOTAL</span><span>${money(totals.total)} ${esc(currency)}</span></div>
+    ${totals.taxIncludedAmount != null ? `<div class="row"><span>${taxLabel} incluido</span><span>${money(totals.taxIncludedAmount)}</span></div>` : ''}
     <hr />
     ${paymentsHtml}
     ${cash > 0 ? `<div class="row"><span>Recibido</span><span>${money(cash)}</span></div>` : ''}
@@ -577,6 +584,12 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
   const view = detail ?? sale;
   // (salePointsOf: puntos de la venta = suma de puntos × cantidad de sus renglones)
   const currency = view.currencyCode || 'MXN';
+  const taxLabel = currency === 'USD' ? 'Sales tax' : 'IVA';
+  // Mismo desglose que la vista previa del ticket (pos-ticket-totals.ts): con
+  // cupón o descuento global el API manda subtotal e impuesto YA netos del
+  // prorrateo, así que se muestra Subtotal bruto, Cupón −D, Total e "IVA
+  // incluido" (las filas suman); sin descuento global, igual que siempre.
+  const totals = saleTotalsPresentation(view);
 
   const itemColumns: DataTableColumn<SaleItem>[] = [
     {
@@ -623,7 +636,8 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
       header: 'Total',
       headerClassName: 'text-right px-4 py-2.5 text-xs font-medium text-gray-500',
       cellClassName: 'px-4 py-3 text-right font-medium text-gray-900',
-      render: (item) => formatCurrency(item.total, currency),
+      // Con descuento global el renglón va en bruto, como el ticket (pos-ticket-totals.ts).
+      render: (item) => formatCurrency(ticketLineAmount(view, item), currency),
     },
   ];
 
@@ -735,29 +749,39 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             <p className="text-sm text-gray-400">Cargando productos…</p>
           )}
 
-          {/* Totals */}
+          {/* Totals: misma presentación que la vista previa del ticket (pos-ticket-totals.ts) */}
           <div className="bg-gray-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Subtotal</span>
-              <span>{formatCurrency(view.subtotal, currency)}</span>
+              <span>{formatCurrency(totals.subtotal, currency)}</span>
             </div>
-            {view.discountAmount > 0 && (
+            {totals.discount && (
               <div className="flex justify-between text-sm text-green-600">
                 <span className="flex items-center gap-1">
                   <ReceiptPercentIcon className="h-3.5 w-3.5" />
-                  Descuento{view.discountPercent ? ` (${view.discountPercent}%)` : ''}
+                  {totals.discount.couponCode
+                    ? `Cupón ${totals.discount.couponCode}`
+                    : `Descuento${totals.discount.percent ? ` (${totals.discount.percent}%)` : ''}`}
                 </span>
-                <span>-{formatCurrency(view.discountAmount, currency)}</span>
+                <span>-{formatCurrency(totals.discount.amount, currency)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>{currency === 'USD' ? 'Sales tax' : 'IVA'}</span>
-              <span>{formatCurrency(view.taxAmount, currency)}</span>
-            </div>
+            {totals.tax != null && (
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{taxLabel}</span>
+                <span>{formatCurrency(totals.tax, currency)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-200 pt-2 mt-2">
               <span>Total</span>
-              <span className="text-[#3E667D]">{formatCurrency(view.total, currency)}</span>
+              <span className="text-[#3E667D]">{formatCurrency(totals.total, currency)}</span>
             </div>
+            {totals.taxIncludedAmount != null && (
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>{taxLabel} incluido</span>
+                <span>{formatCurrency(totals.taxIncludedAmount, currency)}</span>
+              </div>
+            )}
           </div>
 
           {/* Puntos generados por la venta (MLM). OJO: accumulatedPoints es el

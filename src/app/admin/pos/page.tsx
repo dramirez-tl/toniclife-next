@@ -48,6 +48,7 @@ import { posService } from '@/services/pos.service';
 import { billingService } from '@/services/billing.service';
 import { useCfdiUses, useFiscalRegimes } from '@/hooks/useBilling';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
+import { saleTotalsPresentation } from '@/lib/pos-ticket-totals';
 import { getTimezoneShortLabel, formatDateTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
@@ -486,6 +487,12 @@ export default function PosPage() {
 
   const formatCurrency = (amount: number) =>
     `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Desglose del detalle de venta (pos-ticket-totals.ts, 29-oct-2026): con cupón o
+  // descuento global el API manda subtotal e IVA YA netos del prorrateo, así que se
+  // muestra Subtotal bruto, Cupón −D, Total e "IVA incluido" (las filas suman);
+  // sin descuento global, Subtotal / IVA / Total como siempre.
+  const detailTotals = detailSale ? saleTotalsPresentation(detailSale) : null;
 
   return (
     <PermissionGuard permissions={['pos:read', 'pos:*']}>
@@ -1391,7 +1398,10 @@ export default function PosPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
                           <p className="text-xs text-gray-400">{item.productSku} · {item.quantity} × {formatCurrency(item.unitPrice)}</p>
-                          {item.discountAmount > 0 && (
+                          {/* Con cupón/descuento global, items[].discountAmount ya trae la parte
+                              prorrateada del mismo descuento de la cabecera (29-oct-2026): se
+                              muestra una sola vez, en los totales. */}
+                          {item.discountAmount > 0 && !(detailSale.discountAmount > 0) && (
                             <p className="text-xs text-green-600">Descuento: -{formatCurrency(item.discountAmount)}</p>
                           )}
                         </div>
@@ -1401,23 +1411,38 @@ export default function PosPage() {
                   </div>
                 </div>
 
-                {/* Totals */}
+                {/* Totals: misma presentación que el ticket (pos-ticket-totals.ts) */}
                 <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Subtotal</span><span>{formatCurrency(detailSale.subtotal)}</span>
-                  </div>
-                  {detailSale.discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Descuento{detailSale.discountReason ? ` (${detailSale.discountReason})` : ''}</span>
-                      <span>-{formatCurrency(detailSale.discountAmount)}</span>
-                    </div>
+                  {detailTotals && (
+                    <>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Subtotal</span><span>{formatCurrency(detailTotals.subtotal)}</span>
+                      </div>
+                      {detailTotals.discount && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>
+                            {detailTotals.discount.couponCode
+                              ? `Cupón ${detailTotals.discount.couponCode}`
+                              : `Descuento${detailSale.discountReason ? ` (${detailSale.discountReason})` : ''}`}
+                          </span>
+                          <span>-{formatCurrency(detailTotals.discount.amount)}</span>
+                        </div>
+                      )}
+                      {detailTotals.tax != null && (
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>IVA</span><span>{formatCurrency(detailTotals.tax)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+                        <span>Total</span><span className="text-[#3E667D]">{formatCurrency(detailTotals.total)}</span>
+                      </div>
+                      {detailTotals.taxIncludedAmount != null && (
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>IVA incluido</span><span>{formatCurrency(detailTotals.taxIncludedAmount)}</span>
+                        </div>
+                      )}
+                    </>
                   )}
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>IVA</span><span>{formatCurrency(detailSale.taxAmount)}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
-                    <span>Total</span><span className="text-[#3E667D]">{formatCurrency(detailSale.total)}</span>
-                  </div>
                   {detailSale.accumulatedPoints != null && detailSale.accumulatedPoints > 0 && (
                     <div className="flex justify-between text-xs text-purple-600">
                       <span>Puntos acumulados</span><span>+{detailSale.accumulatedPoints.toLocaleString()}</span>

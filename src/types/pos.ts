@@ -186,6 +186,12 @@ export interface SaleItem {
   lotNumber?: string;
   quantity: number;
   unitPrice: number;
+  /**
+   * Descuento de línea manual MÁS la parte prorrateada del cupón/descuento
+   * global, en el espacio del precio (regla 29-oct-2026): en MX
+   * unitPrice × quantity − discountAmount = total; en US = subtotal. Es la
+   * misma rebaja que Sale.discountAmount, no otra: no mostrar ambas ni sumarlas.
+   */
   discountAmount: number;
   discountPercent?: number;
   taxRate: number;
@@ -234,10 +240,20 @@ export interface Sale {
   posLicenseLabel?: string;
   posLicenseKey?: string;
   status: PosSaleStatus;
+  /** Σ base de los renglones sin impuesto, YA neta del descuento global prorrateado (29-oct-2026); subtotal + taxAmount = total. */
   subtotal: number;
+  /**
+   * Descuento global (cupón o manual) CON impuesto: lo que ve el cliente en el
+   * ticket. Ya está repartido en items[].discountAmount (regla 29-oct-2026):
+   * no mostrarlos como dos descuentos ni sumarlos.
+   */
   discountAmount: number;
   discountPercent?: number;
+  /** 'Cupón <código>' en ventas con cupón (lo guarda el API); motivo libre en descuentos manuales. */
   discountReason?: string;
+  /** Código del cupón aplicado, si hubo. */
+  couponCode?: string;
+  /** Impuesto YA neto del descuento global prorrateado. */
   taxAmount: number;
   total: number;
   paymentMethod: PosPaymentMethod;

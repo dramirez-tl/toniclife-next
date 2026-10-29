@@ -7,6 +7,7 @@
 
 import { useSale } from '@/hooks/usePos';
 import { paymentMethodLabel } from '@/lib/delivery-print';
+import { saleTotalsPresentation } from '@/lib/pos-ticket-totals';
 import { DEFAULT_TIMEZONE, formatDateTimeLocal } from '@/lib/timezone-utils';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -47,6 +48,11 @@ export function SaleDetailInline({ saleId, timeZone = DEFAULT_TIMEZONE }: { sale
   const salePoints = sale.items.reduce((s, it) => s + it.points * it.quantity, 0);
   const units = sale.items.reduce((s, it) => s + it.quantity, 0);
   const status = STATUS_LABELS[sale.status] ?? { label: sale.status, className: 'bg-gray-100 text-gray-700' };
+  // Desglose del pie (pos-ticket-totals.ts, 29-oct-2026): con cupón o descuento
+  // global el API manda subtotal e impuestos YA netos del prorrateo, así que se
+  // muestra Subtotal bruto, Cupón −D, Total e "IVA incluido" (las filas suman);
+  // sin descuento global, Subtotal / Impuestos / Total como siempre.
+  const totals = saleTotalsPresentation(sale);
 
   return (
     <div className="space-y-3 rounded-lg border border-[#3E667D]/20 bg-white p-4 text-sm shadow-inner">
@@ -126,7 +132,10 @@ export function SaleDetailInline({ saleId, timeZone = DEFAULT_TIMEZONE }: { sale
               <td className="py-1 pr-2 font-mono text-gray-600">{it.productSku}</td>
               <td className="py-1 pr-2">
                 {it.productName}
-                {it.discountAmount > 0 ? (
+                {/* Solo descuentos de línea propios: con cupón/descuento global el renglón
+                    trae la parte prorrateada del descuento de la cabecera (29-oct-2026) y
+                    se muestra una sola vez, en el pie. */}
+                {it.discountAmount > 0 && !(sale.discountAmount > 0) ? (
                   <span className="ml-1 text-xs text-gray-500">(desc. {money(it.discountAmount, currency)})</span>
                 ) : null}
               </td>
@@ -143,32 +152,43 @@ export function SaleDetailInline({ saleId, timeZone = DEFAULT_TIMEZONE }: { sale
               {sale.items.length} renglón(es) · {units} pza(s)
             </td>
             <td colSpan={2} className="py-1 pl-2 text-right">Subtotal</td>
-            <td className="py-1 pl-2 text-right whitespace-nowrap">{money(sale.subtotal, currency)}</td>
+            <td className="py-1 pl-2 text-right whitespace-nowrap">{money(totals.subtotal, currency)}</td>
             <td className="py-1 pl-2 text-right font-semibold text-gray-900">{num(salePoints)}</td>
           </tr>
-          {sale.discountAmount > 0 ? (
+          {totals.discount ? (
             <tr className="text-xs text-gray-600">
               <td colSpan={4} className="py-0.5 text-right">
-                Descuento{sale.discountReason ? ` (${sale.discountReason})` : ''}
+                {totals.discount.couponCode
+                  ? `Cupón ${totals.discount.couponCode}`
+                  : `Descuento${sale.discountReason ? ` (${sale.discountReason})` : ''}`}
               </td>
-              <td className="py-0.5 pl-2 text-right whitespace-nowrap">−{money(sale.discountAmount, currency)}</td>
+              <td className="py-0.5 pl-2 text-right whitespace-nowrap">−{money(totals.discount.amount, currency)}</td>
               <td />
             </tr>
           ) : null}
-          <tr className="text-xs text-gray-600">
-            <td colSpan={4} className="py-0.5 text-right">Impuestos</td>
-            <td className="py-0.5 pl-2 text-right whitespace-nowrap">{money(sale.taxAmount, currency)}</td>
-            <td />
-          </tr>
+          {totals.tax != null ? (
+            <tr className="text-xs text-gray-600">
+              <td colSpan={4} className="py-0.5 text-right">Impuestos</td>
+              <td className="py-0.5 pl-2 text-right whitespace-nowrap">{money(totals.tax, currency)}</td>
+              <td />
+            </tr>
+          ) : null}
           <tr>
             <td colSpan={4} className="py-1 text-right text-xs uppercase text-gray-500">Total</td>
-            <td className="py-1 pl-2 text-right text-base font-bold whitespace-nowrap">{money(sale.total, currency)}</td>
+            <td className="py-1 pl-2 text-right text-base font-bold whitespace-nowrap">{money(totals.total, currency)}</td>
             <td className="py-1 pl-2 text-right text-xs text-gray-500">
               {typeof sale.pointsBalanceAfter === 'number'
                 ? `saldo ${num(sale.pointsBalanceAfter)}${typeof sale.pointsBalanceBefore === 'number' ? ` (antes ${num(sale.pointsBalanceBefore)})` : ''}`
                 : ''}
             </td>
           </tr>
+          {totals.taxIncludedAmount != null ? (
+            <tr className="text-xs text-gray-500">
+              <td colSpan={4} className="py-0.5 text-right">IVA incluido</td>
+              <td className="py-0.5 pl-2 text-right whitespace-nowrap">{money(totals.taxIncludedAmount, currency)}</td>
+              <td />
+            </tr>
+          ) : null}
         </tfoot>
       </table>
       {sale.notes ? <p className="text-xs text-gray-600">Notas: {sale.notes}</p> : null}

@@ -4,6 +4,7 @@
 import type { jsPDF } from 'jspdf';
 import type { Sale } from '@/types/pos';
 import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
+import { buildPosTicketTotals, ticketLineAmount } from './pos-ticket-totals';
 
 // ================================
 // Types
@@ -290,7 +291,8 @@ function renderTicketContent(doc: any, sale: Sale, LOGO_BASE64: string | null, b
     const code = item.productSku || item.productId.slice(0, 8);
     const qty = String(item.quantity);
     const price = fmtCurrency(item.unitPrice);
-    const total = fmtCurrency(item.total);
+    // Con descuento global el renglón va en bruto (pos-ticket-totals.ts).
+    const total = fmtCurrency(ticketLineAmount(sale, item));
 
     doc.text(code, colClave, y);
     doc.text(qty, colCant, y);
@@ -314,20 +316,15 @@ function renderTicketContent(doc: any, sale: Sale, LOGO_BASE64: string | null, b
   doc.setFont(FONT_MONO, 'normal');
   doc.setFontSize(7.5);
 
-  const totalsRows: [string, string][] = [
-    ['SUB Total $', fmtCurrency(sale.subtotal)],
-  ];
-
-  if (sale.discountAmount > 0) {
-    const discLabel = sale.discountPercent
-      ? `Descuento (${sale.discountPercent}%) $`
-      : 'Descuento $';
-    totalsRows.push([discLabel, `-${fmtCurrency(sale.discountAmount)}`]);
-  }
-
-  totalsRows.push(['IVA/TAX $', fmtCurrency(sale.taxAmount)]);
-
-  for (const [label, val] of totalsRows) {
+  // Filas del bloque (pos-ticket-totals.ts). Sin descuento global son las de
+  // siempre (SUB Total base, IVA/TAX, TOTAL). Con cupón o descuento global,
+  // la presentación del 29-oct-2026: el API manda subtotal/taxAmount YA netos
+  // del descuento prorrateado y discountAmount = D con impuesto, así que se
+  // imprime SUB Total bruto (total + D), Cupón −D, TOTAL y debajo "IVA
+  // incluido"; en US (impuesto añadido) Subtotal sin impuesto, Descuento en el
+  // espacio del precio, Tax y TOTAL.
+  const totals = buildPosTicketTotals(sale);
+  const drawTotalsRow = (label: string, val: string) => {
     const lh = doc.getLineHeight() / doc.internal.scaleFactor;
     y = checkPage(doc, y, lh);
     const labelW = doc.getTextWidth(label + '  ');
@@ -335,13 +332,13 @@ function renderTicketContent(doc: any, sale: Sale, LOGO_BASE64: string | null, b
     doc.text(label, colTotal - labelW - valW, y);
     doc.text(val, colTotal - valW, y);
     y += lh;
-  }
+  };
+  for (const [label, val] of totals.rows) drawTotalsRow(label, val);
 
   doc.setFont(FONT_MONO, 'bold');
   doc.setFontSize(8.5);
   y = checkPage(doc, y, 4);
-  const totalLabel = 'TOTAL $';
-  const totalVal = fmtCurrency(sale.total);
+  const [totalLabel, totalVal] = totals.total;
   const tLabelW = doc.getTextWidth(totalLabel + '  ');
   const tValW = doc.getTextWidth(totalVal);
   doc.text(totalLabel, colTotal - tLabelW - tValW, y);
@@ -350,6 +347,8 @@ function renderTicketContent(doc: any, sale: Sale, LOGO_BASE64: string | null, b
 
   doc.setFont(FONT_MONO, 'normal');
   doc.setFontSize(7.5);
+  // "IVA incluido" informativo: solo con descuento global y precio con impuesto incluido.
+  for (const [label, val] of totals.after) drawTotalsRow(label, val);
   const currLabel = 'MONEDA';
   const cLabelW = doc.getTextWidth(currLabel + '  ');
   const cValW = doc.getTextWidth(currencyLabel);
