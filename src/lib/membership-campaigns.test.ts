@@ -18,6 +18,7 @@ import {
   validateMembershipForm,
   validityLabel,
   validityState,
+  ymdOnly,
   type MembershipCampaignFormValues,
 } from './membership-campaigns';
 import type { MembershipCampaign } from '@/types/membership-campaign';
@@ -237,5 +238,35 @@ describe('membership-campaigns: formulario', () => {
     expect(f.appliesTo).toBe('all');
     expect(f.grantPosition).toBe('premium');
     expect(f.couponChannel).toBe('all');
+  });
+});
+
+describe('membership-campaigns: fechas DATE que llegan con hora (bug 30-oct-2026)', () => {
+  it('ymdOnly recorta la marca de tiempo y respeta YYYY-MM-DD y vacío', () => {
+    expect(ymdOnly('2026-10-24T00:00:00.000Z')).toBe('2026-10-24');
+    expect(ymdOnly('2026-10-24')).toBe('2026-10-24');
+    expect(ymdOnly(null)).toBe('');
+    expect(ymdOnly(undefined)).toBe('');
+  });
+
+  it('formFromCampaign deja la fecha lista para el campo y para guardar', () => {
+    const f = formFromCampaign({
+      ...campaign,
+      validFrom: '2026-10-24T00:00:00.000Z',
+      validTo: '2026-12-31T00:00:00.000Z',
+    });
+    expect(f.validFrom).toBe('2026-10-24');
+    expect(f.validTo).toBe('2026-12-31');
+    expect(validateMembershipForm(f)).toEqual([]);
+    expect(toMembershipPayload(f).validFrom).toBe('2026-10-24');
+    expect(toMembershipPayload(f).validTo).toBe('2026-12-31');
+  });
+
+  it('validityState y validityLabel aceptan la fecha con hora sin cambiar de día', () => {
+    expect(validityState('2026-10-30T00:00:00.000Z', null, '2026-10-30')).toBe('current');
+    expect(validityState('2026-10-24T00:00:00.000Z', null, '2026-10-30')).toBe('current');
+    expect(validityState('2026-11-01T00:00:00.000Z', null, '2026-10-30')).toBe('scheduled');
+    expect(validityState(null, '2026-10-29T00:00:00.000Z', '2026-10-30')).toBe('expired');
+    expect(validityLabel('2026-10-24T00:00:00.000Z', null)).toBe('Desde 24 oct 2026');
   });
 });

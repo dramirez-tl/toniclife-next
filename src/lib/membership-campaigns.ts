@@ -135,6 +135,18 @@ export function formatBusinessDate(ymd: string | null | undefined): string {
   return `${Number(m[3])} ${month} ${m[1]}`;
 }
 
+/**
+ * Deja solo "YYYY-MM-DD". El API entregaba las columnas DATE como marca de
+ * tiempo completa ("2026-10-24T00:00:00.000Z"): el campo de fecha la mostraba
+ * vacía y, al guardar, el API la rechazaba (bug 30-oct-2026). El API ya la
+ * recorta; aquí se tolera por si responde una versión anterior.
+ */
+export function ymdOnly(v: string | null | undefined): string {
+  if (!v) return '';
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(v);
+  return m ? m[1] : v;
+}
+
 /** Vigencia en una línea: "Sin límite", "Desde …", "Hasta …" o "… → …". */
 export function validityLabel(from: string | null | undefined, to: string | null | undefined): string {
   if (from && to) return `${formatBusinessDate(from)} → ${formatBusinessDate(to)}`;
@@ -153,10 +165,12 @@ export type ValidityState = 'current' | 'scheduled' | 'expired';
 
 /** Contra una fecha de negocio (YYYY-MM-DD): programada, vencida o vigente. */
 export function validityState(
-  from: string | null | undefined,
-  to: string | null | undefined,
+  fromRaw: string | null | undefined,
+  toRaw: string | null | undefined,
   today: string,
 ): ValidityState {
+  const from = ymdOnly(fromRaw) || null;
+  const to = ymdOnly(toRaw) || null;
   if (from && from > today) return 'scheduled';
   if (to && to < today) return 'expired';
   return 'current';
@@ -273,8 +287,8 @@ export function formFromCampaign(c: MembershipCampaign): MembershipCampaignFormV
     couponPercent: c.couponPercent === null || c.couponPercent === undefined ? '' : String(c.couponPercent),
     couponValidDays: String(c.couponValidDays ?? 90),
     couponChannel: isChannel(c.couponChannel) ? c.couponChannel : 'all',
-    validFrom: c.validFrom ?? '',
-    validTo: c.validTo ?? '',
+    validFrom: ymdOnly(c.validFrom),
+    validTo: ymdOnly(c.validTo),
     isActive: c.isActive,
     sortOrder: String(c.sortOrder ?? 0),
     gifts: [...(c.gifts ?? [])]
