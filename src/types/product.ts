@@ -161,6 +161,14 @@ export interface Product {
   variantColor?: string | null;
   variantColorHex?: string | null;
   variantSize?: string | null;
+  /**
+   * Personalización en la tienda (mig 179, 30-oct-2026): máximo de caracteres
+   * del texto que el cliente escribe (1..60; null = no se personaliza) y
+   * etiqueta del campo (null = la etiqueta por defecto de la tienda). Ausentes
+   * mientras el API desplegado no los mande.
+   */
+  personalizationMaxLength?: number | null;
+  personalizationLabel?: string | null;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;
@@ -466,6 +474,10 @@ export interface CreateProductDto {
   onlineAudience?: ProductOnlineAudience;
   isFeatured?: boolean;
   availableInPos?: boolean;
+  /** Personalización en la tienda (mig 179): 1..60 o null; solo se manda cuando se enciende en el alta. */
+  personalizationMaxLength?: number | null;
+  /** Etiqueta del campo de personalización (<= 60); null = la de la tienda. */
+  personalizationLabel?: string | null;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;

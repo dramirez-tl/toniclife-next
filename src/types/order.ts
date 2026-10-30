@@ -30,6 +30,11 @@ export interface OrderItem {
   lotNumber?: string;
   lineNumber?: number;
   isActive: boolean;
+  /**
+   * Texto que el cliente escribió en la tienda para estampar (mig 179,
+   * order_items.personalization, <= 60). Ausente = sin personalización.
+   */
+  personalization?: string;
 }
 
 export interface AddressSnapshot {

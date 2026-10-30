@@ -72,6 +72,7 @@ import {
   type DeliveryAction,
 } from '@/lib/deliveries/actions';
 import { currentFontScale } from '@/lib/preferences';
+import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 type Tab = 'open' | DeliveryStatus | 'all';
@@ -762,6 +763,9 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
   const units = consolidated
     ? (d.shipmentItems ?? []).reduce((s, it) => s + it.quantity, 0)
     : items.reduce((s, it) => s + it.quantity, 0);
+  // Renglones con texto a estampar (mig 179; solo pedidos web): Almacén lo
+  // estampa ANTES de empacar, así que se avisa arriba y se destaca en cada renglón.
+  const personalized = consolidated ? 0 : countPersonalizedLines(items);
   return (
     <div className="space-y-3 text-sm">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -813,6 +817,18 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           ? `${d.shipmentDeliveries!.length} ventas en un solo paquete · ${formatMoney(d.shipmentDeliveries!.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode)} en total`
           : `${deliveryDocLabel(d)} del ${formatDateTime(d.saleCreatedAt, timeZone)} · ${paymentMethodLabel(d.paymentMethod)} · ${formatMoney(d.saleTotal, d.currencyCode)}`}
       </p>
+      {personalized > 0 ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+        >
+          <PencilSquareIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            Lleva texto a estampar en {personalized} renglón(es): estámpalo antes de empacar (ver
+            &quot;Personalización&quot; en cada producto).
+          </span>
+        </p>
+      ) : null}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
@@ -881,6 +897,14 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
                       <span className="ml-1 text-xs text-gray-500">
                         {comps.length ? '(contiene:)' : '(kit sin composición cargada)'}
                       </span>
+                    ) : null}
+                    {personalizationLine(it.personalization) ? (
+                      <p className="mt-0.5">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs font-bold text-amber-900">
+                          <PencilSquareIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          {personalizationLine(it.personalization)}
+                        </span>
+                      </p>
                     ) : null}
                   </td>
                   <td className="py-1 text-right text-base font-semibold">{it.quantity}</td>
@@ -968,6 +992,9 @@ function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
       {items.map((it) => (
         <div key={it.id} className="mb-1">
           <p>{it.productName}</p>
+          {personalizationLine(it.personalization) ? (
+            <p className="font-bold">** {personalizationLine(it.personalization)} **</p>
+          ) : null}
           <div className="flex justify-between text-gray-700">
             <span>
               {it.productSku} · {it.quantity} × {formatMoney(it.unitPrice, d.currencyCode)}

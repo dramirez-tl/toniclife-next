@@ -14,10 +14,15 @@
 // Desde la mig 176 (28-oct-2026) también se imprimen PEDIDOS WEB: el título dice
 // "Pedido web TL…", la caja "Distribuidor" pasa a "Comprador" y, si es para
 // recoger en sucursal, "Enviar a" pasa a "Entregar en mostrador".
+//
+// Personalización (mig 179, 30-oct-2026): si un renglón trae el texto que el
+// comprador escribió para estampar, la hoja de surtido avisa arriba y lo pinta
+// enmarcado bajo el producto; el ticket lo lista bajo el nombre.
 
 import type { Delivery } from '@/types/deliveries';
 import { DELIVERY_MODE_LABELS, DELIVERY_STATUS_LABELS } from '@/types/deliveries';
 import { deliveryDocLabel, deliveryModeOf, paymentMethodLabel } from '@/lib/deliveries/actions';
+import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 
 // Compatibilidad: el nombre vivía aquí; ahora la regla está en lib/deliveries/actions.
 export { paymentMethodLabel } from '@/lib/deliveries/actions';
@@ -79,6 +84,8 @@ const baseCss = (scale: number) => `
   .check { display: inline-block; width: calc(14px * var(--s)); height: calc(14px * var(--s)); border: 1px solid #333; vertical-align: middle; }
   .check.small { width: calc(11px * var(--s)); height: calc(11px * var(--s)); }
   tr.comp td { background: #fafafa; font-size: calc(11px * var(--s)); padding-top: 3px; padding-bottom: 3px; }
+  .perso { display: inline-block; margin-top: 3px; padding: 2px 6px; border: 2px solid #111; border-radius: 4px; font-weight: bold; }
+  .box.alert { border: 2px solid #111; background: #fff3c4; font-weight: bold; }
   tfoot td { font-weight: bold; background: #f7f7f7; }
   .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; font-size: calc(11px * var(--s)); text-align: center; }
   .sign div { border-top: 1px solid #333; padding-top: 4px; }
@@ -101,6 +108,8 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         perSale: it.perSale,
         unitPrice: null as number | null,
         total: null as number | null,
+        // El consolidado agrupa por producto entre ventas POS: sin texto por renglón.
+        personalization: null as string | null,
       }))
     : (d.items ?? []).map((it) => ({
         productSku: it.productSku,
@@ -111,10 +120,12 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         perSale: [] as { saleNumber: string; customerNumber: string | null; quantity: number }[],
         unitPrice: it.unitPrice as number | null,
         total: it.total as number | null,
+        personalization: it.personalization ?? null,
       }));
   // Precios solo cuando es una venta (en el consolidado cada venta trae su total abajo).
   const withPrices = !consolidated;
   const cols = withPrices ? 7 : 5;
+  const personalized = countPersonalizedLines(items);
   const rows = items
     .map((it, i) => {
       const comps = it.components ?? [];
@@ -122,6 +133,9 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
       const perSale = it.perSale.length
         ? `<br><span class="muted">${esc(it.perSale.map((p) => `${p.saleNumber}${p.customerNumber ? ` (#${p.customerNumber})` : ''}: ${p.quantity}`).join(' · '))}</span>`
         : '';
+      // Texto a estampar, enmarcado para que no se pase al surtir.
+      const perso = personalizationLine(it.personalization);
+      const persoHtml = perso ? `<br><span class="perso">&#9998; ${esc(perso)}</span>` : '';
       const priceCells = withPrices
         ? `<td class="num">${esc(money(it.unitPrice ?? 0, d.currencyCode))}</td><td class="num">${esc(money(it.total ?? 0, d.currencyCode))}</td>`
         : '';
@@ -130,7 +144,7 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         <td class="num">${i + 1}</td>
         <td><span class="check"></span></td>
         <td>${esc(it.productSku)}</td>
-        <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}${perSale}</td>
+        <td>${esc(it.productName)}${isKit ? ` <span class="muted">(${comps.length ? 'contiene:' : 'kit sin composición cargada'})</span>` : ''}${persoHtml}${perSale}</td>
         <td class="num big">${esc(it.quantity)}</td>${priceCells}
       </tr>`;
       // Contenido del kit / promo: una línea por pieza con su cantidad TOTAL.
@@ -188,6 +202,11 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         ? `${sales.length} ventas · ${esc(money(sales.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode))} en total`
         : `${esc(deliveryDocLabel(d))} del ${esc(dateTime(d.saleCreatedAt, timeZone))} · ${esc(paymentMethodLabel(d.paymentMethod))} · ${esc(money(d.saleTotal, d.currencyCode))}`
     } · Capturó ${esc(d.requestedByName ?? (isOrder ? 'Tienda en línea' : 'Call Center'))} el ${esc(dateTime(d.requestedAt, timeZone))}</div>
+    ${
+      personalized > 0
+        ? `<div class="box alert">&#9998; Lleva texto a estampar en ${personalized} renglón(es): estámpalo antes de empacar (ver "Personalización" en cada producto).</div>`
+        : ''
+    }
     <h2>Productos (${items.length} renglón(es) · ${units} pieza(s))</h2>
     <table>
       <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th>${withPrices ? '<th class="num">P. unit.</th><th class="num">Importe</th>' : ''}</tr></thead>
@@ -225,10 +244,13 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
         .join('');
       // Clave, cantidad, precio y total en un renglón (como el ticket anterior);
       // el nombre completo abajo. Sin piezas, la casilla va en el producto.
+      // Texto a estampar (mig 179): su propia línea bajo el nombre.
+      const perso = personalizationLine(it.personalization);
+      const persoRow = perso ? `<tr><td colspan="4" class="perso">** ${esc(perso)} **</td></tr>` : '';
       return `
       <tr class="line"><td class="sku">${esc(it.productSku)}</td><td class="num qty">${esc(it.quantity)}</td><td class="num">${esc(money(it.unitPrice, d.currencyCode))}</td><td class="num">${esc(money(it.total, d.currencyCode))}</td></tr>
       <tr><td colspan="4" class="name">${comps.length ? '' : '<span class="check"></span> '}${esc(it.productName)}</td></tr>
-      ${children}`;
+      ${persoRow}${children}`;
     })
     .join('');
   const scale = scaleOf(fontScale);
@@ -240,6 +262,7 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
     tr.line td { padding-top: 6px; }
     td.name { padding-top: 0; }
     td.comp { font-size: calc(12px * var(--s)); padding: 1px 0 1px calc(8px * var(--s)); }
+    td.perso { padding: 0 0 2px calc(8px * var(--s)); text-decoration: underline; }
     .sku { font-size: calc(12px * var(--s)); letter-spacing: .02em; }
     .qty { font-size: calc(14px * var(--s)); }
     .check { display: inline-block; width: calc(10px * var(--s)); height: calc(10px * var(--s)); border: 1px solid #000; vertical-align: middle; }

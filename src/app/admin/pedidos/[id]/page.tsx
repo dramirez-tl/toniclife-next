@@ -17,6 +17,7 @@ import {
   EllipsisVerticalIcon,
   ExclamationTriangleIcon,
   CubeIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,6 +50,7 @@ import { Label } from '@/components/ui/label';
 import { OrderStatus, type OrderDeliverySummary } from '@/types/order';
 import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
 import { deliveryStatusClasses } from '@/lib/deliveries/actions';
+import { personalizationLine } from '@/lib/product-personalization';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 
@@ -440,6 +442,13 @@ export default function OrderDetailAdminPage() {
                           {item.productCode && `Código: ${item.productCode}`}
                         </p>
                       )}
+                      {/* Texto a estampar que escribió el cliente (mig 179): Almacén lo ve también en Entregas. */}
+                      {personalizationLine(item.personalization) ? (
+                        <p className="mt-1 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-900">
+                          <PencilSquareIcon className="h-4 w-4 shrink-0" aria-hidden />
+                          {personalizationLine(item.personalization)}
+                        </p>
+                      ) : null}
                       <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
                     </div>
                     <div className="text-right shrink-0">

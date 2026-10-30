@@ -375,6 +375,14 @@ export interface AdminUpdateProductDto {
   variantColorHex?: string | null;
   /** MAYÚSCULAS, sin espacios, máx. 20 (CH, M, G, XL, 28…). */
   variantSize?: string | null;
+  /**
+   * Personalización en la tienda (mig 179): máximo de caracteres del texto que
+   * escribe el cliente (1..60; `null` = no se personaliza) y etiqueta del campo
+   * (<= 60; `null` = la etiqueta por defecto de la tienda). Sin la migración
+   * aplicada: 503 PRD_MIGRATION_PENDING.
+   */
+  personalizationMaxLength?: number | null;
+  personalizationLabel?: string | null;
   slug?: string;
   metaTitle?: string | null;
   metaDescription?: string | null;

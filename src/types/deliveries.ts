@@ -66,6 +66,13 @@ export interface DeliveryItem {
   total: number;
   /** Contenido resuelto para el país de la sucursal que surte (solo kits, paquetes y promos). */
   components?: DeliveryItemComponent[];
+  /**
+   * Texto a estampar que el comprador escribió en la tienda (mig 179; solo
+   * pedidos web). null = sin personalización; ausente con un API anterior.
+   * Almacén lo estampa ANTES de enviar: se pinta destacado en el detalle,
+   * la hoja de surtido y el ticket.
+   */
+  personalization?: string | null;
 }
 
 export interface Delivery {
