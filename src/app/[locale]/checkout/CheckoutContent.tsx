@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -816,6 +817,22 @@ export default function CheckoutContent() {
                     </div>
                       </>
                     )}
+
+                    {/* Notas del pedido: personalización (nombre a estampar) y otras indicaciones.
+                        Viajan en orders.observation y Almacén las ve en la entrega (30-oct-2026). */}
+                    <div className="pt-4 border-t border-gray-200">
+                      <Label htmlFor="checkout-notes">{t('notesLabel')}</Label>
+                      <Textarea
+                        id="checkout-notes"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value.slice(0, 500))}
+                        maxLength={500}
+                        rows={3}
+                        placeholder={t('notesPlaceholder')}
+                        className="mt-1"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">{t('notesHint')}</p>
+                    </div>
 
                     <div className="flex gap-3">
                       <Button
