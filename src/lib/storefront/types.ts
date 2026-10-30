@@ -60,6 +60,76 @@ export interface StorefrontProductComponent {
   availability: StorefrontAvailability;
 }
 
+// Familias de producto y variantes (API mig 178, 30-oct-2026). Cada talla/color
+// es OTRO producto (con su slug, clave y existencia): el detalle trae a las
+// hermanas vendibles para pintar los selectores y navegar entre ellas.
+
+export type StorefrontVariantGender = 'mujer' | 'hombre' | 'unisex';
+
+/** Atributos de UNA variante dentro de su familia. */
+export interface StorefrontVariantAttributes {
+  gender: StorefrontVariantGender | null;
+  /** Nombre del color tal como lo capturó el admin ("Rosa pastel"). */
+  color: string | null;
+  /** "#RRGGBB" para la muestra; null = sin muestra (se pinta el nombre). */
+  colorHex: string | null;
+  /** Talla normalizada (CH, M, 28…). */
+  size: string | null;
+}
+
+export interface StorefrontVariantOption extends StorefrontVariantAttributes {
+  id: string;
+  slug: string;
+  code: string;
+  /** Talla ya etiquetada en el idioma de la tienda (CH/S…). */
+  sizeLabel: string;
+  genderLabel: string;
+  imageUrl: string | null;
+  availability: StorefrontAvailability;
+  /** Precio que ve ESTE visitante. */
+  price: number;
+}
+
+/** Qué selectores mostrar: un eje existe cuando hay al menos dos valores distintos. */
+export interface StorefrontVariantAxes {
+  gender: boolean;
+  color: boolean;
+  size: boolean;
+}
+
+export type StorefrontSizeGuideUnit = 'cm' | 'in';
+
+export interface StorefrontSizeGuideColumn {
+  key: string;
+  label: string;
+}
+
+export interface StorefrontSizeGuideRow {
+  size: string;
+  sizeLabel: string;
+  /** Medida por `columns[].key` (texto, tal como se capturó). */
+  values: Record<string, string>;
+}
+
+/** Tabla de medidas de la familia; el API la omite (null) si no tiene filas. */
+export interface StorefrontSizeGuide {
+  name: string;
+  unit: StorefrontSizeGuideUnit;
+  columns: StorefrontSizeGuideColumn[];
+  rows: StorefrontSizeGuideRow[];
+  notes: string | null;
+}
+
+export interface StorefrontVariants {
+  /** `name` ya en el idioma de la tienda: es el título del detalle (sin la talla). */
+  family: { code: string; name: string };
+  axes: StorefrontVariantAxes;
+  current: StorefrontVariantAttributes & { sizeLabel: string; genderLabel: string };
+  /** TODAS las hermanas vendibles en este país/audiencia, incluida la actual, ya ordenadas. */
+  options: StorefrontVariantOption[];
+  sizeGuide: StorefrontSizeGuide | null;
+}
+
 export interface StorefrontProductDetail extends StorefrontProductCard {
   /**
    * Moneda del precio. El contrato del detalle no la trae suelta: el front la toma
@@ -83,6 +153,11 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   };
   disclaimer: string | null;
   updatedAt: string;
+  /**
+   * Selectores de variante (talla, color, para quién) y guía de tallas. `null` cuando
+   * el producto no tiene familia o no hay nada que elegir (API previo a la mig 178: null).
+   */
+  variants: StorefrontVariants | null;
 }
 
 export interface StorefrontFacets {

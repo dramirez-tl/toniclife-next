@@ -20,8 +20,17 @@ export type {
   StorefrontProductImage,
   StorefrontProductType,
   StorefrontSitemapItem,
+  StorefrontSizeGuide,
+  StorefrontSizeGuideColumn,
+  StorefrontSizeGuideRow,
+  StorefrontSizeGuideUnit,
   StorefrontSuggestProduct,
   StorefrontSuggestResponse,
+  StorefrontVariantAttributes,
+  StorefrontVariantAxes,
+  StorefrontVariantGender,
+  StorefrontVariantOption,
+  StorefrontVariants,
   StorefrontViewerInfo,
 } from '@/lib/storefront/types';
 export type { CatalogSort, CatalogState } from '@/lib/storefront/catalog-params';

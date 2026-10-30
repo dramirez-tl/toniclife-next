@@ -226,6 +226,21 @@
         "announce": "Quantity: {count}",
         "announceMax": "Quantity: {count}. That is the maximum of {max} per order."
       },
+      "variants": {
+        "label": "Product options",
+        "gender": "For",
+        "color": "Color",
+        "size": "Size",
+        "optionSoldOut": "{label} (sold out)",
+        "sizeGuide": "Size guide",
+        "sizeGuideTitle": "Size guide: {name}",
+        "measurementsNote": "Measurements in {unit}",
+        "unit": {
+          "cm": "centimeters",
+          "in": "inches"
+        },
+        "navigating": "Loading the selected option…"
+      },
       "gallery": {
         "carousel": "carousel",
         "slide": "image",

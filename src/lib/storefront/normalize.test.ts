@@ -215,6 +215,66 @@ describe('normalizeDetailResponse', () => {
     }
   });
 
+  const variants = {
+    family: { code: 'pn', name: 'Playera negra' },
+    axes: { gender: true, color: false, size: true },
+    current: { gender: 'mujer', color: 'Negra', colorHex: '#000000', size: 'ch', sizeLabel: 'CH', genderLabel: 'Mujer' },
+    options: [
+      { id: 'a', slug: 'a-playera', code: 'A', gender: 'mujer', color: 'Negra', colorHex: '#000', size: 'CH', sizeLabel: 'CH', genderLabel: 'Mujer', imageUrl: null, availability: 'in_stock', price: '350.00' },
+      { id: 'b', slug: 'b-playera', code: 'B', gender: 'hombre', color: 'Negra', colorHex: '#0a0a0a', size: ' m ', sizeLabel: 'M', genderLabel: 'Hombre', imageUrl: null, availability: 'out_of_stock', price: 350 },
+      { id: 'c', code: 'C', gender: 'otro', size: 'G' },
+      { id: 'a', slug: 'repetida' },
+    ],
+    sizeGuide: {
+      name: 'Playera mujer',
+      unit: 'in',
+      columns: [{ key: 'pecho', label: 'Pecho' }, { key: 'pecho', label: 'Repetida' }, { key: '', label: 'Sin clave' }, { label: 'Sin clave 2' }],
+      rows: [{ size: 'm', sizeLabel: 'M', values: { pecho: 98, otra: 'x' } }, { size: 'ch', values: { pecho: '92' } }, { values: {} }],
+      notes: ' Mide una prenda que te quede bien. ',
+    },
+  };
+
+  it('variants: hex #RRGGBB en mayúsculas, talla sin espacios, opciones sin slug o repetidas fuera, guía saneada', () => {
+    const out = normalizeDetailResponse({ status: 'ok', product: { ...product, variants } }, 'MXN');
+    expect(out?.status === 'ok' && out.product.variants).toEqual({
+      family: { code: 'pn', name: 'Playera negra' },
+      axes: { gender: true, color: false, size: true },
+      current: { gender: 'mujer', color: 'Negra', colorHex: '#000000', size: 'CH', sizeLabel: 'CH', genderLabel: 'Mujer' },
+      options: [
+        { id: 'a', slug: 'a-playera', code: 'A', gender: 'mujer', color: 'Negra', colorHex: null, size: 'CH', sizeLabel: 'CH', genderLabel: 'Mujer', imageUrl: null, availability: 'in_stock', price: 350 },
+        { id: 'b', slug: 'b-playera', code: 'B', gender: 'hombre', color: 'Negra', colorHex: '#0A0A0A', size: 'M', sizeLabel: 'M', genderLabel: 'Hombre', imageUrl: null, availability: 'out_of_stock', price: 350 },
+      ],
+      sizeGuide: {
+        name: 'Playera mujer',
+        unit: 'in',
+        columns: [{ key: 'pecho', label: 'Pecho' }],
+        rows: [
+          { size: 'M', sizeLabel: 'M', values: { pecho: '98' } },
+          { size: 'CH', sizeLabel: 'CH', values: { pecho: '92' } },
+        ],
+        notes: 'Mide una prenda que te quede bien.',
+      },
+    });
+  });
+
+  it('variants: API previo, basura o nada que elegir ni guía => null; solo guía => viaja con el nombre del producto', () => {
+    const sinNada = { family: { name: 'F' }, axes: { gender: false }, options: [], sizeGuide: { name: 'G', columns: [], rows: [] } };
+    for (const junk of [undefined, null, 'x', {}, sinNada]) {
+      const out = normalizeDetailResponse({ status: 'ok', product: { ...product, variants: junk } }, 'MXN');
+      expect(out?.status === 'ok' && out.product.variants).toBeNull();
+    }
+    const onlyGuide = normalizeDetailResponse(
+      { status: 'ok', product: { ...product, variants: { axes: { size: true }, options: [{ id: 'a', slug: 'a' }], sizeGuide: variants.sizeGuide } } },
+      'MXN',
+    );
+    expect(onlyGuide?.status === 'ok' && onlyGuide.product.variants).toMatchObject({
+      family: { code: '', name: product.name },
+      axes: { gender: false, color: false, size: false },
+      options: [{ id: 'a', slug: 'a', sizeLabel: '', availability: 'unknown', price: 0 }],
+      sizeGuide: { unit: 'in' },
+    });
+  });
+
   it('moved y unavailable_in_country', () => {
     expect(normalizeDetailResponse({ status: 'moved', canonicalSlug: 'nuevo' }, 'MXN')).toEqual({
       status: 'moved',

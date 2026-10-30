@@ -17,7 +17,12 @@ import type {
   StorefrontProductDetail,
   StorefrontProductImage,
   StorefrontProductType,
+  StorefrontSizeGuide,
   StorefrontSuggestResponse,
+  StorefrontVariantAttributes,
+  StorefrontVariantGender,
+  StorefrontVariantOption,
+  StorefrontVariants,
   StorefrontViewerInfo,
 } from './types';
 
@@ -240,6 +245,124 @@ function countries(value: unknown): string[] {
     : [];
 }
 
+// --- Variantes (familias de producto, API mig 178) ---------------------------
+
+const VARIANT_GENDERS: readonly StorefrontVariantGender[] = ['mujer', 'hombre', 'unisex'];
+const COLOR_HEX = /^#[0-9A-Fa-f]{6}$/;
+
+function variantGender(value: unknown): StorefrontVariantGender | null {
+  return VARIANT_GENDERS.includes(value as StorefrontVariantGender) ? (value as StorefrontVariantGender) : null;
+}
+
+function variantColorHex(value: unknown): string | null {
+  const hex = str(value);
+  return hex && COLOR_HEX.test(hex) ? hex.toUpperCase() : null;
+}
+
+/** Talla como la guarda el API: MAYÚSCULAS, sin espacios. */
+function variantSize(value: unknown): string | null {
+  const size = str(value)?.replace(/\s+/g, '').toUpperCase();
+  return size ? size : null;
+}
+
+function variantAttributes(row: Row): StorefrontVariantAttributes {
+  return {
+    gender: variantGender(row.gender),
+    color: str(row.color),
+    colorHex: variantColorHex(row.colorHex),
+    size: variantSize(row.size),
+  };
+}
+
+function normalizeVariantOptions(value: unknown): StorefrontVariantOption[] {
+  const seen = new Set<string>();
+  return rows(value).flatMap((row) => {
+    const id = str(row.id);
+    const slug = str(row.slug);
+    // Sin slug no hay página a la que ir: la opción no sirve en el selector.
+    if (!id || !slug || seen.has(id)) return [];
+    seen.add(id);
+    const attrs = variantAttributes(row);
+    return [
+      {
+        id,
+        slug,
+        code: str(row.code) ?? '',
+        ...attrs,
+        sizeLabel: str(row.sizeLabel) ?? attrs.size ?? '',
+        genderLabel: str(row.genderLabel) ?? '',
+        imageUrl: str(row.imageUrl),
+        availability: availability(row.availability),
+        price: positive(row.price) ?? 0,
+      },
+    ];
+  });
+}
+
+/** Guía sin columnas o sin filas = sin guía (el API tampoco la manda así). */
+function normalizeSizeGuide(value: unknown): StorefrontSizeGuide | null {
+  if (!isRow(value)) return null;
+  const keys = new Set<string>();
+  const columns = rows(value.columns).flatMap((column) => {
+    const key = str(column.key);
+    const label = str(column.label);
+    if (!key || !label || keys.has(key)) return [];
+    keys.add(key);
+    return [{ key, label }];
+  });
+  const guideRows = rows(value.rows).flatMap((row) => {
+    const size = variantSize(row.size);
+    if (!size) return [];
+    const raw = isRow(row.values) ? row.values : {};
+    const values = Object.fromEntries(
+      columns.map((column) => {
+        const cell = raw[column.key];
+        return [column.key, typeof cell === 'number' ? String(cell) : (str(cell) ?? '')];
+      }),
+    );
+    return [{ size, sizeLabel: str(row.sizeLabel) ?? size, values }];
+  });
+  if (columns.length === 0 || guideRows.length === 0) return null;
+  return {
+    name: str(value.name) ?? '',
+    unit: value.unit === 'in' ? 'in' : 'cm',
+    columns,
+    rows: guideRows,
+    notes: str(value.notes),
+  };
+}
+
+/**
+ * Bloque `variants` del detalle. `null` cuando el API no lo manda (previo a la mig
+ * 178), cuando no deja nada que elegir ni guía, o cuando el cuerpo no tiene forma.
+ */
+export function normalizeVariants(value: unknown, fallbackFamilyName: string): StorefrontVariants | null {
+  if (!isRow(value)) return null;
+  const family = isRow(value.family) ? value.family : {};
+  const axesRow = isRow(value.axes) ? value.axes : {};
+  const options = normalizeVariantOptions(value.options);
+  const sizeGuide = normalizeSizeGuide(value.sizeGuide);
+  const axes = {
+    gender: axesRow.gender === true && options.length > 1,
+    color: axesRow.color === true && options.length > 1,
+    size: axesRow.size === true && options.length > 1,
+  };
+  if (!axes.gender && !axes.color && !axes.size && !sizeGuide) return null;
+  const currentRow = isRow(value.current) ? value.current : {};
+  const current = variantAttributes(currentRow);
+  return {
+    family: { code: str(family.code) ?? '', name: str(family.name) ?? fallbackFamilyName },
+    axes,
+    current: {
+      ...current,
+      sizeLabel: str(currentRow.sizeLabel) ?? current.size ?? '',
+      genderLabel: str(currentRow.genderLabel) ?? '',
+    },
+    options,
+    sizeGuide,
+  };
+}
+
 export function normalizeDetail(value: unknown, fallbackCurrency: string): StorefrontProductDetail | null {
   const card = normalizeCard(value);
   if (!card || !isRow(value)) return null;
@@ -271,6 +394,7 @@ export function normalizeDetail(value: unknown, fallbackCurrency: string): Store
     },
     disclaimer: str(value.disclaimer),
     updatedAt: str(value.updatedAt) ?? '',
+    variants: normalizeVariants(value.variants, card.name),
   };
 }
 

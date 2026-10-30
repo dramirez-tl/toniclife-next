@@ -1,10 +1,11 @@
 'use client';
 
-// Bloque de compra del detalle: h1, clave, precio/puntos por rol, disponibilidad
-// REAL, cantidad con tope, "Agregar al carrito", "Comprar ahora" (que SÍ agrega y
-// después va al checkout), envío real del país y compartir.
+// Bloque de compra del detalle: h1, clave, precio/puntos por rol, selector de
+// variantes (si el producto pertenece a una familia), disponibilidad REAL, cantidad
+// con tope, "Agregar al carrito", "Comprar ahora" (que SÍ agrega y después va al
+// checkout), envío real del país y compartir.
 
-import { forwardRef } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { CheckIcon, ShoppingCartIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,10 @@ interface BuyBoxProps {
   product: StorefrontProductDetail;
   /** Nombre en formato título (el mismo del <title> y las migas). */
   name: string;
+  /** Texto del h1 cuando difiere del nombre: la familia de variantes (sin la talla). */
+  heading?: string;
+  /** Selector de variantes (para quién, color, talla): va entre el precio y la compra. */
+  variantPicker?: ReactNode;
   lang: LanguageCode;
   showPoints: boolean;
   quantity: number;
@@ -35,7 +40,21 @@ interface BuyBoxProps {
 
 /** El `ref` apunta a los CTA: cuando salen de pantalla aparece la barra fija en móvil. */
 export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
-  { product, name, lang, showPoints, quantity, onQuantityChange, onAdd, onBuyNow, isPending, justAdded, announcement },
+  {
+    product,
+    name,
+    heading,
+    variantPicker,
+    lang,
+    showPoints,
+    quantity,
+    onQuantityChange,
+    onAdd,
+    onBuyNow,
+    isPending,
+    justAdded,
+    announcement,
+  },
   ctaRef,
 ) {
   const t = useTranslations('storefront.product');
@@ -57,7 +76,7 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
             {product.category.name}
           </Link>
         )}
-        <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl lg:text-4xl">{name}</h1>
+        <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl lg:text-4xl">{heading ?? name}</h1>
         {product.content.tagline && <p className="text-base text-gray-700 sm:text-lg">{product.content.tagline}</p>}
         <p className="text-sm text-gray-700">
           {t('code', { code: product.code })}
@@ -77,6 +96,8 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
         lang={lang}
         showPoints={showPoints}
       />
+
+      {variantPicker}
 
       <AvailabilityBadge availability={product.availability} stockLeft={product.stockLeft} />
 

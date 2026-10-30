@@ -7,6 +7,9 @@
 // "Comprar ahora" agrega y lleva al CHECKOUT (o al carrito si el piloto tiene el
 // pago en línea apagado: mismo interruptor que ya gobierna la página de checkout, o
 // si el carrito trae líneas que bloquean el pago: ahí se explica cuáles y por qué).
+// Variantes (familias, API mig 178): el selector navega a la PÁGINA de la variante
+// elegida (`router.replace` sin scroll); este componente sigue montado y recibe el
+// nuevo producto, así que precio, existencia y carrito son siempre los de la URL.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -33,6 +36,7 @@ import { RelatedProducts } from '@/components/storefront/RelatedProducts';
 import { SessionExpiredNotice } from '@/components/storefront/SessionExpiredNotice';
 import { StickyBuyBar } from '@/components/storefront/StickyBuyBar';
 import { useAddToCart } from '@/components/storefront/useAddToCart';
+import { VariantPicker } from '@/components/storefront/VariantPicker';
 import type { StorefrontProductDetail } from '@/types/storefront';
 
 interface ProductDetailClientProps {
@@ -62,6 +66,10 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   // Cuenta de ZONA (Frontera): el `viewer` viaja junto al producto solo con el API que lo manda.
   const priceZone = hasSession && data?.status === 'ok' ? viewerPriceZone(data.viewer) : null;
   const name = formatProductName(product.name);
+  // Con familia, el h1 lleva el nombre de la familia: la talla ya se ve en el selector.
+  // (El nombre completo sigue en las migas, la galería, el carrito y la barra fija.)
+  const variants = product.variants ?? null;
+  const heading = (variants && formatProductName(variants.family.name)) || name;
 
   const [rawQuantity, setQuantity] = useState(1);
   const quantity = Math.min(Math.max(1, rawQuantity), Math.max(1, product.maxQuantity));
@@ -117,7 +125,8 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
       <Breadcrumbs items={breadcrumbs} ariaLabel={t('breadcrumbLabel')} className="px-4 py-4 sm:px-6 lg:px-0" />
 
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
-        <ProductGallery images={product.images} name={name} className="lg:sticky lg:top-36 lg:self-start" />
+        {/* Otra variante = otra galería: arranca en su primera imagen. */}
+        <ProductGallery key={product.id} images={product.images} name={name} className="lg:sticky lg:top-36 lg:self-start" />
         <div className="px-4 sm:px-6 lg:px-0">
           <PriceZoneNotice zone={priceZone} className="mb-4" />
           <SessionExpiredNotice className="mb-4" />
@@ -125,6 +134,12 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
             ref={ctaRef}
             product={product}
             name={name}
+            heading={heading}
+            variantPicker={
+              variants ? (
+                <VariantPicker variants={variants} currentId={product.id} currentAvailability={product.availability} lang={lang} />
+              ) : undefined
+            }
             lang={lang}
             showPoints={showPoints}
             quantity={quantity}

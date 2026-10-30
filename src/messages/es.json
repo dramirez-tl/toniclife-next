@@ -226,6 +226,21 @@
         "announce": "Cantidad: {count}",
         "announceMax": "Cantidad: {count}. Es el máximo de {max} por pedido."
       },
+      "variants": {
+        "label": "Opciones del producto",
+        "gender": "Para",
+        "color": "Color",
+        "size": "Talla",
+        "optionSoldOut": "{label} (agotado)",
+        "sizeGuide": "Guía de tallas",
+        "sizeGuideTitle": "Guía de tallas: {name}",
+        "measurementsNote": "Medidas en {unit}",
+        "unit": {
+          "cm": "centímetros",
+          "in": "pulgadas"
+        },
+        "navigating": "Cargando la opción elegida…"
+      },
       "gallery": {
         "carousel": "carrusel",
         "slide": "imagen",
