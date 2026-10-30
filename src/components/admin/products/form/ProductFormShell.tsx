@@ -34,6 +34,7 @@ import {
   PRODUCTS_LIST_RETURN_KEY,
   PRODUCT_SECTIONS,
   SECTION_LABEL,
+  hasVariantsSection,
   isKitLikeType,
   isProductSectionId,
   type ProductSectionId,
@@ -67,6 +68,7 @@ import { PricesSection } from './sections/PricesSection';
 import { SeoSection } from './sections/SeoSection';
 import { StoreSection } from './sections/StoreSection';
 import { TranslationsSection } from './sections/TranslationsSection';
+import { VariantsSection } from './sections/VariantsSection';
 
 const SECTION_COMPONENT: Record<ProductSectionId, () => ReactNode> = {
   basica: () => <BasicSection />,
@@ -74,6 +76,7 @@ const SECTION_COMPONENT: Record<ProductSectionId, () => ReactNode> = {
   contenido: () => <ContentSection />,
   traducciones: () => <TranslationsSection />,
   tienda: () => <StoreSection />,
+  variantes: () => <VariantsSection />,
   seo: () => <SeoSection />,
   imagenes: () => <ImagesSection />,
   precios: () => <PricesSection />,
@@ -135,8 +138,12 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
     const type = product?.productType ?? '';
     const withComponents = WITH_COMPONENTS.includes(type);
     const kitLike = isKitLikeType(type);
+    // Variantes (ropa, mig 178): nunca en kits de inscripción.
     return PRODUCT_SECTIONS.filter(
-      (s) => (s.id !== 'componentes' || withComponents) && (!KIT_ONLY_SECTIONS.includes(s.id) || kitLike),
+      (s) =>
+        (s.id !== 'componentes' || withComponents) &&
+        (!KIT_ONLY_SECTIONS.includes(s.id) || kitLike) &&
+        (s.id !== 'variantes' || hasVariantsSection(type)),
     );
   }, [isEdit, createType, product?.productType]);
   const hasKitSection = sections.some((s) => s.id === 'kit');

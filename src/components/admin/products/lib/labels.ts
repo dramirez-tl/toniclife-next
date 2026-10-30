@@ -19,6 +19,7 @@ export type ProductSectionId =
   | 'contenido'
   | 'traducciones'
   | 'tienda'
+  | 'variantes'
   | 'seo'
   | 'imagenes'
   | 'precios'
@@ -36,6 +37,8 @@ export const PRODUCT_SECTIONS: { id: ProductSectionId; label: string; descriptio
   { id: 'contenido', label: 'Contenido (español)', description: 'Descripciones, beneficios, ingredientes y modo de uso' },
   { id: 'traducciones', label: 'Traducciones (inglés)', description: 'Textos para la tienda en inglés' },
   { id: 'tienda', label: 'Clasificación y tienda', description: 'Categoría, visibilidad por canal y dónde se vende' },
+  // Ropa (mig 178): solo en la ficha y nunca en kits de inscripción (hasVariantsSection).
+  { id: 'variantes', label: 'Variantes', description: 'Familia, para quién, color y talla; hermanas de la familia' },
   { id: 'seo', label: 'SEO y URL', description: 'URL pública, redirecciones y metadatos' },
   { id: 'imagenes', label: 'Imágenes y ficha técnica', description: 'Galería, orden, texto alternativo y PDF interno' },
   { id: 'precios', label: 'Precios', description: 'Precios por país y tipo, vigencias y cambios programados' },
@@ -53,6 +56,13 @@ export const KIT_ONLY_SECTIONS: ProductSectionId[] = ['kit', 'ventas'];
 export const KIT_LIKE_TYPES = ['kit', 'pack'];
 export const isKitLikeType = (productType: string | null | undefined): boolean =>
   !!productType && KIT_LIKE_TYPES.includes(productType);
+
+/**
+ * La sección Variantes (ropa, mig 178) aplica a todo producto vendible salvo
+ * los kits de inscripción: misma regla que la audiencia en línea de la sección
+ * Clasificación y tienda. En el alta no existe (no está en CREATE_SECTIONS).
+ */
+export const hasVariantsSection = (productType: string | null | undefined): boolean => productType !== 'kit';
 
 export const SECTION_LABEL: Record<ProductSectionId, string> = Object.fromEntries(
   PRODUCT_SECTIONS.map((s) => [s.id, s.label]),

@@ -57,6 +57,20 @@ export const isProductOnlineAudience = (v: unknown): v is ProductOnlineAudience 
   typeof v === 'string' && (PRODUCT_ONLINE_AUDIENCES as readonly string[]).includes(v);
 
 // ================================
+// VARIANTES DE ROPA (products.family_id + variant_*, mig 178, 30-oct-2026)
+// ================================
+/**
+ * Para quién es la variante (products.variant_gender). Una familia agrupa
+ * productos hermanos (la playera rosa en CH, M, G…); cada producto es UNA
+ * variante con género, color y talla, y sigue siendo un producto con su clave,
+ * su precio y su existencia. Ver `src/types/product-family.ts`.
+ */
+export const VARIANT_GENDERS = ['mujer', 'hombre', 'unisex'] as const;
+export type VariantGender = (typeof VARIANT_GENDERS)[number];
+export const isVariantGender = (v: unknown): v is VariantGender =>
+  typeof v === 'string' && (VARIANT_GENDERS as readonly string[]).includes(v);
+
+// ================================
 // CATEGORY TYPES (matches CategoryDto from category.dto.ts)
 // ================================
 export interface Category {
@@ -137,6 +151,16 @@ export interface Product {
   onlineAudience: ProductOnlineAudience;
   isFeatured: boolean;
   availableInPos: boolean;
+  /**
+   * Variantes de ropa (mig 178): familia a la que pertenece y qué variante es
+   * (para quién, color, muestra `#RRGGBB` y talla en MAYÚSCULAS). Solo viajan
+   * cuando la columna existe en BD; `null` = sin dato.
+   */
+  familyId?: string | null;
+  variantGender?: VariantGender | null;
+  variantColor?: string | null;
+  variantColorHex?: string | null;
+  variantSize?: string | null;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;

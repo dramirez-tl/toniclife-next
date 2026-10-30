@@ -61,6 +61,8 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Catálogo', href: '/admin/productos' },
       { name: 'Salud del catálogo', href: '/admin/productos/salud' },
+      // Ropa (mig 178): familias de variantes y guías de tallas; mismo permiso que el catálogo.
+      { name: 'Familias y tallas', href: '/admin/productos/familias' },
     ],
   },
   // Pedidos web (ecommerce) se gatea por orders:update, no por orders:read:

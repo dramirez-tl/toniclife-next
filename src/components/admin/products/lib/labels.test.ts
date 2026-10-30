@@ -21,18 +21,23 @@ import {
   BULK_SKIP_REASON_LABEL,
   CATALOG_LIST_SORT_KEYS,
   COUNTRY_SCOPED_ISSUES,
+  CREATE_KIT_SECTIONS,
   CREATE_PRODUCT_TYPES,
+  CREATE_SECTIONS,
   HEALTH_ISSUE_BASES,
   ONLINE_AUDIENCE_BADGE,
   ONLINE_AUDIENCE_HELP,
   ONLINE_AUDIENCE_LABEL,
   ONLINE_AUDIENCE_OPTIONS,
   PRODUCTS_TAB_TYPES,
+  PRODUCT_SECTIONS,
+  SECTION_LABEL,
   SELLABLE_TYPES,
   STOREFRONT_REASON_LABEL,
   STOREFRONT_REASON_SECTION,
   ZONE_SCOPED_ISSUES,
   bulkResultMessage,
+  hasVariantsSection,
   healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
@@ -124,6 +129,24 @@ const API_STOREFRONT_REASONS = [
 // --- catalog-admin.dto.ts: `issue` admite a lo más 30 valores de <= 40 caracteres ---
 const API_ISSUE_MAX_ITEMS = 30;
 const API_ISSUE_MAX_LENGTH = 40;
+
+describe('sección Variantes (ropa, mig 178)', () => {
+  it('existe en la ficha con su etiqueta, no en el alta, y se oculta solo en kits de inscripción', () => {
+    expect(PRODUCT_SECTIONS.some((s) => s.id === 'variantes')).toBe(true);
+    expect(SECTION_LABEL.variantes).toBe('Variantes');
+    expect(CREATE_SECTIONS).not.toContain('variantes');
+    expect(CREATE_KIT_SECTIONS).not.toContain('variantes');
+    expect(hasVariantsSection('kit')).toBe(false);
+    for (const type of ['finished_good', 'pack', 'promotional', 'service', 'raw_material']) {
+      expect(hasVariantsSection(type)).toBe(true);
+    }
+  });
+
+  it('va justo después de Clasificación y tienda (misma regla de audiencia que esa sección)', () => {
+    const ids = PRODUCT_SECTIONS.map((s) => s.id);
+    expect(ids.indexOf('variantes')).toBe(ids.indexOf('tienda') + 1);
+  });
+});
 
 describe('tipos de producto que manda el admin', () => {
   it('la pestaña Productos solo filtra por tipos que el API acepta (C1: "virtual" daba 400)', () => {

@@ -20,6 +20,7 @@ import {
   type ProductPrice,
   type ProductType,
   type KitPosition,
+  type VariantGender,
 } from '@/types/product';
 
 // ================================
@@ -361,6 +362,19 @@ export interface AdminUpdateProductDto {
   onlineAudience?: ProductOnlineAudience;
   isFeatured?: boolean;
   availableInPos?: boolean;
+  /**
+   * Variantes de ropa (mig 178): familia y atributos; `null` vacía. Otra
+   * variante ACTIVA con el mismo género+color+talla en la familia ⇒ 409
+   * PRD_VARIANT_DUPLICATE; sin la migración ⇒ 503 PRD_MIGRATION_PENDING.
+   */
+  familyId?: string | null;
+  variantGender?: VariantGender | null;
+  /** Máx. 60 caracteres ("Rosa pastel"). */
+  variantColor?: string | null;
+  /** `#RRGGBB` en mayúsculas (el PATCH guarda lo enviado) o null. */
+  variantColorHex?: string | null;
+  /** MAYÚSCULAS, sin espacios, máx. 20 (CH, M, G, XL, 28…). */
+  variantSize?: string | null;
   slug?: string;
   metaTitle?: string | null;
   metaDescription?: string | null;

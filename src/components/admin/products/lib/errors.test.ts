@@ -1,7 +1,7 @@
 // errors.test.ts — qué mensaje ve el usuario ante cada error del catálogo admin.
 
 import { describe, expect, it } from 'vitest';
-import { hydrateBlobErrorBody, productAdminErrorMessage } from './errors';
+import { hydrateBlobErrorBody, migrationPendingMessage, productAdminErrorMessage } from './errors';
 
 const httpError = (status: number, data: unknown) => ({ message: `Request failed with status code ${status}`, response: { status, data } });
 
@@ -48,6 +48,32 @@ describe('productAdminErrorMessage', () => {
   it('sin cuerpo útil usa el respaldo de la acción', () => {
     expect(productAdminErrorMessage(httpError(500, { message: 'Internal server error' }), 'respaldo')).toBe('respaldo');
     expect(productAdminErrorMessage(new Error('Network Error'), 'respaldo')).toBe('respaldo');
+  });
+
+  it('503 PRD_MIGRATION_PENDING nombra la migración que falta (details.migration)', () => {
+    const apiText =
+      'Esta función estará disponible en cuanto se aplique una actualización pendiente de la base de datos. Intenta de nuevo en unos minutos.';
+    const err = httpError(503, { code: 'PRD_MIGRATION_PENDING', message: apiText, details: { migration: '178_product_families.sql' } });
+    expect(productAdminErrorMessage(err, 'respaldo')).toBe(
+      'Falta aplicar la migración 178 en la base de datos (el API respondió 503).',
+    );
+    expect(migrationPendingMessage({ migration: 'migrations/177_online_audience.sql' })).toBe(
+      'Falta aplicar la migración 177 en la base de datos (el API respondió 503).',
+    );
+    expect(productAdminErrorMessage(httpError(503, { code: 'PRD_MIGRATION_PENDING', message: apiText }), 'respaldo')).toBe(
+      'Falta aplicar una migración pendiente en la base de datos (el API respondió 503).',
+    );
+  });
+
+  it('PRD_VARIANT_DUPLICATE prefiere el mensaje del API (dice la clave que choca) y tiene respaldo', () => {
+    const message = 'Ya existe otra variante activa con ese género, color y talla en la familia (clave PLR-M).';
+    expect(productAdminErrorMessage(httpError(409, { code: 'PRD_VARIANT_DUPLICATE', message, field: 'variantSize' }), 'respaldo')).toBe(message);
+    expect(productAdminErrorMessage(httpError(409, { code: 'PRD_VARIANT_DUPLICATE' }), 'respaldo')).toBe(
+      'Ya existe otra variante activa con el mismo género, color y talla en esta familia.',
+    );
+    expect(productAdminErrorMessage(httpError(409, { code: 'PRD_FAMILY_CODE_TAKEN', message: 'Ya existe una familia con la clave PLR.' }), 'respaldo')).toBe(
+      'Esa clave ya la usa otra familia.',
+    );
   });
 });
 

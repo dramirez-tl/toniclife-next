@@ -37,7 +37,28 @@ const CODE_MESSAGES: Record<string, string> = {
   PRD_CONFLICT: 'Ya existe un registro con esos datos.',
   PRD_INVALID_ID: 'Identificador no válido.',
   PRD_CONSTRAINT: 'El cambio viola una regla de integridad del catálogo.',
+  // Variantes de ropa, familias y guías de tallas (mig 178). Respaldo cuando el
+  // API no redacta el caso (PREFER_API_MESSAGE).
+  PRD_VARIANT_DUPLICATE: 'Ya existe otra variante activa con el mismo género, color y talla en esta familia.',
+  PRD_FAMILY_CODE_TAKEN: 'Esa clave ya la usa otra familia.',
+  PRD_SIZE_GUIDE_CODE_TAKEN: 'Esa clave ya la usa otra guía de tallas.',
+  PRD_SIZE_GUIDE_INVALID: 'La guía de tallas tiene columnas o tallas repetidas, o un valor de más de 20 caracteres.',
+  PRD_REFERENCE_INVALID: 'Uno de los datos relacionados ya no existe.',
 };
+
+/**
+ * 503 PRD_MIGRATION_PENDING: falta aplicar una migración en la base de datos.
+ * `details.migration` trae el archivo pendiente ("178_product_families.sql"):
+ * se nombra su número para que Sistemas sepa cuál aplicar.
+ */
+export function migrationPendingMessage(details: Record<string, unknown> | null): string {
+  const file = details && typeof details.migration === 'string' ? details.migration : '';
+  const base = file.split(/[\\/]/).pop() ?? '';
+  const m = /^(\d+)/.exec(base);
+  return m
+    ? `Falta aplicar la migración ${m[1]} en la base de datos (el API respondió 503).`
+    : 'Falta aplicar una migración pendiente en la base de datos (el API respondió 503).';
+}
 
 export function parseProductAdminError(err: unknown): ProductAdminErrorBody {
   const e = (err ?? {}) as AxiosLikeError;
@@ -86,6 +107,11 @@ const PREFER_API_MESSAGE = new Set([
   'KIT_NO_OWN_STOCK',
   'KIT_OWN_STOCK_RESERVED',
   'KIT_BONUS_CLOSED',
+  // Variantes (mig 178): el API dice la clave del producto que choca, qué
+  // columna o talla se repite y qué referencia no existe.
+  'PRD_VARIANT_DUPLICATE',
+  'PRD_SIZE_GUIDE_INVALID',
+  'PRD_REFERENCE_INVALID',
 ]);
 
 const FORBIDDEN_MESSAGE = 'No tienes permiso para realizar esta acción.';
@@ -95,6 +121,7 @@ const isUseful = (message: string | null): message is string =>
 
 export function productAdminErrorMessage(err: unknown, fallback: string): string {
   const body = parseProductAdminError(err);
+  if (body.code === 'PRD_MIGRATION_PENDING') return migrationPendingMessage(body.details);
   if (body.code && PREFER_API_MESSAGE.has(body.code) && isUseful(body.message)) return body.message;
   if (body.status === 403) return FORBIDDEN_MESSAGE;
   if (body.code && CODE_MESSAGES[body.code]) {
