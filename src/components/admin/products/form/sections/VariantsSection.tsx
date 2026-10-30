@@ -185,7 +185,8 @@ export function VariantsSection() {
       key: 'name',
       header: 'Nombre',
       render: (v) => (
-        <div className="flex items-center gap-2">
+        // Ancho acotado: el nombre se recorta (title completo) y las demás columnas quedan a la vista.
+        <div className="flex max-w-[22rem] items-center gap-2">
           <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
             {v.imageUrl ? (
               <Image src={v.imageUrl} alt="" fill sizes="32px" className="object-cover" />
@@ -210,7 +211,7 @@ export function VariantsSection() {
       header: 'Color',
       render: (v) =>
         v.variantColor || v.variantColorHex ? (
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 whitespace-nowrap">
             <span
               aria-hidden
               className="h-4 w-4 shrink-0 rounded-full border border-gray-300"
@@ -289,17 +290,20 @@ export function VariantsSection() {
                     : 'Agrupa este producto con sus hermanas de otras tallas y colores; la tienda arma los selectores con ellas.'
                 }
               >
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <SearchableSelect
-                    id={familySelectId}
-                    options={familyOptions}
-                    value={field.value}
-                    onChange={field.onChange}
-                    allLabel="Sin familia"
-                    placeholder="Buscar familia…"
-                    disabled={section.readOnly || migrationPending}
-                    className="w-full"
-                  />
+                {/* El selector cede espacio al botón (min-w-0 + flex-1): sin esto el botón se salía de la tarjeta. */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1">
+                    <SearchableSelect
+                      id={familySelectId}
+                      options={familyOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      allLabel="Sin familia"
+                      placeholder="Buscar familia…"
+                      disabled={section.readOnly || migrationPending}
+                      className="w-full"
+                    />
+                  </div>
                   {section.readOnly ? null : (
                     <Button
                       type="button"
