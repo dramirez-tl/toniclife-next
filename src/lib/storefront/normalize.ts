@@ -6,6 +6,7 @@
 
 import type {
   StorefrontAvailability,
+  StorefrontCardFamily,
   StorefrontCategoryRef,
   StorefrontDetailResponse,
   StorefrontFacets,
@@ -122,6 +123,35 @@ export function normalizeCard(value: unknown): StorefrontProductCard | null {
     maxQuantity: state === 'out_of_stock' ? 0 : Math.max(1, maxQuantity),
     isFeatured: value.isFeatured === true,
     isNew: value.isNew === true,
+    family: normalizeCardFamily(value.family),
+  };
+}
+
+/** Familia de la tarjeta (listado agrupado). Sin código, nombre o precio desde > 0: null. */
+function normalizeCardFamily(value: unknown): StorefrontCardFamily | null {
+  if (!isRow(value)) return null;
+  const code = str(value.code);
+  const name = str(value.name);
+  const fromPrice = positive(value.fromPrice);
+  if (!code || !name || fromPrice === null) return null;
+  const genders = Array.isArray(value.genders)
+    ? value.genders.map(variantGender).filter((g): g is StorefrontVariantGender => g !== null)
+    : [];
+  const colors = rows(value.colors).flatMap((row) => {
+    const colorName = str(row.name);
+    return colorName ? [{ name: colorName, hex: variantColorHex(row.hex) }] : [];
+  });
+  const sizes = Array.isArray(value.sizes)
+    ? value.sizes.map(variantSize).filter((s): s is string => s !== null)
+    : [];
+  return {
+    code,
+    name,
+    variantCount: Math.max(1, int(value.variantCount, 1)),
+    fromPrice,
+    genders: [...new Set(genders)],
+    colors,
+    sizes: [...new Set(sizes)],
   };
 }
 
@@ -144,6 +174,10 @@ function normalizeFacets(value: unknown): StorefrontFacets {
       inStock: Math.max(0, int(avail.inStock, 0)),
       outOfStock: Math.max(0, int(avail.outOfStock, 0)),
     },
+    genders: rows(facets.genders).flatMap((row) => {
+      const gender = variantGender(row.gender);
+      return gender ? [{ gender, label: str(row.label) ?? gender, count: Math.max(0, int(row.count, 0)) }] : [];
+    }),
   };
 }
 

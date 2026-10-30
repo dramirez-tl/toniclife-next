@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import type { CatalogState, StorefrontFacets, StorefrontProductType } from '@/types/storefront';
+import type { CatalogState, StorefrontFacets, StorefrontProductType, StorefrontVariantGender } from '@/types/storefront';
 
 const ALL = '__all__';
 
@@ -59,6 +59,13 @@ export function CatalogFilters({ state, facets, currencyCode, onChange }: Catalo
       ? [...facets.categories, { slug: state.categoria, name: state.categoria, count: 0 }]
       : facets.categories;
 
+  // Ropa (familias, mig 178): "Para" solo aparece cuando hay familias con género.
+  // El género activo se conserva aunque el API ya no lo devuelva en las facetas.
+  const genderOptions =
+    state.para && !facets.genders.some((g) => g.gender === state.para)
+      ? [...facets.genders, { gender: state.para, label: t(`genderLabel.${state.para}`), count: 0 }]
+      : facets.genders;
+
   const applyPrice = () => {
     let min = parsePriceInput(minText);
     let max = parsePriceInput(maxText);
@@ -89,6 +96,28 @@ export function CatalogFilters({ state, facets, currencyCode, onChange }: Catalo
           ))}
         </RadioGroup>
       </fieldset>
+
+      {genderOptions.length > 0 && (
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold text-gray-900">{t('gender')}</legend>
+          <RadioGroup
+            value={state.para ?? ALL}
+            onValueChange={(value) => onChange({ para: value === ALL ? null : (value as StorefrontVariantGender) })}
+            className="gap-0"
+          >
+            <FilterRadio id={`${uid}-gender-all`} value={ALL} label={t('allGenders')} count={null} />
+            {genderOptions.map((option) => (
+              <FilterRadio
+                key={option.gender}
+                id={`${uid}-gender-${option.gender}`}
+                value={option.gender}
+                label={option.label}
+                count={option.count}
+              />
+            ))}
+          </RadioGroup>
+        </fieldset>
+      )}
 
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-gray-900">{t('type')}</legend>

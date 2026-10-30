@@ -36,6 +36,10 @@ export function ActiveFilterChips({ state, facets, currencyCode, lang, onChange,
   if (state.tipo) {
     chips.push({ key: 'tipo', label: state.tipo === 'pack' ? t('typePack') : t('typeProduct'), patch: { tipo: null } });
   }
+  if (state.para) {
+    const label = facets.genders.find((g) => g.gender === state.para)?.label ?? t(`genderLabel.${state.para}`);
+    chips.push({ key: 'para', label: t('gender', { label }), patch: { para: null } });
+  }
   if (state.min !== null || state.max !== null) {
     const min = state.min !== null ? (formatStorePrice(state.min, currencyCode, lang) ?? `0 ${currencyCode}`) : null;
     const max = state.max !== null ? (formatStorePrice(state.max, currencyCode, lang) ?? `0 ${currencyCode}`) : null;

@@ -127,7 +127,11 @@
         "added": "Agregado",
         "soldOut": "Agotado",
         "addLabel": "Agregar {name} al carrito",
-        "soldOutLabel": "{name}: agotado"
+        "soldOutLabel": "{name}: agotado",
+        "from": "Desde",
+        "gender": { "mujer": "Mujer", "hombre": "Hombre", "unisex": "Unisex" },
+        "colors": "{count, plural, one {# color} other {# colores}}",
+        "sizes": "{count, plural, one {# talla} other {# tallas}}"
       },
       "search": {
         "label": "Buscar productos",
@@ -151,6 +155,9 @@
         "priceMin": "Mínimo",
         "priceMax": "Máximo",
         "priceApply": "Aplicar precio",
+        "gender": "Para",
+        "allGenders": "Todos",
+        "genderLabel": { "mujer": "Mujer", "hombre": "Hombre", "unisex": "Unisex" },
         "includeSoldOut": "Incluir agotados",
         "clear": "Limpiar",
         "viewResults": "{count, plural, =0 {Sin productos} one {Ver # producto} other {Ver # productos}}"
@@ -164,6 +171,8 @@
         "priceFrom": "Desde {min}",
         "priceTo": "Hasta {max}",
         "includeSoldOut": "Incluye agotados",
+        "gender": "Para: {label}",
+        "genderLabel": { "mujer": "Mujer", "hombre": "Hombre", "unisex": "Unisex" },
         "remove": "Quitar filtro: {label}",
         "clearAll": "Limpiar filtros"
       },

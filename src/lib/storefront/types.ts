@@ -13,6 +13,21 @@ export interface StorefrontCategoryRef {
   name: string;
 }
 
+/**
+ * Familia de la tarjeta (listado agrupado por diseño, API mig 178): la tarjeta
+ * habla por TODAS las variantes que pasan los filtros; `fromPrice` es el menor
+ * precio entre ellas y el enlace lleva a la variante representativa.
+ */
+export interface StorefrontCardFamily {
+  code: string;
+  name: string;
+  variantCount: number;
+  fromPrice: number;
+  genders: StorefrontVariantGender[];
+  colors: { name: string; hex: string | null }[];
+  sizes: string[];
+}
+
 export interface StorefrontProductCard {
   id: string;
   code: string;
@@ -34,6 +49,8 @@ export interface StorefrontProductCard {
   maxQuantity: number;
   isFeatured: boolean;
   isNew: boolean;
+  /** Solo en el listado agrupado por familia; null = producto suelto. */
+  family: StorefrontCardFamily | null;
 }
 
 export interface StorefrontProductContent {
@@ -165,6 +182,8 @@ export interface StorefrontFacets {
   types: { type: StorefrontProductType; count: number }[];
   price: { min: number | null; max: number | null };
   availability: { inStock: number; outOfStock: number };
+  /** Familias por género (API mig 178); vacío sin la migración o sin ropa. */
+  genders: { gender: StorefrontVariantGender; label: string; count: number }[];
 }
 
 /**

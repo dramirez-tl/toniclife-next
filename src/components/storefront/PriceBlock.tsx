@@ -21,6 +21,8 @@ interface PriceBlockProps {
   currencyCode: string;
   lang: LanguageCode;
   showPoints: boolean;
+  /** Texto corto antes del precio ("Desde") cuando la tarjeta habla por una familia. */
+  pricePrefix?: string;
   size?: 'card' | 'detail';
   className?: string;
 }
@@ -35,6 +37,7 @@ export function PriceBlock({
   currencyCode,
   lang,
   showPoints,
+  pricePrefix,
   size = 'card',
   className,
 }: PriceBlockProps) {
@@ -64,6 +67,7 @@ export function PriceBlock({
         </span>
       )}
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        {pricePrefix && <span className={cn('text-gray-700', isDetail ? 'text-base' : 'text-xs')}>{pricePrefix}</span>}
         <span className={cn('font-bold text-[#2f5165]', isDetail ? 'text-3xl sm:text-4xl' : 'text-base sm:text-lg')}>
           {formatted}
         </span>

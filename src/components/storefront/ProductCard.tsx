@@ -72,6 +72,9 @@ export function ProductCard({
   const name = formatProductName(product.name);
   const soldOut = product.availability === 'out_of_stock';
   const badges = badgesFor(product);
+  // Tarjeta de familia (mig 178): habla por todas las variantes que pasan los filtros.
+  const family = product.family && product.family.variantCount > 1 ? product.family : null;
+  const fromPrice = family && family.fromPrice < product.price ? family.fromPrice : null;
 
   return (
     <article
@@ -122,11 +125,31 @@ export function ProductCard({
               {name}
             </Link>
           </Heading>
+          {family && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+              {family.genders.length > 0 && <span>{family.genders.map((g) => t(`gender.${g}`)).join(' · ')}</span>}
+              {family.colors.length > 0 && (
+                <span className="flex items-center gap-1" title={family.colors.map((c) => c.name).join(', ')}>
+                  <span className="sr-only">{t('colors', { count: family.colors.length })}</span>
+                  {family.colors.slice(0, 6).map((c) => (
+                    <span
+                      key={c.name}
+                      aria-hidden="true"
+                      className="block size-3 rounded-full border border-black/10"
+                      style={{ backgroundColor: c.hex ?? '#e5e7eb' }}
+                    />
+                  ))}
+                </span>
+              )}
+              {family.sizes.length > 0 && <span>{t('sizes', { count: family.sizes.length })}</span>}
+            </p>
+          )}
           <PriceBlock
             className="mt-auto pt-2"
-            price={product.price}
-            publicPrice={product.publicPrice}
-            savings={product.savings}
+            price={fromPrice ?? product.price}
+            pricePrefix={fromPrice !== null ? t('from') : undefined}
+            publicPrice={fromPrice !== null ? null : product.publicPrice}
+            savings={fromPrice !== null ? null : product.savings}
             points={product.points}
             priceTier={product.priceTier}
             taxIncluded={product.taxIncluded}

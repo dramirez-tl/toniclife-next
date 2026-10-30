@@ -29,6 +29,7 @@ describe('parseCatalogParams', () => {
       q: 'crema spectra',
       categoria: 'cremas',
       tipo: 'pack',
+      para: null,
       min: 100,
       max: 900.56,
       agotados: true,
@@ -181,5 +182,20 @@ describe('pageWindow', () => {
   it('nunca sale del rango', () => {
     expect(pageWindow(3, 3)).toEqual([1, 2, 3]);
     expect(pageWindow(1, 2)).toEqual([1, 2]);
+  });
+});
+
+describe('filtro para (género de la ropa)', () => {
+  it('lee para=mujer|hombre|unisex, ignora otros valores y viaja al API como gender', () => {
+    expect(parseCatalogParams(new URLSearchParams('para=Mujer')).para).toBe('mujer');
+    expect(parseCatalogParams(new URLSearchParams('para=hombre')).para).toBe('hombre');
+    expect(parseCatalogParams(new URLSearchParams('para=ninos')).para).toBeNull();
+    const state = { ...DEFAULT_CATALOG_STATE, para: 'hombre' as const };
+    expect(serializeCatalogParams(state)).toBe('para=hombre');
+    expect(catalogHref(state)).toBe('/productos?para=hombre');
+    expect(toStorefrontQuery(state, { country: 'mx', lang: 'es' }).gender).toBe('hombre');
+    expect(toStorefrontQuery(DEFAULT_CATALOG_STATE, { country: 'mx', lang: 'es' })).not.toHaveProperty('gender');
+    expect(activeFilterCount(state)).toBe(1);
+    expect(isIndexable(state)).toBe(false);
   });
 });

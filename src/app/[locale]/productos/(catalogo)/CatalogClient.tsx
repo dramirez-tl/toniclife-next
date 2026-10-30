@@ -56,6 +56,7 @@ const EMPTY_FACETS: StorefrontFacets = {
   types: [],
   price: { min: null, max: null },
   availability: { inStock: 0, outOfStock: 0 },
+  genders: [],
 };
 
 export function CatalogClient({ initial }: CatalogClientProps) {

@@ -3,8 +3,9 @@
 // Funciones puras: parsean lo que llegue (nunca lanzan) y serializan omitiendo
 // los valores por defecto para que la URL canónica sea corta.
 
-import type { StorefrontLang, StorefrontProductType } from './types';
+import type { StorefrontLang, StorefrontProductType, StorefrontVariantGender } from './types';
 
+export const CATALOG_GENDERS = ['mujer', 'hombre', 'unisex'] as const;
 export const CATALOG_SORTS = ['featured', 'newest', 'price_asc', 'price_desc', 'name_asc'] as const;
 export type CatalogSort = (typeof CATALOG_SORTS)[number];
 
@@ -15,6 +16,8 @@ export interface CatalogState {
   q: string;
   categoria: string | null;
   tipo: StorefrontProductType | null;
+  /** Ropa: solo familias para mujer | hombre | unisex (API `gender`, mig 178). */
+  para: StorefrontVariantGender | null;
   min: number | null;
   max: number | null;
   /** true = incluir agotados (availability=all). */
@@ -27,6 +30,7 @@ export const DEFAULT_CATALOG_STATE: CatalogState = {
   q: '',
   categoria: null,
   tipo: null,
+  para: null,
   min: null,
   max: null,
   agotados: false,
@@ -68,6 +72,7 @@ export function parseCatalogParams(params: RawSearchParams): CatalogState {
   const q = read(params, 'q').replace(/\s+/g, ' ').slice(0, 80);
   const categoriaRaw = read(params, 'categoria').toLowerCase();
   const tipoRaw = read(params, 'tipo').toLowerCase();
+  const paraRaw = read(params, 'para').toLowerCase();
   const ordenRaw = read(params, 'orden').toLowerCase();
   const paginaRaw = Number.parseInt(read(params, 'pagina'), 10);
   const agotadosRaw = read(params, 'agotados').toLowerCase();
@@ -81,6 +86,7 @@ export function parseCatalogParams(params: RawSearchParams): CatalogState {
     q: q.length >= 2 ? q : '',
     categoria: CATEGORY_SLUG_RE.test(categoriaRaw) ? categoriaRaw : null,
     tipo: tipoRaw === 'product' || tipoRaw === 'pack' ? tipoRaw : null,
+    para: (CATALOG_GENDERS as readonly string[]).includes(paraRaw) ? (paraRaw as StorefrontVariantGender) : null,
     min,
     max,
     agotados: agotadosRaw === '1' || agotadosRaw === 'true',
@@ -98,6 +104,7 @@ export function serializeCatalogParams(state: Partial<CatalogState>): string {
   if (s.q) out.set('q', s.q);
   if (s.categoria) out.set('categoria', s.categoria);
   if (s.tipo) out.set('tipo', s.tipo);
+  if (s.para) out.set('para', s.para);
   if (s.min !== null) out.set('min', String(s.min));
   if (s.max !== null) out.set('max', String(s.max));
   if (s.agotados) out.set('agotados', '1');
@@ -120,6 +127,7 @@ export function isIndexable(state: CatalogState): boolean {
   return (
     !state.q &&
     !state.tipo &&
+    !state.para &&
     state.min === null &&
     state.max === null &&
     !state.agotados &&
@@ -138,6 +146,7 @@ export function activeFilterCount(state: CatalogState): number {
   return (
     (state.categoria ? 1 : 0) +
     (state.tipo ? 1 : 0) +
+    (state.para ? 1 : 0) +
     (state.min !== null || state.max !== null ? 1 : 0) +
     (state.agotados ? 1 : 0)
   );
@@ -163,6 +172,7 @@ export function toStorefrontQuery(
   if (state.q) query.q = state.q;
   if (state.categoria) query.category = state.categoria;
   if (state.tipo) query.type = state.tipo;
+  if (state.para) query.gender = state.para;
   if (state.min !== null) query.minPrice = String(state.min);
   if (state.max !== null) query.maxPrice = String(state.max);
   return query;

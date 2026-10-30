@@ -6,6 +6,7 @@
 export type {
   StorefrontAvailability,
   StorefrontCategory,
+  StorefrontCardFamily,
   StorefrontCategoryRef,
   StorefrontContext,
   StorefrontDetailResponse,

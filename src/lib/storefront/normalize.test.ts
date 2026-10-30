@@ -339,3 +339,68 @@ describe('catalogErrorMessage', () => {
     expect(catalogErrorCode(err(400, { code: 'no válido' }))).toBeNull();
   });
 });
+
+describe('listado agrupado por familia (API mig 178)', () => {
+  const card = {
+    id: 'p-1',
+    code: 'PLRCH',
+    slug: 'playera-legado-talla-ch',
+    name: 'Playera Oficial Tonic Life – Edición Legado 2004',
+    price: 199,
+    priceTier: 'public',
+    availability: 'in_stock',
+    maxQuantity: 20,
+  };
+
+  it('la tarjeta trae la familia saneada (hex en mayúsculas, tallas sin repetir, géneros válidos)', () => {
+    const res = normalizeListResponse(
+      {
+        data: [
+          {
+            ...card,
+            family: {
+              code: 'PLR',
+              name: 'Playera Legado 2004',
+              variantCount: '4',
+              fromPrice: '189.50',
+              genders: ['mujer', 'ninos', 'mujer', 'hombre'],
+              colors: [{ name: 'Rosa pastel', hex: '#f4b6c7' }, { name: '', hex: '#000000' }, { name: 'Negro', hex: 'rojo' }],
+              sizes: ['CH', 'm', 'CH', ' xl '],
+            },
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 24,
+        totalPages: 1,
+        facets: { genders: [{ gender: 'mujer', label: 'Mujer', count: 3 }, { gender: 'otro', label: 'X', count: 1 }] },
+      },
+      'MXN',
+    );
+    expect(res).not.toBeNull();
+    expect(res!.data[0].family).toEqual({
+      code: 'PLR',
+      name: 'Playera Legado 2004',
+      variantCount: 4,
+      fromPrice: 189.5,
+      genders: ['mujer', 'hombre'],
+      colors: [
+        { name: 'Rosa pastel', hex: '#F4B6C7' },
+        { name: 'Negro', hex: null },
+      ],
+      sizes: ['CH', 'M', 'XL'],
+    });
+    expect(res!.facets.genders).toEqual([{ gender: 'mujer', label: 'Mujer', count: 3 }]);
+  });
+
+  it('sin familia (API previo o producto suelto): family null y facetas de género vacías', () => {
+    const res = normalizeListResponse({ data: [card], total: 1, page: 1, pageSize: 24, totalPages: 1, facets: {} }, 'MXN');
+    expect(res!.data[0].family).toBeNull();
+    expect(res!.facets.genders).toEqual([]);
+    const sinPrecio = normalizeListResponse(
+      { data: [{ ...card, family: { code: 'X', name: 'X', fromPrice: 0, variantCount: 2 } }], total: 1, page: 1, pageSize: 24, totalPages: 1 },
+      'MXN',
+    );
+    expect(sinPrecio!.data[0].family).toBeNull();
+  });
+});
