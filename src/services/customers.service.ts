@@ -14,6 +14,7 @@ import {
   UpdateBankAccountDto,
 } from '@/types/customer';
 import type { NetworkExportJob } from '@/services/networkApi';
+import type { RankRoadmapResponse } from '@/types/distributor';
 
 export type { NetworkExportJob };
 
@@ -53,6 +54,18 @@ class CustomersService {
     }[]
   > {
     const response = await api.get(`${this.basePath}/periods/list`);
+    return response.data;
+  }
+
+  /**
+   * Parámetros del plan de compensación del cliente en un periodo (escalera de
+   * rangos con requisitos y tope por pierna, piernas, rango proyectado, kit,
+   * porcentajes). Backend: GET /customers/:id/network/rank-roadmap?periodId=
+   */
+  async getRankRoadmap(customerId: string, periodId?: string | null): Promise<RankRoadmapResponse> {
+    const response = await api.get<RankRoadmapResponse>(`${this.basePath}/${customerId}/network/rank-roadmap`, {
+      params: periodId ? { periodId } : {},
+    });
     return response.data;
   }
 

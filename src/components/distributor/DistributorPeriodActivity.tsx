@@ -28,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { CompensationPlanParams } from './CompensationPlanParams';
 
 interface DistributorPeriodActivityProps {
   customerId: string;
@@ -481,16 +482,17 @@ export function DistributorPeriodActivity({
             />
             <StatCard
               icon={UserGroupIcon}
-              label="Puntos de grupo"
+              label="Puntos de grupo (sin tope)"
               value={formatNumber(stats.points.group)}
               accent="teal"
+              subtitle="Suma de puntos personales de toda la red"
             />
             <StatCard
               icon={ArrowPathRoundedSquareIcon}
-              label="Roll over"
+              label="Puntos de grupo con tope (roll over)"
               value={formatNumber(stats.points.rollOver)}
               accent="violet"
-              subtitle="Grupo con tope por pierna aplicado"
+              subtitle="Lo que cuenta para el rango: cada pierna hasta el tope del rango"
             />
             <StatCard
               icon={ShoppingCartIcon}
@@ -501,7 +503,7 @@ export function DistributorPeriodActivity({
             />
             <StatCard
               icon={CurrencyDollarIcon}
-              label="Puntos de negocio"
+              label="Valor de negocio"
               value={formatNumber(stats.points.businessMxn)}
               accent="cyan"
               subtitle={
@@ -518,6 +520,9 @@ export function DistributorPeriodActivity({
               subtitle="Altas en el periodo"
             />
           </div>
+
+          {/* Parámetros del plan de compensación (escalera, piernas, rango proyectado) */}
+          <CompensationPlanParams customerId={customerId} periodId={periodId} />
 
           {/* Comisión del periodo (último cálculo) */}
           <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
@@ -609,7 +614,7 @@ export function DistributorPeriodActivity({
               <NetworkStat label="Tamaño total" value={formatNumber(stats.network.size)} />
               <NetworkStat label="Activos" value={formatNumber(stats.network.active)} />
               <NetworkStat
-                label="Calificados (1er nivel)"
+                label="Calificados de 1er nivel (≥ 3,300 pts)"
                 value={formatNumber(stats.network.qualifiedFirstLevel)}
               />
             </div>

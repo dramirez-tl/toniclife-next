@@ -11,6 +11,16 @@ export function usePeriodsForSelector(enabled = true) {
   });
 }
 
+/** Parámetros del plan de compensación (escalera, piernas, rango proyectado) del cliente en el periodo. */
+export function useCustomerRankRoadmap(customerId: string, periodId: string | null) {
+  return useQuery({
+    queryKey: ['admin', 'customers', customerId, 'rank-roadmap', periodId],
+    queryFn: () => customersService.getRankRoadmap(customerId, periodId),
+    enabled: !!customerId && !!periodId,
+    staleTime: 1000 * 60,
+  });
+}
+
 export function useCustomerStatsForPeriod(customerId: string, periodId: string | null) {
   return useQuery({
     queryKey: ['admin', 'customers', customerId, 'period-stats', periodId],

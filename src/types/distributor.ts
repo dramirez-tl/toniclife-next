@@ -326,4 +326,24 @@ export interface RankRoadmapResponse {
   ranks: RankRoadmapRankStep[];
   /** Paso con isNext; null en el rango máximo. */
   nextRank: RankRoadmapRankStep | null;
+  /** Kit de inicio ('basic' | 'premium' | null): sin premium la escalera se detiene en Distribuidor. */
+  kitType?: string | null;
+  /** Porcentajes por nivel de profundidad (mlm_level_commissions). */
+  levelCommissions?: RankRoadmapLevelRule[];
+  /** Porcentajes por generación (mlm_generation_commissions; rangos Plata+). */
+  generationCommissions?: RankRoadmapGenerationRule[];
+}
+
+export interface RankRoadmapLevelRule {
+  level: number;
+  /** 0.15 = 15 % */
+  basePercentage: number;
+  /** 0 = no aplica */
+  upgradedPercentage: number;
+  qualifiersRequired: number;
+}
+
+export interface RankRoadmapGenerationRule {
+  generation: number;
+  percentage: number;
 }
