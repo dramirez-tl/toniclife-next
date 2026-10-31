@@ -110,6 +110,9 @@ function GlobalInvoiceContent() {
   const { timezoneOf } = useBranchTimezone();
 
   const branchTz = branchId ? timezoneOf(branchId) : DEFAULT_TIMEZONE;
+  // Desde el 31-oct-2026 la global del DÍA EN CURSO también se emite (la
+  // sucursal la pide al terminar de impactar sus ventas); por defecto se abre ayer.
+  const today = localDateInZone(branchTz);
   const yesterday = localDateInZone(branchTz, -1);
   const date = dateParam || yesterday;
   const conceptMode: GlobalConceptMode =
@@ -126,8 +129,8 @@ function GlobalInvoiceContent() {
   );
   const selectedBranch = (readinessBranches ?? []).find((b) => b.id === branchId);
 
-  // Tira de días: últimos 14 hasta ayer (o alrededor de la fecha elegida).
-  const stripTo = date > yesterday ? yesterday : date;
+  // Tira de días: últimos 14 hasta hoy (o alrededor de la fecha elegida).
+  const stripTo = date > today ? today : date;
   const stripFrom = addDays(stripTo, -(DAYS_STRIP - 1));
   const days = useGlobalDays(branchId ? { branchId, from: stripFrom, to: stripTo } : null);
 
@@ -259,11 +262,14 @@ function GlobalInvoiceContent() {
                 )}
               </div>
               <div className="md:col-span-3">
-                <Label htmlFor="g-date">Día (máximo ayer)</Label>
+                <Label htmlFor="g-date">Día (hasta hoy)</Label>
                 <div className="relative">
                   <CalendarIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden />
-                  <Input id="g-date" type="date" className="pl-10" value={date} max={yesterday} onChange={(e) => setParams({ date: e.target.value })} />
+                  <Input id="g-date" type="date" className="pl-10" value={date} max={today} onChange={(e) => setParams({ date: e.target.value })} />
                 </div>
+                {date === today && (
+                  <p className="mt-1 text-xs text-amber-700">Día en curso: emítela solo cuando la sucursal ya haya impactado todas sus ventas; lo vendido después entra en otra global del mismo día.</p>
+                )}
               </div>
               <div className="md:col-span-4">
                 <Label htmlFor="g-mode">Conceptos</Label>
