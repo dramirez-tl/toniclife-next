@@ -1,8 +1,9 @@
 'use client';
 
 // Bloque de compra del detalle: h1, clave, precio/puntos por rol, selector de
-// variantes (si el producto pertenece a una familia), disponibilidad REAL, cantidad
-// con tope, "Agregar al carrito", "Comprar ahora" (que SÍ agrega y después va al
+// variantes (si el producto pertenece a una familia), disponibilidad REAL, texto de
+// personalización (si el producto lo admite, mig 179), cantidad con tope, "Agregar al
+// carrito", "Comprar ahora" (que SÍ agrega y después va al
 // checkout), envío real del país y compartir.
 
 import { forwardRef, type ReactNode } from 'react';
@@ -27,6 +28,8 @@ interface BuyBoxProps {
   heading?: string;
   /** Selector de variantes (para quién, color, talla): va entre el precio y la compra. */
   variantPicker?: ReactNode;
+  /** Campo de personalización (playeras, mig 179): después de las variantes y antes de la cantidad. */
+  personalizationField?: ReactNode;
   lang: LanguageCode;
   showPoints: boolean;
   quantity: number;
@@ -45,6 +48,7 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
     name,
     heading,
     variantPicker,
+    personalizationField,
     lang,
     showPoints,
     quantity,
@@ -100,6 +104,8 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
       {variantPicker}
 
       <AvailabilityBadge availability={product.availability} stockLeft={product.stockLeft} />
+
+      {!soldOut && personalizationField}
 
       {!soldOut && (
         <QuantityStepper value={quantity} max={product.maxQuantity} onChange={onQuantityChange} disabled={isPending} />

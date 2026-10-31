@@ -22,6 +22,7 @@ import {
   lineSlug,
   mapCartError,
   planStockAdjust,
+  productQuantity,
   resolveShowPoints,
   safeInternalHref,
 } from './cart-logic';
@@ -237,6 +238,17 @@ describe('mapCartError (por código, nunca por texto)', () => {
     expect(mapCartError(apiError(409, { code: 'CART_QTY_EXCEEDS_STOCK', details: { maxQuantity: 'muchos' } })).maxQuantity).toBeNull();
   });
 
+  it('CART_PERSONALIZATION_* (mig 179): no se personaliza / texto muy largo con el tope del producto', () => {
+    expect(mapCartError(apiError(400, { code: 'CART_PERSONALIZATION_NOT_ALLOWED', message: 'x' }))).toEqual({
+      kind: 'personalization_not_allowed',
+    });
+    expect(
+      mapCartError(apiError(400, { code: 'CART_PERSONALIZATION_TOO_LONG', details: { maxLength: 20, length: 25 } })),
+    ).toEqual({ kind: 'personalization_too_long', maxLength: 20 });
+    expect(mapCartError(apiError(400, { code: 'CART_PERSONALIZATION_TOO_LONG' })).maxLength).toBeNull();
+    expect(mapCartError(apiError(400, { code: 'CART_PERSONALIZATION_TOO_LONG', details: { maxLength: 0 } })).maxLength).toBeNull();
+  });
+
   it('API ACTUAL (sin code): 401 = sesión; lo demás = other', () => {
     expect(mapCartError(apiError(401, { message: 'Unauthorized' }))).toEqual({ kind: 'session_expired' });
     expect(mapCartError(apiError(400, { message: 'Producto no encontrado' }))).toEqual({ kind: 'other' });
@@ -436,6 +448,21 @@ describe('addedQuantity / bundleAddOutcome (no anunciar "agregado" si no entró 
     expect(addedQuantity(null, 5, 1)).toBe(1);
     expect(addedQuantity(null, 2, 3)).toBe(2);
     expect(addedQuantity(null, null, 3)).toBe(3);
+  });
+
+  it('productQuantity: piezas del producto en TODAS sus líneas (con personalización hay varias)', () => {
+    const items = [
+      { productId: 'p1', quantity: 2 },
+      { productId: 'p2', quantity: 5 },
+      { productId: 'p1', quantity: 3 },
+    ];
+    expect(productQuantity(items, 'p1')).toBe(5);
+    expect(productQuantity(items, 'p2')).toBe(5);
+    expect(productQuantity(items, 'p3')).toBe(0);
+    expect(productQuantity([], 'p1')).toBe(0);
+    // Otra línea del mismo producto (otro texto): SÍ cuenta como agregado.
+    const after = [...items, { productId: 'p1', quantity: 1 }];
+    expect(addedQuantity(productQuantity(items, 'p1'), productQuantity(after, 'p1'), 1)).toBe(1);
   });
 
   it('paquete del quiz: todo, parcial (un 409 no aborta el resto) o nada', () => {

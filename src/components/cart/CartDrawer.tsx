@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl';
 import { ShoppingBagIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { ProductImage } from '@/components/storefront/ProductImage';
 import { useCart, useRemoveCartItem, useUpdateCartItem } from '@/hooks/useCart';
 import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
@@ -234,6 +235,7 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                       )}
                       <span className="shrink-0 text-sm font-bold tabular-nums text-gray-900">{money(item.lineTotal)}</span>
                     </div>
+                    <LinePersonalization text={item.personalization} />
                     <p className="text-xs text-gray-700">{tLine('unitPrice', { price: money(item.unitPrice) })}</p>
                     {perUnit !== null && <p className="text-xs text-[#2f5165]">{tLine('pointsPerUnit', { points: perUnit })}</p>}
 

@@ -44,6 +44,7 @@ import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { CartCountryNotice } from '@/components/cart/CartCountryNotice';
 import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
+import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { FreeShippingBar } from '@/components/cart/FreeShippingBar';
 import { ProductImage } from '@/components/storefront/ProductImage';
 import { catalogErrorMessage } from '@/lib/storefront/errors';
@@ -378,6 +379,7 @@ export default function CartPage() {
                                       name
                                     )}
                                   </h2>
+                                  <LinePersonalization text={item.personalization} className="mt-0.5" />
 
                                   {/* Aviso de agotado en el país */}
                                   {issue === 'sold_out' && (

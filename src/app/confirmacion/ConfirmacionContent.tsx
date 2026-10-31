@@ -35,6 +35,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectIsInitialized } from '@/store/slices/authSlice';
 import { myOrderQueryKey, useMyOrder, useMyOrderTracking } from '@/hooks/useOrders';
@@ -367,6 +368,7 @@ function ConfirmedOrder({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm">{item.name ?? t('itemFallback')}</p>
+                      <LinePersonalization text={item.personalization} />
                       <p className="text-xs text-gray-500">{t('quantity', { count: item.quantity })}</p>
                     </div>
                     <p className="text-sm font-bold text-gray-900 whitespace-nowrap">{money(item.total)}</p>

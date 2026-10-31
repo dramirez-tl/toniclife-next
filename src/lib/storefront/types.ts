@@ -147,6 +147,16 @@ export interface StorefrontVariants {
   sizeGuide: StorefrontSizeGuide | null;
 }
 
+/**
+ * Personalización (playeras, API mig 179): el cliente escribe un texto OPCIONAL de
+ * hasta `maxLength` caracteres visibles; `label` es la etiqueta del producto
+ * (`null` = la de la tienda: "Personalízala con tu nombre").
+ */
+export interface StorefrontPersonalization {
+  maxLength: number;
+  label: string | null;
+}
+
 export interface StorefrontProductDetail extends StorefrontProductCard {
   /**
    * Moneda del precio. El contrato del detalle no la trae suelta: el front la toma
@@ -175,6 +185,8 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
    * el producto no tiene familia o no hay nada que elegir (API previo a la mig 178: null).
    */
   variants: StorefrontVariants | null;
+  /** `null` = el producto no se personaliza (también con un API previo a la mig 179). */
+  personalization: StorefrontPersonalization | null;
 }
 
 export interface StorefrontFacets {

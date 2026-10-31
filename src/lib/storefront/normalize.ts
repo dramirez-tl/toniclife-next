@@ -11,6 +11,7 @@ import type {
   StorefrontDetailResponse,
   StorefrontFacets,
   StorefrontListResponse,
+  StorefrontPersonalization,
   StorefrontPriceTier,
   StorefrontProductCard,
   StorefrontProductComponent,
@@ -26,6 +27,7 @@ import type {
   StorefrontVariants,
   StorefrontViewerInfo,
 } from './types';
+import { personalizationLimit } from './personalization';
 
 type Row = Record<string, unknown>;
 
@@ -397,6 +399,13 @@ export function normalizeVariants(value: unknown, fallbackFamilyName: string): S
   };
 }
 
+/** Bloque `personalization` del detalle (mig 179): tope entero 1..60; ausente, null o basura = no se personaliza. */
+function normalizePersonalizationSpec(value: unknown): StorefrontPersonalization | null {
+  if (!isRow(value)) return null;
+  const maxLength = personalizationLimit(value.maxLength);
+  return maxLength === null ? null : { maxLength, label: str(value.label) };
+}
+
 export function normalizeDetail(value: unknown, fallbackCurrency: string): StorefrontProductDetail | null {
   const card = normalizeCard(value);
   if (!card || !isRow(value)) return null;
@@ -429,6 +438,7 @@ export function normalizeDetail(value: unknown, fallbackCurrency: string): Store
     disclaimer: str(value.disclaimer),
     updatedAt: str(value.updatedAt) ?? '',
     variants: normalizeVariants(value.variants, card.name),
+    personalization: normalizePersonalizationSpec(value.personalization),
   };
 }
 

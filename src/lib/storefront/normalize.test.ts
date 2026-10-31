@@ -215,6 +215,24 @@ describe('normalizeDetailResponse', () => {
     }
   });
 
+  it('personalization (mig 179): tope entero 1..60 y etiqueta del producto; ausente, null o basura => null', () => {
+    const withSpec = (personalization: unknown) =>
+      normalizeDetailResponse({ status: 'ok', product: { ...product, personalization } }, 'MXN');
+    const full = withSpec({ maxLength: 20, label: ' Tu nombre ' });
+    expect(full?.status === 'ok' && full.product.personalization).toEqual({ maxLength: 20, label: 'Tu nombre' });
+    const noLabel = withSpec({ maxLength: '12', label: null });
+    expect(noLabel?.status === 'ok' && noLabel.product.personalization).toEqual({ maxLength: 12, label: null });
+    const capped = withSpec({ maxLength: 500, label: '' });
+    expect(capped?.status === 'ok' && capped.product.personalization).toEqual({ maxLength: 60, label: null });
+    for (const junk of [undefined, null, {}, { maxLength: 0 }, { maxLength: 'veinte' }, { label: 'Solo etiqueta' }, 'x']) {
+      const out = withSpec(junk);
+      expect(out?.status === 'ok' && out.product.personalization).toBeNull();
+    }
+    // API previo a la mig 179 (sin el bloque): no se personaliza.
+    const previous = normalizeDetailResponse({ status: 'ok', product }, 'MXN');
+    expect(previous?.status === 'ok' && previous.product.personalization).toBeNull();
+  });
+
   const variants = {
     family: { code: 'pn', name: 'Playera negra' },
     axes: { gender: true, color: false, size: true },

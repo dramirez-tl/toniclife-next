@@ -9,6 +9,7 @@
 
 import type { Order, OrderDeliverySummary, TrackingInfo } from '@/types/order';
 import type { CheckoutConfirmation } from '@/types/checkout-confirmation';
+import { personalizationOf } from '@/lib/storefront/personalization';
 
 export type ConfirmationDeliveryMode = 'shipping' | 'pickup';
 export type ConfirmationPaymentStatus = 'paid' | 'pending' | 'failed' | 'unknown';
@@ -19,6 +20,8 @@ export interface ConfirmationItem {
   name: string | null;
   quantity: number;
   total: number;
+  /** Texto de personalización del renglón (mig 179); null si no lo tiene. */
+  personalization: string | null;
 }
 
 export interface ConfirmationFulfillment {
@@ -174,6 +177,7 @@ export function fromMyOrder(
       name: text(it.productName) || text(it.productCode) || null,
       quantity: num(it.quantity),
       total: num(it.totalPrice),
+      personalization: personalizationOf(it),
     }));
   return {
     orderId: order.id,
@@ -239,6 +243,7 @@ export function fromGuestConfirmation(dto: CheckoutConfirmation): ConfirmationVi
       name: text(it.productName) || text(it.productCode) || null,
       quantity: num(it.quantity),
       total: num(it.totalPrice),
+      personalization: personalizationOf(it),
     })),
     delivery: {
       mode,

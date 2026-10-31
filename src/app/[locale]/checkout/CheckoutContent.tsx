@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
+import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -1066,6 +1067,7 @@ export default function CheckoutContent() {
                         <p className="font-medium text-gray-900 text-sm truncate">
                           {item.productName}
                         </p>
+                        <LinePersonalization text={item.personalization} />
                         <p className="text-sm text-gray-500">{t('qty', { count: item.quantity })}</p>
                       </div>
                       <div className="text-right">

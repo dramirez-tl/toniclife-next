@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
+  ChevronDownIcon,
   ClipboardDocumentListIcon,
   TruckIcon,
   BuildingStorefrontIcon,
@@ -18,7 +19,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useMyOrders } from '@/hooks/useMyOrders';
+import { useMyOrder } from '@/hooks/useOrders';
+import { personalizationOf } from '@/lib/storefront/personalization';
+import { cn } from '@/lib/utils';
 import type { MyOrder } from '@/services/distributorApi';
 
 // ===== Helpers de formato =====
@@ -330,8 +335,61 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
             </div>
           </div>
         </div>
+        {!home && order.itemsCount > 0 && <OrderItems order={order} t={t} />}
       </CardContent>
     </Card>
+  );
+}
+
+// ===== Artículos del pedido (bajo demanda) =====
+// La lista solo trae el conteo; los renglones (nombre, cantidad y su personalización,
+// mig 179) se piden al abrir con GET /orders/my-orders/:id. Solo pedidos de la tienda
+// en línea: las entregas capturadas en el POS no tienen ese detalle.
+
+function OrderItems({ order, t }: { order: MyOrder; t: OrdersT }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const detail = useMyOrder(open ? order.id : null, { retry: 1 });
+  const money = currencyFormatter(order.currencyCode);
+  const items = (detail.data?.items ?? []).filter((item) => item.isActive !== false);
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-sm text-sm font-medium text-[#3E667D] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]"
+      >
+        <ChevronDownIcon aria-hidden="true" className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
+        {open ? t('itemsHide') : t('itemsShow')}
+      </button>
+      {open && (
+        <div id={panelId}>
+          {detail.isLoading ? (
+            <div className="space-y-2 py-1">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ) : detail.isError ? (
+            <p className="text-sm text-red-700">{t('itemsError')}</p>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {items.map((item) => (
+                <li key={item.id} className="flex items-start justify-between gap-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">{item.productName || item.productCode || t('itemFallback')}</p>
+                    <LinePersonalization text={personalizationOf(item)} />
+                    <p className="text-xs text-gray-500">{t('itemQuantity', { count: item.quantity })}</p>
+                  </div>
+                  <p className="shrink-0 font-medium text-gray-900">{money.format(Number(item.totalPrice) || 0)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

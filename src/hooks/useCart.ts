@@ -13,6 +13,7 @@ import { catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors
 import { conflictItemCount, countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
 import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-store';
 import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
+import { normalizePersonalization, samePersonalization } from '@/lib/storefront/personalization';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
 import { cartKeys, invalidateCartDerived } from '@/lib/storefront/cart-query-keys';
 import type {
@@ -39,9 +40,18 @@ function cachedCapReason(queryClient: QueryClient, locate: LocateLine): CapReaso
 }
 
 /**
+ * Línea que corresponde a un alta: mismo producto Y misma personalización (mig 179:
+ * otro texto es OTRA línea del mismo producto; sin texto, la línea sin personalizar).
+ */
+function locateAddedLine(data: AddCartItemInput): LocateLine {
+  return (cart) =>
+    cart.items.find((i) => i.productId === data.productId && samePersonalization(i.personalization, data.personalization));
+}
+
+/**
  * Aviso de error de las mutaciones del carrito, por i18n (ES/EN) y por CÓDIGO del
  * API (`CART_NOT_SELLABLE`, `CART_ENROLLMENT_KIT`, `CART_QTY_EXCEEDS_STOCK` y, con C2,
- * `CART_NO_PRICE_IN_COUNTRY` y `CART_COUNTRY_CHANGE`). Contra
+ * `CART_NO_PRICE_IN_COUNTRY` y `CART_COUNTRY_CHANGE`; con la mig 179, `CART_PERSONALIZATION_*`). Contra
  * un API sin códigos degrada al mensaje real del API (solo con la UI en español,
  * porque viene en español) y, si no, al texto traducido de la operación.
  * Antes fallaban en SILENCIO o con textos fijos en español.
@@ -91,6 +101,12 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason
             toast.error(t(reason === 'order_max' ? 'qtyExceedsOrderMax' : 'qtyExceeds', { max: info.maxQuantity }));
           }
           else toast.error(t('qtyExceedsUnknown'));
+          return;
+        case 'personalization_not_allowed':
+          toast.error(t('personalizationNotAllowed'));
+          return;
+        case 'personalization_too_long':
+          toast.error(info.maxLength ? t('personalizationTooLong', { max: info.maxLength }) : t('personalizationTooLongUnknown'));
           return;
         default:
           toast.error(catalogErrorMessage(err, t(fallback), { useApiMessage: lang === 'es' }));
@@ -192,11 +208,19 @@ export const useAddCartItem = () => {
 
   return useMutation({
     mutationFn: async (input: AddCartItemInput) => {
-      const data: AddCartItemInput = { ...input, country: input.country ?? countryCode };
+      // Mig 179: el texto viaja limpio y SOLO si hay texto (un producto que no se personaliza
+      // o un API sin la migración no deben recibir el campo vacío).
+      const { personalization: rawPersonalization, ...rest } = input;
+      const personalization = normalizePersonalization(rawPersonalization);
+      const data: AddCartItemInput = {
+        ...rest,
+        country: input.country ?? countryCode,
+        ...(personalization ? { personalization } : {}),
+      };
       try {
         return await cartService.addItem(data);
       } catch (err) {
-        return adjustToStock(err, (cart) => cart.items.find((i) => i.productId === data.productId), data);
+        return adjustToStock(err, locateAddedLine(data), data);
       }
     },
     onSuccess: (data) => {
@@ -206,18 +230,19 @@ export const useAddCartItem = () => {
     onError: (err, data) => {
       if (mapCartError(err).kind === 'country_change') {
         const cached = queryClient.getQueryData<Cart>(cartKeys.cart());
+        const personalization = normalizePersonalization(data.personalization);
         openCartCountryChange(
           {
             ...countryConflictOf(err, { cartCountry: cached?.countryCode, requestedCountry: data.country ?? countryCode }),
             itemCount: conflictItemCount(err),
           },
-          { productId: data.productId, quantity: data.quantity },
+          { productId: data.productId, quantity: data.quantity, ...(personalization ? { personalization } : {}) },
         );
         // El carrito en caché puede ser viejo (otra pestaña o dispositivo): que el aviso de país lo vea.
         void queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
         return;
       }
-      toastCartError(err, 'add', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.productId === data.productId)));
+      toastCartError(err, 'add', cachedCapReason(queryClient, locateAddedLine(data)));
     },
   });
 };

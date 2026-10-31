@@ -103,6 +103,23 @@ describe('cart-country-dialog-store', () => {
     expect(getCartCountryDialog()).toMatchObject({ pending: [{ productId: 'p1', quantity: 2 }] });
   });
 
+  it('pendientes: conservan el texto de personalización (mig 179) y no lo inventan', () => {
+    openCartCountryChange({ cartCountry: 'MX', requestedCountry: 'US' }, [
+      { productId: 'p1', quantity: 1, personalization: 'Ana' },
+      { productId: 'p2', quantity: 1, personalization: '   ' },
+      { productId: 'p3', quantity: 1 },
+    ]);
+    const state = getCartCountryDialog();
+    expect(state).toMatchObject({
+      pending: [
+        { productId: 'p1', quantity: 1, personalization: 'Ana' },
+        { productId: 'p2', quantity: 1 },
+        { productId: 'p3', quantity: 1 },
+      ],
+    });
+    expect(state?.kind === 'cart_country_change' && state.pending.map((p) => 'personalization' in p)).toEqual([true, false, false]);
+  });
+
   it('el aviso del carrito lo abre SIN alta pendiente: solo vaciar', () => {
     openCartCountryChange({ cartCountry: 'US', requestedCountry: 'MX' }, []);
     expect(getCartCountryDialog()).toEqual({

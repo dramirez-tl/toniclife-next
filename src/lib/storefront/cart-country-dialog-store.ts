@@ -10,6 +10,8 @@ import { conflictItemCount, countryConflictOf, isCheckoutCountryMismatch, type C
 export interface PendingCartAdd {
   productId: string;
   quantity: number;
+  /** Texto de personalización (mig 179): el alta se repite CON su texto. */
+  personalization?: string;
 }
 
 interface ConflictInfo extends CountryConflict {
@@ -69,7 +71,8 @@ function cleanPending(list: readonly PendingCartAdd[]): PendingCartAdd[] {
     if (!item || typeof item.productId !== 'string' || !item.productId || seen.has(item.productId)) continue;
     if (!Number.isFinite(item.quantity) || item.quantity <= 0) continue;
     seen.add(item.productId);
-    out.push({ productId: item.productId, quantity: item.quantity });
+    const personalization = typeof item.personalization === 'string' && item.personalization.trim() ? item.personalization : null;
+    out.push({ productId: item.productId, quantity: item.quantity, ...(personalization ? { personalization } : {}) });
   }
   return out;
 }

@@ -310,6 +310,10 @@ export type CartErrorKind =
   | 'no_price_in_country'
   /** 400 `CART_COUNTRY_INVALID` (C2): el país de la tienda visitada aún no vende en línea. */
   | 'country_invalid'
+  /** 400 `CART_PERSONALIZATION_NOT_ALLOWED` (mig 179): el producto no se personaliza. */
+  | 'personalization_not_allowed'
+  /** 400 `CART_PERSONALIZATION_TOO_LONG` (mig 179): el texto rebasa el tope del producto. */
+  | 'personalization_too_long'
   | 'session_expired'
   | 'other';
 
@@ -323,6 +327,8 @@ export interface CartErrorInfo {
   href?: string;
   /** Solo `qty_exceeds_stock`: máximo que admite la línea (0 = agotado); `null` si el API no lo dijo. */
   maxQuantity?: number | null;
+  /** Solo `personalization_too_long`: tope de caracteres visibles del producto; `null` si el API no lo dijo. */
+  maxLength?: number | null;
 }
 
 /** Solo rutas internas (`/algo`): nunca `//host`, `http:`, `javascript:` ni con espacios o backslash. */
@@ -353,6 +359,11 @@ export function mapCartError(err: unknown): CartErrorInfo {
     return { kind: 'no_price_in_country', requestedCountry: countryConflictOf(err).requestedCountry };
   }
   if (code === 'CART_COUNTRY_INVALID') return { kind: 'country_invalid' };
+  if (code === 'CART_PERSONALIZATION_NOT_ALLOWED') return { kind: 'personalization_not_allowed' };
+  if (code === 'CART_PERSONALIZATION_TOO_LONG') {
+    const maxLength = wholeOrNull(catalogErrorDetails(err).maxLength);
+    return { kind: 'personalization_too_long', maxLength: maxLength !== null && maxLength > 0 ? maxLength : null };
+  }
   if (catalogErrorStatus(err) === 401) return { kind: 'session_expired' };
   return { kind: 'other' };
 }
@@ -390,6 +401,15 @@ export function addedQuantity(before: number | null, after: number | null, reque
   const final = after ?? requested;
   const added = before === null ? Math.min(requested, final) : final - before;
   return Math.max(0, added);
+}
+
+/**
+ * Piezas de un producto en TODO el carrito. Con personalización (mig 179) un mismo
+ * producto puede ocupar varias líneas (otro texto = otra línea): lo que entró tras un
+ * alta se mide por producto, no por línea.
+ */
+export function productQuantity(items: readonly { productId: string; quantity: number }[], productId: string): number {
+  return items.reduce((sum, item) => (item.productId === productId ? sum + item.quantity : sum), 0);
 }
 
 export type BundleAddOutcome = 'all' | 'partial' | 'none';

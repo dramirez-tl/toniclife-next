@@ -59,6 +59,8 @@ export interface CartItem {
   availableStock?: number;
   /** false = agotado en el almacén del país. */
   inStock?: boolean;
+  /** Texto de personalización de la línea (playeras, API mig 179); ausente o null = sin texto. */
+  personalization?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -117,6 +119,8 @@ export interface AddCartItemInput {
   quantity: number;
   /** País de la TIENDA elegida, ISO2 (C2). `useAddCartItem` lo pone solo; sin él la petición es la de antes. */
   country?: string;
+  /** Texto de personalización (playeras, mig 179). `useAddCartItem` lo limpia y lo manda SOLO si hay texto. */
+  personalization?: string;
 }
 
 export interface UpdateCartItemInput {

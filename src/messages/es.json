@@ -250,6 +250,13 @@
         },
         "navigating": "Cargando la opción elegida…"
       },
+      "personalization": {
+        "label": "Personalízala con tu nombre",
+        "placeholder": "Ej. Ana",
+        "hint": "Máximo {max} caracteres",
+        "counter": "{count}/{max}",
+        "tooLong": "El texto era más largo: lo recortamos a {max} caracteres"
+      },
       "gallery": {
         "carousel": "carrusel",
         "slide": "imagen",
@@ -341,7 +348,8 @@
         "exceedsOrderMax": "Pediste {requested}; el máximo por pedido es {available}",
         "adjust": "Ajustar a {count}",
         "adjusted": "Cantidad ajustada a lo disponible",
-        "pointsPerUnit": "+{points} puntos por unidad"
+        "pointsPerUnit": "+{points} puntos por unidad",
+        "personalization": "Personalización: {text}"
       },
       "quantity": {
         "label": "Cantidad de {name}",
@@ -398,7 +406,10 @@
         "alreadyMaxOrderMax": "Ya tienes en el carrito el máximo por pedido ({max}).",
         "noPriceInCountry": "Este producto no tiene precio en la tienda de {country}, así que no se puede agregar al carrito.",
         "countryChange": "Tu carrito es de la tienda de {country}. Para comprar en otra tienda hay que vaciarlo.",
-        "countryInvalid": "Esta tienda aún no vende en línea en este país."
+        "countryInvalid": "Esta tienda aún no vende en línea en este país.",
+        "personalizationNotAllowed": "Este producto no se personaliza.",
+        "personalizationTooLong": "El texto de personalización admite máximo {max} caracteres.",
+        "personalizationTooLongUnknown": "El texto de personalización es demasiado largo."
       },
       "country": {
         "changeTitle": "Tu carrito es de otra tienda",
@@ -1793,6 +1804,11 @@
       "pickupDelivered": "Entregado en mostrador el {date}",
       "preparing": "Almacén está preparando tu pedido",
       "awaitingPickup": "Listo para que pases por él a {branch}",
+      "itemsShow": "Ver artículos",
+      "itemsHide": "Ocultar artículos",
+      "itemsError": "No pudimos cargar los artículos de este pedido.",
+      "itemQuantity": "Cantidad: {count}",
+      "itemFallback": "Producto",
       "pagination": {
         "previous": "Anterior",
         "next": "Siguiente",

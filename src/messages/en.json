@@ -250,6 +250,13 @@
         },
         "navigating": "Loading the selected option…"
       },
+      "personalization": {
+        "label": "Add your name",
+        "placeholder": "e.g. Ana",
+        "hint": "Up to {max} characters",
+        "counter": "{count}/{max}",
+        "tooLong": "The text was longer: we trimmed it to {max} characters"
+      },
       "gallery": {
         "carousel": "carousel",
         "slide": "image",
@@ -341,7 +348,8 @@
         "exceedsOrderMax": "You asked for {requested}; the max per order is {available}",
         "adjust": "Set to {count}",
         "adjusted": "Quantity adjusted to what is available",
-        "pointsPerUnit": "+{points} points per unit"
+        "pointsPerUnit": "+{points} points per unit",
+        "personalization": "Personalization: {text}"
       },
       "quantity": {
         "label": "Quantity of {name}",
@@ -398,7 +406,10 @@
         "alreadyMaxOrderMax": "Your cart already has the max per order ({max}).",
         "noPriceInCountry": "This product has no price in the {country} store, so it can't be added to the cart.",
         "countryChange": "Your cart belongs to the {country} store. To shop in another store it has to be emptied.",
-        "countryInvalid": "This store doesn't sell online in this country yet."
+        "countryInvalid": "This store doesn't sell online in this country yet.",
+        "personalizationNotAllowed": "This product can't be personalized.",
+        "personalizationTooLong": "The personalization text allows up to {max} characters.",
+        "personalizationTooLongUnknown": "The personalization text is too long."
       },
       "country": {
         "changeTitle": "Your cart belongs to another store",
@@ -1793,6 +1804,11 @@
       "pickupDelivered": "Picked up at the counter on {date}",
       "preparing": "The warehouse is preparing your order",
       "awaitingPickup": "Ready for pickup at {branch}",
+      "itemsShow": "View items",
+      "itemsHide": "Hide items",
+      "itemsError": "We couldn't load the items of this order.",
+      "itemQuantity": "Quantity: {count}",
+      "itemFallback": "Product",
       "pagination": {
         "previous": "Previous",
         "next": "Next",

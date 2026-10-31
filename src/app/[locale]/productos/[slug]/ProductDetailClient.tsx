@@ -10,6 +10,8 @@
 // Variantes (familias, API mig 178): el selector navega a la PÁGINA de la variante
 // elegida (`router.replace` sin scroll); este componente sigue montado y recibe el
 // nuevo producto, así que precio, existencia y carrito son siempre los de la URL.
+// Personalización (playeras, mig 179): el texto vive aquí, viaja en el alta (BuyBox y
+// barra fija comparten `onAdd`) y se limpia cuando SÍ entró al carrito.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -22,6 +24,7 @@ import { usePilotPublicState } from '@/hooks/usePilot';
 import { useStorefrontProduct, useStorefrontViewer } from '@/hooks/useStorefront';
 import { cartKeys } from '@/hooks/useCart';
 import { buyNowDestination } from '@/lib/storefront/cart-logic';
+import { clampPersonalization } from '@/lib/storefront/personalization';
 import type { Cart } from '@/types/cart';
 import { catalogHref } from '@/lib/storefront/catalog-params';
 import { formatProductName } from '@/lib/storefront/content-format';
@@ -29,6 +32,7 @@ import { viewerPriceZone } from '@/lib/storefront/price-zone';
 import { Breadcrumbs, type BreadcrumbEntry } from '@/components/storefront/Breadcrumbs';
 import { BuyBox } from '@/components/storefront/BuyBox';
 import { PackContents } from '@/components/storefront/PackContents';
+import { PersonalizationField } from '@/components/storefront/PersonalizationField';
 import { PriceZoneNotice } from '@/components/storefront/PriceZoneNotice';
 import { ProductContentSections } from '@/components/storefront/ProductContentSections';
 import { ProductGallery } from '@/components/storefront/ProductGallery';
@@ -75,18 +79,28 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   const quantity = Math.min(Math.max(1, rawQuantity), Math.max(1, product.maxQuantity));
   const { add, isPending, justAdded, announcement } = useAddToCart();
   const addable = { id: product.id, code: product.code, name, price: product.price };
+  // Otra variante puede tener otro tope (o ninguno): el texto se conserva al cambiar de
+  // variante, pero nunca rebasa el tope vigente ni viaja si el producto no se personaliza.
+  const [personalization, setPersonalization] = useState('');
+  const personalizationSpec = product.personalization;
+  const personalizationText = personalizationSpec ? clampPersonalization(personalization, personalizationSpec.maxLength) : '';
 
   // Piloto (fail-closed): sin respuesta del API el pago en línea se considera apagado.
   const { data: pilotState } = usePilotPublicState();
   const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
 
-  const onAdd = () => void add(addable, quantity);
+  const addToCart = async (silent: boolean) => {
+    const outcome = await add(addable, quantity, { silent, personalization: personalizationText });
+    if (outcome === 'added') setPersonalization(''); // listo para la siguiente pieza
+    return outcome;
+  };
+  const onAdd = () => void addToCart(false);
   /**
    * "Comprar ahora" SÍ agrega: primero la línea, después el checkout. Si la línea ya
    * estaba en su máximo ('unchanged') igual se continúa: el producto está en el carrito.
    */
   const onBuyNow = async () => {
-    const outcome = await add(addable, quantity, { silent: true });
+    const outcome = await addToCart(true);
     if (outcome === 'failed') return;
     // Carrito YA actualizado (la mutación dejó la respuesta del API en la caché).
     const items = queryClient.getQueryData<Cart>(cartKeys.cart())?.items ?? [];
@@ -138,6 +152,17 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
             variantPicker={
               variants ? (
                 <VariantPicker variants={variants} currentId={product.id} currentAvailability={product.availability} lang={lang} />
+              ) : undefined
+            }
+            personalizationField={
+              personalizationSpec ? (
+                <PersonalizationField
+                  value={personalizationText}
+                  onChange={setPersonalization}
+                  maxLength={personalizationSpec.maxLength}
+                  label={personalizationSpec.label}
+                  disabled={isPending}
+                />
               ) : undefined
             }
             lang={lang}

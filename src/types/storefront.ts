@@ -13,6 +13,7 @@ export type {
   StorefrontFacets,
   StorefrontLang,
   StorefrontListResponse,
+  StorefrontPersonalization,
   StorefrontPriceTier,
   StorefrontProductCard,
   StorefrontProductComponent,

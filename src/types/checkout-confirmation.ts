@@ -12,6 +12,8 @@ export interface CheckoutConfirmationItem {
   quantity: number;
   unitPrice: string;
   totalPrice: string;
+  /** Texto de personalización del renglón (mig 179); ausente o null = sin texto. */
+  personalization?: string | null;
 }
 
 export interface CheckoutConfirmationAddress {

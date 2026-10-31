@@ -101,7 +101,7 @@ describe('confirmation · fromMyOrder (distribuidor con sesión)', () => {
 
   it('renglones con NOMBRE de producto (nunca el id), totales numéricos y puntos', () => {
     const v = fromMyOrder(order());
-    expect(v.items).toEqual([{ key: 'i-1', name: 'Omega 3 Premium', quantity: 2, total: 1000 }]);
+    expect(v.items).toEqual([{ key: 'i-1', name: 'Omega 3 Premium', quantity: 2, total: 1000, personalization: null }]);
     expect(v.items[0].name).not.toContain('8f1c2d3e');
     expect(v.totals).toEqual({ subtotal: 1000, shipping: 150, tax: 160, discount: 0, total: 1310 });
     expect(v.points).toBe(42);
@@ -129,6 +129,14 @@ describe('confirmation · fromMyOrder (distribuidor con sesión)', () => {
       }),
     );
     expect(v.items.map((i) => i.name)).toEqual(['6001', null]);
+  });
+
+  it('personalización (mig 179): viaja limpia con el renglón; sin texto = null', () => {
+    const item = order().items[0];
+    const v = fromMyOrder(
+      order({ items: [{ ...item, personalization: ' Ana ' } as Order['items'][number], { ...item, id: 'i-2' }] }),
+    );
+    expect(v.items.map((i) => i.personalization)).toEqual(['Ana', null]);
   });
 
   it('envío: líneas de dirección sin campos vacíos; recoger: sin dirección y con la sucursal', () => {
@@ -180,8 +188,16 @@ describe('confirmation · fromGuestConfirmation (sin sesión)', () => {
     expect(v.buyerFirstName).toBe('Mike');
     expect(v.points).toBe(0);
     expect(v.delivery).toEqual({ mode: 'pickup', pickupBranchName: '427 Acapulco Diamante', addressLines: [] });
-    expect(v.items).toEqual([{ key: 'SV-01-0', name: 'Gorra Tonic', quantity: 1, total: 80 }]);
+    expect(v.items).toEqual([{ key: 'SV-01-0', name: 'Gorra Tonic', quantity: 1, total: 80, personalization: null }]);
     expect(v.totals.discount).toBe(5);
+  });
+
+  it('personalización (mig 179): viaja limpia con el renglón; vacía = null', () => {
+    const items = [
+      { ...guest().items[0], personalization: ' Mike ' },
+      { ...guest().items[0], personalization: '' },
+    ];
+    expect(fromGuestConfirmation(guest({ items })).items.map((i) => i.personalization)).toEqual(['Mike', null]);
   });
 
   it('pago pendiente / fallido del DTO', () => {
