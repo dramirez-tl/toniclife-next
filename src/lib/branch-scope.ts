@@ -12,7 +12,11 @@
 import type { UserResponse } from '@/services/auth.service';
 
 /** Códigos de rol cuyos reportes se acotan por sucursal (espejo del API). */
-export const BRANCH_SCOPED_ROLE_CODES: readonly string[] = ['cedeas_supervisor'];
+export const BRANCH_SCOPED_ROLE_CODES: readonly string[] = [
+  'cedeas_supervisor',
+  // Dueño de CEDEA (mig 180, 31-oct-2026): mismo alcance; además ve "Mi CEDEA".
+  'cedea_owner',
+];
 
 export function isBranchScopedRoleCode(code?: string | null): boolean {
   return !!code && BRANCH_SCOPED_ROLE_CODES.includes(code);

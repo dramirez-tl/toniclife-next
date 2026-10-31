@@ -170,6 +170,11 @@ const navigation: NavItem[] = [
       { name: 'Facturación libre', href: '/admin/facturacion/libre', permissions: ['billing:manual'] },
     ],
   },
+  // Mi CEDEA (mig 180, 31-oct-2026): dueños de CEDEA (y CEDEAS Supervisor) ven
+  // ventas, IVA, ventas netas, ganancia estimada y promociones entregadas de sus
+  // sucursales por periodo de comisiones. Administrador/Sistemas/Operaciones lo
+  // ven para todas las CEDEAS.
+  { name: 'Mi CEDEA', href: '/admin/cedea', icon: ReceiptPercentIcon, permissions: ['reports:cedea_earnings'] },
   {
     name: 'Reportes',
     href: '/admin/reportes',
@@ -240,7 +245,9 @@ const navigation: NavItem[] = [
       // ventas por periodo): el API acepta 'comercial', 'reports:read' o
       // 'reports:distributors' (mig 174: Call Center y Operaciones ven SOLO
       // este hijo de Comercial).
-      { name: 'Distribuidores', href: '/admin/comercial/distribuidores', permissions: ['comercial', 'reports:read', 'reports:distributors'] },
+      // Es un reporte GLOBAL (todos los distribuidores): las sesiones acotadas por
+      // sucursal no deben verlo (31-oct-2026).
+      { name: 'Distribuidores', href: '/admin/comercial/distribuidores', permissions: ['comercial', 'reports:read', 'reports:distributors'], hideWhenBranchScoped: true },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

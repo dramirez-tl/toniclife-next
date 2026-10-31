@@ -8,6 +8,8 @@
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserPermissions } from '@/store/slices/authSlice';
 import {
   BanknotesIcon,
   BuildingStorefrontIcon,
@@ -59,6 +61,9 @@ const REPORTS = [
 
 export function ScopedReportsLanding({ title = 'Reportes de mis sucursales' }: { title?: string }) {
   const { data: branches = [], isLoading } = useActiveBranches();
+  // Mi CEDEA (mig 180): ventas, ganancia estimada y promociones por periodo.
+  const permissions = useAppSelector(selectUserPermissions);
+  const showCedea = permissions.includes('reports:cedea_earnings');
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -98,6 +103,25 @@ export function ScopedReportsLanding({ title = 'Reportes de mis sucursales' }: {
           )}
         </CardContent>
       </Card>
+
+      {showCedea ? (
+        <Link href="/admin/cedea" className="group mb-4 block">
+          <Card className="border-primary/40 bg-primary/5 transition-colors group-hover:border-primary">
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="rounded-xl bg-primary/15 p-2.5 text-primary">
+                <BanknotesIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Mi CEDEA</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ventas, IVA, ventas netas, ganancia estimada y promociones entregadas de tus sucursales por
+                  periodo de comisiones, con el detalle por día.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {REPORTS.map((r) => (
