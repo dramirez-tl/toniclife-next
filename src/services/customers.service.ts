@@ -51,6 +51,8 @@ class CustomersService {
       endDate: string | null;
       status: string | null;
       isClosed: boolean;
+      /** Periodo que contiene la fecha de negocio de hoy (hora Centro). Un API anterior no lo manda. */
+      isCurrent?: boolean;
     }[]
   > {
     const response = await api.get(`${this.basePath}/periods/list`);

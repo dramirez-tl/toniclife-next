@@ -153,11 +153,19 @@ export function DistributorPeriodActivity({
     }
   }, [exportStorageKey]);
 
-  // Selección por defecto: el periodo abierto, si no el más reciente
+  // Selección por defecto: el periodo EN CURSO (el que contiene la fecha de
+  // negocio de hoy, hora Centro); si el API no lo marca, el primer periodo
+  // abierto cuya fecha de inicio ya pasó; si no, el más reciente. Antes se
+  // tomaba el primer "no cerrado" y, como la lista viene del más reciente al
+  // más antiguo, el 31-oct a las 18:00 caía en NOVIEMBRE (31-oct-2026).
   useEffect(() => {
     if (!periodId && periods.length > 0) {
-      const open = periods.find((p) => !p.isClosed);
-      setPeriodId(open?.id || periods[0].id);
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+      const current =
+        periods.find((p) => p.isCurrent) ??
+        periods.find((p) => !p.isClosed && (p.startDate ?? '').slice(0, 10) <= hoy) ??
+        periods.find((p) => !p.isClosed);
+      setPeriodId(current?.id || periods[0].id);
     }
   }, [periods, periodId]);
 
@@ -344,10 +352,16 @@ export function DistributorPeriodActivity({
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                   selectedPeriod.isClosed
                     ? 'bg-gray-100 text-gray-600'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : selectedPeriod.isCurrent === false
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 }`}
               >
-                {selectedPeriod.isClosed ? 'Cerrado' : 'En curso'}
+                {selectedPeriod.isClosed
+                  ? 'Cerrado'
+                  : selectedPeriod.isCurrent === false
+                    ? 'Abierto (aún no inicia o ya venció)'
+                    : 'En curso'}
               </span>
             </p>
           )}
@@ -366,7 +380,8 @@ export function DistributorPeriodActivity({
             ) : (
               periods.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name || p.code || p.id} {p.isClosed ? '· Cerrado' : '· En curso'}
+                  {p.name || p.code || p.id}{' '}
+                  {p.isClosed ? '· Cerrado' : p.isCurrent === false ? '· Abierto' : '· En curso'}
                 </option>
               ))
             )}
