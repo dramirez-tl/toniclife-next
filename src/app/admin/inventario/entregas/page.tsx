@@ -23,6 +23,7 @@ import {
   PencilSquareIcon,
   PrinterIcon,
   TruckIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { selectUserPermissions } from '@/store/slices/authSlice';
 import { PermissionGuard } from '@/components/auth';
@@ -85,6 +86,7 @@ const KIND_OPTIONS: { value: 'all' | DeliveryKind; label: string }[] = [
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'open', label: 'Abiertas' },
+  { key: 'production', label: 'En elaboración' },
   { key: 'pending', label: 'Pendientes' },
   { key: 'ready', label: 'Listas' },
   { key: 'shipped', label: 'Enviadas' },
@@ -94,6 +96,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 const STATUS_STYLE: Record<DeliveryStatus, { bg: string; text: string; icon: React.ReactNode }> = {
+  // Bajo pedido (mig 182): se elabora en Inventario › Bajo pedido y después se surte.
+  production: { bg: 'bg-purple-100', text: 'text-purple-800', icon: <WrenchScrewdriverIcon className="h-3 w-3" /> },
   pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: <ClockIcon className="h-3 w-3" /> },
   ready: { bg: 'bg-blue-100', text: 'text-blue-800', icon: <CheckCircleIcon className="h-3 w-3" /> },
   shipped: { bg: 'bg-indigo-100', text: 'text-indigo-800', icon: <TruckIcon className="h-3 w-3" /> },
@@ -105,6 +109,7 @@ type ActionType = DeliveryAction;
 
 /** Ícono y color del botón de cada acción en la tabla. */
 const ACTION_BUTTON: Record<ActionType, { Icon: typeof CheckCircleIcon; className?: string }> = {
+  produced: { Icon: WrenchScrewdriverIcon, className: 'text-purple-700 hover:bg-purple-50' },
   ready: { Icon: CheckCircleIcon, className: 'text-blue-700 hover:bg-blue-50' },
   shipped: { Icon: TruckIcon, className: 'text-indigo-700 hover:bg-indigo-50' },
   delivered: { Icon: CheckCircleIcon, className: 'text-green-700 hover:bg-green-50' },
@@ -241,8 +246,8 @@ function EntregasContent() {
   const countFor = (key: Tab): number | null => {
     if (!counts) return null;
     if (key === 'open') return openCount;
-    if (key === 'all') return openCount + counts.delivered + counts.cancelled;
-    return counts[key];
+    if (key === 'all') return openCount + (counts.production ?? 0) + counts.delivered + counts.cancelled;
+    return counts[key] ?? 0;
   };
 
   // Detalle (orden + ticket) y acciones.
@@ -711,6 +716,12 @@ function DeliveryDetailDialog({
                 pedido web: sin "Cancelar entrega"). */}
             {availableDeliveryActions(d, canAct).map((a) => {
               const mode = deliveryModeOf(d);
+              if (a === 'produced')
+                return (
+                  <Button key={a} onClick={() => onAction(a, d)}>
+                    <WrenchScrewdriverIcon className="mr-1 h-4 w-4" /> Marcar elaborado
+                  </Button>
+                );
               if (a === 'ready')
                 return (
                   <Button key={a} onClick={() => onAction(a, d)}>
@@ -1073,7 +1084,7 @@ function DeliveryActionDialog({
         toast.success('Guía actualizada');
       } else {
         const status: DeliveryStatus =
-          type === 'unready' ? 'pending' : type === 'unship' ? 'ready' : type;
+          type === 'unready' || type === 'produced' ? 'pending' : type === 'unship' ? 'ready' : type;
         if (status === 'cancelled' && !reason.trim()) {
           toast.error('Indica el motivo de la cancelación');
           return;
@@ -1092,9 +1103,11 @@ function DeliveryActionDialog({
           status === 'cancelled'
             ? 'Entrega cancelada'
             : `${deliveryDocLabel(delivery)}: ${
-                status === 'delivered' && mode === 'pickup'
-                  ? 'entregado en mostrador'
-                  : DELIVERY_STATUS_LABELS[status].toLowerCase()
+                type === 'produced'
+                  ? 'elaborado, pasa a surtido'
+                  : status === 'delivered' && mode === 'pickup'
+                    ? 'entregado en mostrador'
+                    : DELIVERY_STATUS_LABELS[status].toLowerCase()
               }`,
         );
       }

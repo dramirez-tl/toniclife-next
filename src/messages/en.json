@@ -84,7 +84,8 @@
         "lowStock": "{count, plural, one {Last one} other {Only # left}}",
         "lowStockGeneric": "Only a few left",
         "outOfStock": "Sold out",
-        "unknown": "Availability confirmed when added"
+        "unknown": "Availability confirmed when added",
+        "madeToOrder": "Made to order"
       },
       "cart": {
         "addedAnnouncement": "{count, plural, one {# unit of {name} added to the cart} other {# units of {name} added to the cart}}"
@@ -118,6 +119,7 @@
         "badge": {
           "outOfStock": "Sold out",
           "lowStock": "{count, plural, one {Last one} other {Only # left}}",
+          "madeToOrder": "Made to order",
           "new": "New",
           "featured": "Featured",
           "pack": "Bundle"
@@ -222,6 +224,10 @@
       "buyNow": "Buy now",
       "soldOut": "Sold out",
       "priceUnavailable": "Not available",
+      "madeToOrder": {
+        "note": "Made to order: we prepare it as soon as we receive your purchase and then ship it.",
+        "noteDays": "Made to order: we prepare it as soon as we receive your purchase (about {days, plural, one {# day} other {# days}}) and then ship it."
+      },
       "addQuantityLabel": "{count, plural, one {Add # unit of {name} to cart} other {Add # units of {name} to cart}}",
       "shipping": {
         "freeFrom": "Free shipping from {amount}",

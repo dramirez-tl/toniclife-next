@@ -15,7 +15,7 @@ import {
   paymentMethodLabel,
 } from './actions';
 
-const STATUSES: DeliveryStatus[] = ['pending', 'ready', 'shipped', 'delivered', 'cancelled'];
+const STATUSES: DeliveryStatus[] = ['production', 'pending', 'ready', 'shipped', 'delivered', 'cancelled'];
 
 describe('deliveries/actions · acciones por estado, modo y cobro', () => {
   it('sin permiso no hay acciones, en ningún estado ni modo', () => {
@@ -33,6 +33,16 @@ describe('deliveries/actions · acciones por estado, modo y cobro', () => {
     expect(paid('shipped')).toEqual(['delivered', 'edit', 'unship']);
     expect(paid('delivered')).toEqual([]);
     expect(paid('cancelled')).toEqual([]);
+  });
+
+  it('bajo pedido (mig 182): "En elaboración" solo ofrece "elaborado" si está pagado; nunca listo, enviado ni cancelar', () => {
+    const order = (saleStatus: string, deliveryMode: 'shipping' | 'pickup' = 'shipping') =>
+      availableDeliveryActions({ kind: 'order', status: 'production', saleStatus, deliveryMode }, true);
+    expect(order('completed')).toEqual(['produced']);
+    expect(order('completed', 'pickup')).toEqual(['produced']);
+    expect(order('pending')).toEqual([]);
+    expect(deliveryActionTitle('produced')).toBe('Marcar elaborado (pasa a surtido)');
+    expect(deliveryCancelNotice({ kind: 'order', status: 'production' })).toBe(ORDER_CANCEL_NOTICE);
   });
 
   it('envío sin cobrar: solo cancelar (y regresar a pendiente desde listo)', () => {

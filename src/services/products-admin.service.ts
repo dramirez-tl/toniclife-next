@@ -15,6 +15,7 @@ import { slugsForRevalidateRequest } from '@/lib/storefront/revalidate-input';
 import {
   isProductOnlineAudience,
   type Product,
+  type ProductFulfillmentMode,
   type ProductImage,
   type ProductOnlineAudience,
   type ProductPrice,
@@ -383,6 +384,13 @@ export interface AdminUpdateProductDto {
    */
   personalizationMaxLength?: number | null;
   personalizationLabel?: string | null;
+  /**
+   * Bajo pedido (mig 182): 'stock' (solo con existencias) o 'made_to_order'
+   * (se elabora al recibir la compra; se vende sin existencias) y los días de
+   * elaboración anunciados (1..90 o null). Sin la migración: 503 PRD_MIGRATION_PENDING.
+   */
+  fulfillmentMode?: ProductFulfillmentMode;
+  madeToOrderDays?: number | null;
   slug?: string;
   metaTitle?: string | null;
   metaDescription?: string | null;

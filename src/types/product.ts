@@ -53,6 +53,12 @@ export const KIT_POSITION_LABEL: Record<KitPosition, string> = {
 export const PRODUCT_ONLINE_AUDIENCES = ['none', 'members', 'public'] as const;
 export type ProductOnlineAudience = (typeof PRODUCT_ONLINE_AUDIENCES)[number];
 export const DEFAULT_PRODUCT_ONLINE_AUDIENCE: ProductOnlineAudience = 'members';
+/** mig 182: cómo se surte en la tienda: de existencias o BAJO PEDIDO (se elabora al recibir la compra). */
+export const PRODUCT_FULFILLMENT_MODES = ['stock', 'made_to_order'] as const;
+export type ProductFulfillmentMode = (typeof PRODUCT_FULFILLMENT_MODES)[number];
+export const isProductFulfillmentMode = (v: unknown): v is ProductFulfillmentMode =>
+  typeof v === 'string' && (PRODUCT_FULFILLMENT_MODES as readonly string[]).includes(v);
+export const MADE_TO_ORDER_DAYS_MAX = 90;
 export const isProductOnlineAudience = (v: unknown): v is ProductOnlineAudience =>
   typeof v === 'string' && (PRODUCT_ONLINE_AUDIENCES as readonly string[]).includes(v);
 
@@ -169,6 +175,15 @@ export interface Product {
    */
   personalizationMaxLength?: number | null;
   personalizationLabel?: string | null;
+  /**
+   * Bajo pedido (mig 182, 2-nov-2026): 'stock' = solo se vende en línea con
+   * existencias; 'made_to_order' = se elabora al recibir la compra (se vende
+   * sin existencias, no reserva inventario, el pedido pasa por elaboración).
+   * `madeToOrderDays` = días de elaboración anunciados (1..90; null = sin
+   * promesa). Ausentes mientras el API desplegado no los mande.
+   */
+  fulfillmentMode?: ProductFulfillmentMode;
+  madeToOrderDays?: number | null;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;
@@ -478,6 +493,9 @@ export interface CreateProductDto {
   personalizationMaxLength?: number | null;
   /** Etiqueta del campo de personalización (<= 60); null = la de la tienda. */
   personalizationLabel?: string | null;
+  /** Bajo pedido (mig 182): solo se manda cuando se marca en el alta. */
+  fulfillmentMode?: ProductFulfillmentMode;
+  madeToOrderDays?: number | null;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;

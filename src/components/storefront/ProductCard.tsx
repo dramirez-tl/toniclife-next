@@ -20,21 +20,23 @@ import { useAddToCart } from './useAddToCart';
 
 export const CARD_IMAGE_SIZES = '(min-width:1280px) 25vw, (min-width:768px) 33vw, 50vw';
 
-type BadgeKind = 'outOfStock' | 'lowStock' | 'new' | 'featured' | 'pack';
+type BadgeKind = 'outOfStock' | 'lowStock' | 'madeToOrder' | 'new' | 'featured' | 'pack';
 
 const BADGE_STYLES: Record<BadgeKind, string> = {
   outOfStock: 'bg-gray-800 text-white',
   lowStock: 'bg-amber-100 text-amber-900',
+  madeToOrder: 'bg-sky-100 text-sky-900',
   new: 'bg-[#3E667D] text-white',
   featured: 'bg-emerald-100 text-emerald-900',
   pack: 'bg-[#C8DDF2] text-[#1f3a4a]',
 };
 
-/** Badges REALES, máximo 2, por prioridad: Agotado > Últimas n > Nuevo > Destacado > Paquete. */
+/** Badges REALES, máximo 2, por prioridad: Agotado > Últimas n > Bajo pedido > Nuevo > Destacado > Paquete. */
 function badgesFor(product: StorefrontProductCard): BadgeKind[] {
   const badges: BadgeKind[] = [];
   if (product.availability === 'out_of_stock') badges.push('outOfStock');
   if (product.availability === 'low_stock' && product.stockLeft !== null) badges.push('lowStock');
+  if (product.madeToOrder) badges.push('madeToOrder');
   if (product.isNew) badges.push('new');
   if (product.isFeatured) badges.push('featured');
   if (product.type === 'pack') badges.push('pack');

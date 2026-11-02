@@ -84,6 +84,9 @@ const navigation: NavItem[] = [
       // Pedidos a domicilio que Call Center cobra en el POS y Almacén surte
       // (listo → enviado con guía → entregado).
       { name: 'Entregas a domicilio', href: '/admin/inventario/entregas' },
+      // Pedidos web con productos BAJO PEDIDO (mig 182): se elaboran aquí y
+      // después pasan a Entregas a domicilio.
+      { name: 'Bajo pedido', href: '/admin/inventario/bajo-pedido' },
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
       // Qué productos ve el POS de cada sucursal (filas de stock_levels) y
       // habilitar los que faltan en sucursales nuevas.

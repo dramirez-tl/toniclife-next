@@ -11,6 +11,8 @@ import type { StorefrontAvailability } from '@/types/storefront';
 interface AvailabilityBadgeProps {
   availability: StorefrontAvailability;
   stockLeft: number | null;
+  /** mig 182: se elabora al recibir la compra (se vende sin existencias). */
+  madeToOrder?: boolean;
   className?: string;
 }
 
@@ -20,12 +22,16 @@ const STYLES: Record<StorefrontAvailability, { wrap: string; dot: string }> = {
   out_of_stock: { wrap: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' },
   unknown: { wrap: 'bg-slate-100 text-slate-700', dot: 'bg-slate-500' },
 };
+const MADE_TO_ORDER_STYLE = { wrap: 'bg-sky-50 text-sky-900', dot: 'bg-sky-600' };
 
-export function AvailabilityBadge({ availability, stockLeft, className }: AvailabilityBadgeProps) {
+export function AvailabilityBadge({ availability, stockLeft, madeToOrder, className }: AvailabilityBadgeProps) {
   const t = useTranslations('storefront.common.availability');
-  const style = STYLES[availability];
-  const label =
-    availability === 'low_stock'
+  // Bajo pedido (mig 182): se vende sin existencias; solo "Agotado" lo tapa.
+  const asMadeToOrder = madeToOrder === true && availability !== 'out_of_stock';
+  const style = asMadeToOrder ? MADE_TO_ORDER_STYLE : STYLES[availability];
+  const label = asMadeToOrder
+    ? t('madeToOrder')
+    : availability === 'low_stock'
       ? stockLeft !== null
         ? t('lowStock', { count: stockLeft })
         : t('lowStockGeneric')

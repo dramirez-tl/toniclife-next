@@ -84,7 +84,8 @@
         "lowStock": "{count, plural, one {Última pieza} other {Últimas # piezas}}",
         "lowStockGeneric": "Últimas piezas",
         "outOfStock": "Agotado",
-        "unknown": "Disponibilidad por confirmar al agregar"
+        "unknown": "Disponibilidad por confirmar al agregar",
+        "madeToOrder": "Se elabora bajo pedido"
       },
       "cart": {
         "addedAnnouncement": "{count, plural, one {Se agregó # pieza de {name} al carrito} other {Se agregaron # piezas de {name} al carrito}}"
@@ -118,6 +119,7 @@
         "badge": {
           "outOfStock": "Agotado",
           "lowStock": "{count, plural, one {Última pieza} other {Últimas #}}",
+          "madeToOrder": "Bajo pedido",
           "new": "Nuevo",
           "featured": "Destacado",
           "pack": "Paquete"
@@ -222,6 +224,10 @@
       "buyNow": "Comprar ahora",
       "soldOut": "Agotado",
       "priceUnavailable": "No disponible",
+      "madeToOrder": {
+        "note": "Se elabora bajo pedido: lo preparamos en cuanto recibimos tu compra y después lo enviamos.",
+        "noteDays": "Se elabora bajo pedido: lo preparamos en cuanto recibimos tu compra (aprox. {days, plural, one {# día} other {# días}}) y después lo enviamos."
+      },
       "addQuantityLabel": "{count, plural, one {Agregar # pieza de {name} al carrito} other {Agregar # piezas de {name} al carrito}}",
       "shipping": {
         "freeFrom": "Envío gratis desde {amount}",

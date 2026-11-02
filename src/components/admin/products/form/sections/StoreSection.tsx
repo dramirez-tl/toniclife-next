@@ -52,6 +52,12 @@ const schema = z
       .string()
       .trim()
       .max(PERSONALIZATION_LABEL_MAX_LENGTH, `Máximo ${PERSONALIZATION_LABEL_MAX_LENGTH} caracteres`),
+    // Bajo pedido (mig 182): modo de surtido y días de elaboración (vacío = sin promesa).
+    fulfillmentMode: z.enum(['stock', 'made_to_order']),
+    madeToOrderDays: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || (/^\d{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 90), 'Entero entre 1 y 90'),
   })
   .superRefine((v, ctx) => {
     const message = v.personalizationEnabled ? personalizationMaxLengthError(v.personalizationMaxLength) : null;
@@ -60,10 +66,17 @@ const schema = z
 
 type StoreValues = z.infer<typeof schema>;
 
+/** Mismos valores que products.fulfillment_mode (CHECK de la mig 182). */
+const FULFILLMENT_MODE_OPTIONS = [
+  { value: 'stock', label: 'Con existencias (se surte del almacén)' },
+  { value: 'made_to_order', label: 'Bajo pedido (se elabora al recibir la compra)' },
+];
+
 export function StoreSection() {
   const { mode, productId, product, patchProduct, goToSection, hasKitSection } = useProductForm();
   const categorySelectId = useId();
   const audienceSelectId = useId();
+  const fulfillmentSelectId = useId();
   const { data: categories = [] } = useCategories({ isActive: true });
   const status = useStorefrontStatus(productId, mode === 'edit');
 
@@ -75,6 +88,8 @@ export function StoreSection() {
   // Personalización en la tienda (mig 179): misma regla que la audiencia (nunca
   // en kits de inscripción).
   const showPersonalization = showAudience;
+  // Bajo pedido (mig 182): misma regla (productos y paquetes, nunca kits de inscripción).
+  const showFulfillment = showAudience;
 
   // Kits y paquetes: "Punto de venta" e "Inscripción en línea" se editan en la
   // sección Kit (un solo formulario por campo); un kit nuevo nace fuera de ambos.
@@ -91,6 +106,8 @@ export function StoreSection() {
       personalizationEnabled: savedPersonalization.personalizationEnabled,
       personalizationMaxLength: savedPersonalization.personalizationMaxLength,
       personalizationLabel: savedPersonalization.personalizationLabel,
+      fulfillmentMode: product?.fulfillmentMode ?? 'stock',
+      madeToOrderDays: product?.madeToOrderDays ? String(product.madeToOrderDays) : '',
     }),
     [
       product?.categoryId,
@@ -102,6 +119,8 @@ export function StoreSection() {
       savedPersonalization.personalizationEnabled,
       savedPersonalization.personalizationMaxLength,
       savedPersonalization.personalizationLabel,
+      product?.fulfillmentMode,
+      product?.madeToOrderDays,
       hasKitSection,
     ],
   );
@@ -126,6 +145,12 @@ export function StoreSection() {
       ) {
         Object.assign(dto, personalizationPatch(product, v));
       }
+      // Bajo pedido (mig 182): el modo y los días viajan juntos; con existencias los días se vacían.
+      if (showFulfillment && (dirty.fulfillmentMode || dirty.madeToOrderDays)) {
+        dto.fulfillmentMode = v.fulfillmentMode;
+        dto.madeToOrderDays =
+          v.fulfillmentMode === 'made_to_order' && v.madeToOrderDays !== '' ? Number(v.madeToOrderDays) : null;
+      }
       await patchProduct(dto);
     },
     toCreate: (v) => ({
@@ -134,6 +159,13 @@ export function StoreSection() {
       ...(showAudience ? { onlineAudience: v.onlineAudience } : {}),
       // Solo viaja cuando se enciende: un alta sin personalización no toca la mig 179.
       ...(showPersonalization ? personalizationCreatePayload(v) : {}),
+      // Bajo pedido solo viaja cuando se marca: un alta normal no toca la mig 182.
+      ...(showFulfillment && v.fulfillmentMode === 'made_to_order'
+        ? {
+            fulfillmentMode: 'made_to_order' as const,
+            madeToOrderDays: v.madeToOrderDays !== '' ? Number(v.madeToOrderDays) : null,
+          }
+        : {}),
       isFeatured: v.isFeatured,
       sortOrder: v.sortOrder === '' ? 0 : Number(v.sortOrder),
     }),
@@ -141,6 +173,7 @@ export function StoreSection() {
 
   const { control } = section.form;
   const personalizationEnabled = useWatch({ control, name: 'personalizationEnabled' });
+  const fulfillmentMode = useWatch({ control, name: 'fulfillmentMode' });
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })),
     [categories],
@@ -260,6 +293,51 @@ export function StoreSection() {
             help="Sube al inicio del catálogo y puede aparecer en la portada de la tienda."
           />
         </fieldset>
+
+        {showFulfillment ? (
+          <fieldset className="space-y-3">
+            <legend className="mb-1 text-sm font-semibold text-gray-900">Surtido en la tienda en línea</legend>
+            <Controller
+              control={control}
+              name="fulfillmentMode"
+              render={({ field, fieldState }) => (
+                <FieldFrame
+                  id={fulfillmentSelectId}
+                  label="Cómo se surte"
+                  error={fieldState.error?.message}
+                  help={
+                    field.value === 'made_to_order'
+                      ? 'Se vende aunque no haya existencias: no reserva ni descuenta inventario. Al pagarse, el pedido entra a Inventario · Bajo pedido para elaborarlo y después pasa a Entregas a domicilio.'
+                      : 'Solo se vende en línea cuando hay existencias en el almacén que surte (reserva y descuenta inventario al pagar).'
+                  }
+                >
+                  <SearchableSelect
+                    id={fulfillmentSelectId}
+                    options={FULFILLMENT_MODE_OPTIONS}
+                    value={field.value}
+                    onChange={field.onChange}
+                    showAllOption={false}
+                    disabled={section.readOnly}
+                    className="w-full"
+                    aria-invalid={!!fieldState.error}
+                  />
+                </FieldFrame>
+              )}
+            />
+            {fulfillmentMode === 'made_to_order' ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <TextField
+                  control={control}
+                  name="madeToOrderDays"
+                  label="Días de elaboración"
+                  inputMode="numeric"
+                  placeholder="Ej. 7"
+                  help={'Se le anuncia al cliente en la ficha ("Se elabora bajo pedido · N días"). Vacío = sin promesa de tiempo.'}
+                />
+              </div>
+            ) : null}
+          </fieldset>
+        ) : null}
 
         {showPersonalization ? (
           <fieldset className="space-y-3">

@@ -10,10 +10,11 @@
 
 import type { Delivery, DeliveryMode, DeliveryStatus } from '@/types/deliveries';
 
-export type DeliveryAction = 'ready' | 'shipped' | 'delivered' | 'edit' | 'unready' | 'unship' | 'cancelled';
+export type DeliveryAction = 'produced' | 'ready' | 'shipped' | 'delivered' | 'edit' | 'unready' | 'unship' | 'cancelled';
 
 /** Orden canónico en que se pintan los botones. */
 export const DELIVERY_ACTION_ORDER: readonly DeliveryAction[] = [
+  'produced',
   'ready',
   'shipped',
   'delivered',
@@ -54,7 +55,7 @@ export const ORDER_CANCEL_NOTICE =
 /** Aviso del detalle de un pedido web mientras aún no se surte (pendiente / listo); null si no aplica. */
 export function deliveryCancelNotice(d: Partial<Pick<Delivery, 'kind'>> & Pick<Delivery, 'status'>): string | null {
   if (canCancelDelivery(d)) return null;
-  return d.status === 'pending' || d.status === 'ready' ? ORDER_CANCEL_NOTICE : null;
+  return d.status === 'pending' || d.status === 'ready' || d.status === 'production' ? ORDER_CANCEL_NOTICE : null;
 }
 
 /**
@@ -72,6 +73,12 @@ export function availableDeliveryActions(
   const paid = isDeliveryPaid(d);
   const cancellable = canCancelDelivery(d);
   const out: DeliveryAction[] = [];
+  // BAJO PEDIDO (mig 182): "En elaboración" solo sale a "elaborado" (pasa a
+  // pendiente de surtir, en cualquier modo); se cancela desde Pedidos, en cascada.
+  if (d.status === 'production') {
+    if (paid) out.push('produced');
+    return out;
+  }
   if (deliveryModeOf(d) === 'pickup') {
     if (d.status === 'pending') {
       if (paid) out.push('delivered');
@@ -99,6 +106,7 @@ export function availableDeliveryActions(
 }
 
 const ACTION_TITLES: Record<DeliveryAction, string> = {
+  produced: 'Marcar elaborado (pasa a surtido)',
   ready: 'Marcar listo para envío',
   shipped: 'Marcar enviado',
   delivered: 'Marcar entregado',
@@ -166,6 +174,7 @@ export function paymentMethodLabel(method: string | null | undefined): string {
 
 /** Colores del estado de una entrega (los mismos de la bandeja y del admin de pedidos). */
 export const DELIVERY_STATUS_CLASSES: Record<DeliveryStatus, string> = {
+  production: 'bg-purple-100 text-purple-800',
   pending: 'bg-yellow-100 text-yellow-800',
   ready: 'bg-blue-100 text-blue-800',
   shipped: 'bg-indigo-100 text-indigo-800',

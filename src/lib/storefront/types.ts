@@ -47,6 +47,8 @@ export interface StorefrontProductCard {
   availability: StorefrontAvailability;
   stockLeft: number | null;
   maxQuantity: number;
+  /** mig 182: se elabora al recibir la compra (bajo pedido); null o ausente = de existencias. */
+  madeToOrder?: { leadDays: number | null } | null;
   isFeatured: boolean;
   isNew: boolean;
   /** Solo en el listado agrupado por familia; null = producto suelto. */

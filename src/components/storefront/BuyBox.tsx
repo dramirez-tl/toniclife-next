@@ -103,7 +103,18 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
 
       {variantPicker}
 
-      <AvailabilityBadge availability={product.availability} stockLeft={product.stockLeft} />
+      <AvailabilityBadge
+        availability={product.availability}
+        stockLeft={product.stockLeft}
+        madeToOrder={!!product.madeToOrder}
+      />
+      {product.madeToOrder && !soldOut ? (
+        <p className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          {product.madeToOrder.leadDays
+            ? t('madeToOrder.noteDays', { days: product.madeToOrder.leadDays })
+            : t('madeToOrder.note')}
+        </p>
+      ) : null}
 
       {!soldOut && personalizationField}
 

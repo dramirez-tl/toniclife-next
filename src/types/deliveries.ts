@@ -3,7 +3,8 @@
 // Call Center captura las del POS al cobrar; las de pedidos web las crea el API
 // al confirmarse el pago; Almacén surte ambas desde el admin.
 
-export type DeliveryStatus = 'pending' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
+/** 'production' = "En elaboración" (mig 182): pedido web con productos BAJO PEDIDO que se elaboran antes de surtir. */
+export type DeliveryStatus = 'production' | 'pending' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
 
 /** Origen de la entrega: venta del POS (sale_id) o pedido web (order_id). */
 export type DeliveryKind = 'pos_sale' | 'order';
@@ -12,6 +13,7 @@ export type DeliveryKind = 'pos_sale' | 'order';
 export type DeliveryMode = 'shipping' | 'pickup';
 
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
+  production: 'En elaboración',
   pending: 'Pendiente de surtir',
   ready: 'Listo para envío',
   shipped: 'Enviado',
@@ -73,6 +75,11 @@ export interface DeliveryItem {
    * la hoja de surtido y el ticket.
    */
   personalization?: string | null;
+  /**
+   * mig 182: la línea es BAJO PEDIDO (se elabora al recibir la compra; la
+   * produce Inventario › Bajo pedido antes de surtir). Ausente con un API anterior.
+   */
+  madeToOrder?: boolean;
 }
 
 export interface Delivery {
@@ -138,6 +145,9 @@ export interface Delivery {
   cancelledAt: string | null;
   cancelledByName: string | null;
   cancelReason: string | null;
+  /** mig 182: cuándo y quién marcó elaborado un pedido bajo pedido. */
+  producedAt?: string | null;
+  producedByName?: string | null;
   itemsCount: number;
   itemsUnits: number;
   /** Clave del envío: varias entregas con la misma clave = un solo paquete (envío consolidado). */
@@ -176,6 +186,8 @@ export interface ShipmentItem {
 }
 
 export interface DeliveryStatusCounts {
+  /** En elaboración (bajo pedido, mig 182); ausente con un API anterior. */
+  production?: number;
   pending: number;
   ready: number;
   shipped: number;
