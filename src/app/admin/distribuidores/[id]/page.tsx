@@ -22,6 +22,7 @@ import type { ManualGrantRequest, PromotionComponent } from '@/types/promotion';
 import { toast } from 'sonner';
 import { DistributorPeriodActivity } from '@/components/distributor/DistributorPeriodActivity';
 import { DistributorDetailTabs } from './DistributorDetailTabs';
+import { useCustomerFiscalEditor } from '@/components/admin/billing/invoices/useCustomerFiscalEditor';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -39,6 +40,57 @@ import {
   UserGroupIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
+
+/**
+ * Editar datos fiscales desde la ficha (2-nov-2026, pedido de Tesorería): el
+ * formulario "Editar distribuidor" solo lleva RFC y CURP; régimen SAT, razón
+ * social, CP y uso de CFDI se guardan en Facturación. Abre el mismo diálogo de
+ * Preparación fiscal (PUT /billing/fiscal-data/:customerId, exige
+ * billing:manage; sin PAC de por medio) y al cerrar recarga la ficha.
+ */
+function FiscalDataEditButton({
+  customer,
+  onSaved,
+}: {
+  customer: {
+    id: string;
+    rfc?: string | null;
+    customerNumber?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  };
+  onSaved: () => void;
+}) {
+  const roles = useAppSelector(selectUserRoles);
+  const permissions = useAppSelector(selectUserPermissions);
+  const { openFor, isLoading, dialog } = useCustomerFiscalEditor(onSaved);
+  const canEdit =
+    roles.includes('super_admin') ||
+    permissions.includes('billing:manage') ||
+    permissions.includes('billing:*');
+  if (!canEdit) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() =>
+          void openFor({
+            customerId: customer.id,
+            rfc: customer.rfc ?? null,
+            code: customer.customerNumber ?? null,
+            name: [customer.firstName, customer.lastName].filter(Boolean).join(' ') || null,
+          })
+        }
+        disabled={isLoading}
+        className="inline-flex items-center gap-1 text-sm text-[#3E667D] hover:underline disabled:opacity-50"
+      >
+        <PencilIcon className="h-4 w-4" />
+        {isLoading ? 'Cargando…' : 'Editar datos fiscales'}
+      </button>
+      {dialog}
+    </>
+  );
+}
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
@@ -258,10 +310,18 @@ export default function DetalleDistribuidorPage() {
 
             {/* Información Fiscal */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <IdentificationIcon className="h-5 w-5" />
-                Información Fiscal
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <IdentificationIcon className="h-5 w-5" />
+                  Información Fiscal
+                </h2>
+                {/* Régimen SAT, razón social, CP y uso de CFDI viven en Facturación:
+                    mismo diálogo que Preparación fiscal (exige billing:manage). */}
+                <FiscalDataEditButton
+                  customer={customer}
+                  onSaved={() => dispatch(fetchCustomerById(id))}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="text-sm text-gray-500">RFC</label>
@@ -276,9 +336,13 @@ export default function DetalleDistribuidorPage() {
                   </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-sm text-gray-500">Regimen Fiscal</label>
+                  <label className="text-sm text-gray-500">Régimen fiscal (SAT)</label>
                   <p className="font-medium text-gray-900">
                     {customer.taxRegime || '-'}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Se captura con &quot;Editar datos fiscales&quot; o en Facturación › Datos Fiscales, junto con la
+                    razón social, el CP y el uso de CFDI.
                   </p>
                 </div>
               </div>

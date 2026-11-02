@@ -807,7 +807,13 @@ export function useValidateRfc() {
     mutationFn: (rfc: string) => billingService.validateRfc(rfc),
     onSuccess: (result) => {
       if (result.IsValid) {
-        toast.success('RFC válido');
+        // pacAvailable === false: el PAC no pudo validarlo contra el SAT y el
+        // API solo revisó el formato (lo dice en Message).
+        toast.success(
+          (result as { pacAvailable?: boolean }).pacAvailable === false && result.Message
+            ? result.Message
+            : 'RFC válido',
+        );
       } else {
         toast.error(`RFC inválido: ${result.Message}`);
       }
