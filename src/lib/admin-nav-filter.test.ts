@@ -80,6 +80,16 @@ describe('filterNavigation', () => {
     ).toEqual(['Reportes[Ventas,Bono de Inscripción]']);
   });
 
+  it('sesión acotada por sucursal: oculta también el ítem de primer nivel hideWhenBranchScoped (Sucursales)', () => {
+    const nav: NavItem[] = [
+      { name: 'Sucursales', href: '/admin/sucursales', icon: Icon, permissions: ['branches:read'], hideWhenBranchScoped: true },
+      { name: 'Mi CEDEA', href: '/admin/cedea', icon: Icon, permissions: ['reports:cedea_earnings'] },
+    ];
+    const perms = ['branches:read', 'reports:cedea_earnings'];
+    expect(names(filterNavigation(nav, { isSuperAdmin: false, permissions: perms, branchScoped: true }))).toEqual(['Mi CEDEA']);
+    expect(names(filterNavigation(nav, { isSuperAdmin: false, permissions: perms }))).toEqual(['Sucursales', 'Mi CEDEA']);
+  });
+
   it('se conserva el filtrado por permisos de padres e hijos', () => {
     expect(
       names(filterNavigation(NAV, { isSuperAdmin: false, permissions: ['config'] })),

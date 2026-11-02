@@ -50,7 +50,10 @@ const navigation: NavItem[] = [
   // mig 120: cada ítem acepta también el código colon CANÓNICO que exige la
   // página (antes el menú y el guard usaban vocabularios distintos y un rol
   // podía ver el módulo pero recibir "Acceso denegado" al entrar).
-  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['branches:read', 'config.branches', 'config.branches.read'] },
+  // Sucursales: catálogo completo (editar, desactivar); las sesiones acotadas por
+  // sucursal (Dueño de CEDEA, CEDEAS Supervisor) no lo ven aunque su rol traiga
+  // branches:read (2-nov-2026).
+  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['branches:read', 'config.branches', 'config.branches.read'], hideWhenBranchScoped: true },
   // customers:read (matriz): abre Usuarios solo con la pestaña Distribuidores.
   { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'customers:read', 'config.users', 'config.users.read'] },
   {

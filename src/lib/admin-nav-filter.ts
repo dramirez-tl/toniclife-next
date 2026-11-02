@@ -38,6 +38,9 @@ export interface NavItem {
   children?: NavChild[];
   // Permisos requeridos para ver este elemento (cualquiera de ellos)
   permissions?: string[];
+  // Oculto para sesiones acotadas por sucursal (Dueño de CEDEA, CEDEAS
+  // Supervisor) aunque su rol traiga el permiso: p. ej. Sucursales (2-nov-2026).
+  hideWhenBranchScoped?: boolean;
   // Visible EXCLUSIVAMENTE para el rol super_admin (ignora permisos); solo
   // asoman para otros los hijos con `access` concedido.
   superAdminOnly?: boolean;
@@ -98,6 +101,7 @@ export function filterNavigation(
       const children = (item.children ?? []).filter(byAccess);
       return children.length ? [{ ...item, children }] : [];
     }
+    if (ctx.branchScoped && item.hideWhenBranchScoped) return [];
     const parentAllowed = hasAnyPermission(ctx.permissions, item.permissions);
     if (!item.children) return parentAllowed ? [item] : [];
     // Hijo con acceso por sonda: se decide por ella. Con permisos propios: por
