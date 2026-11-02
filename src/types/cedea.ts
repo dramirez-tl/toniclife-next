@@ -28,6 +28,47 @@ export interface CedeaDailyRow {
   promoPieces: number;
 }
 
+/** Contrato CEDEA vigente de la sucursal (Tesorería › CEDEAS). */
+export interface CedeaContract {
+  id: string;
+  customerId: string;
+  /** Número de distribuidor del dueño: el "ID" que lleva el CEDEA */
+  customerNumber: string | null;
+  customerName: string;
+  /** 0.05 = 5 %; null = sin capturar (se usa 5 %) */
+  commissionRate: number | null;
+  /** commission_tax_regimes.code (FIC, RESICO, MORAL, FRONTERIZA, ASIMILADOS, SIN_IMPUESTO) */
+  taxRegimeCode: string | null;
+  taxRegimeName: string | null;
+  contractNumber: string | null;
+  notes: string | null;
+}
+
+/** Factura estimada del bono con el régimen del contrato (mismas tasas que las comisiones). */
+export interface CedeaInvoice {
+  /** MIXTO en totales con regímenes distintos */
+  regimeCode: string;
+  regimeName: string;
+  /** Bono = ventas netas × porcentaje: subtotal de la factura */
+  subtotal: number;
+  iva: number;
+  ivaWithholding: number;
+  isr: number;
+  resico: number;
+  /** subtotal + iva − retenciones */
+  total: number;
+  formula: string;
+}
+
+export interface UpsertCedeaContractInput {
+  customerNumber: string;
+  /** Fracción: 0.05 = 5 % */
+  commissionRate: number;
+  taxRegimeCode?: string;
+  contractNumber?: string;
+  notes?: string;
+}
+
 export interface CedeaBranchEarnings {
   branchId: string;
   code: string;
@@ -46,6 +87,10 @@ export interface CedeaBranchEarnings {
   commissionRate: number;
   rateSource: 'contract' | 'default';
   estimatedEarnings: number;
+  /** Contrato vigente; null si Tesorería no lo ha capturado */
+  contract: CedeaContract | null;
+  /** Factura estimada; null sin contrato o sin régimen */
+  invoice: CedeaInvoice | null;
   promoPieces: number;
   promoByProduct: CedeaPromoProduct[];
   legacyZeroLines: number;
@@ -60,6 +105,9 @@ export interface CedeaCurrencyTotal {
   tax: number;
   net: number;
   estimatedEarnings: number;
+  /** Suma de las facturas estimadas de las sucursales con régimen; null si ninguna */
+  invoice: CedeaInvoice | null;
+  branchesWithoutRegime: number;
   promoPieces: number;
 }
 
@@ -75,5 +123,7 @@ export interface CedeaEarningsResponse {
 
 export interface CedeaEarningsQuery {
   periodNumber?: number;
+  /** commission_periods.id (selector de Tesorería) */
+  periodId?: string;
   branchId?: string;
 }

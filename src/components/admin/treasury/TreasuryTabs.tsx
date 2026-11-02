@@ -17,6 +17,7 @@ export const TREASURY_TABS = [
   'retenciones',
   'validacion-datos',
   'bonos',
+  'cedeas',
 ] as const;
 
 export type TreasuryTab = (typeof TREASURY_TABS)[number];
@@ -31,6 +32,8 @@ export const TREASURY_TAB_META: Record<
   retenciones: { label: 'Retenciones', href: '/admin/tesoreria/retenciones' },
   'validacion-datos': { label: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
   bonos: { label: 'Bono de Inscripción', href: '/admin/tesoreria/bonos' },
+  // 2-nov-2026: bono por CEDEA (contrato + factura estimada), aparte de comisiones.
+  cedeas: { label: 'CEDEAS', href: '/admin/tesoreria/cedeas' },
 };
 
 interface TreasuryTabsProps {

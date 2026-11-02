@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useCedeaEarnings } from '@/hooks/useCedea';
-import type { CedeaBranchEarnings, CedeaCurrencyTotal } from '@/types/cedea';
+import type { CedeaBranchEarnings, CedeaContract, CedeaCurrencyTotal, CedeaInvoice } from '@/types/cedea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -89,7 +89,7 @@ function StatCard({
 function TotalsRow({ total }: { total: CedeaCurrencyTotal }) {
   const c = total.currencyCode;
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
       <StatCard
         icon={ShoppingBagIcon}
         label={`Ventas (${c})`}
@@ -110,12 +110,82 @@ function TotalsRow({ total }: { total: CedeaCurrencyTotal }) {
         hint="Estimado, ver nota"
         accent
       />
+      {total.invoice ? (
+        <StatCard
+          icon={BanknotesIcon}
+          label="Total a recibir"
+          value={formatMoney(total.invoice.total, c)}
+          hint={`Factura estimada: bono + IVA − retenciones${
+            total.branchesWithoutRegime > 0 ? ` · ${total.branchesWithoutRegime} sucursal(es) sin régimen` : ''
+          }`}
+          accent
+        />
+      ) : null}
       <StatCard
         icon={GiftIcon}
         label="Promociones entregadas"
         value={formatInt(total.promoPieces)}
         hint="Piezas entregadas en el periodo"
       />
+    </div>
+  );
+}
+
+function InvoiceBlock({
+  invoice,
+  contract,
+  currency,
+}: {
+  invoice: CedeaInvoice | null;
+  contract: CedeaContract | null;
+  currency: string;
+}) {
+  if (!invoice) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        {contract
+          ? 'Tu contrato no tiene régimen fiscal capturado: Tesorería lo agrega en Tesorería › CEDEAS para estimar tu factura.'
+          : 'Sin contrato CEDEA capturado: la ganancia se estima al 5 % y la factura se mostrará cuando Tesorería capture el contrato.'}
+      </p>
+    );
+  }
+  const retained = invoice.ivaWithholding + invoice.isr + invoice.resico;
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-muted/30 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Tu factura del bono (estimado) · régimen {invoice.regimeCode} · {invoice.regimeName}
+        {contract?.customerNumber ? ` · distribuidor ${contract.customerNumber}` : ''}
+      </p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
+        <div>
+          <dt className="text-muted-foreground">Subtotal (bono)</dt>
+          <dd className="font-semibold text-foreground">{formatMoney(invoice.subtotal, currency)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">+ IVA</dt>
+          <dd className="font-semibold text-foreground">{formatMoney(invoice.iva, currency)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">− Ret. IVA</dt>
+          <dd className="font-semibold text-foreground">{formatMoney(invoice.ivaWithholding, currency)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">− ISR</dt>
+          <dd className="font-semibold text-foreground">{formatMoney(invoice.isr, currency)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">− RESICO</dt>
+          <dd className="font-semibold text-foreground">{formatMoney(invoice.resico, currency)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Total a recibir</dt>
+          <dd className="font-semibold text-primary">{formatMoney(invoice.total, currency)}</dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {invoice.formula}
+        {retained > 0 ? ` · Retenciones: ${formatMoney(retained, currency)}` : ''}
+      </p>
     </div>
   );
 }
@@ -176,6 +246,8 @@ function BranchCard({
             <dd className="font-semibold text-foreground">{formatInt(branch.promoPieces)} piezas</dd>
           </div>
         </dl>
+
+        <InvoiceBlock invoice={branch.invoice} contract={branch.contract} currency={c} />
 
         {branch.promoByProduct.length > 0 ? (
           <p className="mt-3 text-xs text-muted-foreground">

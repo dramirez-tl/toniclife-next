@@ -144,6 +144,8 @@ const navigation: NavItem[] = [
       // hideWhenBranchScoped: es global (datos fiscales de patrocinadores); el
       // API se lo niega a los roles acotados por sucursal (CEDEAS Supervisor).
       { name: 'Bono de Inscripción', href: '/admin/tesoreria/bonos', permissions: ['reports:read', 'reports', 'reports.sales'], hideWhenBranchScoped: true },
+      // 2-nov-2026: cuánto se paga a cada CEDEA (contrato + factura estimada), aparte de comisiones.
+      { name: 'CEDEAS', href: '/admin/tesoreria/cedeas', hideWhenBranchScoped: true },
     ],
   },
   {
