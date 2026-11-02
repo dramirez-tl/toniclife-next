@@ -17,6 +17,7 @@ export const TREASURY_TABS = [
   'retenciones',
   'validacion-datos',
   'bonos',
+  'bonos-rango',
   'cedeas',
 ] as const;
 
@@ -32,7 +33,8 @@ export const TREASURY_TAB_META: Record<
   retenciones: { label: 'Retenciones', href: '/admin/tesoreria/retenciones' },
   'validacion-datos': { label: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
   bonos: { label: 'Bono de Inscripción', href: '/admin/tesoreria/bonos' },
-  // 2-nov-2026: bono por CEDEA (contrato + factura estimada), aparte de comisiones.
+  // 2-nov-2026: Bono Auto por rango (Platino+) y bono por CEDEA, aparte de comisiones.
+  'bonos-rango': { label: 'Bonos de rango', href: '/admin/tesoreria/bonos-rango' },
   cedeas: { label: 'CEDEAS', href: '/admin/tesoreria/cedeas' },
 };
 
