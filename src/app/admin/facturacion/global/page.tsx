@@ -514,7 +514,9 @@ function GlobalInvoiceContent() {
               <Card>
                 <CardContent className="p-6">
                   <h2 className="mb-3 text-lg font-semibold text-gray-900">Fuera de la global ({p.excluded.length})</h2>
-                  <p className="mb-3 text-xs text-gray-500">Ya facturados, en $0, a crédito, pagados con cashback, promoción o dólares (Contabilidad los registra aparte), o ya dentro de otra global del día.</p>
+                  <p className="mb-3 text-xs text-gray-500">
+                    Tickets que esta global NO declara: ya facturados, en $0, a crédito, pagados con cashback, promoción o dólares (Contabilidad los registra aparte), ya dentro de otra global del día, o con cobro &quot;Por definir&quot;. Los &quot;Por definir&quot; NO están facturados: siguen pendientes hasta capturar su forma de pago real (Reportes › Ventas › Método de pago) o timbrarlos nominativos PPD.
+                  </p>
                   <DataTable columns={excludedColumns} data={p.excluded} getRowKey={(r) => `${r.kind}:${r.id}`} />
                 </CardContent>
               </Card>
