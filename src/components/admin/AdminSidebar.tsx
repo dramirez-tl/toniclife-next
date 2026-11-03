@@ -184,6 +184,9 @@ const navigation: NavItem[] = [
   // sucursales por periodo de comisiones. Administrador/Sistemas/Operaciones lo
   // ven para todas las CEDEAS.
   { name: 'Mi CEDEA', href: '/admin/cedea', icon: ReceiptPercentIcon, permissions: ['reports:cedea_earnings'] },
+  // CEDEAS › Punto de venta (mig 183, 3-nov-2026): bloquear / liberar el POS de
+  // una CEDEA al instante (CEDEAS, Administrador, Super Administrador).
+  { name: 'CEDEAS', href: '/admin/cedeas/pos', icon: BuildingStorefrontIcon, permissions: ['cedeas:pos_lock'] },
   {
     name: 'Reportes',
     href: '/admin/reportes',

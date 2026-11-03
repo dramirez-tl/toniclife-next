@@ -220,3 +220,35 @@ export interface UpdateBranchDto {
   isActive?: boolean;
   timezone?: string;
 }
+
+// ================================
+// CEDEAS › PUNTO DE VENTA (mig 183, 3-nov-2026)
+// ================================
+
+export interface CedeaPosTerminal {
+  id: string;
+  licenseKey: string;
+  label?: string | null;
+  status: string;
+  lastSeenAt?: string | null;
+  appVersion?: string | null;
+}
+
+export interface CedeaPosStatus {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  isPosEnabled: boolean;
+  /** Candado del POS de la sucursal: true = ninguna terminal vende. */
+  posBlocked: boolean;
+  posBlockedReason?: string | null;
+  posBlockedAt?: string | null;
+  posBlockedBy?: string | null;
+  terminals: CedeaPosTerminal[];
+}
+
+export interface SetBranchPosBlockDto {
+  blocked: boolean;
+  reason?: string;
+}

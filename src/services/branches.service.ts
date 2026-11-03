@@ -2,9 +2,21 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 4.2.4
 
 import api from '@/lib/axios';
-import type { Branch, BranchQueryParams, BranchListResponse, CreateBranchDto, UpdateBranchDto, CedeaInfo, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, BranchListResponse, CreateBranchDto, UpdateBranchDto, CedeaInfo, PosUser, CreatePosUserDto, UpdatePosUserDto, CedeaPosStatus, SetBranchPosBlockDto } from '@/types/branch';
 
 class BranchesService {
+  /** CEDEAS › Punto de venta: candado del POS de cada sucursal CEDEA (mig 183). */
+  async getCedeaPosStatus(): Promise<CedeaPosStatus[]> {
+    const response = await api.get<CedeaPosStatus[]>('/branches/cedeas/pos-status');
+    return response.data;
+  }
+
+  /** Bloquea o libera el POS de una sucursal CEDEA al instante. */
+  async setPosBlock(id: string, dto: SetBranchPosBlockDto): Promise<CedeaPosStatus> {
+    const response = await api.patch<CedeaPosStatus>(`/branches/${id}/pos-block`, dto);
+    return response.data;
+  }
+
   /**
    * Get active branches (for selects/dropdowns)
    */

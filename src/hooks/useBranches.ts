@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { branchesService } from '@/services/branches.service';
 import { authService } from '@/services/auth.service';
 import { scopedBranchIdsOf } from '@/lib/branch-scope';
-import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser, CreatePosUserDto, UpdatePosUserDto, CedeaPosStatus, SetBranchPosBlockDto } from '@/types/branch';
 
 // Query keys
 export const branchKeys = {
@@ -18,7 +18,33 @@ export const branchKeys = {
   byCode: (code: string) => [...branchKeys.all, 'code', code] as const,
   cedeaInfo: (id: string) => [...branchKeys.all, 'cedea', id] as const,
   posUsers: (id: string) => [...branchKeys.all, 'pos-users', id] as const,
+  cedeaPos: () => [...branchKeys.all, 'cedeas-pos'] as const,
 };
+
+/** CEDEAS › Punto de venta: estado del candado del POS de cada CEDEA (se refresca cada 30 s). */
+export function useCedeaPosStatus() {
+  return useQuery({
+    queryKey: branchKeys.cedeaPos(),
+    queryFn: () => branchesService.getCedeaPosStatus(),
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+/** Bloquear / liberar el POS de una CEDEA; refresca la lista al instante. */
+export function useSetBranchPosBlock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...dto }: { id: string } & SetBranchPosBlockDto) => branchesService.setPosBlock(id, dto),
+    onSuccess: (updated: CedeaPosStatus) => {
+      queryClient.setQueryData<CedeaPosStatus[]>(branchKeys.cedeaPos(), (prev) =>
+        prev ? prev.map((b) => (b.id === updated.id ? updated : b)) : prev,
+      );
+      void queryClient.invalidateQueries({ queryKey: branchKeys.cedeaPos() });
+      void queryClient.invalidateQueries({ queryKey: branchKeys.lists() });
+    },
+  });
+}
 
 /**
  * Hook to fetch active branches (for selects/dropdowns)
