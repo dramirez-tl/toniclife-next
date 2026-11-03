@@ -98,10 +98,21 @@ export function GlobalPaymentGroups({
     for (const r of preview.excluded) m.set(r.id, r.folio);
     return m;
   }, [preview]);
+  // Solo tickets POS (kind pos_sale) se pueden mover: el cambio de método es de
+  // pos_sales y los pedidos web no lo tienen. La selección se poda contra la
+  // vista previa vigente (un ticket que se facturó o entró a una global
+  // mientras tanto deja de contar).
+  const movableIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of preview.groups) for (const r of g.included) if (r.kind === 'pos_sale') s.add(r.id);
+    return s;
+  }, [preview]);
+  const moveSelLive = moveSel.filter((id) => movableIds.has(id));
+  const hasOrders = preview.groups.some((g) => g.included.some((r) => r.kind === 'order'));
   const setMoveSelFor = (ids: readonly string[], keys: string[]) => {
     const scope = new Set(ids);
     const keep = new Set(keys);
-    setMoveSel((prev) => [...prev.filter((id) => !scope.has(id)), ...ids.filter((id) => keep.has(id))]);
+    setMoveSel((prev) => [...prev.filter((id) => !scope.has(id)), ...ids.filter((id) => keep.has(id) && movableIds.has(id))]);
   };
   const exitMoveMode = () => {
     setMoveMode(false);
@@ -109,28 +120,41 @@ export function GlobalPaymentGroups({
   };
   const applyMove = async () => {
     const target = MOVE_TARGETS.find((t) => t.method === moveTarget);
-    if (!target || moveSel.length === 0) return;
+    const ids = moveSelLive;
+    if (!target || ids.length === 0) return;
     setMoving(true);
     const failed: string[] = [];
+    const failedIds: string[] = [];
     let ok = 0;
+    let mixed = 0;
     // Una por una: el API valida cada ticket (facturado, pago mixto...) y aquí
-    // se reporta lo que no se pudo mover sin detener el resto.
-    for (const id of moveSel) {
+    // se reporta lo que no se pudo mover sin detener el resto. En pago mixto el
+    // API solo redefine el componente "Por definir" y la cabecera queda mixed:
+    // su grupo lo decide el cobro mayor, no el destino elegido.
+    for (const id of ids) {
       try {
-        await posService.updateSalePaymentMethod(id, target.method);
+        const updated = await posService.updateSalePaymentMethod(id, target.method);
         ok += 1;
+        if (updated?.paymentMethod === 'mixed' && target.method !== 'mixed') mixed += 1;
       } catch (err) {
         failed.push(`${folioOf.get(id) ?? id}: ${apiErrorMessage(err, 'no se pudo mover')}`);
+        failedIds.push(id);
       }
     }
     setMoving(false);
     void queryClient.invalidateQueries({ queryKey: posKeys.sales() });
     void queryClient.invalidateQueries({ queryKey: ['billing'] });
     onRefresh();
-    if (ok > 0) toast.success(`${ok} ticket(s) movido(s) a ${target.label}${target.method === 'undefined' ? '' : ` (grupo ${target.form})`}`);
+    if (ok > 0) {
+      toast.success(
+        mixed > 0
+          ? `${ok} ticket(s) actualizados a ${target.label}; ${mixed} con pago mixto: su grupo lo decide el cobro mayor`
+          : `${ok} ticket(s) movido(s) a ${target.label}${target.method === 'undefined' ? '' : ` (grupo ${target.form})`}`,
+      );
+    }
     if (failed.length > 0) {
       toast.error(`${failed.length} ticket(s) no se movieron: ${failed.join(' · ')}`, { duration: 12000 });
-      setMoveSel(moveSel.filter((id) => failed.some((f) => f.startsWith(`${folioOf.get(id) ?? id}:`))));
+      setMoveSel(failedIds);
     } else {
       exitMoveMode();
     }
@@ -140,14 +164,15 @@ export function GlobalPaymentGroups({
       <CardContent className="space-y-2 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-medium text-gray-900">
-            Reasignar forma de pago · {moveSel.length} ticket{moveSel.length === 1 ? '' : 's'} seleccionado{moveSel.length === 1 ? '' : 's'}
+            Reasignar forma de pago · {moveSelLive.length} ticket{moveSelLive.length === 1 ? '' : 's'} seleccionado{moveSelLive.length === 1 ? '' : 's'}
           </p>
           <Button variant="ghost" size="sm" onClick={exitMoveMode} disabled={moving}>
             Cancelar
           </Button>
         </div>
         <p className="text-xs text-gray-600">
-          Marca tickets de cualquier grupo (o de &quot;Por definir&quot;) y elige a dónde moverlos. El cambio se guarda en la venta y el ticket pasa al grupo de esa forma de pago.
+          Marca tickets de cualquier grupo (o de &quot;Por definir&quot;) y elige a dónde moverlos. El cambio se guarda en la venta y el ticket pasa al grupo de esa forma de pago (si tiene pago mixto, al grupo de su cobro mayor).
+          {hasOrders ? ' Los pedidos web no se mueven desde aquí.' : ''}
         </p>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Mover a">
           <span className="text-xs font-medium text-gray-700">Mover a:</span>
@@ -164,9 +189,9 @@ export function GlobalPaymentGroups({
               {t.label}{t.method === 'undefined' ? '' : ` · ${t.form}`}
             </Button>
           ))}
-          <Button size="sm" disabled={moveSel.length === 0 || moving} onClick={() => void applyMove()}>
+          <Button size="sm" disabled={moveSelLive.length === 0 || moving} onClick={() => void applyMove()}>
             {moving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Mover {moveSel.length > 0 ? moveSel.length : ''}
+            Mover {moveSelLive.length > 0 ? moveSelLive.length : ''}
           </Button>
         </div>
       </CardContent>
@@ -382,10 +407,11 @@ export function GlobalPaymentGroups({
                 getRowKey={(r) => r.id}
                 enableRowSelection={moveMode ? canDefinePayment : canManage}
                 rowSelectionMode="multiple"
-                selectedRowKeys={moveMode ? moveSel.filter((id) => g.included.some((r) => r.id === id)) : selectedKeys}
+                selectedRowKeys={moveMode ? moveSelLive.filter((id) => g.included.some((r) => r.id === id)) : selectedKeys}
                 onSelectedRowKeysChange={(keys) => {
                   if (moveMode) {
-                    setMoveSelFor(g.included.map((r) => r.id), keys);
+                    // Solo tickets POS: los pedidos web no tienen cambio de método.
+                    setMoveSelFor(g.included.filter((r) => r.kind === 'pos_sale').map((r) => r.id), keys);
                     return;
                   }
                   const keep = new Set(keys);
