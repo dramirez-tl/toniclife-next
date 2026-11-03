@@ -8,18 +8,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useSalesStats, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
+import { EditPaymentModal, PAYMENT_METHOD_OPTIONS } from '@/components/admin/pos/EditPaymentModal';
 import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
@@ -206,18 +201,7 @@ const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
 ];
 
-const PAYMENT_OPTIONS = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'card', label: 'Tarjeta' },
-  { value: 'transfer', label: 'Transferencia' },
-  { value: 'credit', label: 'Crédito' },
-  { value: 'mixed', label: 'Mixto' },
-  { value: 'cashback', label: 'Cashback' },
-  { value: 'promotion', label: 'Promoción' },
-  { value: 'mercado_pago', label: 'Mercado Pago' },
-  { value: 'usd_cash', label: 'Pago en Dólares' },
-  { value: 'undefined', label: 'Por definir' },
-];
+const PAYMENT_OPTIONS = PAYMENT_METHOD_OPTIONS;
 
 // ================================
 // CSV Export
@@ -890,61 +874,6 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
 // ================================
 // Edit Payment Method Modal
 // ================================
-
-interface EditPaymentModalProps {
-  sale: Sale | null;
-  onClose: () => void;
-  onConfirm: (paymentMethod: string) => void;
-  isPending: boolean;
-}
-
-function EditPaymentModal({ sale, onClose, onConfirm, isPending }: EditPaymentModalProps) {
-  const [selected, setSelected] = useState(sale?.paymentMethod ?? 'cash');
-
-  if (!sale) return null;
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogTitle>Editar método de pago</DialogTitle>
-        <DialogDescription>
-          Venta <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
-        </DialogDescription>
-
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          {PAYMENT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setSelected(opt.value)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 text-xs font-medium transition-all ${
-                selected === opt.value
-                  ? 'border-[#3E667D] bg-[#3E667D]/5 text-[#3E667D]'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${selected === opt.value ? 'bg-[#3E667D]' : 'bg-gray-300'}`} />
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={onClose} disabled={isPending}>
-            Cancelar
-          </Button>
-          <Button
-            className="flex-1"
-            onClick={() => onConfirm(selected)}
-            disabled={isPending || selected === sale.paymentMethod}
-          >
-            {isPending ? 'Guardando...' : 'Guardar'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ================================
 // Page

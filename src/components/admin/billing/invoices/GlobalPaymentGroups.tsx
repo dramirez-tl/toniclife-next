@@ -18,6 +18,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useCreateGlobalInvoice } from '@/hooks/useBilling';
+import { useUpdateSalePaymentMethod } from '@/hooks/usePos';
+import { useAppSelector, selectUserRoles } from '@/store';
+import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
+import { EditPaymentModal } from '@/components/admin/pos/EditPaymentModal';
 import { isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
 import { formatCurrency, getPaymentFormName, type GlobalConceptMode, type GlobalPreview, type GlobalPreviewGroup } from '@/types/billing';
 import { InvoiceStatusBadge } from './InvoiceBadges';
@@ -25,6 +29,19 @@ import { globalBlockerLabel } from './labels';
 import { formatIsoDate } from './useBranchTimezone';
 
 type IncludedRow = GlobalPreview['included'][number];
+type ExcludedRow = GlobalPreview['excluded'][number];
+
+/** HH:mm en la zona de la sucursal; '—' si el API no mandó la hora (versión anterior). */
+function timeInZone(iso: string | null | undefined, timeZone: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  try {
+    return new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(d);
+  } catch {
+    return new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(d);
+  }
+}
 
 interface GlobalPaymentGroupsProps {
   preview: GlobalPreview;
@@ -55,6 +72,81 @@ export function GlobalPaymentGroups({
   const [excludedByForm, setExcludedByForm] = useState<Record<string, string[]>>({});
   const [confirmForm, setConfirmForm] = useState<string | null>(null);
   const [showItems, setShowItems] = useState<Record<string, boolean>>({});
+
+  // Tickets "Por definir" (Contabilidad, 3-nov-2026): sin forma de pago SAT no
+  // entran a ninguna global. Se listan junto a los grupos con la acción de
+  // definir su cobro; al guardar, la vista previa se vuelve a pedir y el
+  // ticket aparece en el grupo de esa forma de pago.
+  const pending = useMemo(() => preview.excluded.filter((e) => e.reason === 'payment_pending'), [preview.excluded]);
+  const pendingTotal = pending.reduce((s, r) => s + r.total, 0);
+  const [defining, setDefining] = useState<ExcludedRow | null>(null);
+  const updatePayment = useUpdateSalePaymentMethod();
+  const userRoles = useAppSelector(selectUserRoles);
+  // Espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
+  const canDefinePayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
+  const tz = preview.branch.timezone;
+  const pendingColumns: DataTableColumn<ExcludedRow>[] = [
+      { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}<span className="ml-1 text-xs text-gray-500">{r.kind === 'order' ? 'pedido' : 'ticket'}</span></span> },
+      { key: 'time', header: 'Hora', render: (r) => <span className="text-sm">{timeInZone(r.createdAt, tz)}</span> },
+      { key: 'customer', header: 'Cliente', render: (r) => <span className="text-sm text-gray-700">{r.customerName ?? 'Público en general'}</span> },
+      { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
+      {
+        key: 'action',
+        header: '',
+        cellClassName: 'text-right',
+        render: (r) =>
+          r.kind === 'pos_sale' ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canDefinePayment || updatePayment.isPending}
+              title={canDefinePayment ? undefined : 'Solo admin o Contabilidad pueden definir el cobro'}
+              onClick={() => setDefining(r)}
+            >
+              Definir forma de pago
+            </Button>
+          ) : null,
+      },
+  ];
+  const pendingCard =
+    pending.length > 0 ? (
+      <Card className="border-amber-300 bg-amber-50/40">
+        <CardContent className="space-y-3 p-6">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">
+              Por definir · {pending.length} ticket{pending.length === 1 ? '' : 's'} · total {formatCurrency(pendingTotal)}
+            </h3>
+            <p className="mt-1 text-xs text-amber-800">
+              Cobrados sin forma de pago: no entran a ninguna global ni están facturados. Define cómo se cobró cada uno y pasará al grupo de esa forma de pago (si esa global ya se emitió, se emite una segunda del mismo día). Si el cliente pide factura a su nombre, factúralo nominativo PPD desde Ventas por facturar.
+            </p>
+          </div>
+          <DataTable columns={pendingColumns} data={pending} getRowKey={(r) => `${r.kind}:${r.id}`} />
+        </CardContent>
+      </Card>
+    ) : null;
+  const definingModal = defining ? (
+    <EditPaymentModal
+      sale={{ id: defining.id, saleNumber: defining.folio, paymentMethod: 'undefined' }}
+      hint="Al guardar, el ticket entra al grupo de la forma de pago elegida."
+      isPending={updatePayment.isPending}
+      onClose={() => setDefining(null)}
+      onConfirm={(paymentMethod) =>
+        updatePayment.mutate(
+          { id: defining.id, paymentMethod },
+          {
+            onSuccess: () => {
+              toast.success(`${defining.folio}: cobro definido; ya aparece en su forma de pago`);
+              setDefining(null);
+              onRefresh();
+            },
+            onError: (err) => {
+              toast.error(apiErrorMessage(err, 'No se pudo definir la forma de pago'), { duration: 8000 });
+            },
+          },
+        )
+      }
+    />
+  ) : null;
 
   const dayBlocked = preview.blockers.some((b) => !preview.groups.some((g) => g.blockers.includes(b)));
 
@@ -105,11 +197,17 @@ export function GlobalPaymentGroups({
 
   if (preview.groups.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-gray-500">
-          No hay ventas por globalizar este día (revisa los excluidos: ya facturadas, en $0, a crédito, cashback, promoción o dólares, o ya dentro de una global).
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {pendingCard}
+        {definingModal}
+        <Card>
+          <CardContent className="p-6 text-sm text-gray-500">
+            {pending.length > 0
+              ? 'No hay ventas por globalizar todavía: define el cobro de los tickets "Por definir" para que entren a su global.'
+              : 'No hay ventas por globalizar este día (revisa los excluidos: ya facturadas, en $0, a crédito, cashback, promoción o dólares, o ya dentro de una global).'}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -123,6 +221,9 @@ export function GlobalPaymentGroups({
           Una factura global por cada forma de pago. Desmarca un ticket para dejarlo por facturar (podrá entrar a otra global del mismo día).
         </p>
       </div>
+
+      {pendingCard}
+      {definingModal}
 
       {preview.groups.map((g) => {
         const selected = selectedOf(g);

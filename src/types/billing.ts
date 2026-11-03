@@ -700,6 +700,9 @@ export interface GlobalPreview {
     total: number;
     reason: GlobalExclusionReason;
     detail?: string | null;
+    /** Hora y cliente (API >= 3-nov-2026): para listar los "Por definir" junto a los grupos. */
+    createdAt?: string | null;
+    customerName?: string | null;
   }[];
   blockers: {
     code: GlobalBlockerCode | string;
