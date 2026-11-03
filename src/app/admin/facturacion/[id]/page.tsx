@@ -514,7 +514,16 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                   <Field label="Sucursal" value={invoice.branchName} />
                   <Field label="Moneda" value={invoice.currencyCode} />
                   <Field label="Método de pago" value={invoice.paymentMethodCode ? PAYMENT_METHOD_LABELS[invoice.paymentMethodCode] ?? invoice.paymentMethodCode : '—'} />
-                  <Field label="Forma de pago" value={invoice.paymentFormCode ? `${invoice.paymentFormCode} · ${getPaymentFormName(invoice.paymentFormCode)}` : '—'} />
+                  <Field
+                    label="Forma de pago"
+                    value={
+                      invoice.invoiceType === 'global' && invoice.paymentMethodCode === 'PPD' && invoice.paymentFormCode
+                        ? `99 · Por definir (tickets cobrados por ${invoice.paymentFormCode} · ${getPaymentFormName(invoice.paymentFormCode)})`
+                        : invoice.paymentFormCode
+                          ? `${invoice.paymentFormCode} · ${getPaymentFormName(invoice.paymentFormCode)}`
+                          : '—'
+                    }
+                  />
                 </div>
               </CardContent>
             </Card>

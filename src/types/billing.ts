@@ -785,6 +785,8 @@ export interface CreateGlobalInvoiceDto {
   paymentForm?: string;
   /** Tickets/pedidos del grupo que el usuario desmarcó: quedan por facturar. */
   excludedIds?: string[];
+  /** Contabilidad (3-nov-2026): PPD => FormaPago 99 + PPD como el sistema anterior; default PUE. */
+  paymentMethod?: 'PUE' | 'PPD';
 }
 
 // ================================

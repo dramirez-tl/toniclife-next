@@ -72,6 +72,10 @@ export function GlobalPaymentGroups({
   const [excludedByForm, setExcludedByForm] = useState<Record<string, string[]>>({});
   const [confirmForm, setConfirmForm] = useState<string | null>(null);
   const [showItems, setShowItems] = useState<Record<string, boolean>>({});
+  // Método de pago del CFDI global (Contabilidad, 3-nov-2026): PUE con la forma
+  // real del grupo, o PPD con forma 99 como lo emitía el sistema anterior. Se
+  // pregunta en cada emisión y siempre arranca en PUE.
+  const [globalMethod, setGlobalMethod] = useState<'PUE' | 'PPD'>('PUE');
 
   // Tickets "Por definir" (Contabilidad, 3-nov-2026): sin forma de pago SAT no
   // entran a ninguna global. Se listan junto a los grupos con la acción de
@@ -176,6 +180,7 @@ export function GlobalPaymentGroups({
         conceptMode,
         previewHash: g.previewHash,
         paymentForm: g.paymentForm,
+        paymentMethod: globalMethod,
         ...(excludedIds.length > 0 ? { excludedIds } : {}),
       });
       setConfirmForm(null);
@@ -259,7 +264,7 @@ export function GlobalPaymentGroups({
                   <Button variant="outline" size="sm" onClick={() => setShowItems((s) => ({ ...s, [g.paymentForm]: !items }))}>
                     {items ? 'Ocultar conceptos' : `Conceptos (${g.items.length})`}
                   </Button>
-                  <Button size="sm" disabled={!canEmit} onClick={() => setConfirmForm(g.paymentForm)}>
+                  <Button size="sm" disabled={!canEmit} onClick={() => { setGlobalMethod('PUE'); setConfirmForm(g.paymentForm); }}>
                     {create.isPending && confirmForm === g.paymentForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <GlobeAltIcon className="mr-1 h-4 w-4" aria-hidden />}
                     Emitir global {g.paymentForm}
                   </Button>
@@ -357,10 +362,33 @@ export function GlobalPaymentGroups({
         >
           <p>
             Se timbrará <strong>1 CFDI</strong> con <strong>{confirmSelected.length}</strong> documento(s) por{' '}
-            <strong>{formatCurrency(confirmTotal)}</strong> a <strong>PÚBLICO EN GENERAL</strong>, forma de pago{' '}
+            <strong>{formatCurrency(confirmTotal)}</strong> a <strong>PÚBLICO EN GENERAL</strong>, tickets cobrados por{' '}
             <strong>{confirmGroup.paymentForm} · {getPaymentFormName(confirmGroup.paymentForm)}</strong>, para{' '}
             <strong>{preview.branch.name}</strong> del <strong>{formatIsoDate(preview.localDate)}</strong> ({conceptMode === 'ticket' ? 'un concepto por ticket' : 'agrupada por producto'}).
           </p>
+          <div className="mt-3 space-y-1">
+            <p className="text-sm font-medium text-gray-900">Método de pago del CFDI</p>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Método de pago de la factura global">
+              {(['PUE', 'PPD'] as const).map((pm) => (
+                <Button
+                  key={pm}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  aria-pressed={globalMethod === pm}
+                  onClick={() => setGlobalMethod(pm)}
+                  className={globalMethod === pm ? 'border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-50' : ''}
+                >
+                  {pm === 'PUE' ? 'PUE · una sola exhibición' : 'PPD · parcialidades o diferido'}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-600">
+              {globalMethod === 'PPD'
+                ? 'El CFDI saldrá con forma de pago 99 · Por definir y método PPD, como lo emitía el sistema anterior. La guía del SAT marca PUE para la global: úsalo solo si Contabilidad lo decide.'
+                : `El CFDI saldrá con forma de pago ${confirmGroup.paymentForm} · ${getPaymentFormName(confirmGroup.paymentForm)} y método PUE (pago en una sola exhibición).`}
+            </p>
+          </div>
           {confirmSelected.length !== confirmGroup.included.length && (
             <p className="mt-2 text-xs text-amber-800">
               {confirmGroup.included.length - confirmSelected.length} ticket(s) desmarcado(s) quedan por facturar: podrás emitirles otra global de esta forma de pago o facturarlos nominativamente.
