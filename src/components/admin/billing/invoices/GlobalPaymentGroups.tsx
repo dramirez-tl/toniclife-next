@@ -10,6 +10,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { ExclamationTriangleIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
@@ -18,7 +19,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useCreateGlobalInvoice } from '@/hooks/useBilling';
-import { useUpdateSalePaymentMethod } from '@/hooks/usePos';
+import { posKeys, useUpdateSalePaymentMethod } from '@/hooks/usePos';
+import { posService } from '@/services/pos.service';
 import { useAppSelector, selectUserRoles } from '@/store';
 import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
 import { EditPaymentModal } from '@/components/admin/pos/EditPaymentModal';
@@ -30,6 +32,17 @@ import { formatIsoDate } from './useBranchTimezone';
 
 type IncludedRow = GlobalPreview['included'][number];
 type ExcludedRow = GlobalPreview['excluded'][number];
+
+/** Destinos del modo "Reasignar forma de pago": método del POS => grupo (c_FormaPago) al que pasa el ticket. */
+const MOVE_TARGETS: Array<{ method: string; label: string; form: string }> = [
+  { method: 'cash', label: 'Efectivo', form: '01' },
+  { method: 'card', label: 'Tarjeta de débito', form: '28' },
+  { method: 'credit', label: 'Tarjeta de crédito', form: '04' },
+  { method: 'transfer', label: 'Transferencia', form: '03' },
+  { method: 'deposit', label: 'Depósito', form: '03' },
+  { method: 'mercado_pago', label: 'Mercado Pago', form: '06' },
+  { method: 'undefined', label: 'Por definir', form: '99' },
+];
 
 /** HH:mm en la zona de la sucursal; '—' si el API no mandó la hora (versión anterior). */
 function timeInZone(iso: string | null | undefined, timeZone: string): string {
@@ -85,6 +98,96 @@ export function GlobalPaymentGroups({
   const pendingTotal = pending.reduce((s, r) => s + r.total, 0);
   const [defining, setDefining] = useState<ExcludedRow | null>(null);
   const updatePayment = useUpdateSalePaymentMethod();
+  const queryClient = useQueryClient();
+
+  // Modo "Reasignar forma de pago" (Diego, 3-nov-2026): se marcan tickets de
+  // cualquier grupo (y de "Por definir") y se mueven en bloque a otra forma de
+  // pago o a "Por definir". Mientras está activo, las casillas son de
+  // reasignación (no de emisión) y los botones de emitir se apagan.
+  const [moveMode, setMoveMode] = useState(false);
+  const [moveSel, setMoveSel] = useState<string[]>([]);
+  const [moveTarget, setMoveTarget] = useState<string>('cash');
+  const [moving, setMoving] = useState(false);
+  const folioOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const g of preview.groups) for (const r of g.included) m.set(r.id, r.folio);
+    for (const r of preview.excluded) m.set(r.id, r.folio);
+    return m;
+  }, [preview]);
+  const setMoveSelFor = (ids: readonly string[], keys: string[]) => {
+    const scope = new Set(ids);
+    const keep = new Set(keys);
+    setMoveSel((prev) => [...prev.filter((id) => !scope.has(id)), ...ids.filter((id) => keep.has(id))]);
+  };
+  const exitMoveMode = () => {
+    setMoveMode(false);
+    setMoveSel([]);
+  };
+  const applyMove = async () => {
+    const target = MOVE_TARGETS.find((t) => t.method === moveTarget);
+    if (!target || moveSel.length === 0) return;
+    setMoving(true);
+    const failed: string[] = [];
+    let ok = 0;
+    // Una por una: el API valida cada ticket (facturado, pago mixto...) y aquí
+    // se reporta lo que no se pudo mover sin detener el resto.
+    for (const id of moveSel) {
+      try {
+        await posService.updateSalePaymentMethod(id, target.method);
+        ok += 1;
+      } catch (err) {
+        failed.push(`${folioOf.get(id) ?? id}: ${apiErrorMessage(err, 'no se pudo mover')}`);
+      }
+    }
+    setMoving(false);
+    void queryClient.invalidateQueries({ queryKey: posKeys.sales() });
+    void queryClient.invalidateQueries({ queryKey: ['billing'] });
+    onRefresh();
+    if (ok > 0) toast.success(`${ok} ticket(s) movido(s) a ${target.label}${target.method === 'undefined' ? '' : ` (grupo ${target.form})`}`);
+    if (failed.length > 0) {
+      toast.error(`${failed.length} ticket(s) no se movieron: ${failed.join(' · ')}`, { duration: 12000 });
+      setMoveSel(moveSel.filter((id) => failed.some((f) => f.startsWith(`${folioOf.get(id) ?? id}:`))));
+    } else {
+      exitMoveMode();
+    }
+  };
+  const moveBar = moveMode ? (
+    <Card className="border-[#3E667D]/40 bg-[#3E667D]/5">
+      <CardContent className="space-y-2 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-gray-900">
+            Reasignar forma de pago · {moveSel.length} ticket{moveSel.length === 1 ? '' : 's'} seleccionado{moveSel.length === 1 ? '' : 's'}
+          </p>
+          <Button variant="ghost" size="sm" onClick={exitMoveMode} disabled={moving}>
+            Cancelar
+          </Button>
+        </div>
+        <p className="text-xs text-gray-600">
+          Marca tickets de cualquier grupo (o de &quot;Por definir&quot;) y elige a dónde moverlos. El cambio se guarda en la venta y el ticket pasa al grupo de esa forma de pago.
+        </p>
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Mover a">
+          <span className="text-xs font-medium text-gray-700">Mover a:</span>
+          {MOVE_TARGETS.map((t) => (
+            <Button
+              key={t.method}
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-pressed={moveTarget === t.method}
+              onClick={() => setMoveTarget(t.method)}
+              className={moveTarget === t.method ? 'border-[#3E667D] bg-[#3E667D]/10 text-[#3E667D] hover:bg-[#3E667D]/10' : ''}
+            >
+              {t.label}{t.method === 'undefined' ? '' : ` · ${t.form}`}
+            </Button>
+          ))}
+          <Button size="sm" disabled={moveSel.length === 0 || moving} onClick={() => void applyMove()}>
+            {moving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+            Mover {moveSel.length > 0 ? moveSel.length : ''}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  ) : null;
   const userRoles = useAppSelector(selectUserRoles);
   // Espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
   const canDefinePayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
@@ -124,7 +227,15 @@ export function GlobalPaymentGroups({
               Cobrados sin forma de pago: no entran a ninguna global ni están facturados. Define cómo se cobró cada uno y pasará al grupo de esa forma de pago (si esa global ya se emitió, se emite una segunda del mismo día). Si el cliente pide factura a su nombre, factúralo nominativo PPD desde Ventas por facturar.
             </p>
           </div>
-          <DataTable columns={pendingColumns} data={pending} getRowKey={(r) => `${r.kind}:${r.id}`} />
+          <DataTable
+            columns={pendingColumns}
+            data={pending}
+            getRowKey={(r) => r.id}
+            enableRowSelection={moveMode && canDefinePayment}
+            rowSelectionMode="multiple"
+            selectedRowKeys={moveMode ? moveSel.filter((id) => pending.some((r) => r.id === id)) : []}
+            onSelectedRowKeysChange={(keys) => setMoveSelFor(pending.map((r) => r.id), keys)}
+          />
         </CardContent>
       </Card>
     ) : null;
@@ -203,6 +314,12 @@ export function GlobalPaymentGroups({
   if (preview.groups.length === 0) {
     return (
       <div className="space-y-4">
+        {canDefinePayment && pending.length > 0 && !moveMode && (
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setMoveMode(true)}>Reasignar forma de pago</Button>
+          </div>
+        )}
+        {moveBar}
         {pendingCard}
         {definingModal}
         <Card>
@@ -222,11 +339,17 @@ export function GlobalPaymentGroups({
         <h2 className="text-lg font-semibold text-gray-900">
           Globales por forma de pago ({preview.groups.length})
         </h2>
-        <p className="text-xs text-gray-500">
-          Una factura global por cada forma de pago. Desmarca un ticket para dejarlo por facturar (podrá entrar a otra global del mismo día).
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-gray-500">
+            Una factura global por cada forma de pago. Desmarca un ticket para dejarlo por facturar (podrá entrar a otra global del mismo día).
+          </p>
+          {canDefinePayment && !moveMode && (
+            <Button variant="outline" size="sm" onClick={() => setMoveMode(true)}>Reasignar forma de pago</Button>
+          )}
+        </div>
       </div>
 
+      {moveBar}
       {pendingCard}
       {definingModal}
 
@@ -235,7 +358,7 @@ export function GlobalPaymentGroups({
         const selectedKeys = selected.map((r) => r.id);
         const selectedTotal = selected.reduce((s, r) => s + r.total, 0);
         const liveExisting = g.existing.filter((e) => !['error', 'cancelled'].includes(e.providerStatus));
-        const canEmit = canManage && !flowDisabled && g.canStamp && !dayBlocked && selected.length > 0 && !create.isPending;
+        const canEmit = canManage && !flowDisabled && g.canStamp && !dayBlocked && selected.length > 0 && !create.isPending && !moveMode;
         const items = showItems[g.paymentForm] ?? false;
         return (
           <Card key={g.paymentForm} className="border-[#3E667D]/20">
@@ -303,10 +426,14 @@ export function GlobalPaymentGroups({
                 columns={columns}
                 data={g.included}
                 getRowKey={(r) => r.id}
-                enableRowSelection={canManage}
+                enableRowSelection={moveMode ? canDefinePayment : canManage}
                 rowSelectionMode="multiple"
-                selectedRowKeys={selectedKeys}
+                selectedRowKeys={moveMode ? moveSel.filter((id) => g.included.some((r) => r.id === id)) : selectedKeys}
                 onSelectedRowKeysChange={(keys) => {
+                  if (moveMode) {
+                    setMoveSelFor(g.included.map((r) => r.id), keys);
+                    return;
+                  }
                   const keep = new Set(keys);
                   setExcludedByForm((prev) => ({
                     ...prev,
