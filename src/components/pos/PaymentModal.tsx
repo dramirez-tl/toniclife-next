@@ -51,7 +51,7 @@ const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; 
   { key: 'promotion', method: PosPaymentMethod.PROMOTION, name: 'Promoción', icon: GiftIcon },
   { key: 'mercado_pago', method: PosPaymentMethod.MERCADO_PAGO, name: 'Mercado Pago', icon: ShoppingCartIcon },
   { key: 'usd_cash', method: PosPaymentMethod.USD_CASH, name: 'Pago en Dólares', icon: CurrencyDollarIcon },
-  { key: 'undefined', method: PosPaymentMethod.UNDEFINED, name: 'Sin Definir', icon: QuestionMarkCircleIcon },
+  { key: 'undefined', method: PosPaymentMethod.UNDEFINED, name: 'Por definir', icon: QuestionMarkCircleIcon },
 ];
 
 const quickAmounts = [50, 100, 200, 500, 1000];

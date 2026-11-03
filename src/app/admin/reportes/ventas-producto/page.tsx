@@ -40,7 +40,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   mercado_pago: 'Mercado Pago',
   promotion: 'Promoción',
   cashback: 'Cashback',
-  undefined: 'Sin definir',
+  undefined: 'Por definir',
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');

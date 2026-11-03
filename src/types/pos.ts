@@ -419,6 +419,8 @@ export interface DailySalesSummary {
   totalMercadoPago: number;
   totalUsdCash: number;
   totalMixed: number;
+  /** Cobros "Por definir" (método undefined); ausente en APIs anteriores al 3-nov-2026. */
+  totalUndefined?: number;
   totalRefunds: number;
   refundsCount: number;
   averageTicket: number;

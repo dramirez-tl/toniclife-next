@@ -164,7 +164,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   mercado_pago: 'Mercado Pago',
   promotion: 'Promoción',
   cashback: 'Cashback',
-  undefined: 'Sin definir',
+  undefined: 'Por definir',
 };
 
 export function paymentMethodLabel(method: string | null | undefined): string {

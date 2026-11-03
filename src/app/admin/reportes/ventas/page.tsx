@@ -19,6 +19,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useSalesStats, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
+import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
 import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
@@ -147,7 +148,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   promotion: 'Promoción',
   mercado_pago: 'Mercado Pago',
   usd_cash: 'Pago en Dólares',
-  undefined: 'Sin Definir',
+  undefined: 'Por definir',
 };
 
 const PAYMENT_BADGE_STYLES: Record<string, string> = {
@@ -215,7 +216,7 @@ const PAYMENT_OPTIONS = [
   { value: 'promotion', label: 'Promoción' },
   { value: 'mercado_pago', label: 'Mercado Pago' },
   { value: 'usd_cash', label: 'Pago en Dólares' },
-  { value: 'undefined', label: 'Sin Definir' },
+  { value: 'undefined', label: 'Por definir' },
 ];
 
 // ================================
@@ -970,7 +971,9 @@ function VentasReportesContent() {
   });
 
   const userRoles = useAppSelector(selectUserRoles);
-  const canEditPayment = userRoles.some((r) => r === 'admin' || r === 'super_admin');
+  // Contabilidad también define el método de un cobro "Por definir" (3-nov-2026):
+  // espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
+  const canEditPayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
 
   const selectedBranch = get('branch');
   const selectedStatus = get('status');
@@ -1066,12 +1069,22 @@ function VentasReportesContent() {
       updatePaymentMethod(
         { id: editingSale.id, paymentMethod },
         {
-          onSuccess: () => {
-            toast.success(`Método de pago actualizado a "${PAYMENT_LABELS[paymentMethod] ?? paymentMethod}"`);
+          onSuccess: (updated) => {
+            // El API devuelve la venta ya guardada: en pago mixto solo define el
+            // componente "Por definir" y la cabecera sigue en "mixed".
+            const applied = (updated as unknown as { paymentMethod?: string } | undefined)?.paymentMethod ?? paymentMethod;
+            const label = PAYMENT_LABELS[paymentMethod] ?? paymentMethod;
+            toast.success(
+              applied === 'mixed' && paymentMethod !== 'mixed'
+                ? `Componente "Por definir" definido como "${label}"; la venta sigue como pago mixto`
+                : `Método de pago actualizado a "${PAYMENT_LABELS[applied] ?? applied}"`,
+            );
             setEditingSale(null);
           },
-          onError: () => {
-            toast.error('No se pudo actualizar el método de pago');
+          onError: (err) => {
+            // El API explica el rechazo (venta ya facturada PUE / en global viva,
+            // pago mixto sin componente "Por definir", método inválido).
+            toast.error(apiErrorMessage(err, 'No se pudo actualizar el método de pago'), { duration: 8000 });
           },
         },
       );

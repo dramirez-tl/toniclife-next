@@ -541,7 +541,9 @@ export type GlobalDayBlockReason =
   | 'terminals_off'
   | 'attempt_in_progress'
   | 'stale_error'
-  | 'uncovered_tickets';
+  | 'uncovered_tickets'
+  // Contabilidad (3-nov-2026): día cuyos únicos tickets están "Por definir".
+  | 'payment_pending';
 
 /** `GET /billing/global-invoices/days` */
 export interface GlobalDayStatus {
@@ -646,6 +648,9 @@ export type GlobalExclusionReason =
   | 'zero_total'
   | 'credit_sale'
   | 'already_in_global'
+  // Contabilidad (3-nov-2026): cobro "Por definir" => fuera de la global (ya no
+  // bloquea el día); nominativa PPD o entra a otra global al definir el método.
+  | 'payment_pending'
   // Contabilidad (20-oct-2026): cobros que NO se globalizan.
   | 'cashback'
   | 'promotion'

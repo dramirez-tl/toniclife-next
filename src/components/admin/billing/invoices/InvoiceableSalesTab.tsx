@@ -128,6 +128,19 @@ export function InvoiceableSalesTab({
   const [target, setTarget] = useState<InvoiceableSale | null>(null);
   const [globalTarget, setGlobalTarget] = useState<InvoiceableSale | null>(null);
   const [inlineError, setInlineError] = useState<{ text: string; invoiceId: string | null } | null>(null);
+  // PUE/PPD a elección de quien factura (Contabilidad, 3-nov-2026). Se fija al
+  // abrir CADA diálogo (nominativo o "ya en global") con lo que el API resolvió
+  // del cobro: PPD cuando hay crédito o "Por definir" (ahí PUE se rechaza), PUE
+  // en el resto. PPD = forma 99 y complemento de pago después. Nunca se
+  // arrastra la elección de un ticket al siguiente.
+  const [method, setMethod] = useState<'PUE' | 'PPD'>('PUE');
+  const defaultMethodOf = (sale: InvoiceableSale): 'PUE' | 'PPD' =>
+    sale.paymentMethodCode === 'PPD' ? 'PPD' : 'PUE';
+  const openInvoiceDialog = (sale: InvoiceableSale) => {
+    setMethod(defaultMethodOf(sale));
+    if (sale.invoiceStatus === 'en_global') setGlobalTarget(sale);
+    else setTarget(sale);
+  };
 
   // Sin sucursal no hay consulta: no arrastrar filas de la sucursal anterior (keepPreviousData).
   const rows = branchId ? (data?.data ?? []) : [];
@@ -136,10 +149,15 @@ export function InvoiceableSalesTab({
   const sourceBody = (sale: InvoiceableSale) =>
     sale.kind === 'order' ? { orderId: sale.id } : { posSaleId: sale.id };
 
-  const invoiceSale = async (sale: InvoiceableSale, acknowledgeGlobal: boolean) => {
+  const invoiceSale = async (sale: InvoiceableSale, acknowledgeGlobal: boolean, pm: 'PUE' | 'PPD') => {
     setInlineError(null);
     try {
-      const invoice = await createInvoice.mutateAsync({ ...sourceBody(sale), acknowledgeGlobal: acknowledgeGlobal || undefined });
+      const invoice = await createInvoice.mutateAsync({
+        ...sourceBody(sale),
+        // Solo tickets: el pedido web siempre es PUE (su cobro ya está completo).
+        ...(sale.kind === 'pos_sale' ? { paymentMethod: pm } : {}),
+        acknowledgeGlobal: acknowledgeGlobal || undefined,
+      });
       setTarget(null);
       setGlobalTarget(null);
       router.push(`/admin/facturacion/${invoice.id}`);
@@ -297,7 +315,7 @@ export function InvoiceableSalesTab({
                   size="sm"
                   disabled={blocked || createInvoice.isPending}
                   title={blocked ? 'Corrige los bloqueadores antes de facturar' : undefined}
-                  onClick={() => (s.invoiceStatus === 'en_global' ? setGlobalTarget(s) : setTarget(s))}
+                  onClick={() => openInvoiceDialog(s)}
                 >
                   {isRetry ? 'Reintentar' : s.invoiceStatus === 'en_global' ? 'Facturar (ya en global)' : 'Facturar'}
                 </Button>
@@ -473,10 +491,10 @@ export function InvoiceableSalesTab({
             if (!open) setTarget(null);
           }}
           title={`${(target.blockers ?? []).some((b) => RETRYABLE_INVOICEABLE_BLOCKERS.has(invoiceableBlockerCode(b))) ? 'Reintentar la factura del' : 'Facturar'} ${target.kind === 'order' ? 'pedido' : 'ticket'} ${target.folio}`}
-          description="Se timbrará 1 CFDI de ingreso con los datos fiscales actuales del cliente. Revisa el receptor antes de confirmar."
+          description="Se timbrará 1 CFDI de ingreso con los datos fiscales actuales del cliente. Revisa el receptor y el método de pago antes de confirmar."
           confirmLabel="Timbrar factura"
           isPending={createInvoice.isPending}
-          onConfirm={() => invoiceSale(target, false)}
+          onConfirm={() => invoiceSale(target, false, method)}
         >
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-gray-50 p-3 text-sm">
             <dt className="text-gray-500">Receptor</dt>
@@ -484,9 +502,51 @@ export function InvoiceableSalesTab({
             <dt className="text-gray-500">RFC</dt>
             <dd className="font-mono">{target.customerRfc ?? '—'}</dd>
             <dt className="text-gray-500">Forma de pago</dt>
-            <dd>{target.paymentFormCode ? `${target.paymentFormCode} · ${getPaymentFormName(target.paymentFormCode)}` : 'No resoluble'}</dd>
+            <dd>
+              {target.kind === 'pos_sale' && method === 'PPD'
+                ? '99 · Por definir'
+                : target.paymentFormCode
+                  ? `${target.paymentFormCode} · ${getPaymentFormName(target.paymentFormCode)}`
+                  : 'No resoluble'}
+            </dd>
             <dt className="text-gray-500">Método</dt>
-            <dd>{target.paymentMethodCode ? PAYMENT_METHOD_LABELS[target.paymentMethodCode] ?? target.paymentMethodCode : '—'}</dd>
+            <dd>
+              {target.kind === 'pos_sale' ? (
+                <div className="space-y-1">
+                  <div className="flex gap-2" role="group" aria-label="Método de pago CFDI">
+                    {(['PUE', 'PPD'] as const).map((pm) => {
+                      // Con crédito o cobro "Por definir" el API exige PPD.
+                      const locked = pm === 'PUE' && target.paymentMethodCode === 'PPD';
+                      return (
+                        <Button
+                          key={pm}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={locked}
+                          aria-pressed={method === pm}
+                          onClick={() => setMethod(pm)}
+                          className={method === pm ? 'border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-50' : ''}
+                          title={locked ? 'La venta tiene un cobro a crédito o "Por definir": debe timbrarse PPD' : undefined}
+                        >
+                          {pm}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {method === 'PPD'
+                      ? 'Pago en parcialidades o diferido: forma 99 y después el complemento de pago (Facturación › Complemento de pago).'
+                      : 'Pago en una sola exhibición con la forma de pago real del cobro.'}
+                  </p>
+                  {target.paymentMethodCode === 'PPD' && (
+                    <p className="text-xs text-amber-700">PUE no disponible: la venta tiene un cobro a crédito o &quot;Por definir&quot;.</p>
+                  )}
+                </div>
+              ) : (
+                target.paymentMethodCode ? PAYMENT_METHOD_LABELS[target.paymentMethodCode] ?? target.paymentMethodCode : '—'
+              )}
+            </dd>
             <dt className="text-gray-500">Total</dt>
             <dd className="font-semibold">{formatCurrency(target.total)}</dd>
           </dl>
@@ -506,13 +566,22 @@ export function InvoiceableSalesTab({
           confirmText="FACTURAR"
           destructive
           isPending={createInvoice.isPending}
-          onConfirm={() => invoiceSale(globalTarget, true)}
+          onConfirm={() => invoiceSale(globalTarget, true, method)}
         >
           <ol className="list-decimal space-y-1 pl-5">
             <li>Se timbra la factura nominativa del ticket y se libera de la global.</li>
             <li>La global queda marcada &quot;por reexpedir&quot;: hay que cancelarla con el motivo 04.</li>
             <li>Desde el detalle de la global se reexpide sin los tickets facturados (relación 04).</li>
           </ol>
+          <p className="mt-3 rounded-lg bg-gray-50 p-3 text-sm text-gray-700">
+            Método de pago CFDI: <span className="font-semibold">{globalTarget.kind === 'pos_sale' ? method : 'PUE'}</span>
+            {' · forma '}
+            {globalTarget.kind === 'pos_sale' && method === 'PPD'
+              ? '99 · Por definir'
+              : globalTarget.paymentFormCode
+                ? `${globalTarget.paymentFormCode} · ${getPaymentFormName(globalTarget.paymentFormCode)}`
+                : '—'}
+          </p>
         </ConfirmDialog>
       )}
 

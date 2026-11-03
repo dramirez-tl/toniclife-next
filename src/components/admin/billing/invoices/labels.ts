@@ -124,6 +124,8 @@ export const GLOBAL_EXCLUSION_LABELS: Record<GlobalExclusionReason, string> = {
   zero_total: 'Total en cero',
   credit_sale: 'Venta a crédito (PPD)',
   already_in_global: 'Ya está en otra global',
+  // Contabilidad (3-nov-2026): el cobro "Por definir" ya no bloquea el día.
+  payment_pending: 'Cobro "Por definir": define su método de pago (Reportes › Ventas) o factúralo nominativo PPD',
   // Contabilidad (20-oct-2026): estos cobros no se globalizan.
   cashback: 'Pagado con cashback (no se globaliza)',
   promotion: 'Pagado con promoción (no se globaliza)',
@@ -146,6 +148,7 @@ export const GLOBAL_DAY_BLOCK_REASON_LABELS: Record<GlobalDayBlockReason, string
   attempt_in_progress: 'Hay un intento de factura global en curso para este día.',
   stale_error: 'Quedó un intento con error de hace más de 24 horas: descártalo para poder emitir el día.',
   uncovered_tickets: 'La global del día no declara todos los tickets: hay que reexpedirla.',
+  payment_pending: 'Solo hay tickets con cobro "Por definir": define su método de pago (Reportes › Ventas) o factúralos nominativos PPD.',
 };
 
 export function globalDayBlockReasonLabel(reason: string | null | undefined): string | null {

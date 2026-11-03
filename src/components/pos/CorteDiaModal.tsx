@@ -54,6 +54,7 @@ const PAYMENT_LABELS: { key: keyof DailySalesSummary; label: string }[] = [
   { key: 'totalPromotion', label: 'Promociones' },
   { key: 'totalUsdCash', label: 'Dólares (USD)' },
   { key: 'totalMixed', label: 'Pago Mixto' },
+  { key: 'totalUndefined', label: 'Por definir' },
 ];
 
 export function CorteDiaModal({ summary, sales, isLoading, date, branchName, timezone, onClose }: CorteDiaModalProps) {

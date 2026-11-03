@@ -268,6 +268,10 @@ export const useUpdateSalePaymentMethod = () => {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: posKeys.sales() });
       queryClient.invalidateQueries({ queryKey: posKeys.saleDetail(id) });
+      // El método de pago decide PUE/PPD, la forma SAT y si el ticket entra a
+      // la global: Facturación (ventas por facturar, días y vista previa de la
+      // global, cuadre) no debe seguir sirviendo su caché (3-nov-2026).
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
     },
   });
 };
