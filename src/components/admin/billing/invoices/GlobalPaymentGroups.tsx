@@ -31,7 +31,6 @@ import { globalBlockerLabel } from './labels';
 import { formatIsoDate } from './useBranchTimezone';
 
 type IncludedRow = GlobalPreview['included'][number];
-type ExcludedRow = GlobalPreview['excluded'][number];
 
 /** Destinos del modo "Reasignar forma de pago": método del POS => grupo (c_FormaPago) al que pasa el ticket. */
 const MOVE_TARGETS: Array<{ method: string; label: string; form: string }> = [
@@ -43,18 +42,6 @@ const MOVE_TARGETS: Array<{ method: string; label: string; form: string }> = [
   { method: 'mercado_pago', label: 'Mercado Pago', form: '06' },
   { method: 'undefined', label: 'Por definir', form: '99' },
 ];
-
-/** HH:mm en la zona de la sucursal; '—' si el API no mandó la hora (versión anterior). */
-function timeInZone(iso: string | null | undefined, timeZone: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  try {
-    return new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(d);
-  } catch {
-    return new Intl.DateTimeFormat('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(d);
-  }
-}
 
 interface GlobalPaymentGroupsProps {
   preview: GlobalPreview;
@@ -90,13 +77,10 @@ export function GlobalPaymentGroups({
   // pregunta en cada emisión y siempre arranca en PUE.
   const [globalMethod, setGlobalMethod] = useState<'PUE' | 'PPD'>('PUE');
 
-  // Tickets "Por definir" (Contabilidad, 3-nov-2026): sin forma de pago SAT no
-  // entran a ninguna global. Se listan junto a los grupos con la acción de
-  // definir su cobro; al guardar, la vista previa se vuelve a pedir y el
+  // Definir la forma de pago de UN ticket del grupo 99 (modal compartido con
+  // Reportes › Ventas); al guardar, la vista previa se vuelve a pedir y el
   // ticket aparece en el grupo de esa forma de pago.
-  const pending = useMemo(() => preview.excluded.filter((e) => e.reason === 'payment_pending'), [preview.excluded]);
-  const pendingTotal = pending.reduce((s, r) => s + r.total, 0);
-  const [defining, setDefining] = useState<ExcludedRow | null>(null);
+  const [defining, setDefining] = useState<{ id: string; folio: string } | null>(null);
   const updatePayment = useUpdateSalePaymentMethod();
   const queryClient = useQueryClient();
 
@@ -191,54 +175,6 @@ export function GlobalPaymentGroups({
   const userRoles = useAppSelector(selectUserRoles);
   // Espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
   const canDefinePayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
-  const tz = preview.branch.timezone;
-  const pendingColumns: DataTableColumn<ExcludedRow>[] = [
-      { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}<span className="ml-1 text-xs text-gray-500">{r.kind === 'order' ? 'pedido' : 'ticket'}</span></span> },
-      { key: 'time', header: 'Hora', render: (r) => <span className="text-sm">{timeInZone(r.createdAt, tz)}</span> },
-      { key: 'customer', header: 'Cliente', render: (r) => <span className="text-sm text-gray-700">{r.customerName ?? 'Público en general'}</span> },
-      { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
-      {
-        key: 'action',
-        header: '',
-        cellClassName: 'text-right',
-        render: (r) =>
-          r.kind === 'pos_sale' ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!canDefinePayment || updatePayment.isPending}
-              title={canDefinePayment ? undefined : 'Solo admin o Contabilidad pueden definir el cobro'}
-              onClick={() => setDefining(r)}
-            >
-              Definir forma de pago
-            </Button>
-          ) : null,
-      },
-  ];
-  const pendingCard =
-    pending.length > 0 ? (
-      <Card className="border-amber-300 bg-amber-50/40">
-        <CardContent className="space-y-3 p-6">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">
-              Por definir · {pending.length} ticket{pending.length === 1 ? '' : 's'} · total {formatCurrency(pendingTotal)}
-            </h3>
-            <p className="mt-1 text-xs text-amber-800">
-              Cobrados sin forma de pago: no entran a ninguna global ni están facturados. Define cómo se cobró cada uno y pasará al grupo de esa forma de pago (si esa global ya se emitió, se emite una segunda del mismo día). Si el cliente pide factura a su nombre, factúralo nominativo PPD desde Ventas por facturar.
-            </p>
-          </div>
-          <DataTable
-            columns={pendingColumns}
-            data={pending}
-            getRowKey={(r) => r.id}
-            enableRowSelection={moveMode && canDefinePayment}
-            rowSelectionMode="multiple"
-            selectedRowKeys={moveMode ? moveSel.filter((id) => pending.some((r) => r.id === id)) : []}
-            onSelectedRowKeysChange={(keys) => setMoveSelFor(pending.map((r) => r.id), keys)}
-          />
-        </CardContent>
-      </Card>
-    ) : null;
   const definingModal = defining ? (
     <EditPaymentModal
       sale={{ id: defining.id, saleNumber: defining.folio, paymentMethod: 'undefined' }}
@@ -277,6 +213,27 @@ export function GlobalPaymentGroups({
     [],
   );
 
+  // Grupo 99 ("Por definir"): acción por fila para capturar la forma de pago real.
+  const columns99: DataTableColumn<IncludedRow>[] = [
+    ...columns,
+    {
+      key: 'define',
+      header: '',
+      cellClassName: 'text-right',
+      render: (r) => (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canDefinePayment || moveMode || updatePayment.isPending}
+          title={canDefinePayment ? undefined : 'Solo admin o Contabilidad pueden definir el cobro'}
+          onClick={() => setDefining({ id: r.id, folio: r.folio })}
+        >
+          Definir forma de pago
+        </Button>
+      ),
+    },
+  ];
+
   const selectedOf = (g: GlobalPreviewGroup) => {
     const excluded = new Set(excludedByForm[g.paymentForm] ?? []);
     return g.included.filter((r) => !excluded.has(r.id));
@@ -314,19 +271,11 @@ export function GlobalPaymentGroups({
   if (preview.groups.length === 0) {
     return (
       <div className="space-y-4">
-        {canDefinePayment && pending.length > 0 && !moveMode && (
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => setMoveMode(true)}>Reasignar forma de pago</Button>
-          </div>
-        )}
         {moveBar}
-        {pendingCard}
         {definingModal}
         <Card>
           <CardContent className="p-6 text-sm text-gray-500">
-            {pending.length > 0
-              ? 'No hay ventas por globalizar todavía: define el cobro de los tickets "Por definir" para que entren a su global.'
-              : 'No hay ventas por globalizar este día (revisa los excluidos: ya facturadas, en $0, a crédito, cashback, promoción o dólares, o ya dentro de una global).'}
+            No hay ventas por globalizar este día (revisa los excluidos: ya facturadas, en $0, a crédito, cashback, promoción o dólares, o ya dentro de una global).
           </CardContent>
         </Card>
       </div>
@@ -350,7 +299,6 @@ export function GlobalPaymentGroups({
       </div>
 
       {moveBar}
-      {pendingCard}
       {definingModal}
 
       {preview.groups.map((g) => {
@@ -360,14 +308,20 @@ export function GlobalPaymentGroups({
         const liveExisting = g.existing.filter((e) => !['error', 'cancelled'].includes(e.providerStatus));
         const canEmit = canManage && !flowDisabled && g.canStamp && !dayBlocked && selected.length > 0 && !create.isPending && !moveMode;
         const items = showItems[g.paymentForm] ?? false;
+        const porDefinir = g.paymentForm === '99';
         return (
-          <Card key={g.paymentForm} className="border-[#3E667D]/20">
+          <Card key={g.paymentForm} className={porDefinir ? 'border-amber-300 bg-amber-50/40' : 'border-[#3E667D]/20'}>
             <CardContent className="space-y-4 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-base font-semibold text-gray-900">
                     {g.paymentForm} · {getPaymentFormName(g.paymentForm)}
                   </h3>
+                  {porDefinir && (
+                    <p className="mt-1 text-xs text-amber-800">
+                      Cobros sin forma de pago definida. Se emiten en una global <strong>PPD con forma 99</strong>, como en el sistema anterior; o, con &quot;Reasignar forma de pago&quot; / &quot;Definir forma de pago&quot;, pasan al grupo de la forma con la que realmente se cobraron.
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600">
                     {g.included.length} documento(s) · base {formatCurrency(g.totals.subtotal)} · IVA {formatCurrency(g.totals.taxes)} ·{' '}
                     <span className="font-medium text-gray-900">total {formatCurrency(g.totals.total)}</span>
@@ -387,7 +341,7 @@ export function GlobalPaymentGroups({
                   <Button variant="outline" size="sm" onClick={() => setShowItems((s) => ({ ...s, [g.paymentForm]: !items }))}>
                     {items ? 'Ocultar conceptos' : `Conceptos (${g.items.length})`}
                   </Button>
-                  <Button size="sm" disabled={!canEmit} onClick={() => { setGlobalMethod('PUE'); setConfirmForm(g.paymentForm); }}>
+                  <Button size="sm" disabled={!canEmit} onClick={() => { setGlobalMethod(g.paymentForm === '99' ? 'PPD' : 'PUE'); setConfirmForm(g.paymentForm); }}>
                     {create.isPending && confirmForm === g.paymentForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <GlobeAltIcon className="mr-1 h-4 w-4" aria-hidden />}
                     Emitir global {g.paymentForm}
                   </Button>
@@ -423,7 +377,7 @@ export function GlobalPaymentGroups({
               )}
 
               <DataTable
-                columns={columns}
+                columns={porDefinir ? columns99 : columns}
                 data={g.included}
                 getRowKey={(r) => r.id}
                 enableRowSelection={moveMode ? canDefinePayment : canManage}
@@ -503,6 +457,7 @@ export function GlobalPaymentGroups({
                   size="sm"
                   variant="outline"
                   aria-pressed={globalMethod === pm}
+                  disabled={confirmGroup.paymentForm === '99' && pm === 'PUE'}
                   onClick={() => setGlobalMethod(pm)}
                   className={globalMethod === pm ? 'border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-50' : ''}
                 >
@@ -511,9 +466,11 @@ export function GlobalPaymentGroups({
               ))}
             </div>
             <p className="text-xs text-gray-600">
-              {globalMethod === 'PPD'
-                ? 'El CFDI saldrá con forma de pago 99 · Por definir y método PPD, como lo emitía el sistema anterior. La guía del SAT marca PUE para la global: úsalo solo si Contabilidad lo decide.'
-                : `El CFDI saldrá con forma de pago ${confirmGroup.paymentForm} · ${getPaymentFormName(confirmGroup.paymentForm)} y método PUE (pago en una sola exhibición).`}
+              {confirmGroup.paymentForm === '99'
+                ? 'Cobros "Por definir": la global solo puede ser PPD con forma de pago 99 (como en el sistema anterior). Si prefieres PUE, primero define la forma de pago real de los tickets.'
+                : globalMethod === 'PPD'
+                  ? 'El CFDI saldrá con forma de pago 99 · Por definir y método PPD, como lo emitía el sistema anterior. La guía del SAT marca PUE para la global: úsalo solo si Contabilidad lo decide.'
+                  : `El CFDI saldrá con forma de pago ${confirmGroup.paymentForm} · ${getPaymentFormName(confirmGroup.paymentForm)} y método PUE (pago en una sola exhibición).`}
             </p>
           </div>
           {confirmSelected.length !== confirmGroup.included.length && (
