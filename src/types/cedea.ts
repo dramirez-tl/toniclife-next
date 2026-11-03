@@ -75,6 +75,8 @@ export interface CedeaBranchEarnings {
   name: string;
   currencyCode: string;
   isCedea: boolean;
+  /** false = sucursal inactiva (se lista porque tuvo ventas en el periodo) */
+  isActive: boolean;
   salesCount: number;
   /** Ventas POS con IVA */
   gross: number;
@@ -83,6 +85,9 @@ export interface CedeaBranchEarnings {
   net: number;
   onlineOrdersCount: number;
   onlineOrdersTotal: number;
+  onlineOrdersTax: number;
+  /** Pedidos en línea sin IVA (no entran en la base; se muestran aparte) */
+  onlineOrdersNet: number;
   /** 0.05 = 5 % */
   commissionRate: number;
   rateSource: 'contract' | 'default';
@@ -104,6 +109,8 @@ export interface CedeaCurrencyTotal {
   gross: number;
   tax: number;
   net: number;
+  /** Pedidos en línea sin IVA de estas sucursales (aparte de net) */
+  onlineOrdersNet: number;
   estimatedEarnings: number;
   /** Suma de las facturas estimadas de las sucursales con régimen; null si ninguna */
   invoice: CedeaInvoice | null;

@@ -17,6 +17,7 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -237,6 +238,11 @@ function CedeasContent() {
                           <TableCell>
                             <span className="mr-2 font-mono text-xs text-muted-foreground">{b.code}</span>
                             <span className="font-medium text-foreground">{b.name}</span>
+                            {b.isActive === false ? (
+                              <Badge variant="outline" className="ml-2 text-xs" title="Sucursal desactivada; se lista porque tuvo ventas en el periodo">
+                                Inactiva
+                              </Badge>
+                            ) : null}
                           </TableCell>
                           <TableCell>
                             {b.contract ? (
@@ -257,7 +263,17 @@ function CedeasContent() {
                               <span className="block text-xs text-muted-foreground">por defecto</span>
                             ) : null}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{formatMoney(b.net, b.currencyCode)}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatMoney(b.net, b.currencyCode)}
+                            {b.onlineOrdersCount > 0 ? (
+                              <span
+                                className="block text-xs font-normal text-muted-foreground"
+                                title="Pedidos en línea asignados a la sucursal, sin IVA. No entran en la base del bono hasta que Dirección lo defina."
+                              >
+                                + {formatMoney(b.onlineOrdersNet, b.currencyCode)} en {b.onlineOrdersCount} pedido{b.onlineOrdersCount === 1 ? '' : 's'} en línea
+                              </span>
+                            ) : null}
+                          </TableCell>
                           <TableCell className="text-right tabular-nums">{formatMoney(b.estimatedEarnings, b.currencyCode)}</TableCell>
                           <TableCell className="text-right tabular-nums">{inv ? formatMoney(inv.iva, b.currencyCode) : '—'}</TableCell>
                           <TableCell className="text-right tabular-nums text-destructive">

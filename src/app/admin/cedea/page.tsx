@@ -208,6 +208,9 @@ function BranchCard({
             <h2 className="text-lg font-semibold text-foreground">
               <span className="mr-2 font-mono text-sm text-muted-foreground">{branch.code}</span>
               {branch.name}
+              {branch.isActive === false ? (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">(sucursal inactiva)</span>
+              ) : null}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatInt(branch.salesCount)} ventas · porcentaje {formatRate(branch.commissionRate)}
