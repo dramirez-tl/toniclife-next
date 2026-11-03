@@ -70,7 +70,10 @@ export function CommissionKpis({
     );
   }
 
-  const byCurrency = sortByCurrency(summary.byCurrency ?? []);
+  // 2-nov-2026: tarjetas por moneda de PAGO (lo que Tesorería dispersa);
+  // un API viejo solo manda byCurrency (moneda guardada).
+  const byPayout = Array.isArray(summary.byPayoutCurrency);
+  const byCurrency = sortByCurrency(summary.byPayoutCurrency ?? summary.byCurrency ?? []);
   const estimated = summary.period && !summary.period.isClosed;
 
   return (
@@ -82,7 +85,9 @@ export function CommissionKpis({
           </CardContent>
         </Card>
       ) : (
-        byCurrency.map((c) => <CurrencyCards key={c.currency} data={c} estimated={estimated} />)
+        byCurrency.map((c) => (
+          <CurrencyCards key={c.currency} data={c} estimated={estimated} payout={byPayout} />
+        ))
       )}
 
       <StageFunnel summary={summary} onStageClick={onStageClick} activeStage={activeStage} />
@@ -90,7 +95,15 @@ export function CommissionKpis({
   );
 }
 
-function CurrencyCards({ data, estimated }: { data: SummaryByCurrency; estimated: boolean }) {
+function CurrencyCards({
+  data,
+  estimated,
+  payout,
+}: {
+  data: SummaryByCurrency;
+  estimated: boolean;
+  payout: boolean;
+}) {
   const fiscal = toNumber(data.fiscalWithheld);
   const applied = toNumber(data.companyWithheld);
   const projected = toNumber(data.companyWithheldProjected);
@@ -103,7 +116,13 @@ function CurrencyCards({ data, estimated }: { data: SummaryByCurrency; estimated
         </Badge>
         <span className="text-xs text-muted-foreground">
           {formatInt(data.rows)} {data.rows === 1 ? 'comisión' : 'comisiones'}
+          {payout ? ' · moneda de pago' : ''}
         </span>
+        {(data.missingRate ?? 0) > 0 && (
+          <Badge variant="warning" title="Filas sin tasa del periodo: se muestran en su moneda guardada">
+            {formatInt(data.missingRate ?? 0)} sin tasa
+          </Badge>
+        )}
         {estimated && (
           <Badge variant="warning" title="Periodo abierto: cifras estimadas que cambian cada 4 h">
             Estimado

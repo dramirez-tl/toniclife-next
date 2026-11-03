@@ -67,6 +67,28 @@ export interface CompanyWithholdingRef {
 }
 
 /** Fila del listado `GET /mlm/commissions` = `CommissionDto` actual + Tesorería. */
+/**
+ * Importes de la fila en la MONEDA DEL DISTRIBUIDOR (moneda de pago según la
+ * política de Tesorería) convertidos con la tasa congelada del periodo
+ * (2-nov-2026). El motor guarda en MXN; `converted` = hubo conversión.
+ */
+export interface PayoutView {
+  currency: string;
+  storedCurrency: string;
+  converted: boolean;
+  fxStoredToMxn: Money;
+  fxPayoutToMxn: Money;
+  subtotal: Money;
+  iva: Money;
+  ivaWithholding: Money;
+  isr: Money;
+  resico: Money;
+  total: Money;
+  companyWithholding: Money;
+  toDisperse: Money;
+  totalMxn: Money;
+}
+
 export interface CommissionRow extends Commission {
   stage: CommissionStage;
   /** Periodo abierto: la cifra la reescribe el estimador cada 4 h. */
@@ -78,6 +100,10 @@ export interface CommissionRow extends Commission {
   payoutBatch?: PayoutBatchRef | null;
   payoutAmount?: Money | null;
   payoutCurrency?: string | null;
+  /** Moneda de pago resuelta por la política de Tesorería (readiness). */
+  payoutCurrencyResolved?: string | null;
+  /** Importes en la moneda del distribuidor; null = sin tasa del periodo. */
+  payoutView?: PayoutView | null;
   cancelledAt?: string | null;
   cancelReason?: string | null;
   readiness?: RowReadiness | null;
@@ -164,6 +190,8 @@ export interface SummaryByCurrency {
   /** Convenios por aplicar al pagar (proyección). */
   companyWithheldProjected: Money;
   toDisperse: Money;
+  /** Solo en byPayoutCurrency: filas sin tasa del periodo (quedan en su moneda guardada). */
+  missingRate?: number;
 }
 
 export interface SummaryByStage {
@@ -221,6 +249,8 @@ export interface SummaryReadiness {
 export interface CommissionSummary {
   period: SummaryPeriod;
   byCurrency: SummaryByCurrency[];
+  /** Por moneda de PAGO (importes convertidos con la tasa del periodo); un API viejo no lo manda. */
+  byPayoutCurrency?: SummaryByCurrency[];
   byStage: SummaryByStage;
   byRegime: SummaryByRegime[];
   readiness: SummaryReadiness;

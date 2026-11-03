@@ -525,6 +525,18 @@ function ComisionesContent() {
         const net = toNumber(c.totalAmount);
         const w = toNumber(c.companyWithholding?.amount);
         const hasPayout = c.payoutAmount !== undefined && c.payoutAmount !== null;
+        const view = c.payoutView;
+        if (!hasPayout && view && view.converted) {
+          // 2-nov-2026: en la moneda de pago del distribuidor (tasa del periodo), con el MXN debajo.
+          return (
+            <span className="text-sm font-bold tabular-nums text-primary">
+              {formatMoney(view.toDisperse, view.currency)}
+              <span className="block text-xs font-normal text-muted-foreground">
+                = {formatMoney(Math.max(0, net - w), c.currencyCode)}
+              </span>
+            </span>
+          );
+        }
         return (
           <span className="text-sm font-bold tabular-nums text-primary">
             {hasPayout ? formatMoney(c.payoutAmount, c.payoutCurrency ?? c.currencyCode) : formatMoney(Math.max(0, net - w), c.currencyCode)}
@@ -537,7 +549,7 @@ function ComisionesContent() {
       header: 'Moneda',
       render: (c) => (
         <Badge variant="outline" className="font-mono text-muted-foreground">
-          {c.payoutCurrency ?? c.currencyCode ?? 'MXN'}
+          {c.payoutCurrency ?? c.payoutView?.currency ?? c.payoutCurrencyResolved ?? c.currencyCode ?? 'MXN'}
         </Badge>
       ),
     },
