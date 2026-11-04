@@ -198,7 +198,10 @@
       "empty": {
         "title": "Aún no hay productos disponibles",
         "titleFiltered": "No encontramos productos con esos filtros",
+        "titleCountry": "La tienda de {country} aún no tiene artículos de venta al público",
         "body": "Estamos actualizando el catálogo. Vuelve en unos minutos.",
+        "bodyCountry": "Estamos preparando el catálogo para tu país. Mientras tanto, puedes ver la tienda de México.",
+        "goMexico": "Ver la tienda de México",
         "bodyFiltered": "Prueba con otra búsqueda, quita algún filtro o incluye los productos agotados.",
         "clear": "Limpiar filtros",
         "suggested": "Explora por categoría",

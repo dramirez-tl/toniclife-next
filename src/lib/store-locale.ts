@@ -16,8 +16,18 @@ export function getStoredLocale(): string | null {
   return value && isSupportedLocale(value) ? value : null;
 }
 
-export function setStoredLocale(locale: string): void {
+export interface StoredLocaleOptions {
+  /**
+   * true (default) = elección explícita del visitante (selector, cuenta): dura 1 año.
+   * false = alineación automática con la tienda servida en la URL: cookie de
+   * sesión, para que una adivinanza (país por IP) no quede fija un año.
+   */
+  persist?: boolean;
+}
+
+export function setStoredLocale(locale: string, options: StoredLocaleOptions = {}): void {
   if (typeof document === 'undefined') return;
   const safe = isSupportedLocale(locale) ? locale : DEFAULT_LOCALE;
-  document.cookie = `${LOCALE_COOKIE}=${safe}; path=/; max-age=${ONE_YEAR}; SameSite=Lax`;
+  const persist = options.persist ?? true;
+  document.cookie = `${LOCALE_COOKIE}=${safe}; path=/;${persist ? ` max-age=${ONE_YEAR};` : ''} SameSite=Lax`;
 }

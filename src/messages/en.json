@@ -198,7 +198,10 @@
       "empty": {
         "title": "No products available yet",
         "titleFiltered": "We couldn't find products with those filters",
+        "titleCountry": "The {country} store does not have retail items yet",
         "body": "We are updating the catalog. Please come back in a few minutes.",
+        "bodyCountry": "We are preparing the catalog for your country. In the meantime, you can browse the Mexico store.",
+        "goMexico": "Go to the Mexico store",
         "bodyFiltered": "Try another search, remove a filter or include sold-out products.",
         "clear": "Clear filters",
         "suggested": "Browse by category",

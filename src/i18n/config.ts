@@ -77,3 +77,12 @@ export function countryMeta(code: CountryCode): CountryMeta {
 export function isSupportedLocale(locale: string): boolean {
   return LOCALES.includes(locale);
 }
+
+const LOCALE_PATH_RE = /^\/([a-z]{2}-[a-z]{2})(?:\/|$)/;
+
+/** Locale del prefijo de la URL ('/es-mx/productos' → 'es-mx') o null si no lo trae o no es soportado. */
+export function localeFromPathname(pathname: string | null | undefined): string | null {
+  const match = LOCALE_PATH_RE.exec(pathname ?? '');
+  const locale = match?.[1] ?? null;
+  return locale && isSupportedLocale(locale) ? locale : null;
+}

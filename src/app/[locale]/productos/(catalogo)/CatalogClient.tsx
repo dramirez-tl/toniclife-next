@@ -19,7 +19,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ArrowPathIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { parseLocale } from '@/i18n/config';
+import { COUNTRIES, DEFAULT_COUNTRY, buildLocale, parseLocale, type CountryCode, type LanguageCode } from '@/i18n/config';
 import { useStorefrontProducts, useStorefrontViewer, type InitialStorefrontList } from '@/hooks/useStorefront';
 import {
   DEFAULT_CATALOG_STATE,
@@ -31,6 +31,7 @@ import {
 } from '@/lib/storefront/catalog-params';
 import { buildCatalogMetadata } from '@/lib/storefront/metadata';
 import { currencyForCountry } from '@/lib/storefront/price';
+import { setStoredLocale } from '@/lib/store-locale';
 import { viewerPriceZone } from '@/lib/storefront/price-zone';
 import { localizedPath } from '@/lib/storefront/seo';
 import { cn } from '@/lib/utils';
@@ -49,6 +50,8 @@ import type { StorefrontFacets } from '@/types/storefront';
 interface CatalogClientProps {
   /** Datos del SSR. Ausente = búsqueda (`q`) o API no disponible en servidor: consulta el cliente. */
   initial?: InitialStorefrontList;
+  /** Cookie de sesión presente al renderizar en servidor: nunca ofrecer "Ver la tienda de México" a quien tiene cuenta. */
+  sessionHint?: boolean;
 }
 
 const EMPTY_FACETS: StorefrontFacets = {
@@ -59,7 +62,7 @@ const EMPTY_FACETS: StorefrontFacets = {
   genders: [],
 };
 
-export function CatalogClient({ initial }: CatalogClientProps) {
+export function CatalogClient({ initial, sessionHint = false }: CatalogClientProps) {
   const t = useTranslations('storefront.catalog');
   const locale = useLocale();
   const { lang, country } = parseLocale(locale);
@@ -121,6 +124,10 @@ export function CatalogClient({ initial }: CatalogClientProps) {
   // Puntos SOLO para distribuidor CON sesión y cuando el API lo autoriza (`viewer.showPoints`).
   const { hasSession } = useStorefrontViewer();
   const showPoints = hasSession && (data?.viewer.showPoints ?? false);
+  // Aviso "país sin artículos de venta al público" SOLO para un visitante sin
+  // sesión y con la respuesta real de SU consulta (ni el SSR anónimo de alguien
+  // con cuenta, ni el placeholder mientras llega su catálogo cotizado).
+  const publicViewer = !sessionHint && !hasSession && !isPlaceholderData && data?.viewer.tier === 'public';
   // Cuenta de ZONA (Frontera): el API cotizó con la lista de su zona y se le avisa. Sin sesión nunca.
   const priceZone = hasSession ? viewerPriceZone(data?.viewer) : null;
   const filtersActive = activeFilterCount(state) + (state.q ? 1 : 0);
@@ -218,6 +225,9 @@ export function CatalogClient({ initial }: CatalogClientProps) {
           ) : products.length === 0 ? (
             <EmptyState
               hasFilters={filtersActive > 0}
+              country={country}
+              lang={lang}
+              publicViewer={publicViewer}
               onClear={clearFilters}
               categories={facets.categories.filter((c) => c.count > 0 && c.slug !== state.categoria).slice(0, 6)}
               onSelectCategory={(slug) => navigate({ ...DEFAULT_CATALOG_STATE, categoria: slug }, 'replace')}
@@ -258,6 +268,11 @@ export function CatalogClient({ initial }: CatalogClientProps) {
 
 interface EmptyStateProps {
   hasFilters: boolean;
+  /** País de la tienda servida (locale de la URL). */
+  country: CountryCode;
+  lang: LanguageCode;
+  /** true = visitante sin sesión de cliente (ve precio público). */
+  publicViewer: boolean;
   onClear: () => void;
   categories: { slug: string; name: string; count: number }[];
   onSelectCategory: (slug: string) => void;
@@ -265,17 +280,45 @@ interface EmptyStateProps {
 }
 
 /** Vacío ÚTIL: limpiar filtros, categorías con productos y el test de salud. */
-function EmptyState({ hasFilters, onClear, categories, onSelectCategory, locale }: EmptyStateProps) {
+function EmptyState({
+  hasFilters,
+  country,
+  lang,
+  publicViewer,
+  onClear,
+  categories,
+  onSelectCategory,
+  locale,
+}: EmptyStateProps) {
   const t = useTranslations('storefront.catalog.empty');
+  // País sin artículos de venta al público (hoy: EE. UU.): se dice con claridad y
+  // se ofrece la tienda de México, en vez de "estamos actualizando el catálogo",
+  // que suena a falla (3-nov-2026).
+  const countryEmpty = !hasFilters && publicViewer && country !== DEFAULT_COUNTRY;
+  const countryInfo = COUNTRIES.find((c) => c.code === country);
+  const countryName = (lang === 'en' ? countryInfo?.nameEn : countryInfo?.name) ?? country;
+  const title = hasFilters ? t('titleFiltered') : countryEmpty ? t('titleCountry', { country: countryName }) : t('title');
+  const body = hasFilters ? t('bodyFiltered') : countryEmpty ? t('bodyCountry') : t('body');
   return (
     <div className="mt-10 flex flex-col items-center rounded-2xl border border-gray-200 px-6 py-14 text-center">
       <MagnifyingGlassIcon aria-hidden="true" className="size-10 text-gray-600" />
-      <h2 className="mt-4 text-lg font-semibold text-gray-900">{hasFilters ? t('titleFiltered') : t('title')}</h2>
-      <p className="mt-2 max-w-md text-sm text-gray-700">{hasFilters ? t('bodyFiltered') : t('body')}</p>
+      <h2 className="mt-4 text-lg font-semibold text-gray-900">{title}</h2>
+      <p className="mt-2 max-w-md text-sm text-gray-700">{body}</p>
       {hasFilters && (
         <Button type="button" onClick={onClear} className="mt-6 min-h-11 cursor-pointer">
           {t('clear')}
         </Button>
+      )}
+      {countryEmpty && (
+        <Link
+          href="/productos"
+          locale={buildLocale(lang, DEFAULT_COUNTRY)}
+          // Elección explícita: la tienda de México se queda como preferencia (1 año).
+          onClick={() => setStoredLocale(buildLocale(lang, DEFAULT_COUNTRY))}
+          className="mt-6 inline-flex min-h-11 items-center rounded-md bg-[#3E667D] px-5 text-sm font-semibold text-white hover:bg-[#2f5165] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]"
+        >
+          {t('goMexico')}
+        </Link>
       )}
       {categories.length > 0 && (
         <div className="mt-8">

@@ -17,6 +17,7 @@
 
 import { cache, Suspense } from 'react';
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { CountryNotReady } from '@/components/storefront/CountryNotReady';
@@ -92,6 +93,11 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
   }
 
   const { state, stateKey } = readState(await searchParams);
+  // Hay sesión en el navegador (cookie `accessToken` que deja el login, la misma
+  // que lee el middleware): el HTML anónimo no debe afirmar "la tienda no tiene
+  // artículos" a un cliente con cuenta. Leer cookies vuelve la ruta dinámica (ya
+  // lo es por searchParams); el Data Cache del fetch anónimo se conserva.
+  const sessionHint = (await cookies()).has('accessToken');
   // Tienda solo para distribuidores: sin lista anónima del servidor (el API
   // responde 401); CatalogClient consulta con la sesión, igual que una búsqueda.
   const membersOnly = (await fetchStorefrontAccess()).membersOnly;
@@ -133,7 +139,10 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
         dangerouslySetInnerHTML={{ __html: safeJsonLd(buildBreadcrumbJsonLd(breadcrumbs)) }}
       />
       <Suspense fallback={null}>
-        <CatalogClient initial={result.ok ? { data: result.data, stateKey, fetchedAt: result.fetchedAt } : undefined} />
+        <CatalogClient
+          initial={result.ok ? { data: result.data, stateKey, fetchedAt: result.fetchedAt } : undefined}
+          sessionHint={sessionHint}
+        />
       </Suspense>
     </>
   );

@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
-import { LOCALES } from './i18n/config';
+import { LOCALES, isSupportedLocale } from './i18n/config';
+import { isCrawlerLike, resolveVisitorLocale } from './lib/storefront/visitor-locale';
 
 // next-intl middleware para las rutas públicas localizadas.
 const intlMiddleware = createMiddleware(routing);
+// Cookie de país+idioma (misma que escribe el selector en lib/store-locale.ts).
+const LOCALE_COOKIE = 'NEXT_LOCALE';
 
 // ¿La ruta ya viene con prefijo de locale? (/es-mx, /en-us/productos, …)
 const LOCALE_PREFIX_RE = new RegExp(`^/(${LOCALES.join('|')})(/|$)`);
@@ -163,6 +166,36 @@ export async function middleware(request: NextRequest) {
         loginUrl.searchParams.set('redirect', pathname + request.nextUrl.search);
         loginUrl.searchParams.set('tienda', '1');
         return NextResponse.redirect(loginUrl);
+      }
+    }
+    // ── País por ubicación del visitante (3-nov-2026) ──────────────────────
+    // Sin prefijo de locale y sin elección previa (cookie), el PAÍS lo da la IP
+    // (Vercel: x-vercel-ip-country) y el IDIOMA el navegador. next-intl solo
+    // miraba Accept-Language: un navegador en inglés o en "Español (Estados
+    // Unidos)" mandaba a la tienda de EE. UU. (sin artículos de venta al
+    // público) aunque el visitante estuviera en México. Rastreadores y
+    // previsualizadores (IP de EE. UU., sin Accept-Language) siguen con la
+    // detección de next-intl (default es-mx). La cookie se escribe DE SESIÓN para
+    // que el selector del encabezado y el resto del sitio coincidan con la tienda
+    // servida sin fijar un año una adivinanza (VPN, viajes); con cookie válida,
+    // next-intl la respeta como siempre.
+    if (!LOCALE_PREFIX_RE.test(pathname)) {
+      const cookie = request.cookies.get(LOCALE_COOKIE)?.value;
+      const acceptLanguage = request.headers.get('accept-language');
+      if (
+        (!cookie || !isSupportedLocale(cookie)) &&
+        !isCrawlerLike({ acceptLanguage, userAgent: request.headers.get('user-agent') })
+      ) {
+        const { locale } = resolveVisitorLocale({
+          cookie,
+          acceptLanguage,
+          geoCountry: request.headers.get('x-vercel-ip-country'),
+        });
+        const url = request.nextUrl.clone();
+        url.pathname = `/${locale}${pathname === '/' ? '' : pathname}`;
+        const res = NextResponse.redirect(url, 307);
+        res.cookies.set(LOCALE_COOKIE, locale, { path: '/', sameSite: 'lax' });
+        return res;
       }
     }
     return intlMiddleware(request);

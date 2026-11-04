@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { usePathname } from 'next/navigation';
@@ -17,7 +17,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
 import { useTranslations } from 'next-intl';
 import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
-import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
+import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeFromPathname, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { readyAccountCountry } from '@/hooks/useStoreCountry';
 import { resolvePortal } from '@/lib/auth-roles';
@@ -43,21 +43,34 @@ const navigation: NavItem[] = [
   { name: 'evaluation', href: '/quiz', highlight: true },
 ];
 
+// Cookie NEXT_LOCALE como "store" de solo lectura: no emite cambios (el
+// selector recarga la página al elegir), por eso suscribirse es un no-op.
+const subscribeToNothing = () => () => {};
+const readStoredLocale = () => getStoredLocale() ?? DEFAULT_LOCALE;
+const readDefaultLocale = () => DEFAULT_LOCALE;
+
 export function Header() {
   const t = useTranslations();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  // País + idioma de la tienda (locale 'es-mx', 'en-us', …). Arranca en el
-  // default (igual en SSR y 1er render) y se ajusta desde la cookie al montar.
-  const [locale, setLocale] = useState<string>(DEFAULT_LOCALE);
+  // País + idioma de la tienda (locale 'es-mx', 'en-us', …). Fuera de la tienda
+  // localizada sale de la cookie: en SSR y al hidratar vale el default y React
+  // re-renderiza con la cookie real (useSyncExternalStore, sin setState en efectos).
+  const storedLocale = useSyncExternalStore(subscribeToNothing, readStoredLocale, readDefaultLocale);
+  // En la tienda localizada (/es-mx/…, /en-us/…) manda la URL, también en SSR:
+  // el chip muestra el país de la página servida sin saltos al hidratar (antes
+  // leía solo la cookie y decía "MX" en la tienda de EE. UU.).
+  const pathLocale = localeFromPathname(pathname);
+  const locale = pathLocale ?? storedLocale;
   const [selectorOpen, setSelectorOpen] = useState(false);
   const closeDropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const stored = getStoredLocale();
-    if (stored) setLocale(stored);
-  }, []);
+    // La cookie se alinea con la tienda servida para el resto del sitio (cookie
+    // de sesión: seguir un enlace /en-us/… no es una elección de un año).
+    if (pathLocale && getStoredLocale() !== pathLocale) setStoredLocale(pathLocale, { persist: false });
+  }, [pathLocale]);
 
   const handleSelectLocale = (loc: string) => {
     setStoredLocale(loc);
