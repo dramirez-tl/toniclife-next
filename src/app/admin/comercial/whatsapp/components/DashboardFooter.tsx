@@ -1,8 +1,9 @@
 'use client';
 
 // DashboardFooter - Corte de la sync, marca de agua del legacy, notas del
-// cálculo y el periodo de negocio (fechas de tonic.commission_periods; el fin
-// puede recorrerse a día hábil, así que no se escribe "26→25" fijo).
+// cálculo y el periodo de negocio. Las fechas son las de
+// tonic.commission_periods tal como las manda el API (26→25 hasta septiembre
+// 2026, mes calendario desde noviembre 2026): nunca se escribe un rango fijo.
 
 import { fechaLarga, n } from '@/lib/whatsapp-campaign/format';
 import type { CampaignDashboard } from '@/types/whatsappCampaign';
@@ -22,8 +23,8 @@ export function DashboardFooter({ data }: { data: CampaignDashboard }) {
         <p key={nota}>{nota}</p>
       ))}
       <p>
-        Periodo de negocio {p.nombre}: del {fechaLarga(p.inicio)} al {fechaLarga(p.fin)} (no es mes
-        calendario). Calificar = {n(p.umbral)} puntos personales.
+        Periodo de negocio {p.nombre}: del {fechaLarga(p.inicio)} al {fechaLarga(p.fin)}. Calificar ={' '}
+        {n(p.umbral)} puntos personales.
       </p>
     </footer>
   );

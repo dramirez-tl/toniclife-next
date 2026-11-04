@@ -2445,17 +2445,39 @@
         "notifications": "Notificaciones",
         "privacy": "Privacidad",
         "language": "Idioma y Región",
-        "security": "Seguridad"
+        "security": "Seguridad",
+        "whatsapp": "WhatsApp"
+      },
+      "comingSoon": "Próximamente",
+      "whatsapp": {
+        "title": "Avisos por WhatsApp",
+        "desc": "Elige qué mensajes quieres recibir de Tonic Life en tu WhatsApp. Puedes cambiarlo cuando quieras.",
+        "options": {
+          "all": {
+            "label": "Todos los mensajes (avisos y promociones)",
+            "desc": "Avisos de tu cuenta y también las promociones del mes"
+          },
+          "account": {
+            "label": "Solo avisos de mi cuenta",
+            "desc": "Compras, puntos, cierre del periodo y promociones que ya ganaste; sin publicidad"
+          },
+          "none": {
+            "label": "No enviar nada",
+            "desc": "No recibirás ningún mensaje de Tonic Life por WhatsApp"
+          }
+        },
+        "unknownHint": "Todavía no has elegido una opción.",
+        "saving": "Guardando…",
+        "saved": "Preferencia guardada",
+        "error": "No se pudo guardar tu preferencia. Intenta de nuevo.",
+        "unavailable": "Esta opción estará disponible muy pronto.",
+        "footnote": "También puedes cambiarlo desde WhatsApp: responde ALTA para recibir todo o BAJA para no recibir nada."
       },
       "notifications": {
         "title": "Notificaciones",
         "email": {
           "label": "Notificaciones por Correo",
           "desc": "Recibe actualizaciones en tu correo"
-        },
-        "sms": {
-          "label": "Notificaciones SMS",
-          "desc": "Recibe alertas por mensaje de texto"
         },
         "push": {
           "label": "Notificaciones Push",
@@ -2539,14 +2561,8 @@
         },
         "changePassword": "Cambiar Contraseña"
       },
-      "save": "Guardar Cambios",
-      "cancel": "Cancelar",
       "toast": {
-        "updated": "Configuración actualizada",
-        "saved": "Configuración guardada exitosamente",
-        "languageError": "No se pudo cambiar el idioma",
-        "openChangePassword": "Abriendo cambio de contraseña",
-        "discarded": "Cambios descartados"
+        "languageError": "No se pudo cambiar el idioma"
       }
     },
     "profile": {

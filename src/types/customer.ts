@@ -5,6 +5,14 @@ export type CustomerType = 'retail' | 'distributor' | 'preferred';
 export type CustomerStatus = 'pending' | 'active' | 'inactive' | 'suspended';
 export type AddressType = 'shipping' | 'billing';
 
+/**
+ * Preferencia de mensajes de WhatsApp tal como la lee/escribe el API
+ * (GET/PATCH /distributor/preferences y PATCH /customers/:id/whatsapp-preferences):
+ * all = avisos y promociones · account = solo avisos de la cuenta ·
+ * none = baja total del canal · unknown = nunca ha respondido.
+ */
+export type WhatsAppMarketingPreference = 'all' | 'account' | 'none' | 'unknown';
+
 export interface SponsorInfo {
   id: string;
   firstName: string;
@@ -86,6 +94,31 @@ export interface Customer {
   membershipPaid: boolean;
   status: string;
   termsAcceptedAt: string | null;
+
+  // WhatsApp (migs 130 y 175). Solo lectura; se cambia con
+  // PATCH /customers/:id/whatsapp-preferences. Opcionales: el API los manda
+  // cuando existen (tolerante a despliegues pendientes).
+  /**
+   * Preferencia DERIVADA por el API (misma regla que /distributor/preferences):
+   * all | account | none | unknown. Cuando viene, manda sobre la derivación
+   * local de las columnas de abajo.
+   */
+  whatsappMarketing?: WhatsAppMarketingPreference | null;
+  /** Baja TOTAL del canal (BAJA/STOP, botón "No enviar nada" o Meta 131050). */
+  whatsappOptOut?: boolean | null;
+  whatsappOptOutAt?: string | null;
+  /** Promociones: true = todo, false = solo avisos de cuenta, null = nunca respondió. */
+  whatsappMarketingOptIn?: boolean | null;
+  whatsappMarketingOptInAt?: string | null;
+  /** boton | keyword | pos | panel | formulario | admin */
+  whatsappMarketingOptInSource?: string | null;
+  whatsappMarketingOptOutAt?: string | null;
+  /** Meta 131026: el número no tiene WhatsApp (marca de Meta, no preferencia). */
+  whatsappUnreachableAt?: string | null;
+  /** Código de Meta del "sin WhatsApp" ('131026'). */
+  whatsappUnreachableCode?: string | null;
+  /** Meta 131049: sin promociones hasta esta fecha. */
+  whatsappMarketingCappedUntil?: string | null;
 
   createdAt: string;
   updatedAt: string | null;

@@ -9,6 +9,7 @@ import type {
   RankRoadmapResponse,
   DistributorPurchasesResponse,
 } from '@/types/distributor';
+import type { WhatsAppMarketingPreference } from '@/types/customer';
 
 // ===== Alta de miembro en la red (Ruta A: sponsor paga / Ruta B: invitación) =====
 
@@ -209,6 +210,19 @@ export interface PaySelfKitResult {
   shippingAmount: number;
 }
 
+// ===== Preferencias del panel =====
+
+export interface DistributorPreferences {
+  /** Idioma del panel (users.language). */
+  language: 'es' | 'en';
+  /**
+   * Avisos por WhatsApp (customers.whatsapp_*, mig 175): all = avisos y
+   * promociones · account = solo avisos de la cuenta · none = no enviar nada ·
+   * unknown = nunca ha respondido. Ausente mientras el API no lo exponga.
+   */
+  whatsappMarketing?: WhatsAppMarketingPreference;
+}
+
 // ===== API SERVICE =====
 
 class DistributorApi {
@@ -233,22 +247,39 @@ class DistributorApi {
   }
 
   /**
-   * Preferencias del panel (idioma). Backend: GET /distributor/preferences
+   * Preferencias del panel: idioma y avisos por WhatsApp.
+   * Backend: GET /distributor/preferences
    */
-  async getPreferences(): Promise<{ language: 'es' | 'en' }> {
-    const { data } = await api.get<{ language: 'es' | 'en' }>(
-      '/distributor/preferences',
-    );
+  async getPreferences(): Promise<DistributorPreferences> {
+    const { data } = await api.get<DistributorPreferences>('/distributor/preferences');
     return data;
   }
 
   /**
    * Actualiza el idioma preferido. Backend: PATCH /distributor/preferences
    */
-  async updatePreferences(language: 'es' | 'en'): Promise<{ language: 'es' | 'en' }> {
-    const { data } = await api.patch<{ language: 'es' | 'en' }>(
+  async updatePreferences(language: 'es' | 'en'): Promise<DistributorPreferences> {
+    const { data } = await api.patch<DistributorPreferences>(
       '/distributor/preferences',
       { language },
+    );
+    return data;
+  }
+
+  /**
+   * Avisos por WhatsApp (el API los guarda con fuente 'panel'): all = avisos y
+   * promociones, account = solo avisos de la cuenta, none = no enviar nada.
+   * Manda únicamente ese campo (el API valida el cuerpo con whitelist).
+   * 'unknown' no se puede elegir desde el panel (el API responde 400: solo
+   * lo restablece el admin desde la ficha).
+   * Backend: PATCH /distributor/preferences { whatsappMarketing }
+   */
+  async updateWhatsAppMarketing(
+    whatsappMarketing: Exclude<WhatsAppMarketingPreference, 'unknown'>,
+  ): Promise<DistributorPreferences> {
+    const { data } = await api.patch<DistributorPreferences>(
+      '/distributor/preferences',
+      { whatsappMarketing },
     );
     return data;
   }

@@ -2,16 +2,17 @@
 
 // useWhatsAppCampaigns.ts - Hooks React Query de Comercial → WhatsApp.
 // El tablero se consulta cada 2 min SOLO mientras la campaña está activa, su
-// periodo (26→25) no ha cerrado y la pestaña del navegador está visible; tras
-// un 403 deja de consultar. Con el periodo cerrado el tablero ya no cambia
-// solo (las lecturas nuevas llegan por importación), así que no se sondea.
+// periodo (el de tonic.commission_periods, lo dice el API) no ha cerrado y la
+// pestaña del navegador está visible; tras un 403 deja de consultar. Con el
+// periodo cerrado el tablero ya no cambia solo (las lecturas nuevas llegan por
+// importación), así que no se sondea.
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { whatsappCampaignsService } from '@/services/whatsapp-campaigns.service';
 import { statusPollInterval } from '@/lib/legacy-sync/format';
 import type { CampaignMembersParams } from '@/types/whatsappCampaign';
 
-/** Sondeo del tablero: cada 2 min (la sync legacy→v2 corre cada 2 h). */
+/** Sondeo del tablero: cada 2 min. */
 export const WHATSAPP_DASHBOARD_POLL_MS = 120_000;
 
 export const whatsappCampaignKeys = {

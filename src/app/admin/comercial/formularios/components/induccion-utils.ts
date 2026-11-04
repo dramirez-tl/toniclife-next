@@ -252,6 +252,10 @@ export const CAMPAIGN_KIND_LABELS: Record<string, string> = {
   induccion_invitacion: 'Invitación',
   induccion_recordatorio: 'Recordatorio',
   induccion_monitor: 'Monitoreo',
+  /** Recorridos automáticos (Comercial › WhatsApp › Recorridos, mig 175/185). */
+  journey: 'Recorrido',
+  /** Respuesta automática del webhook a un entrante. */
+  auto_reply: 'Respuesta automática',
   inbound: 'Entrante',
 };
 

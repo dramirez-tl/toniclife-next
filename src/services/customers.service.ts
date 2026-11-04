@@ -12,6 +12,7 @@ import {
   CustomerBankAccount,
   CreateBankAccountDto,
   UpdateBankAccountDto,
+  WhatsAppMarketingPreference,
 } from '@/types/customer';
 import type { NetworkExportJob } from '@/services/networkApi';
 import type { RankRoadmapResponse } from '@/types/distributor';
@@ -172,6 +173,20 @@ class CustomersService {
     const response = await api.post<Customer>(
       `${this.basePath}/${id}/kit-position`,
       data,
+    );
+    return response.data;
+  }
+
+  /** Preferencia de WhatsApp del cliente (mig 175): all | account | none |
+   *  unknown. El API la guarda con fuente 'admin' y la deja en la auditoría.
+   *  Exige customers:update. */
+  async updateWhatsAppPreferences(
+    id: string,
+    marketing: WhatsAppMarketingPreference,
+  ): Promise<Customer> {
+    const response = await api.patch<Customer>(
+      `${this.basePath}/${id}/whatsapp-preferences`,
+      { marketing },
     );
     return response.data;
   }

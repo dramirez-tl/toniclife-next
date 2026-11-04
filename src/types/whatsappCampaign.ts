@@ -13,8 +13,9 @@
 // permite comparar 1:1 contra el script y reusar el mismo diseño.
 //
 // Todas las horas llegan ya formateadas en CDMX (`*_cdmx`); el front no
-// calcula límites de negocio con `new Date()`. El periodo (26→25) sale de
-// tonic.commission_periods en el API.
+// calcula límites de negocio con `new Date()`. El periodo sale de
+// tonic.commission_periods en el API (26→25 hasta septiembre 2026, mes
+// calendario desde noviembre 2026): aquí solo se muestran sus fechas.
 
 // ── Lista de campañas (GET /whatsapp/campaigns) ────────────────────────────
 
@@ -27,8 +28,8 @@ export interface CampaignListItem {
   periodo: {
     numero: number;
     nombre: string;
-    inicio: string; // YYYY-MM-DD (26 del mes anterior)
-    fin: string; // YYYY-MM-DD (25, o recorrido a día hábil)
+    inicio: string; // YYYY-MM-DD (start_date de commission_periods)
+    fin: string; // YYYY-MM-DD (end_date de commission_periods)
     cerrado: boolean;
   };
   t0_cdmx: string;

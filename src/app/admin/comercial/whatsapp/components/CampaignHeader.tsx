@@ -70,7 +70,7 @@ export function CampaignHeader({
             Es otra población, con su propio grupo de control: no entra en las cifras de la campaña
             principal.{' '}
             <Link
-              href={`${WHATSAPP_ADMIN_PATH}${construirQuery({ campana: data.campana.padre })}`}
+              href={`${WHATSAPP_ADMIN_PATH}${construirQuery({ campana: data.campana.padre, tab: 'campanas' })}`}
               className="underline decoration-dotted underline-offset-4 hover:text-primary"
             >
               Volver a la campaña principal

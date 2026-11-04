@@ -4,8 +4,9 @@
 // (reporte 'ventas_cierres', fuente sistema anterior con hora real de
 // captura). DESCRIBE, NO DEMUESTRA: el último día del periodo siempre trae
 // pico, así que se compara contra otros días de cierre (mediana) y contra el
-// periodo completo (26→25); el efecto de la campaña se mide contra el grupo
-// de control (paneles de veredicto y "¿Está funcionando?").
+// periodo completo (fechas de tonic.commission_periods); el efecto de la
+// campaña se mide contra el grupo de control (paneles de veredicto y "¿Está
+// funcionando?").
 //
 // Gráficas (recharts): tickets acumulados del día de cierre contra el
 // promedio de cierres anteriores y el mismo día de la semana anterior, con
@@ -34,7 +35,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { CONTROL_COLOR, money, moneyCorto, n, signed } from '@/lib/whatsapp-campaign/format';
+import { CONTROL_COLOR, fechaLarga, money, moneyCorto, n, signed } from '@/lib/whatsapp-campaign/format';
 import {
   comparacionesResumen,
   curvaTickets,
@@ -277,7 +278,19 @@ function CierresTable({ ventas }: { ventas: VentasCierresBlock }) {
   );
 }
 
-function DiaCompleto({ ventas }: { ventas: VentasCierresBlock }) {
+/** Rango del periodo tal como lo manda el API (tonic.commission_periods); sin fechas, nada fijo. */
+export function rangoPeriodoTexto(periodo: { inicio: string; fin: string } | null | undefined): string {
+  if (!periodo?.inicio || !periodo?.fin) return 'Las fechas del periodo son las de la tabla de periodos.';
+  return `El periodo va del ${fechaLarga(periodo.inicio)} al ${fechaLarga(periodo.fin)}.`;
+}
+
+function DiaCompleto({
+  ventas,
+  periodo,
+}: {
+  ventas: VentasCierresBlock;
+  periodo: { inicio: string; fin: string } | null | undefined;
+}) {
   const dc = ventas.dia_completo;
   if (!dc) return null;
   const resumen = comparacionesResumen(dc);
@@ -288,7 +301,7 @@ function DiaCompleto({ ventas }: { ventas: VentasCierresBlock }) {
       <div className="grid gap-1">
         <h3 className="text-sm font-semibold">Día completo y periodo, contra los {Math.max(0, periodos.length - 1)} periodos anteriores</h3>
         <p className="text-xs text-muted-foreground">
-          Lugar = dónde queda este periodo entre los {periodos.length || 7} (1.º = el más alto). El periodo va del 26 al 25 (no es mes calendario).
+          Lugar = dónde queda este periodo entre los {periodos.length || 7} (1.º = el más alto). {rangoPeriodoTexto(periodo)}
         </p>
       </div>
       {resumen.length > 0 && (
@@ -437,9 +450,12 @@ function SegmentosVsBase({ ventas, nombres }: { ventas: VentasCierresBlock; nomb
 export function VentasCierresPanel({
   ventas,
   nombresSegmentos = {},
+  periodo = null,
 }: {
   ventas: VentasCierresBlock | null;
   nombresSegmentos?: Record<string, string>;
+  /** Fechas del periodo de la campaña (del API) para el texto del rango. */
+  periodo?: { inicio: string; fin: string } | null;
 }) {
   if (!ventas) {
     return (
@@ -498,7 +514,7 @@ export function VentasCierresPanel({
           <SemanaChart ventas={ventas} />
         </div>
 
-        <DiaCompleto ventas={ventas} />
+        <DiaCompleto ventas={ventas} periodo={periodo} />
 
         <SegmentosVsBase ventas={ventas} nombres={nombresSegmentos} />
 

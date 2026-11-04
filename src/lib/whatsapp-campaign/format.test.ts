@@ -189,18 +189,24 @@ describe('tonos', () => {
   });
 });
 
-describe('chipCierre (periodo 26→25 de commission_periods)', () => {
+describe('chipCierre (fechas de commission_periods: 26→25 hasta sep-2026, mes calendario desde nov-2026)', () => {
   const periodo = { nombre: 'SEPTIEMBRE 2026', fin: '2026-09-25', cerrado: false };
 
   it('más de 24 h: fecha larga del fin, sin mes fijo', () => {
     const chip = chipCierre(periodo, Date.parse('2026-09-20T12:00:00-06:00'));
     expect(chip).toEqual({ texto: 'SEPTIEMBRE 2026 cierra el 25 de septiembre', tono: 'info' });
-    // P74 termina el 26-oct (recorrido a día hábil): el texto sale del fin real.
+    // P74 OCTUBRE 2026 (transición) terminó el 31-oct y P75 NOVIEMBRE es mes
+    // calendario: el texto sale del fin real de la tabla, nunca de un "25".
     const p74 = chipCierre(
-      { nombre: 'OCTUBRE 2026', fin: '2026-10-26' },
+      { nombre: 'OCTUBRE 2026', fin: '2026-10-31' },
       Date.parse('2026-10-01T12:00:00-06:00'),
     );
-    expect(p74?.texto).toBe('OCTUBRE 2026 cierra el 26 de octubre');
+    expect(p74?.texto).toBe('OCTUBRE 2026 cierra el 31 de octubre');
+    const p75 = chipCierre(
+      { nombre: 'NOVIEMBRE 2026', fin: '2026-11-30' },
+      Date.parse('2026-11-03T12:00:00-06:00'),
+    );
+    expect(p75?.texto).toBe('NOVIEMBRE 2026 cierra el 30 de noviembre');
   });
 
   it('menos de 24 h: aviso con horas restantes', () => {
@@ -238,10 +244,11 @@ describe('filtros y URL', () => {
   const qs = (s: string) => new URLSearchParams(s);
 
   it('normaliza valores inválidos al default y lo marca', () => {
-    const p = normalizarParams(qs('tab=foo&filtro=hack&page=0&segmento=p1&ola=UNO&grupo=x&campana=../x'));
+    const p = normalizarParams(qs('tab=foo&filtro=hack&page=0&segmento=p1&ola=UNO&grupo=x&campana=../x&periodo=p75'));
     expect(p).toMatchObject({
+      periodo: null,
       campana: null,
-      tab: 'tablero',
+      tab: 'recorridos',
       filtro: 'todos',
       segmento: null,
       ola: null,
@@ -253,9 +260,10 @@ describe('filtros y URL', () => {
 
   it('acepta valores válidos', () => {
     const p = normalizarParams(
-      qs('campana=cierre-p73&tab=personas&filtro=leyeron_compraron&segmento=P1&ola=felicitacion&grupo=control&page=3'),
+      qs('periodo=75&campana=cierre-p73&tab=personas&filtro=leyeron_compraron&segmento=P1&ola=felicitacion&grupo=control&page=3'),
     );
     expect(p).toEqual({
+      periodo: 75,
       campana: 'cierre-p73',
       tab: 'personas',
       filtro: 'leyeron_compraron',
@@ -267,10 +275,35 @@ describe('filtros y URL', () => {
       invalido: false,
     });
     expect(normalizarParams(qs('')).invalido).toBe(false);
+    expect(normalizarParams(qs('')).tab).toBe('recorridos');
+    expect(normalizarParams(qs('tab=campanas'))).toMatchObject({ tab: 'campanas', invalido: false });
+    expect(normalizarParams(qs('tab=recorridos'))).toMatchObject({ tab: 'recorridos', invalido: false });
+  });
+
+  it('periodo: solo period_number entero positivo de hasta 4 dígitos', () => {
+    expect(normalizarParams(qs('periodo=0'))).toMatchObject({ periodo: null, invalido: true });
+    expect(normalizarParams(qs('periodo=12345'))).toMatchObject({ periodo: null, invalido: true });
+    expect(normalizarParams(qs('periodo=-3'))).toMatchObject({ periodo: null, invalido: true });
+    expect(normalizarParams(qs('periodo=74'))).toMatchObject({ periodo: 74, invalido: false });
+    expect(construirQuery({ periodo: 74 })).toBe('?periodo=74');
+    expect(construirQuery({ periodo: 74, campana: 'cierre-p73', tab: 'campanas' })).toBe(
+      '?periodo=74&campana=cierre-p73&tab=campanas',
+    );
+    expect(construirQuery({ periodo: null, tab: 'recorridos' })).toBe('');
+    expect(construirQuery({ periodo: 0 })).toBe('');
+  });
+
+  it('alias viejo tab=tablero → campanas y pide normalizar la URL', () => {
+    const p = normalizarParams(qs('campana=cierre-p73&tab=tablero'));
+    expect(p).toMatchObject({ tab: 'campanas', campana: 'cierre-p73', invalido: true });
+    expect(construirQuery({ ...p })).toBe('?campana=cierre-p73&tab=campanas');
   });
 
   it('construye la query canónica y los enlaces "Ver personas"', () => {
-    expect(construirQuery({ campana: 'cierre-p73', tab: 'tablero', filtro: 'bajas', page: 4 })).toBe(
+    expect(construirQuery({ campana: 'cierre-p73', tab: 'campanas', filtro: 'bajas', page: 4 })).toBe(
+      '?campana=cierre-p73&tab=campanas',
+    );
+    expect(construirQuery({ campana: 'cierre-p73', tab: 'recorridos', filtro: 'bajas', page: 4 })).toBe(
       '?campana=cierre-p73',
     );
     expect(construirQuery({ campana: 'cierre-p73', tab: 'personas', filtro: 'todos', page: 1 })).toBe(

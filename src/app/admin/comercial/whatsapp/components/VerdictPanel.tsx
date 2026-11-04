@@ -31,13 +31,21 @@ const TONO_TEXTO = {
   neutro: 'text-foreground',
 } as const;
 
-function EffectTile({
+/**
+ * Mosaico de un efecto con su intervalo (también lo usa PeriodImpactPanel para
+ * la venta incremental del periodo). `valor`/`intervalo` permiten un formato
+ * propio (dinero); por defecto, `signed(efecto, dec) + sufijo`.
+ */
+export function EffectTile({
   label,
   est,
   dec,
   unidad,
   sufijo,
   detalle,
+  valor,
+  intervalo,
+  vacio = 'Sin estimación',
 }: {
   label: string;
   est: EffectEstimate | null;
@@ -45,23 +53,32 @@ function EffectTile({
   unidad: string;
   sufijo: string;
   detalle?: string;
+  /** Texto del valor ya formateado (p. ej. money con signo). */
+  valor?: string;
+  /** Texto del intervalo ya formateado. */
+  intervalo?: string;
+  /** Texto cuando no hay estimación. */
+  vacio?: string;
 }) {
   const tono = est ? toneEfecto(est.ic_bajo, est.ic_alto) : 'neutro';
   return (
     <div className="grid content-start gap-1 rounded-lg border bg-card px-4 py-3.5">
       <span className="text-[0.72rem] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
       {!est ? (
-        <span className="text-sm text-muted-foreground">Sin estimación</span>
+        <span className="text-sm text-muted-foreground">{vacio}</span>
       ) : (
         <>
           <span className={cn('text-2xl font-semibold tabular-nums', TONO_TEXTO[tono])}>
-            {signed(est.efecto, dec)}
-            {sufijo}
+            {valor ?? (
+              <>
+                {signed(est.efecto, dec)}
+                {sufijo}
+              </>
+            )}
           </span>
           <EffectInterval est={est.efecto} lo={est.ic_bajo} hi={est.ic_alto} unidad={unidad} />
           <span className="text-xs text-muted-foreground">
-            Intervalo 95%: {icTexto(est, dec)}
-            {sufijo}
+            Intervalo 95%: {intervalo ?? `${icTexto(est, dec)}${sufijo}`}
             {pTexto(est.p) ? ` · ${pTexto(est.p)}` : ''}
           </span>
           {detalle && <span className="text-xs text-muted-foreground">{detalle}</span>}

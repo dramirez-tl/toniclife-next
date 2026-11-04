@@ -43,7 +43,7 @@ export const WHATSAPP_ADMIN_PATH = '/admin/comercial/whatsapp';
 // Viven en numeros.ts (sin ciclos con reportes.ts); se reexportan aquí para
 // que los componentes sigan importando todo de format.ts.
 
-export { clamp01, money, moneyCorto, n, pct, ratio, signed, toneEfecto } from './numeros';
+export { clamp01, money, moneyCorto, n, pct, ratio, signed, toneEfecto, usd } from './numeros';
 
 // ── Tonos ──────────────────────────────────────────────────────────────────
 
@@ -154,7 +154,7 @@ export function tramosOlaSeguro(ola: CampaignOla): TramoOla[] | null {
 export const hayOlaEnCurso = (olas: CampaignOla[] | null | undefined): boolean =>
   (olas ?? []).some((o) => o.estado === 'en curso');
 
-// ── Chip de cierre del periodo (26→25) ─────────────────────────────────────
+// ── Chip de cierre del periodo (fechas de tonic.commission_periods) ────────
 
 const MESES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -174,9 +174,9 @@ export interface ChipCierre {
 }
 
 /**
- * Chip del encabezado. El fin es el de tonic.commission_periods (P74 termina
- * el 26-oct porque se recorre a día hábil): nunca se calcula a mano.
- * `ahoraMs` se inyecta para poder probarlo.
+ * Chip del encabezado. El fin es el de tonic.commission_periods (26→25 hasta
+ * septiembre 2026, OCTUBRE 2026 cerró el 31, mes calendario desde noviembre
+ * 2026): nunca se calcula a mano. `ahoraMs` se inyecta para poder probarlo.
  */
 export function chipCierre(
   periodo: { nombre: string; fin: string; cerrado?: boolean } | null | undefined,
@@ -233,13 +233,30 @@ export const GRUPO_LABELS: Record<CampaignGroup, string> = {
 
 // ── Parámetros de la URL ───────────────────────────────────────────────────
 
-export type WhatsAppTab = 'tablero' | 'personas';
+/** Pestañas de la página: Recorridos (default) · Campañas (el tablero) · Personas. */
+export type WhatsAppTab = 'recorridos' | 'campanas' | 'personas';
+
+export const WHATSAPP_TABS: readonly WhatsAppTab[] = ['recorridos', 'campanas', 'personas'];
+export const DEFAULT_TAB: WhatsAppTab = 'recorridos';
+
+/** Nombres viejos de pestaña (enlaces guardados): se aceptan y se normalizan. */
+const TAB_ALIAS: Record<string, WhatsAppTab> = { tablero: 'campanas' };
+
+export const isWhatsAppTab = (v: unknown): v is WhatsAppTab =>
+  typeof v === 'string' && (WHATSAPP_TABS as readonly string[]).includes(v);
+
+/** Pestañas que trabajan sobre una campaña (?campana). */
+export const tabUsaCampana = (tab: WhatsAppTab): boolean => tab === 'campanas' || tab === 'personas';
 
 export const CAMPAIGN_KEY_RE = /^[a-z0-9][a-z0-9-]{1,58}$/;
 const SEGMENTO_RE = /^[A-Z0-9_]{1,20}$/;
 const OLA_RE = /^[a-z0-9_-]{1,30}$/;
+/** period_number de tonic.commission_periods (1..9999). */
+const PERIODO_RE = /^\d{1,4}$/;
 
 export interface WhatsAppParams {
+  /** period_number del periodo elegido; null = el actual (lo decide el API). */
+  periodo: number | null;
   campana: string | null;
   tab: WhatsAppTab;
   filtro: CampaignMemberFilter;
@@ -258,9 +275,10 @@ interface ParamSource {
 }
 
 /**
- * Lee ?campana, tab, filtro, segmento, ola, grupo y page. Los valores
+ * Lee ?periodo, campana, tab, filtro, segmento, ola, grupo y page. Los valores
  * inválidos caen al default y marcan `invalido` para que la página haga
- * router.replace con la URL limpia.
+ * router.replace con la URL limpia. El alias viejo `tab=tablero` se acepta
+ * como `campanas` (también marca `invalido`, para que la URL quede canónica).
  */
 export function normalizarParams(search: ParamSource): WhatsAppParams {
   let invalido = false;
@@ -274,8 +292,20 @@ export function normalizarParams(search: ParamSource): WhatsAppParams {
     return map(raw);
   };
   const id = (v: string) => v;
+  const periodo = leer<number | null>(
+    'periodo',
+    (v) => PERIODO_RE.test(v) && Number(v) >= 1,
+    Number,
+    null,
+  );
   const campana = leer<string | null>('campana', (v) => CAMPAIGN_KEY_RE.test(v), id, null);
-  const tab = leer<WhatsAppTab>('tab', (v) => v === 'tablero' || v === 'personas', (v) => v as WhatsAppTab, 'tablero');
+  const tab = leer<WhatsAppTab>(
+    'tab',
+    (v) => isWhatsAppTab(v) || v in TAB_ALIAS,
+    (v) => (isWhatsAppTab(v) ? v : TAB_ALIAS[v]),
+    DEFAULT_TAB,
+  );
+  if (tab !== DEFAULT_TAB && !isWhatsAppTab(search.get('tab'))) invalido = true;
   const filtro = leer<CampaignMemberFilter>('filtro', isCampaignMemberFilter, (v) => v as CampaignMemberFilter, 'todos');
   const segmento = leer<string | null>('segmento', (v) => SEGMENTO_RE.test(v), id, null);
   const ola = leer<string | null>('ola', (v) => OLA_RE.test(v), id, null);
@@ -287,15 +317,16 @@ export function normalizarParams(search: ParamSource): WhatsAppParams {
     Number,
     1,
   );
-  return { campana, tab, filtro, segmento, ola, grupo, alcance, page, invalido };
+  return { periodo, campana, tab, filtro, segmento, ola, grupo, alcance, page, invalido };
 }
 
 /** Query string canónica (sin defaults) de la página. */
 export function construirQuery(p: Partial<Omit<WhatsAppParams, 'invalido'>>): string {
   const q = new URLSearchParams();
+  if (isNum(p.periodo) && p.periodo >= 1) q.set('periodo', String(Math.trunc(p.periodo)));
   if (p.campana) q.set('campana', p.campana);
-  const tab = p.tab ?? 'tablero';
-  if (tab !== 'tablero') q.set('tab', tab);
+  const tab: WhatsAppTab = p.tab && isWhatsAppTab(p.tab) ? p.tab : DEFAULT_TAB;
+  if (tab !== DEFAULT_TAB) q.set('tab', tab);
   if (tab === 'personas') {
     if (p.filtro && p.filtro !== 'todos') q.set('filtro', p.filtro);
     if (p.segmento) q.set('segmento', p.segmento);

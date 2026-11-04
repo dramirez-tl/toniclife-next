@@ -22,6 +22,7 @@ import type { ManualGrantRequest, PromotionComponent } from '@/types/promotion';
 import { toast } from 'sonner';
 import { DistributorPeriodActivity } from '@/components/distributor/DistributorPeriodActivity';
 import { DistributorDetailTabs } from './DistributorDetailTabs';
+import { WhatsAppPreferencesCard } from './WhatsAppPreferencesCard';
 import { useCustomerFiscalEditor } from '@/components/admin/billing/invoices/useCustomerFiscalEditor';
 import {
   ArrowLeftIcon,
@@ -582,6 +583,12 @@ export default function DetalleDistribuidorPage() {
                 </div>
               </div>
             </div>
+
+            {/* WhatsApp: consentimiento de avisos y promociones (mig 175) */}
+            <WhatsAppPreferencesCard
+              customer={customer}
+              onSaved={() => dispatch(fetchCustomerById(id))}
+            />
 
             {/* ID del sistema */}
             <div className="bg-gray-100 rounded-lg p-4">

@@ -31,7 +31,7 @@ import { OlaCard } from './WavesPanel';
 
 function ExtraWaveCard({ hija, umbral }: { hija: ComplementoItem; umbral: number }) {
   const q = useWhatsAppCampaignDashboard(hija.key);
-  const href = `${WHATSAPP_ADMIN_PATH}${construirQuery({ campana: hija.key })}`;
+  const href = `${WHATSAPP_ADMIN_PATH}${construirQuery({ campana: hija.key, tab: 'campanas' })}`;
 
   if (q.isLoading) {
     return (

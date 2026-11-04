@@ -47,8 +47,8 @@ function Compare({ data }: { data: CampaignDashboard }) {
         </p>
       )}
       <p className="rounded-md bg-muted p-3 text-sm">
-        Es una comparación en vivo con las cifras que llegan cada 2 horas. El grupo de control es
-        chico ({n(data.embudo.control)} personas), así que las diferencias de un día pueden ser azar.
+        Es una comparación en vivo con las cifras más recientes. El grupo de control es chico (
+        {n(data.embudo.control)} personas), así que las diferencias de un día pueden ser azar.
         La conclusión la dan las mediciones preliminar y oficial.
       </p>
     </div>

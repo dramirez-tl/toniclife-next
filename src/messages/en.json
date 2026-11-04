@@ -2445,17 +2445,39 @@
         "notifications": "Notifications",
         "privacy": "Privacy",
         "language": "Language & Region",
-        "security": "Security"
+        "security": "Security",
+        "whatsapp": "WhatsApp"
+      },
+      "comingSoon": "Coming soon",
+      "whatsapp": {
+        "title": "WhatsApp notices",
+        "desc": "Choose which messages you want to receive from Tonic Life on WhatsApp. You can change it anytime.",
+        "options": {
+          "all": {
+            "label": "All messages (notices and promotions)",
+            "desc": "Notices about your account plus the month's promotions"
+          },
+          "account": {
+            "label": "Only notices about my account",
+            "desc": "Purchases, points, period closing and promotions you already earned; no advertising"
+          },
+          "none": {
+            "label": "Don't send anything",
+            "desc": "You won't receive any WhatsApp messages from Tonic Life"
+          }
+        },
+        "unknownHint": "You haven't chosen an option yet.",
+        "saving": "Saving…",
+        "saved": "Preference saved",
+        "error": "Your preference could not be saved. Please try again.",
+        "unavailable": "This option will be available very soon.",
+        "footnote": "You can also change it from WhatsApp: reply ALTA to receive everything or BAJA to stop all messages."
       },
       "notifications": {
         "title": "Notifications",
         "email": {
           "label": "Email Notifications",
           "desc": "Receive updates in your inbox"
-        },
-        "sms": {
-          "label": "SMS Notifications",
-          "desc": "Receive alerts by text message"
         },
         "push": {
           "label": "Push Notifications",
@@ -2539,14 +2561,8 @@
         },
         "changePassword": "Change password"
       },
-      "save": "Save changes",
-      "cancel": "Cancel",
       "toast": {
-        "updated": "Settings updated",
-        "saved": "Settings saved successfully",
-        "languageError": "Could not change the language",
-        "openChangePassword": "Opening password change",
-        "discarded": "Changes discarded"
+        "languageError": "Could not change the language"
       }
     },
     "profile": {

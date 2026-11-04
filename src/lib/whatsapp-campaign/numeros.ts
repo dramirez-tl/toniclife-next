@@ -47,12 +47,15 @@ export function toneEfecto(
 
 /**
  * Pesos mexicanos sin centavos: '$4,105,159'; negativo '-$210,601'; con
- * `signo`, '+$98,150'. '—' si no hay dato.
+ * `signo`, '+$98,150'. Con `dec` conserva decimales ('venta por peso':
+ * money(1.37, { dec: 2 }) → '$1.37'). '—' si no hay dato.
  */
-export function money(v: number | null | undefined, opts: { signo?: boolean } = {}): string {
+export function money(v: number | null | undefined, opts: { signo?: boolean; dec?: number } = {}): string {
   if (!isNum(v)) return '—';
-  const r = Math.round(v);
-  const abs = NF.format(Math.abs(r));
+  const dec = opts.dec ?? 0;
+  const r = dec > 0 ? Number(v.toFixed(dec)) : Math.round(v);
+  const nf = dec > 0 ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : NF;
+  const abs = nf.format(Math.abs(r));
   if (r < 0) return `-$${abs}`;
   return `${opts.signo && r > 0 ? '+' : ''}$${abs}`;
 }
@@ -63,4 +66,17 @@ export function moneyCorto(v: number | null | undefined): string {
   if (Math.abs(v) < 10_000) return money(v);
   const r = Math.round(v / 1000);
   return `${r < 0 ? '-' : ''}$${NF.format(Math.abs(r))}k`;
+}
+
+/**
+ * Dólares (costo de Meta) con centavos: 'US$1,234.56'; negativo '-US$12.00';
+ * `dec` cambia los decimales (tarifas por mensaje: usd(0.0305, 4) →
+ * 'US$0.0305'). '—' si no hay dato. El prefijo 'US$' evita confundirlos con
+ * los pesos de money().
+ */
+export function usd(v: number | null | undefined, dec = 2): string {
+  if (!isNum(v)) return '—';
+  const nf = new Intl.NumberFormat('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const abs = nf.format(Math.abs(v));
+  return `${v < 0 && Number(abs.replace(/,/g, '')) !== 0 ? '-' : ''}US$${abs}`;
 }
