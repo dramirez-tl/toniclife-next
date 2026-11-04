@@ -16,7 +16,7 @@
 //  - Los cambios programados (PriceSchedulesPanel) se conservan.
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, Plus, Save, TriangleAlert } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, Loader2, Plus, Save, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -30,13 +30,15 @@ import { useActiveCountries, useActivePriceTypes } from '@/hooks/useConfig';
 import { useDeactivateCountryPrices } from '@/hooks/useProducts';
 import { formatCurrency } from '@/lib/currency';
 import type { AdminSetPriceDto } from '@/services/products-admin.service';
-import type { ProductPrice } from '@/types/product';
+import type { ProductPrice, ProductPriceHistoryEntry } from '@/types/product';
 import type { Country, PriceType } from '@/types/config';
 import { productAdminErrorMessage } from '../../lib/errors';
 import { PRICE_WARNING_LABEL, isPriceZone, priceCountryLabel, priceZoneStoreName } from '../../lib/labels';
 import { effectiveFromError, todayInMexico } from '../../lib/price-dates';
 import { productsAdminKeys, useAdminProductPrices, useSetAdminProductPrice } from '../../useProductsAdmin';
 import { PriceSchedulesPanel } from '../../PriceSchedulesPanel';
+import { PriceHistoryDialog } from '../../PriceHistoryDialog';
+import { restorePayload, restoreSummary } from '../../lib/price-history';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 
@@ -117,6 +119,8 @@ export function PricesSection() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [countryToRemove, setCountryToRemove] = useState<Country | null>(null);
+  // Diálogo "Historial" (cambios de precio del país con "Restablecer").
+  const [historyCountry, setHistoryCountry] = useState<Country | null>(null);
   const [removeReason, setRemoveReason] = useState('');
   const [priceToReactivate, setPriceToReactivate] = useState<ProductPrice | null>(null);
 
@@ -229,6 +233,31 @@ export function PricesSection() {
       }
     },
     [allowZero, countries, notifyWrite, serverRows, setPrice, valuesOf],
+  );
+
+  // "Restablecer" desde el historial: guarda los valores de ANTES del cambio con
+  // el mismo POST /products/:id/prices (queda auditado como un cambio nuevo).
+  const restoreFromHistory = useCallback(
+    async (entry: ProductPriceHistoryEntry): Promise<boolean> => {
+      const country = countries.find((c) => c.id === entry.countryId);
+      const fallbackCurrency = country?.currencyCode?.trim() ?? '';
+      const dto = restorePayload(entry, fallbackCurrency);
+      if (!dto || !dto.currencyCode) {
+        toast.error('Este cambio no se puede restablecer.');
+        return false;
+      }
+      try {
+        await setPrice.mutateAsync(dto);
+        clearDraft(rowKey(dto.countryId, dto.priceTypeId));
+        notifyWrite();
+        toast.success(`Precio restablecido · ${restoreSummary(entry, dto.currencyCode)}`);
+        return true;
+      } catch (err) {
+        toast.error(productAdminErrorMessage(err, 'No se pudo restablecer el precio'));
+        return false;
+      }
+    },
+    [countries, notifyWrite, setPrice],
   );
 
   // ---- Registro en el cascarón (punto ámbar, "Guardar todo", guard de salida) ----
@@ -399,20 +428,33 @@ export function PricesSection() {
                         {currency}
                       </span>
                     </h3>
-                    {!readOnly ? (
+                    <div className="flex items-center gap-1">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-red-700 hover:text-red-800"
-                        onClick={() => {
-                          setRemoveReason('');
-                          setCountryToRemove(country);
-                        }}
+                        className="gap-1 text-[#3E667D]"
+                        onClick={() => setHistoryCountry(country)}
+                        aria-label={`Historial de precios de ${priceCountryLabel(country)}`}
                       >
-                        Quitar país
+                        <History className="h-4 w-4" aria-hidden />
+                        Historial
                       </Button>
-                    ) : null}
+                      {!readOnly ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-700 hover:text-red-800"
+                          onClick={() => {
+                            setRemoveReason('');
+                            setCountryToRemove(country);
+                          }}
+                        >
+                          Quitar país
+                        </Button>
+                      ) : null}
+                    </div>
                   </header>
 
                   {isPriceZone(country.code) ? (
@@ -528,6 +570,16 @@ export function PricesSection() {
         </div>
       </SectionCard>
 
+      <PriceHistoryDialog
+        productId={productId}
+        country={historyCountry}
+        open={!!historyCountry}
+        onOpenChange={(o) => {
+          if (!o) setHistoryCountry(null);
+        }}
+        canRestore={!readOnly}
+        onRestore={restoreFromHistory}
+      />
       <ConfirmDialog
         open={!!countryToRemove}
         onOpenChange={(open) => {

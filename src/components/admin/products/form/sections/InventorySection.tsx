@@ -10,7 +10,10 @@ import { z } from 'zod';
 import { TriangleAlert } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useKitAvailability } from '@/hooks/useKitAvailability';
+import { canEnableBranchCatalog } from '@/lib/inventory/branch-catalog';
 import { resolveStockMode } from '@/lib/kits/kit-availability';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
 import { KitAvailabilityByBranch } from '../../KitAvailabilityByBranch';
 import { ProductInventoryByBranch } from '../../ProductInventoryByBranch';
@@ -61,6 +64,11 @@ const TOGGLE_INFO: Record<ToggleField, { title: string; on: string; off: string 
 export function InventorySection() {
   const { mode, productId, product, patchProduct, readOnly } = useProductForm();
   const permissions = useProductPermissions();
+  // "Vender aquí" por sucursal escribe en inventario (PATCH …/block, inventory:update):
+  // mismo permiso que el interruptor de productos normales, no el de la ficha.
+  const userRoles = useAppSelector(selectUserRoles);
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const canToggleBranches = !readOnly && canEnableBranchCatalog(userRoles, userPermissions);
   const [pendingToggle, setPendingToggle] = useState<{ field: ToggleField; next: boolean } | null>(null);
 
   const values = useMemo<InventoryValues>(
@@ -192,6 +200,7 @@ export function InventorySection() {
           stockMode={kitStockMode}
           showBranchTable={isAssembledKit}
           canClearOwnStock={!readOnly && permissions.canManageKits}
+          canToggleBranches={canToggleBranches}
         />
       ) : null}
 

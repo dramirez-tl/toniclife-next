@@ -30,6 +30,8 @@ const summary = (overrides: Partial<KitAvailabilitySummary> = {}): KitAvailabili
   componentsCount: 12,
   branchesTotal: 60,
   branchesSellable: 47,
+  branchesNoZonePrice: 0,
+  branchesBlocked: 0,
   maxSellable: 20,
   limiting: [
     { code: '8050M', name: 'Omega sobre', branchesShort: 13 },

@@ -33,6 +33,8 @@ export const productsAdminKeys = {
     [...productsAdminKeys.all, 'slug-check', slug, excludeId ?? ''] as const,
   prices: (id: string, activeOnly: boolean) => [...productsAdminKeys.all, 'prices', id, activeOnly] as const,
   pricesRoot: (id: string) => [...productsAdminKeys.all, 'prices', id] as const,
+  // Bajo pricesRoot: guardar un precio invalida también el historial.
+  priceHistory: (id: string, countryId?: string) => [...productsAdminKeys.all, 'prices', id, 'history', countryId ?? 'all'] as const,
   history: (id: string, page: number) => [...productsAdminKeys.all, 'history', id, page] as const,
   historyRoot: (id: string) => [...productsAdminKeys.all, 'history', id] as const,
   storefrontStatus: (id: string) => [...productsAdminKeys.all, 'storefront-status', id] as const,
@@ -206,6 +208,16 @@ export function useAdminProductPrices(id: string, activeOnly: boolean, enabled =
     queryFn: () => productsAdminService.getPrices(id, activeOnly),
     enabled: enabled && !!id,
     staleTime: 0,
+  });
+}
+
+/** Historial de precios de un país/zona (diálogo "Historial" de la sección Precios). */
+export function useAdminProductPriceHistory(id: string, countryId?: string, enabled = true) {
+  return useQuery({
+    queryKey: productsAdminKeys.priceHistory(id, countryId),
+    queryFn: () => productsAdminService.getPriceHistory(id, { countryId, limit: 100 }),
+    enabled: enabled && !!id,
+    staleTime: 15 * 1000,
   });
 }
 

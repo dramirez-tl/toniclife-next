@@ -27,6 +27,10 @@ import {
   summaryFlags,
   unwrapKitAvailabilityList,
   type KitAvailabilitySummary,
+  BRANCH_STATUS_LABEL,
+  blockedSentence,
+  zonePriceSentence,
+  offeredBranches,
 } from './kit-availability';
 
 const summary = (overrides: Partial<KitAvailabilitySummary> = {}): KitAvailabilitySummary => ({
@@ -37,6 +41,8 @@ const summary = (overrides: Partial<KitAvailabilitySummary> = {}): KitAvailabili
   componentsCount: 12,
   branchesTotal: 60,
   branchesSellable: 47,
+  branchesNoZonePrice: 0,
+  branchesBlocked: 0,
   maxSellable: 20,
   limiting: [
     { code: '8050M', name: 'Omega sobre', branchesShort: 13 },
@@ -178,6 +184,9 @@ describe('kit-availability · ficha', () => {
         { code: '8050M', name: 'Omega sobre', branchesShort: 2 },
         { code: '8203M', name: '', branchesShort: 1 },
       ],
+      noZonePrice: 0,
+      blocked: 0,
+      zonesWithoutPrice: [],
     });
     expect(availabilitySentence({ branchesTotal: s.total, branchesSellable: s.sellable }, 'KPM05')).toBe(
       'KPM05 se puede vender hoy en 2 de 5 sucursales.',
@@ -310,6 +319,8 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
           componentsCount: 12,
           branchesTotal: 60,
           branchesSellable: 47,
+          branchesNoZonePrice: 0,
+          branchesBlocked: 0,
           maxSellable: 20,
           limiting: [{ code: '8050M', name: 'Omega sobre', branchesShort: 13 }],
           ownStockPhantom: { rows: 69, units: 1380 },
@@ -327,6 +338,8 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
         componentsCount: 12,
         branchesTotal: 60,
         branchesSellable: 47,
+        branchesNoZonePrice: 0,
+        branchesBlocked: 0,
         maxSellable: 20,
         limiting: [{ code: '8050M', name: 'Omega sobre', branchesShort: 13 }],
         ownStockPhantom: { rows: 69, units: 1380 },
@@ -350,6 +363,8 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
       stockMode: 'assemble_on_sale',
       branchesTotal: '60',
       branchesSellable: 47,
+      branchesNoZonePrice: 0,
+      branchesBlocked: 0,
       maxSellable: null,
       limiting: [{ code: '8050M', name: 'Omega', branchesShort: '13' }, { name: 'sin clave' }, 'basura'],
       ownStockPhantom: { rows: 0, units: 0 },
@@ -363,6 +378,8 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
       componentsCount: 0,
       branchesTotal: 60,
       branchesSellable: 47,
+      branchesNoZonePrice: 0,
+      branchesBlocked: 0,
       maxSellable: 0,
       limiting: [{ code: '8050M', name: 'Omega', branchesShort: 13 }],
       ownStockPhantom: null,
@@ -387,7 +404,9 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
     expect(d?.components[0]).toMatchObject({ code: '8050M', qtyPerUnit: 1, available: 0, isActive: false, tracksInventory: true, hasPriceInKitCountries: null });
     const withBranches = normalizeKitAvailabilityDetail({ sellable: 3, branches: [{ branchId: 'b1', code: '101', name: 'X', sellable: '2', limitingCode: '' }] });
     expect(withBranches?.sellable).toBe(3);
-    expect(withBranches?.branches).toEqual([{ branchId: 'b1', code: '101', name: 'X', isWarehouse: false, sellable: 2, limitingCode: null }]);
+    expect(withBranches?.branches).toEqual([
+      { branchId: 'b1', code: '101', name: 'X', isWarehouse: false, sellable: 2, limitingCode: null, hasZonePrice: true, blocked: false, zoneCode: null, zoneName: null, status: 'sellable' },
+    ]);
     expect(normalizeKitAvailabilityDetail('nada')).toBeNull();
   });
 
@@ -447,7 +466,21 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
           hasPriceInKitCountries: true,
         },
       ],
-      branches: [{ branchId: 'b1', code: '268', name: 'Irapuato Centro', isWarehouse: false, sellable: 3, limitingCode: null }],
+      branches: [
+        {
+          branchId: 'b1',
+          code: '268',
+          name: 'Irapuato Centro',
+          isWarehouse: false,
+          sellable: 3,
+          limitingCode: null,
+          hasZonePrice: true,
+          blocked: false,
+          zoneCode: null,
+          zoneName: null,
+          status: 'sellable',
+        },
+      ],
       ownStock: null,
       hasKardex: null,
     });
@@ -461,5 +494,122 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
     expect(reasonSentence('component_inactive')).toBe('Un componente de la receta está desactivado.');
     expect(reasonSentence(null)).toBe('');
     expect(reasonSentence(undefined)).toBe('');
+  });
+});
+
+describe('kit-availability · zona de precio y apagado por sucursal (mig 184)', () => {
+  const base = { isWarehouse: false, limitingCode: null, hasZonePrice: true, blocked: false, zoneCode: 'MX', zoneName: 'Mexico' };
+  const rows = [
+    { ...base, branchId: 'b1', code: '101', name: 'Irapuato', sellable: 3, status: 'sellable' as const },
+    {
+      ...base,
+      branchId: 'b2',
+      code: '125',
+      name: 'Tijuana 6ta',
+      sellable: 0,
+      hasZonePrice: false,
+      zoneCode: 'FN',
+      zoneName: 'Frontera MX-USA',
+      status: 'no_zone_price' as const,
+    },
+    { ...base, branchId: 'b3', code: '130', name: 'Culiacán', sellable: 0, blocked: true, status: 'blocked' as const },
+    { ...base, branchId: 'b4', code: '102', name: 'León', sellable: 0, limitingCode: '8050', status: 'short' as const },
+  ];
+
+  it('el resumen separa agotadas, sin precio de zona y apagadas; solo las agotadas cuentan faltantes', () => {
+    const s = summarizeBranches(rows);
+    expect(s).toEqual({
+      total: 4,
+      sellable: 1,
+      maxSellable: 3,
+      limiting: [{ code: '8050', name: '', branchesShort: 1 }],
+      noZonePrice: 1,
+      blocked: 1,
+      zonesWithoutPrice: ['Frontera MX-USA'],
+    });
+    expect(zonePriceSentence(s)).toBe('Sin precio en su zona: 1 sucursal (Frontera MX-USA).');
+    expect(blockedSentence(s.blocked)).toBe('Apagado por decisión en 1 sucursal.');
+    expect(zonePriceSentence({ noZonePrice: 0, zonesWithoutPrice: [] })).toBe('');
+    expect(blockedSentence(0)).toBe('');
+    expect(zonePriceSentence({ noZonePrice: 2, zonesWithoutPrice: [] })).toBe('Sin precio en su zona: 2 sucursales.');
+  });
+
+  it('frases por sucursal, rótulos y encabezado por motivo', () => {
+    expect(branchSentence(rows[1])).toBe('En Tijuana 6ta no se puede vender: sin precio en su zona (Frontera MX-USA).');
+    expect(branchSentence(rows[2])).toBe('En Culiacán está apagado por decisión.');
+    expect(branchSentence(rows[3])).toBe('En León no se puede vender: falta 8050.');
+    expect(BRANCH_STATUS_LABEL.no_zone_price).toBe('Sin precio en su zona');
+    expect(BRANCH_STATUS_LABEL.blocked).toBe('Apagado aquí');
+    expect(reasonSentence('no_zone_price')).toContain('Sin precio vigente en la zona');
+    expect(reasonSentence('blocked')).toBe('Apagado por decisión en esta sucursal.');
+  });
+
+  it('normaliza las sucursales del detalle con y sin los campos nuevos (API previo)', () => {
+    const d = normalizeKitAvailabilityDetail({
+      branches: [
+        { branchId: 'b1', code: '101', name: 'A', sellable: 2, limitingCode: null },
+        { branchId: 'b2', code: '102', name: 'B', sellable: 0, limitingCode: '8050' },
+        { branchId: 'b3', code: '125', name: 'C', sellable: 0, limitingCode: null, hasZonePrice: false, zoneCode: 'FN', zoneName: 'Frontera MX-USA', status: 'no_zone_price' },
+        { branchId: 'b4', code: '130', name: 'D', sellable: 0, limitingCode: null, blocked: true },
+      ],
+    });
+    expect(d?.branches?.map((b) => b.status)).toEqual(['sellable', 'short', 'no_zone_price', 'blocked']);
+    expect(d?.branches?.[0]).toMatchObject({ hasZonePrice: true, blocked: false, zoneCode: null, zoneName: null });
+    expect(d?.branches?.[2]).toMatchObject({ hasZonePrice: false, zoneName: 'Frontera MX-USA' });
+    expect(normalizeKitAvailabilityDetail({ reason: 'blocked' })?.reason).toBe('blocked');
+    expect(normalizeKitAvailabilityDetail({ reason: 'no_zone_price' })?.reason).toBe('no_zone_price');
+  });
+
+  it('el resumen del listado trae los conteos nuevos (0 con un API previo) y sus chips', () => {
+    const s = normalizeKitAvailabilitySummary({
+      productId: 'k',
+      code: 'K',
+      branchesTotal: 64,
+      branchesSellable: 60,
+      branchesNoZonePrice: 2,
+      branchesBlocked: 1,
+    });
+    expect(s).toMatchObject({ branchesNoZonePrice: 2, branchesBlocked: 1 });
+    expect(normalizeKitAvailabilitySummary({ productId: 'k' })).toMatchObject({ branchesNoZonePrice: 0, branchesBlocked: 0 });
+    expect(summaryFlags(s!).map((f) => f.key)).toEqual(expect.arrayContaining(['no_zone_price', 'blocked']));
+  });
+});
+
+describe('kit-availability · sucursales ofrecidas (sin precio de zona / apagadas no cuentan como agotadas)', () => {
+  const s = summary({ branchesTotal: 64, branchesSellable: 62, branchesNoZonePrice: 2, branchesBlocked: 0, maxSellable: 9, limiting: [] });
+
+  it('semáforo, chip y frase usan las ofrecidas como denominador y explican el resto', () => {
+    expect(offeredBranches(s)).toBe(62);
+    expect(availabilityTone(s)).toBe('good');
+    expect(availabilityShort(s)).toBe('62 de 62 · máx 9 · 2 sin precio de zona');
+    expect(availabilitySentence(s, 'CI8050')).toBe(
+      'CI8050 se puede vender hoy en las 62 sucursales. Sin precio en su zona: 2 sucursales.',
+    );
+    const blocked = summary({ branchesTotal: 10, branchesSellable: 7, branchesNoZonePrice: 1, branchesBlocked: 1, maxSellable: 3, limiting: [] });
+    expect(availabilityTone(blocked)).toBe('warn');
+    expect(availabilityShort(blocked)).toBe('7 de 8 · máx 3 · 1 sin precio de zona · apagado en 1');
+    expect(availabilitySentence(blocked, 'K')).toBe(
+      'K se puede vender hoy en 7 de 8 sucursales. Sin precio en su zona: 1 sucursal. Apagado por decisión en 1 sucursal.',
+    );
+  });
+
+  it('sin ninguna ofrecida: gris, no "agotado"', () => {
+    const none = summary({ branchesTotal: 2, branchesSellable: 0, branchesNoZonePrice: 2, branchesBlocked: 0, limiting: [] });
+    expect(availabilityTone(none)).toBe('none');
+    expect(availabilityShort(none)).toBe('Sin precio en su zona · 2 sin precio de zona');
+    expect(availabilitySentence(none, 'K')).toBe('K no se ofrece hoy en ninguna de las 2 sucursales. Sin precio en su zona: 2 sucursales.');
+    const allBlocked = summary({ branchesTotal: 3, branchesSellable: 0, branchesNoZonePrice: 0, branchesBlocked: 3, limiting: [] });
+    expect(availabilityShort(allBlocked)).toBe('Apagado en las 3');
+    expect(matchesAvailabilityFilter(allBlocked, 'all_short')).toBe(false);
+  });
+
+  it('filtros y orden: "se vende en todas" es true con 62 de 62 ofrecidas aunque el universo sea 64', () => {
+    expect(matchesAvailabilityFilter(s, 'all_ok')).toBe(true);
+    expect(matchesAvailabilityFilter(s, 'some_short')).toBe(false);
+    expect(matchesAvailabilityFilter(s, 'all_short')).toBe(false);
+    const old = summary({ branchesTotal: 60, branchesSellable: 47 });
+    expect(availabilitySortValue(s)).toBeGreaterThan(availabilitySortValue(old));
+    expect(availabilityTone(old)).toBe('warn');
+    expect(availabilityShort(old)).toBe('47 de 60 · máx 20');
   });
 });

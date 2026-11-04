@@ -566,3 +566,38 @@ export interface UpdateCategoryDto {
   sortOrder?: number;
   isActive?: boolean;
 }
+
+// ================================
+// HISTORIAL DE PRECIOS (GET /products/:id/prices/history, 3-nov-2026)
+// ================================
+
+/** Valores de una fila de product_prices en un momento del historial. */
+export interface PriceSnapshot {
+  price: number;
+  points: number;
+  businessValue: number;
+  /** YYYY-MM-DD o null. */
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  isActive: boolean;
+  currencyCode: string | null;
+}
+
+export interface ProductPriceHistoryEntry {
+  id: string;
+  /** ISO 8601. */
+  at: string;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  userName: string | null;
+  countryId: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+  priceTypeId: string | null;
+  priceTypeCode: string | null;
+  priceTypeName: string | null;
+  changedFields: string[];
+  before: PriceSnapshot | null;
+  after: PriceSnapshot | null;
+  /** "Restablecer" vuelve a `before` (precio, puntos o valor de negocio distintos). */
+  restorable: boolean;
+}

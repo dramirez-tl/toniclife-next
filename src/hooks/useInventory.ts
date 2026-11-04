@@ -3,6 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '@/services/inventory.service';
+import { kitAvailabilityKeys } from './useKitAvailability';
 import type {
   BranchStockQueryDto,
   KardexQueryDto,
@@ -19,8 +20,11 @@ import type {
   ApplyAdjustmentDto,
   UpdateStockSettingsDto,
   MovementQueryDto,
-  CreateMovementDto, ApplyTransferPayload,
-  EnableBranchCatalogDto } from '@/types/inventory';
+  CreateMovementDto,
+  ApplyTransferPayload,
+  EnableBranchCatalogDto,
+  SetProductBranchBlockDto,
+} from '@/types/inventory';
 import { productKeys } from '@/hooks/useProducts';
 
 // ================================
@@ -139,6 +143,26 @@ export function useUpdateStockSettings() {
     }) => inventoryService.updateStockSettings(branchId, productId, dto),
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: inventoryKeys.productStock(productId) });
+    },
+  });
+}
+
+/** Apagar / encender la venta de un producto en una sucursal (mig 184); refresca la disponibilidad del kit. */
+export function useSetProductBranchBlock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      branchId,
+      productId,
+      dto,
+    }: {
+      branchId: string;
+      productId: string;
+      dto: SetProductBranchBlockDto;
+    }) => inventoryService.setProductBranchBlock(branchId, productId, dto),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.productStock(productId) });
+      queryClient.invalidateQueries({ queryKey: kitAvailabilityKeys.all });
     },
   });
 }

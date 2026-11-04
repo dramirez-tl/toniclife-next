@@ -164,6 +164,26 @@ export interface UpdateStockSettingsDto {
   isActive?: boolean;
 }
 
+/** Candado por producto y sucursal (mig 184): PATCH /inventory/stock/:branchId/:productId/block */
+export interface SetProductBranchBlockDto {
+  /** true = deja de ofrecerse y venderse en esa sucursal; false = se vende de nuevo. */
+  blocked: boolean;
+  reason?: string;
+}
+
+export interface ProductBranchBlockDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  branchId: string;
+  branchCode: string;
+  branchName: string;
+  blocked: boolean;
+  reason: string | null;
+  blockedAt: string | null;
+  blockedBy: string | null;
+}
+
 export interface BranchInfo {
   id: string;
   name: string;

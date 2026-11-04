@@ -10,20 +10,26 @@
 // Si el servidor aún no lo expone (404) el panel lo dice y no rompe la ficha.
 
 import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { BuildingStorefrontIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Loader2, TriangleAlert } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useSetProductBranchBlock } from '@/hooks/useInventory';
 import { useKitAvailability } from '@/hooks/useKitAvailability';
+import { apiErrorMessage } from '@/lib/branches/branch-cash-register';
 import { useKitBranchChoice } from '@/stores/kit-branch-choice.store';
 import { KitClearOwnStockDialog } from './KitClearOwnStockDialog';
 import {
   AVAILABILITY_TONE_CLASS,
+  BRANCH_STATUS_LABEL,
   availabilitySentence,
   availabilityTone,
+  blockedSentence,
   branchSentence,
   fmt,
   limitingSentence,
@@ -33,6 +39,7 @@ import {
   recipeHeadline,
   stockModeLabel,
   summarizeBranches,
+  zonePriceSentence,
   type KitAvailabilityBranchRow,
   type KitStockMode,
 } from '@/lib/kits/kit-availability';
@@ -45,6 +52,8 @@ interface KitAvailabilityByBranchProps {
   showBranchTable?: boolean;
   /** Con products:kits_manage / products:update: botón "Dejar en cero…" sobre la existencia fantasma. */
   canClearOwnStock?: boolean;
+  /** Interruptor por sucursal "vender aquí" (kits que se arman; PATCH …/block, inventory:update). */
+  canToggleBranches?: boolean;
 }
 
 const UNAVAILABLE_TEXT =
@@ -56,9 +65,25 @@ export function KitAvailabilityByBranch({
   stockMode,
   showBranchTable = true,
   canClearOwnStock = false,
+  canToggleBranches = false,
 }: KitAvailabilityByBranchProps) {
   const isAssemble = stockMode === 'assemble_on_sale';
   const [clearOpen, setClearOpen] = useState(false);
+  // Apagado por decisión en una sucursal (mig 184): el POS de esa sucursal deja de
+  // ofrecerlo y el servidor rechaza venderlo ahí; se enciende con el mismo interruptor.
+  const setBlock = useSetProductBranchBlock();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const toggleBranch = async (b: KitAvailabilityBranchRow) => {
+    setTogglingId(b.branchId);
+    try {
+      await setBlock.mutateAsync({ branchId: b.branchId, productId, dto: { blocked: !b.blocked } });
+      toast.success(`${b.name}: ${b.blocked ? 'se vende de nuevo' : 'apagado; ya no se ofrece ni se vende ahí'}`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo cambiar la venta en la sucursal'));
+    } finally {
+      setTogglingId(null);
+    }
+  };
   const allQuery = useKitAvailability(productId);
   // La existencia fantasma (piezas propias de un kit que se arma) viaja en el
   // propio detalle (KitAvailabilityDetailDto.ownStockPhantom); un API previo la omite.
@@ -79,7 +104,16 @@ export function KitAvailabilityByBranch({
     [detail],
   );
   const summary = useMemo(() => summarizeBranches(rows, componentNames), [rows, componentNames]);
-  const tone = availabilityTone({ branchesTotal: summary.total, branchesSellable: summary.sellable });
+  const counts = {
+    branchesTotal: summary.total,
+    branchesSellable: summary.sellable,
+    branchesNoZonePrice: summary.noZonePrice,
+    branchesBlocked: summary.blocked,
+  };
+  const tone = availabilityTone(counts);
+  // La frase del encabezado usa como denominador las sucursales ofrecidas; lo de
+  // zona/apagadas se dice en sus propias líneas (con enlace a Precios).
+  const offered = Math.max(0, summary.total - summary.noZonePrice - summary.blocked);
   const limiting = limitingSentence(summary.limiting);
 
   const visible = useMemo(() => {
@@ -166,9 +200,23 @@ export function KitAvailabilityByBranch({
 
         {/* Encabezado en claro */}
         <div className={`rounded-lg px-4 py-3 ${AVAILABILITY_TONE_CLASS[tone]}`} role="status">
-          <p className="text-sm font-semibold">{availabilitySentence({ branchesTotal: summary.total, branchesSellable: summary.sellable }, productCode)}</p>
+          <p className="text-sm font-semibold">
+            {summary.total > 0 && offered <= 0
+              ? `${productCode} no se ofrece hoy en ninguna de las ${fmt(summary.total)} sucursales.`
+              : availabilitySentence({ branchesTotal: offered, branchesSellable: summary.sellable }, productCode)}
+          </p>
           {detail.reason ? <p className="mt-1 text-sm font-medium">{reasonSentence(detail.reason)}</p> : null}
           {limiting ? <p className="mt-1 text-sm">{limiting}</p> : null}
+          {summary.noZonePrice > 0 ? (
+            <p className="mt-1 text-sm">
+              {zonePriceSentence(summary)}{' '}
+              <Link href="?seccion=precios" className="font-medium underline underline-offset-2">
+                Agrégalo en Precios
+              </Link>{' '}
+              para venderlo ahí.
+            </p>
+          ) : null}
+          {summary.blocked > 0 ? <p className="mt-1 text-sm">{blockedSentence(summary.blocked)}</p> : null}
           {summary.total > 0 && summary.sellable > 0 ? (
             <p className="mt-1 text-xs opacity-90">Máximo en una sola sucursal: {fmt(summary.maxSellable)}.</p>
           ) : null}
@@ -236,7 +284,7 @@ export function KitAvailabilityByBranch({
                   }`}
                 >
                   <span className={`inline-block h-2 w-2 rounded-full ${onlyShort ? 'bg-red-600' : 'bg-gray-300'}`} aria-hidden />
-                  Solo agotadas
+                  Solo donde no se vende
                 </button>
                 <span className="whitespace-nowrap text-sm text-gray-500">
                   {visible.length} de {rows.length}
@@ -261,15 +309,32 @@ export function KitAvailabilityByBranch({
                         </TableHead>
                       ) : null}
                       <TableHead className="sticky top-0 z-10 bg-gray-100 px-3 py-2.5 text-right text-xs font-medium uppercase text-gray-500">
-                        <span className="sr-only">Acciones</span>
+                        {isAssemble && canToggleBranches ? 'Vender aquí' : <span className="sr-only">Acciones</span>}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {visible.map((b) => {
                       const short = b.sellable <= 0;
+                      const rowTone =
+                        b.status === 'blocked'
+                          ? 'bg-gray-50'
+                          : b.status === 'no_zone_price'
+                            ? 'bg-amber-50/50'
+                            : short
+                              ? 'bg-red-50/40'
+                              : '';
+                      const cellTone =
+                        b.status === 'blocked'
+                          ? 'text-gray-600'
+                          : b.status === 'no_zone_price'
+                            ? 'text-amber-800'
+                            : short
+                              ? 'text-red-700'
+                              : 'text-gray-900';
+                      const toggling = togglingId === b.branchId;
                       return (
-                        <TableRow key={b.branchId} className={`border-b border-gray-100 ${short ? 'bg-red-50/40' : ''}`}>
+                        <TableRow key={b.branchId} className={`border-b border-gray-100 ${rowTone}`}>
                           <TableCell className="px-3 py-2">
                             <span className="font-medium text-gray-900">{b.name}</span>
                             <span className="ml-2 font-mono text-xs text-gray-500">{b.code}</span>
@@ -277,12 +342,23 @@ export function KitAvailabilityByBranch({
                               <span className="ml-2 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-700">Almacén</span>
                             ) : null}
                           </TableCell>
-                          <TableCell className={`px-3 py-2 text-right font-semibold tabular-nums ${short ? 'text-red-700' : 'text-gray-900'}`}>
-                            <span aria-label={branchSentence(b)}>{short ? 'Agotado' : fmt(b.sellable)}</span>
+                          <TableCell className={`px-3 py-2 text-right font-semibold tabular-nums ${cellTone}`}>
+                            <span aria-label={branchSentence(b)}>
+                              {b.status === 'sellable' ? fmt(b.sellable) : BRANCH_STATUS_LABEL[b.status]}
+                            </span>
                           </TableCell>
                           {isAssemble ? (
                             <TableCell className="px-3 py-2 text-gray-700">
-                              {short && b.limitingCode ? (
+                              {b.status === 'no_zone_price' ? (
+                                <span className="text-xs text-amber-800">
+                                  Sin precio en {b.zoneName ?? 'su zona'}.{' '}
+                                  <Link href="?seccion=precios" className="font-medium underline underline-offset-2">
+                                    Agregar en Precios
+                                  </Link>
+                                </span>
+                              ) : b.status === 'blocked' ? (
+                                <span className="text-xs text-gray-600">Apagado por decisión. Enciéndelo con el interruptor.</span>
+                              ) : short && b.limitingCode ? (
                                 <>
                                   <span className="font-mono text-xs">{b.limitingCode}</span>
                                   {componentNames.get(b.limitingCode) ? (
@@ -296,16 +372,38 @@ export function KitAvailabilityByBranch({
                           ) : null}
                           <TableCell className="px-3 py-2 text-right">
                             {isAssemble ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 text-[#3E667D]"
-                                onClick={() => pickBranch(b.branchId)}
-                                aria-label={`Ver componentes en ${b.name}`}
-                              >
-                                Ver componentes
-                              </Button>
+                              <div className="flex items-center justify-end gap-3">
+                                {canToggleBranches ? (
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={!b.blocked}
+                                    aria-label={`${b.blocked ? 'Encender' : 'Apagar'} la venta en ${b.name}`}
+                                    title={b.blocked ? 'Vender de nuevo aquí' : 'Dejar de vender aquí'}
+                                    disabled={toggling}
+                                    onClick={() => void toggleBranch(b)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:cursor-wait disabled:opacity-50 ${
+                                      !b.blocked ? 'bg-[#3E667D]' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                                        !b.blocked ? 'translate-x-4' : 'translate-x-0.5'
+                                      }`}
+                                    />
+                                  </button>
+                                ) : null}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 text-[#3E667D]"
+                                  onClick={() => pickBranch(b.branchId)}
+                                  aria-label={`Ver componentes en ${b.name}`}
+                                >
+                                  Ver componentes
+                                </Button>
+                              </div>
                             ) : null}
                           </TableCell>
                         </TableRow>
@@ -314,7 +412,7 @@ export function KitAvailabilityByBranch({
                     {visible.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={isAssemble ? 4 : 3} className="px-3 py-6 text-center text-sm text-gray-600">
-                          {onlyShort ? 'Ninguna sucursal está agotada con este filtro.' : 'Sin sucursales que coincidan.'}
+                          {onlyShort ? 'Se vende en todas las sucursales que coinciden.' : 'Sin sucursales que coincidan.'}
                         </TableCell>
                       </TableRow>
                     ) : null}
@@ -357,9 +455,22 @@ export function KitAvailabilityByBranch({
               </p>
             ) : (
               <>
-                <p className="text-sm font-semibold text-gray-900" role="status">
-                  {recipeHeadline(branchDetail.sellable ?? 0, chosenName)}
-                </p>
+                {branchDetail.reason === 'blocked' || branchDetail.reason === 'no_zone_price' ? (
+                  <p className="text-sm font-semibold text-gray-900" role="status">
+                    En {chosenName} no se vende: {reasonSentence(branchDetail.reason)}{' '}
+                    {branchDetail.reason === 'no_zone_price' ? (
+                      <Link href="?seccion=precios" className="font-medium underline underline-offset-2">
+                        Ir a Precios
+                      </Link>
+                    ) : canToggleBranches ? (
+                      <span className="font-normal text-gray-600">Enciéndelo con el interruptor &ldquo;Vender aquí&rdquo; de la tabla.</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-900" role="status">
+                    {recipeHeadline(branchDetail.sellable ?? 0, chosenName)}
+                  </p>
+                )}
                 {components.length === 0 ? (
                   <p className="text-sm text-red-700">Este kit no tiene receta: no hay qué armar.</p>
                 ) : (

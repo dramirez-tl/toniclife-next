@@ -22,6 +22,7 @@ import {
   type ProductType,
   type KitPosition,
   type VariantGender,
+  ProductPriceHistoryEntry,
 } from '@/types/product';
 
 // ================================
@@ -697,6 +698,17 @@ class ProductsAdminService {
   async setPrice(id: string, dto: AdminSetPriceDto): Promise<ProductPriceWithWarnings> {
     const response = await api.post<ProductPriceWithWarnings>(`/products/${id}/prices`, dto);
     return response.data;
+  }
+
+  /** Historial de cambios de precio (auditoría de product_prices), el más reciente primero. */
+  async getPriceHistory(id: string, params: { countryId?: string; limit?: number } = {}): Promise<ProductPriceHistoryEntry[]> {
+    const response = await api.get<ProductPriceHistoryEntry[]>(`/products/${id}/prices/history`, {
+      params: {
+        ...(params.countryId && { countryId: params.countryId }),
+        ...(params.limit && { limit: params.limit }),
+      },
+    });
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   // ---------- Fiscal (el motivo SÍ se envía y se persiste en auditoría) ----------

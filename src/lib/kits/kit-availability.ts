@@ -29,6 +29,10 @@ export interface KitAvailabilitySummary {
   /** Universo: sucursales activas con POS donde el kit tiene precio vigente del país. */
   branchesTotal: number;
   branchesSellable: number;
+  /** Del universo: sin precio vigente en SU zona de precio (p. ej. Frontera MX-USA). */
+  branchesNoZonePrice: number;
+  /** Del universo: apagadas por decisión (mig 184). */
+  branchesBlocked: number;
   maxSellable: number;
   /** Top 3 componentes que más sucursales dejan en cero. */
   limiting: KitLimitingComponent[];
@@ -54,6 +58,9 @@ export interface KitAvailabilityComponentRow {
   hasPriceInKitCountries: boolean | null;
 }
 
+/** Por qué (o no) se vende en una sucursal del universo. */
+export type KitBranchStatus = 'sellable' | 'short' | 'no_zone_price' | 'blocked';
+
 export interface KitAvailabilityBranchRow {
   branchId: string;
   code: string;
@@ -61,6 +68,14 @@ export interface KitAvailabilityBranchRow {
   isWarehouse: boolean;
   sellable: number;
   limitingCode: string | null;
+  /** Tiene precio vigente en la zona de precio de la sucursal (false = "Sin precio en su zona"). */
+  hasZonePrice: boolean;
+  /** Apagado por decisión en esta sucursal (mig 184). */
+  blocked: boolean;
+  /** Zona de precio de la sucursal (countries), p. ej. FN · Frontera MX-USA. */
+  zoneCode: string | null;
+  zoneName: string | null;
+  status: KitBranchStatus;
 }
 
 export interface KitLimitingDetail {
@@ -70,8 +85,11 @@ export interface KitLimitingDetail {
   available: number;
 }
 
-/** Por qué un kit que se arma da 0 en todas partes aunque haya existencias (DTO `reason`). */
-export type KitUnsellableReason = 'recipe_empty' | 'component_inactive';
+/**
+ * Por qué un kit que se arma da 0 (DTO `reason`): receta vacía, componente
+ * desactivado o, consultando una sucursal, sin precio en su zona / apagado por decisión.
+ */
+export type KitUnsellableReason = 'recipe_empty' | 'component_inactive' | 'no_zone_price' | 'blocked';
 
 /** Respuesta de GET /products/:id/kit-availability (con o sin `branchId`). */
 export interface KitAvailabilityDetail {
@@ -145,6 +163,8 @@ export function normalizeKitAvailabilitySummary(raw: unknown): KitAvailabilitySu
     componentsCount: num(raw.componentsCount),
     branchesTotal: num(raw.branchesTotal),
     branchesSellable: num(raw.branchesSellable),
+    branchesNoZonePrice: num(raw.branchesNoZonePrice),
+    branchesBlocked: num(raw.branchesBlocked),
     maxSellable: num(raw.maxSellable),
     limiting,
     ownStockPhantom: normalizePhantom(raw.ownStockPhantom),
@@ -153,7 +173,39 @@ export function normalizeKitAvailabilitySummary(raw: unknown): KitAvailabilitySu
 }
 
 const normalizeReason = (v: unknown): KitUnsellableReason | null =>
-  v === 'recipe_empty' || v === 'component_inactive' ? v : null;
+  v === 'recipe_empty' || v === 'component_inactive' || v === 'no_zone_price' || v === 'blocked' ? v : null;
+
+const isBranchStatus = (v: unknown): v is KitBranchStatus =>
+  v === 'sellable' || v === 'short' || v === 'no_zone_price' || v === 'blocked';
+
+/** Fila por sucursal; con un API previo (sin los campos de la mig 184) deriva el estado de `sellable`. */
+function normalizeBranchRow(b: Record<string, unknown>): KitAvailabilityBranchRow {
+  const sellable = num(b.sellable);
+  const hasZonePrice = bool(b.hasZonePrice, true);
+  const blocked = bool(b.blocked);
+  const status: KitBranchStatus = isBranchStatus(b.status)
+    ? b.status
+    : blocked
+      ? 'blocked'
+      : !hasZonePrice
+        ? 'no_zone_price'
+        : sellable > 0
+          ? 'sellable'
+          : 'short';
+  return {
+    branchId: str(b.branchId ?? b.id),
+    code: str(b.code),
+    name: str(b.name),
+    isWarehouse: bool(b.isWarehouse),
+    sellable,
+    limitingCode: b.limitingCode ? str(b.limitingCode) : null,
+    hasZonePrice,
+    blocked,
+    zoneCode: b.zoneCode ? str(b.zoneCode) : null,
+    zoneName: b.zoneName ? str(b.zoneName) : null,
+    status,
+  };
+}
 
 export function normalizeKitAvailabilityDetail(raw: unknown): KitAvailabilityDetail | null {
   if (!isRecord(raw)) return null;
@@ -174,14 +226,7 @@ export function normalizeKitAvailabilityDetail(raw: unknown): KitAvailabilityDet
       }))
     : [];
   const branches: KitAvailabilityBranchRow[] | null = Array.isArray(raw.branches)
-    ? raw.branches.filter(isRecord).map((b) => ({
-        branchId: str(b.branchId ?? b.id),
-        code: str(b.code),
-        name: str(b.name),
-        isWarehouse: bool(b.isWarehouse),
-        sellable: num(b.sellable),
-        limitingCode: b.limitingCode ? str(b.limitingCode) : null,
-      }))
+    ? raw.branches.filter(isRecord).map(normalizeBranchRow)
     : null;
   const limiting = isRecord(raw.limiting)
     ? {
@@ -246,11 +291,26 @@ const nf = new Intl.NumberFormat('es-MX');
 export const fmt = (n: number): string => nf.format(Math.max(0, Math.trunc(n)));
 const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 
-/** Semáforo: verde = todas venden; ámbar = alguna agotada; rojo = ninguna vende; gris = sin universo. */
-export function availabilityTone(s: Pick<KitAvailabilitySummary, 'branchesTotal' | 'branchesSellable'>): AvailabilityTone {
+/** Conteos del resumen; los de zona/apagado son opcionales (API previo = 0). */
+export type AvailabilityCounts = Pick<KitAvailabilitySummary, 'branchesTotal' | 'branchesSellable'> &
+  Partial<Pick<KitAvailabilitySummary, 'branchesNoZonePrice' | 'branchesBlocked'>>;
+
+/**
+ * Sucursales donde el kit SÍ se ofrece: el universo menos las que no tienen
+ * precio en su zona y las apagadas por decisión. Son el denominador honesto de
+ * "X de Y": una sucursal sin precio de zona no está "agotada".
+ */
+export function offeredBranches(s: AvailabilityCounts): number {
+  return Math.max(0, s.branchesTotal - (s.branchesNoZonePrice ?? 0) - (s.branchesBlocked ?? 0));
+}
+
+/** Semáforo: verde = todas las ofrecidas venden; ámbar = alguna agotada; rojo = ninguna vende; gris = sin universo ni ofrecidas. */
+export function availabilityTone(s: AvailabilityCounts): AvailabilityTone {
   if (s.branchesTotal <= 0) return 'none';
+  const offered = offeredBranches(s);
+  if (offered <= 0) return 'none';
   if (s.branchesSellable <= 0) return 'bad';
-  if (s.branchesSellable < s.branchesTotal) return 'warn';
+  if (s.branchesSellable < offered) return 'warn';
   return 'good';
 }
 
@@ -261,29 +321,54 @@ export const AVAILABILITY_TONE_CLASS: Record<AvailabilityTone, string> = {
   none: 'bg-gray-100 text-gray-600',
 };
 
-/** "49 de 60 sucursales · máx 20" (chip del listado). */
-export function availabilityShort(s: Pick<KitAvailabilitySummary, 'branchesTotal' | 'branchesSellable' | 'maxSellable'>): string {
-  if (s.branchesTotal <= 0) return 'Sin sucursales con precio';
-  if (s.branchesSellable <= 0) return `Agotado en las ${fmt(s.branchesTotal)}`;
-  return `${fmt(s.branchesSellable)} de ${fmt(s.branchesTotal)} · máx ${fmt(s.maxSellable)}`;
+/** Coletilla del listado: "· 2 sin precio de zona · apagado en 1" (vacía si no aplica). */
+function countsSuffix(s: AvailabilityCounts): string {
+  const parts: string[] = [];
+  if ((s.branchesNoZonePrice ?? 0) > 0) parts.push(`${fmt(s.branchesNoZonePrice ?? 0)} sin precio de zona`);
+  if ((s.branchesBlocked ?? 0) > 0) parts.push(`apagado en ${fmt(s.branchesBlocked ?? 0)}`);
+  return parts.length ? ` · ${parts.join(' · ')}` : '';
 }
 
-/** "KPM05 se puede vender hoy en 47 de 60 sucursales." */
-export function availabilitySentence(
-  s: Pick<KitAvailabilitySummary, 'branchesTotal' | 'branchesSellable'>,
-  kitCode?: string,
-): string {
+/** "49 de 60 sucursales · máx 20" (chip del listado); las sin precio de zona / apagadas van aparte. */
+export function availabilityShort(s: AvailabilityCounts & Pick<KitAvailabilitySummary, 'maxSellable'>): string {
+  if (s.branchesTotal <= 0) return 'Sin sucursales con precio';
+  const offered = offeredBranches(s);
+  if (offered <= 0) {
+    return (s.branchesBlocked ?? 0) > 0 && (s.branchesNoZonePrice ?? 0) <= 0
+      ? `Apagado en las ${fmt(s.branchesTotal)}`
+      : `Sin precio en su zona${countsSuffix(s)}`;
+  }
+  if (s.branchesSellable <= 0) return `Agotado en las ${fmt(offered)}${countsSuffix(s)}`;
+  return `${fmt(s.branchesSellable)} de ${fmt(offered)} · máx ${fmt(s.maxSellable)}${countsSuffix(s)}`;
+}
+
+/**
+ * "KPM05 se puede vender hoy en 47 de 60 sucursales." El denominador son las
+ * sucursales OFRECIDAS; si hay sin precio de zona o apagadas se dicen aparte.
+ */
+export function availabilitySentence(s: AvailabilityCounts, kitCode?: string): string {
   const subject = kitCode ? `${kitCode} ` : 'Este kit ';
+  const offered = offeredBranches(s);
+  const extras = [
+    zonePriceSentence({ noZonePrice: s.branchesNoZonePrice ?? 0, zonesWithoutPrice: [] }),
+    blockedSentence(s.branchesBlocked ?? 0),
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const withExtras = (text: string): string => (extras ? `${text} ${extras}` : text);
   if (s.branchesTotal <= 0) {
     return `${subject.trim()} no tiene precio vigente en ninguna sucursal con punto de venta de este país.`;
   }
+  if (offered <= 0) {
+    return withExtras(`${subject.trim()} no se ofrece hoy en ninguna de las ${fmt(s.branchesTotal)} sucursales.`);
+  }
   if (s.branchesSellable <= 0) {
-    return `${subject.trim()} no se puede vender hoy en ninguna de las ${fmt(s.branchesTotal)} sucursales.`;
+    return withExtras(`${subject.trim()} no se puede vender hoy en ninguna de las ${fmt(offered)} sucursales.`);
   }
-  if (s.branchesSellable >= s.branchesTotal) {
-    return `${subject.trim()} se puede vender hoy en las ${fmt(s.branchesTotal)} sucursales.`;
+  if (s.branchesSellable >= offered) {
+    return withExtras(`${subject.trim()} se puede vender hoy en las ${fmt(offered)} sucursales.`);
   }
-  return `${subject.trim()} se puede vender hoy en ${fmt(s.branchesSellable)} de ${fmt(s.branchesTotal)} sucursales.`;
+  return withExtras(`${subject.trim()} se puede vender hoy en ${fmt(s.branchesSellable)} de ${fmt(offered)} sucursales.`);
 }
 
 /** "Falta 8050M en 13 sucursales, 8203M en 9." — vacío si nada limita. */
@@ -306,6 +391,10 @@ export function summaryFlags(s: KitAvailabilitySummary): { key: string; label: s
     flags.push({ key: 'no_recipe', label: 'Sin receta', tone: 'bad' });
   }
   if (s.branchesTotal <= 0) flags.push({ key: 'no_price', label: 'Sin precio en este país', tone: 'warn' });
+  if (s.branchesNoZonePrice > 0) {
+    flags.push({ key: 'no_zone_price', label: `${fmt(s.branchesNoZonePrice)} sin precio de zona`, tone: 'warn' });
+  }
+  if (s.branchesBlocked > 0) flags.push({ key: 'blocked', label: `Apagado en ${fmt(s.branchesBlocked)}`, tone: 'none' });
   if (s.ownStockPhantom) {
     flags.push({
       key: 'phantom',
@@ -345,9 +434,11 @@ export interface KitListFilters {
 export function matchesAvailabilityFilter(s: KitAvailabilitySummary | undefined, f: AvailabilityFilter): boolean {
   if (!f) return true;
   if (!s || s.branchesTotal <= 0) return false;
-  if (f === 'some_short') return s.branchesSellable < s.branchesTotal;
+  const offered = offeredBranches(s);
+  if (offered <= 0) return false;
+  if (f === 'some_short') return s.branchesSellable < offered;
   if (f === 'all_short') return s.branchesSellable <= 0;
-  return s.branchesSellable >= s.branchesTotal;
+  return s.branchesSellable >= offered;
 }
 
 /**
@@ -397,7 +488,9 @@ export function shortageOptions(rows: KitAvailabilitySummary[]): { code: string;
 /** Valor de orden: primero los más agotados (proporción vendible), luego por sucursales vendibles. */
 export function availabilitySortValue(s: KitAvailabilitySummary | undefined): number {
   if (!s || s.branchesTotal <= 0) return -1;
-  return Math.round((s.branchesSellable / s.branchesTotal) * 1000) + s.branchesSellable / 100000;
+  const offered = offeredBranches(s);
+  if (offered <= 0) return -1;
+  return Math.round((s.branchesSellable / offered) * 1000) + s.branchesSellable / 100000;
 }
 
 // ================================
@@ -408,17 +501,39 @@ export interface BranchesSummary {
   sellable: number;
   maxSellable: number;
   limiting: KitLimitingComponent[];
+  /** Sucursales del universo sin precio vigente en su zona (no cuentan como agotadas). */
+  noZonePrice: number;
+  /** Sucursales apagadas por decisión (mig 184). */
+  blocked: number;
+  /** Nombres de las zonas sin precio, sin repetir (p. ej. ["Frontera MX-USA"]). */
+  zonesWithoutPrice: string[];
 }
+
+/** Fila mínima que entiende el resumen (las pruebas y un API previo no traen status). */
+type BranchSummaryInput = Pick<KitAvailabilityBranchRow, 'sellable' | 'limitingCode'> &
+  Partial<Pick<KitAvailabilityBranchRow, 'status' | 'zoneName'>>;
 
 /** Resume la tabla por sucursal del detalle (sin `branchId`) en cifras y faltantes. */
 export function summarizeBranches(
-  branches: KitAvailabilityBranchRow[],
+  branches: BranchSummaryInput[],
   componentNames: Map<string, string> = new Map(),
 ): BranchesSummary {
   const counts = new Map<string, number>();
+  const zones = new Set<string>();
   let sellable = 0;
   let maxSellable = 0;
+  let noZonePrice = 0;
+  let blocked = 0;
   for (const b of branches) {
+    if (b.status === 'no_zone_price') {
+      noZonePrice += 1;
+      if (b.zoneName) zones.add(b.zoneName);
+      continue;
+    }
+    if (b.status === 'blocked') {
+      blocked += 1;
+      continue;
+    }
     if (b.sellable > 0) sellable += 1;
     if (b.sellable > maxSellable) maxSellable = b.sellable;
     if (b.sellable <= 0 && b.limitingCode) counts.set(b.limitingCode, (counts.get(b.limitingCode) ?? 0) + 1);
@@ -426,11 +541,47 @@ export function summarizeBranches(
   const limiting = [...counts.entries()]
     .map(([code, branchesShort]) => ({ code, name: componentNames.get(code) ?? '', branchesShort }))
     .sort((a, b) => b.branchesShort - a.branchesShort || a.code.localeCompare(b.code));
-  return { total: branches.length, sellable, maxSellable, limiting };
+  return {
+    total: branches.length,
+    sellable,
+    maxSellable,
+    limiting,
+    noZonePrice,
+    blocked,
+    zonesWithoutPrice: [...zones].sort((a, b) => a.localeCompare(b)),
+  };
 }
 
+/** "Sin precio en su zona: 2 sucursales (Frontera MX-USA)." — vacío si no aplica. */
+export function zonePriceSentence(s: Pick<BranchesSummary, 'noZonePrice' | 'zonesWithoutPrice'>): string {
+  if (s.noZonePrice <= 0) return '';
+  const zones = s.zonesWithoutPrice.length ? ` (${s.zonesWithoutPrice.join(', ')})` : '';
+  return `Sin precio en su zona: ${fmt(s.noZonePrice)} ${plural(s.noZonePrice, 'sucursal', 'sucursales')}${zones}.`;
+}
+
+/** "Apagado por decisión en 1 sucursal." — vacío si no aplica. */
+export function blockedSentence(n: number): string {
+  if (n <= 0) return '';
+  return `Apagado por decisión en ${fmt(n)} ${plural(n, 'sucursal', 'sucursales')}.`;
+}
+
+/** Rótulo corto de la celda "Se pueden vender" cuando no es un número. */
+export const BRANCH_STATUS_LABEL: Record<KitBranchStatus, string> = {
+  sellable: 'Se vende',
+  short: 'Agotado',
+  no_zone_price: 'Sin precio en su zona',
+  blocked: 'Apagado aquí',
+};
+
 /** "En Irapuato Centro se pueden vender 3." / "En X no se puede vender: falta 8050M." */
-export function branchSentence(b: Pick<KitAvailabilityBranchRow, 'name' | 'sellable' | 'limitingCode'>): string {
+export function branchSentence(
+  b: Pick<KitAvailabilityBranchRow, 'name' | 'sellable' | 'limitingCode'> &
+    Partial<Pick<KitAvailabilityBranchRow, 'status' | 'zoneName'>>,
+): string {
+  if (b.status === 'blocked') return `En ${b.name} está apagado por decisión.`;
+  if (b.status === 'no_zone_price') {
+    return `En ${b.name} no se puede vender: sin precio en su zona${b.zoneName ? ` (${b.zoneName})` : ''}.`;
+  }
   if (b.sellable > 0) return `En ${b.name} se ${plural(b.sellable, 'puede vender 1', `pueden vender ${fmt(b.sellable)}`)}.`;
   return b.limitingCode ? `En ${b.name} no se puede vender: falta ${b.limitingCode}.` : `En ${b.name} no se puede vender.`;
 }
@@ -495,6 +646,8 @@ export function shortageText(l: KitLimitingDetail): string {
 export const REASON_SENTENCE: Record<KitUnsellableReason, string> = {
   recipe_empty: 'No tiene receta: no hay qué armar.',
   component_inactive: 'Un componente de la receta está desactivado.',
+  no_zone_price: 'Sin precio vigente en la zona de esta sucursal: agrégalo en Precios para venderlo aquí.',
+  blocked: 'Apagado por decisión en esta sucursal.',
 };
 
 export const reasonSentence = (reason: KitUnsellableReason | null | undefined): string =>

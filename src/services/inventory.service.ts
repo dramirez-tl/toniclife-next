@@ -9,7 +9,11 @@ import {
   AdjustmentType,
   CountType,
   MovementType,
-  LotStatus, ApplyTransferPayload } from '@/types/inventory';
+  LotStatus,
+  ApplyTransferPayload,
+  SetProductBranchBlockDto,
+  ProductBranchBlockDto,
+} from '@/types/inventory';
 import type {
   BranchStockResponseDto,
   BranchStockQueryDto,
@@ -112,6 +116,19 @@ class InventoryService {
   async getProductStock(productId: string): Promise<ProductStockDto[]> {
     const response = await api.get<ProductStockDto[]>(
       `/inventory/products/${productId}/stock`
+    );
+    return response.data;
+  }
+
+  /** Apagar / encender la venta de un producto en una sucursal (kits que se arman; mig 184). */
+  async setProductBranchBlock(
+    branchId: string,
+    productId: string,
+    dto: SetProductBranchBlockDto,
+  ): Promise<ProductBranchBlockDto> {
+    const response = await api.patch<ProductBranchBlockDto>(
+      `/inventory/stock/${branchId}/${productId}/block`,
+      dto,
     );
     return response.data;
   }
