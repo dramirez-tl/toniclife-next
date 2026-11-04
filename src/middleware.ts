@@ -292,7 +292,8 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (public images)
      * - icons (public icons)
+     * - og/ (imagen Open Graph de productos, app/og/imagen: ni i18n ni candados)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|icons).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|images|icons|og/).*)',
   ],
 };

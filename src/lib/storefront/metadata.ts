@@ -19,6 +19,7 @@ import {
   ogLocaleFor,
   truncate,
 } from './seo';
+import { ogImageUrlFor } from './og-image';
 import { productPath } from './slug';
 import { OG_DEFAULT_IMAGE, absoluteUrl, isIndexingAllowed, siteBaseUrl } from './site';
 import type { StorefrontProductDetail } from './types';
@@ -216,8 +217,12 @@ export function buildProductMetadata(input: ProductMetadataInput, env: Env = pro
   const primary = product.images.find((img) => img.isPrimary) ?? product.images[0];
   const imageUrl = primary?.url ?? product.imageUrl;
   const imageAlt = primary?.alt ?? product.imageAlt ?? product.name;
-  const images = imageUrl
-    ? [{ url: imageUrl, alt: imageAlt }]
+  // WhatsApp/Facebook descartan og:image pesadas (> ~300 KB) o lentas: las fotos del
+  // API se anuncian desde este dominio ya reducidas a JPEG (/og/imagen, og-image.ts).
+  // Fotos de otros orígenes (p. ej. legacy en GCS) se anuncian tal cual.
+  const ogUrl = imageUrl ? (ogImageUrlFor(imageUrl, env) ?? imageUrl) : null;
+  const images = ogUrl
+    ? [{ url: ogUrl, alt: imageAlt, ...(ogUrl !== imageUrl ? { type: 'image/jpeg' } : {}) }]
     : ogImage(OG_DEFAULT_IMAGE, product.name);
 
   return {
@@ -241,7 +246,7 @@ export function buildProductMetadata(input: ProductMetadataInput, env: Env = pro
       card: 'summary_large_image',
       title,
       description,
-      images: [imageUrl ?? OG_DEFAULT_IMAGE],
+      images: [ogUrl ?? OG_DEFAULT_IMAGE],
     },
   };
 }

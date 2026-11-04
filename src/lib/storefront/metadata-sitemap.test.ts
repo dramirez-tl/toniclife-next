@@ -156,6 +156,18 @@ describe('buildProductMetadata', () => {
     expect(meta.description).toBe('Meta descripción');
   });
 
+  it('foto del API: og:image servida desde este dominio (/og/imagen, JPEG reducido); twitter igual', () => {
+    const url = 'https://toniclife-api-production.up.railway.app/api/v1/storage/file/products/6b83/e7b5.png';
+    const meta = buildProductMetadata(
+      { locale: 'es-mx', product: { ...PRODUCT, images: [{ url, alt: 'Polo', isPrimary: true }], imageUrl: url } },
+      PROD,
+    );
+    expect(meta.openGraph?.images).toEqual([
+      { url: `${BASE}/og/imagen/products/6b83/e7b5.png`, alt: 'Polo', type: 'image/jpeg' },
+    ]);
+    expect(meta.twitter?.images).toEqual([`${BASE}/og/imagen/products/6b83/e7b5.png`]);
+  });
+
   it('sin imagen: og-default.png', () => {
     const meta = buildProductMetadata(
       { locale: 'es-mx', product: { ...PRODUCT, images: [], imageUrl: null } },
