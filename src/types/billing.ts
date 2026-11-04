@@ -1143,6 +1143,8 @@ export interface FoliosCuadreInvoice {
   total: number;
   emissionDate: string;
   saleNumber: string | null;
+  /** Día local de la VENTA del ticket; solo en `emittedForOtherDays`. */
+  saleLocalDate?: string | null;
 }
 
 export interface FoliosCuadreTotals {
@@ -1156,12 +1158,17 @@ export interface FoliosCuadreTotals {
   pendingCount: number;
   pendingTotal: number;
   difference: number;
+  /** Nominativas EMITIDAS en el rango por ventas de otras fechas (no suman al facturado). Ausentes en APIs anteriores. */
+  emittedOtherDaysCount?: number;
+  emittedOtherDaysTotal?: number;
 }
 
 export interface FoliosCuadreDay {
   localDate: string;
   status: GlobalDayState | string;
   invoices: FoliosCuadreInvoice[];
+  /** Nominativas emitidas ESTE día por ventas de otras fechas fuera del rango (informativas). */
+  emittedForOtherDays?: FoliosCuadreInvoice[];
   reconciliation: GlobalDayReconciliation | null;
 }
 

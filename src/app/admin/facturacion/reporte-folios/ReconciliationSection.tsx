@@ -131,7 +131,7 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
           </div>
         </div>
         <p className="mb-4 text-xs text-gray-400">
-          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano (Facturación libre).
+          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano (Facturación libre). Cada nominativa cuenta en el día de la VENTA de su ticket; las timbradas en el rango por ventas de otras fechas se listan en azul y no suman al facturado del día.
         </p>
 
         {tooLong ? (
@@ -246,7 +246,11 @@ function TotalsStrip({ totals }: { totals: FoliosCuadreTotals }) {
       <Kpi
         label="Facturado"
         value={money(totals.invoicedTotal)}
-        sub={`globales ${money(totals.inGlobalTotal)} · nominativas ${money(totals.nominativeTotal)}`}
+        sub={`globales ${money(totals.inGlobalTotal)} · nominativas ${money(totals.nominativeTotal)}${
+          (totals.emittedOtherDaysCount ?? 0) > 0
+            ? ` · +${totals.emittedOtherDaysCount} emitidas por ventas de otras fechas ${money(totals.emittedOtherDaysTotal ?? 0)} (cuentan en su día de venta)`
+            : ''
+        }`}
       />
       <Kpi
         label="No facturable"
@@ -311,7 +315,7 @@ function BranchDays({
                   </td>
                   <td className={`${TD} text-gray-500`}>{DAY_STATE_LABELS[d.status] ?? d.status}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">
-                    {d.invoices.length === 0 ? (
+                    {d.invoices.length === 0 && (d.emittedForOtherDays?.length ?? 0) === 0 ? (
                       <span className="text-gray-400">—</span>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
@@ -323,6 +327,16 @@ function BranchDays({
                           >
                             {i.invoiceType === 'global' ? 'Global' : 'Nominativa'} {i.folioDisplay}
                             {i.paymentFormCode && i.invoiceType === 'global' ? ` · ${getPaymentFormName(i.paymentFormCode)}` : ''} · {money(i.total)}
+                          </span>
+                        ))}
+                        {/* Timbradas este día por ventas de otras fechas: cuentan en el día de la venta. */}
+                        {(d.emittedForOtherDays ?? []).map((i) => (
+                          <span
+                            key={`e-${i.id}`}
+                            className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800 ring-1 ring-sky-200"
+                            title={`${i.satUuid}${i.saleNumber ? ` · ticket ${i.saleNumber}` : ''} · timbrada este día por una venta del ${i.saleLocalDate ? fmtDay(i.saleLocalDate) : 'otro día'}; cuenta en ese día, no en este`}
+                          >
+                            Nominativa {i.folioDisplay} · venta {i.saleLocalDate ? fmtDay(i.saleLocalDate) : 'otro día'} · {money(i.total)}
                           </span>
                         ))}
                       </div>
