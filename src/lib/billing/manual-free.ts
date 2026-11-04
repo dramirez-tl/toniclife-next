@@ -141,6 +141,20 @@ export function freeDraftBlockers(d: FreeDraft): string[] {
   return [...out, ...receiverBlockers(d.receiverMode, d.hasCustomer, d.other)];
 }
 
+/**
+ * Aclaración bajo el método de pago (paso 3). A público en general también se
+ * puede PPD (Contabilidad, 4-nov-2026): sale como global del día PPD/99, como
+ * la global de Facturación, y sin saldo por cobrar. A un receptor con RFC, PPD
+ * es nominativa con saldo por cobrar (se liquida con complemento de pago).
+ * PUE no necesita aclaración (null).
+ */
+export function paymentHint(receiverMode: ManualFreeReceiverMode, paymentMethod: 'PUE' | 'PPD'): string | null {
+  if (paymentMethod !== 'PPD') return null;
+  return receiverMode === 'public'
+    ? 'Saldrá como factura global del día con método PPD y forma de pago 99 · Por definir, como la emitía el sistema anterior. No lleva saldo por cobrar ni complemento de pago.'
+    : 'Nominativa PPD con forma de pago 99 · Por definir: queda con saldo por cobrar y se liquida después con un complemento de pago.';
+}
+
 export const PRICE_TYPE_LABEL: Record<string, string> = {
   distributor: 'distribuidor',
   public: 'público',

@@ -47,6 +47,7 @@ import {
   inlineBatchLine,
   moneyMx as money,
   parseBatchLines,
+  paymentHint,
   priceTypeLabel,
   receiverBlockers,
   sortProductMatches,
@@ -128,9 +129,9 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
   };
   const clearCustomer = () => {
     setCustomer(null);
+    // Sin distribuidor el receptor vuelve a público en general; el método de
+    // pago elegido se conserva (público también puede ser PPD/99).
     setReceiverMode((m) => (m === 'customer' ? 'public' : m));
-    // Sin distribuidor el receptor vuelve a público en general, que siempre es PUE.
-    if (receiverMode === 'customer') setPaymentMethod('PUE');
   };
   // Enter con puro número = búsqueda exacta por número de distribuidor.
   const lookupCustomer = async () => {
@@ -692,12 +693,9 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
             <div className="grid gap-3 sm:grid-cols-3">
               <ReceiverOption
                 selected={receiverMode === 'public'}
-                onSelect={() => {
-                  setReceiverMode('public');
-                  setPaymentMethod('PUE');
-                }}
+                onSelect={() => setReceiverMode('public')}
                 title="Público en general"
-                subtitle="RFC XAXX010101000 · se emite como factura global del día · siempre PUE · sin correo"
+                subtitle="RFC XAXX010101000 · se emite como factura global del día · PUE o PPD (forma 99) · sin correo"
               />
               <ReceiverOption
                 selected={receiverMode === 'customer'}
@@ -758,10 +756,11 @@ export function ManualFreeInvoiceForm({ onViewList }: { onViewList?: () => void 
                 <p className="mb-1.5 text-xs font-medium text-gray-600">Método de pago</p>
                 <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-sm">
                   <Segment active={paymentMethod === 'PUE'} onClick={() => setPaymentMethod('PUE')} label="PUE" hint="una exhibición" />
-                  {receiverMode !== 'public' && (
-                    <Segment active={paymentMethod === 'PPD'} onClick={() => setPaymentMethod('PPD')} label="PPD" hint="parcialidades · forma 99" />
-                  )}
+                  <Segment active={paymentMethod === 'PPD'} onClick={() => setPaymentMethod('PPD')} label="PPD" hint="parcialidades · forma 99" />
                 </div>
+                {paymentHint(receiverMode, paymentMethod) && (
+                  <p className="mt-2 text-xs text-gray-500">{paymentHint(receiverMode, paymentMethod)}</p>
+                )}
                 {paymentMethod === 'PUE' && (
                   <select value={paymentForm} onChange={(e) => setPaymentForm(e.target.value)} className="mt-2 h-9 w-full rounded-md border border-gray-300 bg-white px-3 text-sm" aria-label="Forma de pago">
                     {PUE_FORMS.map((code) => (

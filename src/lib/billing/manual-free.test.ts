@@ -4,6 +4,7 @@ import {
   freeDraftBlockers,
   inlineBatchLine,
   parseBatchLines,
+  paymentHint,
   sortProductMatches,
   type FreeDraft,
 } from './manual-free';
@@ -121,5 +122,27 @@ describe('freeDraftBlockers', () => {
         other: { rfc: 'xaxx010101000', name: 'Público', taxRegimeCode: '616', cfdiUseCode: 'S01', zipCode: '36500', email: '' },
       }),
     ).toEqual([]);
+  });
+});
+
+describe('paymentHint', () => {
+  it('PUE no lleva aclaración', () => {
+    expect(paymentHint('public', 'PUE')).toBeNull();
+    expect(paymentHint('customer', 'PUE')).toBeNull();
+    expect(paymentHint('other', 'PUE')).toBeNull();
+  });
+
+  it('PPD a público en general = global del día PPD/99 sin saldo por cobrar (Contabilidad, 4-nov-2026)', () => {
+    const hint = paymentHint('public', 'PPD');
+    expect(hint).toContain('global del día');
+    expect(hint).toContain('99');
+    expect(hint).toContain('No lleva saldo por cobrar');
+  });
+
+  it('PPD a un receptor con RFC = nominativa con saldo por cobrar', () => {
+    const hint = paymentHint('customer', 'PPD');
+    expect(hint).toContain('saldo por cobrar');
+    expect(hint).not.toContain('global');
+    expect(paymentHint('other', 'PPD')).toBe(hint);
   });
 });
