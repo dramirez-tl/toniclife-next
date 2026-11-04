@@ -1087,6 +1087,13 @@ export default function CheckoutContent() {
                     </span>
                   </div>
 
+                  {checkoutSummary?.seasonalDiscountAmount && parseFloat(checkoutSummary.seasonalDiscountAmount) > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-700">
+                      <span>{t('seasonalSavings')}</span>
+                      <span>{fmt(checkoutSummary.seasonalDiscountAmount)}</span>
+                    </div>
+                  )}
+
                   {checkoutSummary && parseFloat(checkoutSummary.discountAmount) > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>{t('discount')}</span>

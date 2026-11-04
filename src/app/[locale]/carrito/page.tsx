@@ -246,6 +246,9 @@ export default function CartPage() {
   // Calculations
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
+  // Promociones de temporada (API mig 186): ya restadas del subtotal; se muestran como ahorro.
+  const seasonalSavings = cart?.seasonalDiscountAmount ? parseFloat(cart.seasonalDiscountAmount) : 0;
+  const seasonalGifts = cart?.seasonalGifts ?? [];
   const total = cart ? parseFloat(cart.total) : 0;
   const itemCount = cart?.itemCount || 0;
 
@@ -461,8 +464,16 @@ export default function CartPage() {
                                   />
                                 )}
 
-                                {/* Line Total */}
-                                <span className="text-xl font-bold tabular-nums text-[#2f5165]">{fmt(item.lineTotal)}</span>
+                                {/* Line Total (+ promoción de temporada aplicada a la línea) */}
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-xl font-bold tabular-nums text-[#2f5165]">{fmt(item.lineTotal)}</span>
+                                  {item.promoName && (
+                                    <span className="inline-flex max-w-[220px] rounded-full bg-emerald-50 px-2 py-0.5 text-right text-[11px] font-semibold text-emerald-900">
+                                      {t('promoApplied', { name: item.promoName })}
+                                      {item.promoFreeQuantity ? ` · ${t('promoFree', { count: item.promoFreeQuantity })}` : ''}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -471,6 +482,22 @@ export default function CartPage() {
                     );
                   })}
                 </ul>
+
+                {/* Regalos de temporada (mig 186): líneas $0 que nacen con el pedido al pagar. */}
+                {seasonalGifts.length > 0 && (
+                  <Card className="mt-4 border-emerald-200 bg-emerald-50/50">
+                    <div className="p-4">
+                      <p className="text-sm font-semibold text-emerald-900">{t('seasonalGifts')}</p>
+                      <ul className="mt-1 space-y-0.5 text-sm text-emerald-900">
+                        {seasonalGifts.map((g) => (
+                          <li key={`${g.promotionId}-${g.productId}`}>
+                            {t('giftLine', { quantity: g.quantity, name: g.productName })}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </Card>
+                )}
 
                 {/* Clear Cart Button */}
                 <div className="text-center">
@@ -513,6 +540,13 @@ export default function CartPage() {
                       <span className="text-gray-700">{t('subtotal', { count: itemCount })}</span>
                       <span className="font-medium tabular-nums">{fmt(subtotal)}</span>
                     </div>
+
+                    {seasonalSavings > 0 && (
+                      <div className="flex justify-between gap-2 text-emerald-800">
+                        <span>{t('seasonalSavings')}</span>
+                        <span className="tabular-nums">{fmt(seasonalSavings)}</span>
+                      </div>
+                    )}
 
                     {discount > 0 && (
                       <div className="flex justify-between gap-2 text-green-800">

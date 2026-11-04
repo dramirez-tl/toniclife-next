@@ -27,6 +27,8 @@ export interface ProductPermissions {
    * (respaldo del contrato de kits §4.2). Sin ninguno, la sección Kit es de lectura.
    */
   canManageKits: boolean;
+  /** Temporadas de promociones (mig 186): `products:seasonal_promos`. Sin él, la pestaña es de lectura. */
+  canManageSeasons: boolean;
 }
 
 /**
@@ -47,7 +49,14 @@ export function useProductPermissions(): ProductPermissions {
   const roles = useAppSelector(selectUserRoles);
   return useMemo(() => {
     if (roles.includes('super_admin')) {
-      return { canRead: true, canCreate: true, canUpdate: true, canDelete: true, canManageKits: true };
+      return {
+        canRead: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+        canManageKits: true,
+        canManageSeasons: true,
+      };
     }
     return {
       canRead: hasPermission(permissions, 'products:read'),
@@ -55,6 +64,7 @@ export function useProductPermissions(): ProductPermissions {
       canUpdate: hasPermission(permissions, 'products:update'),
       canDelete: hasPermission(permissions, 'products:delete'),
       canManageKits: canEditKitFields(permissions, roles),
+      canManageSeasons: hasPermission(permissions, 'products:seasonal_promos'),
     };
   }, [permissions, roles]);
 }

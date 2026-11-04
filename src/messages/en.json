@@ -12,6 +12,13 @@
     "tagline": "Natural wellness since 2004 — Tonic Life"
   },
   "home": {
+    "seasonal": {
+      "aria": "Seasonal promotions",
+      "activeNow": "Live now!",
+      "startsOn": "Starts {date}",
+      "more": "+{count} more",
+      "gift": "Gift: {name}"
+    },
     "playVideo": "Play video",
     "pauseVideo": "Pause video",
     "members": {
@@ -504,6 +511,11 @@
     "summaryTitle": "Order Summary",
     "subtotal": "Subtotal ({count} products)",
     "discount": "Discount",
+    "seasonalSavings": "Seasonal promotion savings",
+    "seasonalGifts": "Seasonal gifts (added at checkout)",
+    "giftLine": "{quantity} × {name} — free gift",
+    "promoApplied": "Promo: {name}",
+    "promoFree": "{count, plural, one {# free item} other {# free items}}",
     "couponApply": "Apply",
     "couponPlaceholder": "Have a coupon?",
     "couponApplied": "Coupon applied",
@@ -599,6 +611,7 @@
     "qty": "Quantity: {count}",
     "subtotal": "Subtotal",
     "discount": "Discount",
+    "seasonalSavings": "Seasonal promotion savings",
     "coupon": "Coupon ({code})",
     "shipping": "Shipping",
     "freeExcl": "Free!",

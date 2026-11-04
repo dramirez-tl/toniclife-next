@@ -10,6 +10,7 @@ import {
   SparklesIcon,
   ClipboardDocumentCheckIcon,
   IdentificationIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,8 +21,9 @@ import { ProductosTab } from './_tabs/ProductosTab';
 import { KitsTab } from './_tabs/KitsTab';
 import { PromocionesTab } from './_tabs/PromocionesTab';
 import { MembresiasTab } from './_tabs/MembresiasTab';
+import { TemporadasTab } from './_tabs/TemporadasTab';
 
-type Tab = 'productos' | 'kits' | 'promociones' | 'membresias';
+type Tab = 'productos' | 'kits' | 'promociones' | 'membresias' | 'temporadas';
 
 interface TabConfig {
   id: Tab;
@@ -64,6 +66,14 @@ const TABS: TabConfig[] = [
     subtitle: 'Compra N puntos en producto y la membresía Premium es gratis; se enciende por sucursal',
     newHref: '/admin/membresias/nuevo',
     newLabel: 'Nueva campaña',
+  },
+  {
+    id: 'temporadas',
+    label: 'Temporadas',
+    icon: CalendarDaysIcon,
+    subtitle: 'Promociones por temporada (Buen Fin…): 3x2, precio especial, % y regalos con fecha y hora; POS y tienda reaccionan solos',
+    newHref: '/admin/temporadas/nuevo',
+    newLabel: 'Nueva temporada',
   },
 ];
 
@@ -112,10 +122,14 @@ function PageContent() {
   const sp = useSearchParams();
   const rawTab = sp.get('tab');
   const active: Tab =
-    rawTab === 'kits' || rawTab === 'promociones' || rawTab === 'membresias' ? rawTab : 'productos';
+    rawTab === 'kits' || rawTab === 'promociones' || rawTab === 'membresias' || rawTab === 'temporadas'
+      ? rawTab
+      : 'productos';
   const config = TABS.find((t) => t.id === active)!;
   const Icon = config.icon;
-  const { canCreate } = useProductPermissions();
+  const { canCreate, canManageSeasons } = useProductPermissions();
+  // Temporadas: el botón "Nueva" pide products:seasonal_promos, no products:create.
+  const canUseNew = active === 'temporadas' ? canManageSeasons : canCreate;
 
   const setTab = (next: Tab) => {
     const usp = new URLSearchParams(sp.toString());
@@ -151,7 +165,7 @@ function PageContent() {
                     Salud del catálogo
                   </Button>
                 </Link>
-                {canCreate ? (
+                {canUseNew ? (
                   <Link href={config.newHref}>
                     <Button variant="default">
                       <PlusIcon className="h-5 w-5" />
@@ -193,6 +207,7 @@ function PageContent() {
         {active === 'kits' && <KitsTab />}
         {active === 'promociones' && <PromocionesTab />}
         {active === 'membresias' && <MembresiasTab />}
+        {active === 'temporadas' && <TemporadasTab />}
       </div>
     </PermissionGuard>
   );

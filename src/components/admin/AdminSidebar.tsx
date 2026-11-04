@@ -66,6 +66,8 @@ const navigation: NavItem[] = [
       { name: 'Salud del catálogo', href: '/admin/productos/salud' },
       // Ropa (mig 178): familias de variantes y guías de tallas; mismo permiso que el catálogo.
       { name: 'Familias y tallas', href: '/admin/productos/familias' },
+      // Promociones de temporada (mig 186): Buen Fin y similares; misma lectura que el catálogo.
+      { name: 'Temporadas', href: '/admin/temporadas' },
     ],
   },
   // Pedidos web (ecommerce) se gatea por orders:update, no por orders:read:

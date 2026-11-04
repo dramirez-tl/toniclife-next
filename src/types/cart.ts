@@ -61,8 +61,38 @@ export interface CartItem {
   inStock?: boolean;
   /** Texto de personalización de la línea (playeras, API mig 179); ausente o null = sin texto. */
   personalization?: string | null;
+  /** Promoción de temporada que tocó la línea (API mig 186). */
+  seasonPromotionId?: string;
+  promoCode?: string;
+  promoName?: string;
+  /** Piezas gratis (3x2) dentro de `quantity`: $0 y sin puntos. */
+  promoFreeQuantity?: number;
+  /** Descuento de temporada de la línea, ya restado de `lineTotal` y del subtotal. */
+  promoDiscountAmount?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CartSeasonalPromotion {
+  promotionId: string;
+  code: string;
+  name: string;
+  type: 'nxm' | 'percent_off' | 'fixed_price' | 'gift_with_purchase';
+  typeLabel: string;
+  times: number;
+  discountAmount: string;
+  freeUnits: number;
+  giftUnits: number;
+}
+
+export interface CartSeasonalGift {
+  productId: string;
+  productCode: string;
+  productName: string;
+  quantity: number;
+  promotionId: string;
+  promoCode: string;
+  promoName: string;
 }
 
 // ================================
@@ -101,6 +131,11 @@ export interface Cart {
   createdAt: string;
   updatedAt: string;
   items: CartItem[];
+  /** Descuento de promociones de temporada (API mig 186), YA restado del subtotal; informativo. */
+  seasonalDiscountAmount?: string;
+  seasonalPromotions?: CartSeasonalPromotion[];
+  /** Regalos de temporada ($0): se crean como líneas del pedido al pagar. */
+  seasonalGifts?: CartSeasonalGift[];
 }
 
 export interface CartSummary {
@@ -272,6 +307,8 @@ export interface CheckoutSummary {
     code: string;
     discount: string;
   };
+  /** Ahorro por promociones de temporada (API mig 186), ya restado del subtotal; informativo. */
+  seasonalDiscountAmount?: string;
   shippingOptions: ShippingQuote[];
   /**
    * Envío a domicilio según las rutas de surtido del país de la orden (opcional:

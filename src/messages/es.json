@@ -12,6 +12,13 @@
     "tagline": "Bienestar natural desde 2004 — Tonic Life"
   },
   "home": {
+    "seasonal": {
+      "aria": "Promociones de temporada",
+      "activeNow": "¡Ya empezó!",
+      "startsOn": "Empieza el {date}",
+      "more": "+{count} más",
+      "gift": "Regalo: {name}"
+    },
     "playVideo": "Reproducir video",
     "pauseVideo": "Pausar video",
     "members": {
@@ -504,6 +511,11 @@
     "summaryTitle": "Resumen del Pedido",
     "subtotal": "Subtotal ({count} productos)",
     "discount": "Descuento",
+    "seasonalSavings": "Ahorro por promociones de temporada",
+    "seasonalGifts": "Regalos de temporada (se agregan al pagar)",
+    "giftLine": "{quantity} × {name} — de regalo",
+    "promoApplied": "Promo: {name}",
+    "promoFree": "{count, plural, one {# pieza gratis} other {# piezas gratis}}",
     "couponApply": "Aplicar",
     "couponPlaceholder": "¿Tienes un cupón?",
     "couponApplied": "Cupón aplicado",
@@ -599,6 +611,7 @@
     "qty": "Cantidad: {count}",
     "subtotal": "Subtotal",
     "discount": "Descuento",
+    "seasonalSavings": "Ahorro por promociones de temporada",
     "coupon": "Cupón ({code})",
     "shipping": "Envío",
     "freeExcl": "¡Gratis!",

@@ -6,6 +6,7 @@ import {
   EvaluationBanner,
 } from '@/components/landing';
 import { routing } from '@/i18n/routing';
+import { SeasonalPromotionsBanner } from '@/components/storefront/SeasonalPromotionsBanner';
 import { buildHomeMetadata } from '@/lib/storefront/metadata';
 
 // Canonical + hreflang del home (solo países con tienda abierta; x-default = es-mx).
@@ -27,6 +28,8 @@ export default function HomePage() {
       <div className="h-28 lg:h-32" />
       <main>
         <HeroBanner />
+        {/* Promociones de temporada (mig 186): solo pinta si hay temporada en curso o próxima en el país. */}
+        <SeasonalPromotionsBanner className="py-10" />
         <ProductCategoriesBento />
         <EvaluationBanner />
       </main>

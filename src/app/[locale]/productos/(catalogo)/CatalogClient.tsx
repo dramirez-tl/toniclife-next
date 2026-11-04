@@ -42,6 +42,7 @@ import { CatalogToolbar } from '@/components/storefront/CatalogToolbar';
 import { FiltersSheet } from '@/components/storefront/FiltersSheet';
 import { Pagination } from '@/components/storefront/Pagination';
 import { PriceZoneNotice } from '@/components/storefront/PriceZoneNotice';
+import { SeasonalPromotionsBanner } from '@/components/storefront/SeasonalPromotionsBanner';
 import { ProductCard, ProductCardSkeleton } from '@/components/storefront/ProductCard';
 import { SearchBox } from '@/components/storefront/SearchBox';
 import { SessionExpiredNotice } from '@/components/storefront/SessionExpiredNotice';
@@ -154,6 +155,9 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
         <PriceZoneNotice zone={priceZone} className="mt-3" />
         <SessionExpiredNotice className="mt-3" />
       </header>
+
+      {/* Promociones de temporada (mig 186), compacto: tipo, nombre y fechas. */}
+      <SeasonalPromotionsBanner compact className="mt-4 !px-0" />
 
       {/* Barra pegajosa: buscador + filtros (móvil). Debajo del header fijo del sitio. */}
       <div
