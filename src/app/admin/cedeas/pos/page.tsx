@@ -208,15 +208,18 @@ export default function CedeasPosPage() {
           isPending={pendingId === blockTarget.id}
           onConfirm={() => apply(blockTarget, true, reason)}
         >
-          <Label htmlFor="cedeas-pos-reason" className="text-sm">Motivo (lo verá la caja)</Label>
+          <Label htmlFor="cedeas-pos-reason" className="text-sm">Motivo</Label>
           <Input
             id="cedeas-pos-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Ej. Adeudo del periodo de octubre"
+            placeholder="Ej. adeudo"
             maxLength={300}
             className="mt-1"
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            La caja mostrará: &ldquo;Punto de venta bloqueado por {reason.trim() || '…'}. Comunícate con CEDEAS de Tonic Life para liberarlo.&rdquo;
+          </p>
         </ConfirmDialog>
       )}
     </div>
