@@ -4,6 +4,8 @@
 import { Suspense, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSelector } from 'react-redux';
+import { selectUserPermissions } from '@/store/slices/authSlice';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,6 +58,12 @@ function SalidaDetailContent() {
   const { data: movement, isLoading, isError, refetch } = useMovement(id);
   const { data: branches } = useActiveBranches();
   const approveMovement = useApproveMovement();
+  const userPermissions = useSelector(selectUserPermissions);
+  // Aprobar o rechazar exige inventory:approve (Operaciones, CEDEAS, Almacén,
+  // Administración; decisión de Operaciones 4-nov-2026): el API lo exige igual.
+  const canApprove = userPermissions.some(
+    (p) => p === 'inventory:approve' || p === 'inventory:*' || p === '*',
+  );
   const rejectMovement = useRejectMovement();
 
   const handleApprove = async () => {
@@ -177,7 +185,12 @@ function SalidaDetailContent() {
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 PDF
               </button>
-              {movement.status === 'pending_approval' && (
+              {movement.status === 'pending_approval' && !canApprove && (
+                <span className="text-xs text-gray-500">
+                  Solo Operaciones, CEDEAS, Almacén o Administración pueden aprobar la salida.
+                </span>
+              )}
+              {movement.status === 'pending_approval' && canApprove && (
                 <>
                   <button
                     onClick={() => setShowApproveModal(true)}

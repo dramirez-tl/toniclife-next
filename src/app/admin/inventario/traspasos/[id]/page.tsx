@@ -209,6 +209,12 @@ export default function TransferDetailPage() {
   const canSelfApprove = userPermissions.some(
     (p) => p === 'inventory:self_approve' || p === 'inventory:*' || p === '*',
   );
+  // Aprobar, aplicar, rechazar y cancelar exigen inventory:approve (Operaciones,
+  // CEDEAS, Almacén, Administración; decisión de Operaciones 4-nov-2026): el
+  // API lo exige igual, aquí solo se ocultan los botones.
+  const canApprove = userPermissions.some(
+    (p) => p === 'inventory:approve' || p === 'inventory:*' || p === '*',
+  );
   const isSelfRequester = useMemo(
     () =>
       !canSelfApprove &&
@@ -376,7 +382,12 @@ export default function TransferDetailPage() {
                 <ArrowDownTrayIcon className="h-4 w-4" />
                 {isGeneratingPdf ? 'Generando...' : 'Descargar PDF'}
               </Button>
-              {transfer.status === 'pending_approval' && (
+              {(transfer.status === 'pending_approval' || transfer.status === 'approved') && !canApprove && (
+                <span className="text-xs text-gray-500">
+                  Solo Operaciones, CEDEAS, Almacén o Administración pueden aprobar, aplicar o cancelar este traspaso.
+                </span>
+              )}
+              {transfer.status === 'pending_approval' && canApprove && (
                 <>
                   <div className="relative group">
                     <Button
@@ -414,7 +425,7 @@ export default function TransferDetailPage() {
                 </>
               )}
 
-              {transfer.status === 'approved' && (
+              {transfer.status === 'approved' && canApprove && (
                 <>
                   <Button
                     variant="success"
