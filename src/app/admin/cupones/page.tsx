@@ -280,8 +280,8 @@ function CuponesContent() {
 
   const coupons = data?.data || [];
 
+  // Mismo permiso que destapa el menú (AdminSidebar) y que exige el API: `customers.promos` o `config`.
   return (
-    {/* Mismo permiso que destapa el menú (AdminSidebar) y que exige el API: `customers.promos` o `config`. */}
     <PermissionGuard permissions={['customers.promos', 'config']}>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
