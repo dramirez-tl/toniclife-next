@@ -180,7 +180,7 @@ function CutoverCard({
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Código <code className="font-mono">MM-YYYY</code> del primer periodo 26→25 que se
+                Código <code className="font-mono">MM-YYYY</code> del primer periodo (nombrado por su mes de fin) que se
                 aprueba y paga desde v2. Mientras esté vacío, aprobar/pagar responde{' '}
                 <code className="font-mono">TRS_CUTOVER_NOT_SET</code>. Fíjalo SOLO después de
                 ejecutar el corte del sistema anterior (marcar P≤corte como pagadas por legacy) para

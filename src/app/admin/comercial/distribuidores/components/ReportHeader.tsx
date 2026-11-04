@@ -84,7 +84,7 @@ export function ReportHeader({
               <h1 className="text-2xl font-bold sm:text-3xl">Reporte de distribuidores</h1>
             </div>
             <p className="text-sm text-white/80">
-              Inscritos, activos, calificados, rangos y ventas del periodo (26 → 25) sobre todos los distribuidores. Mismas
+              Inscritos, activos, calificados, rangos y ventas del periodo de negocio sobre todos los distribuidores. Mismas
               definiciones que «Mi red»: activo = con puntos; calificado = 3,300 puntos o más.
             </p>
             <p className="mt-2 flex items-center gap-2 text-sm text-white/90">

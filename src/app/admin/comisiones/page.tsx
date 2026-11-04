@@ -89,6 +89,7 @@ import {
   treasuryCodeLabel,
   treasuryErrorMessage,
   treasurySkippedByCode,
+  formatDateOnly,
 } from '@/components/admin/treasury';
 import {
   COMMISSION_STAGES,
@@ -153,7 +154,7 @@ function ComisionesContent() {
     ? (typeParam as CommissionType)
     : undefined;
 
-  // ── Periodo 26→25 (por defecto el actual; "Todos" explícito) ─────────────
+  // ── Periodo de negocio (fechas de commission_periods; por defecto el actual; "Todos" explícito) ──
   const periodSel = useTreasuryPeriod(periodParam, { allowAll: true });
   const { effectivePeriodId, selectedPeriod, isAllPeriods } = periodSel;
 
@@ -637,7 +638,7 @@ function ComisionesContent() {
       <TreasuryHeader
         icon={CurrencyDollarIcon}
         title="Comisiones"
-        subtitle="Ciclo de vida de las comisiones del periodo 26→25: calculadas, listas, aprobadas, en dispersión, pagadas y conciliadas."
+        subtitle="Ciclo de vida de las comisiones del periodo: calculadas, listas, aprobadas, en dispersión, pagadas y conciliadas."
         note={
           !perms.canApprove && !perms.canPay
             ? 'Modo solo lectura: aprobar requiere mlm:approve y pagar mlm:pay.'
@@ -692,8 +693,10 @@ function ComisionesContent() {
           <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <p>
             <strong>Periodo abierto: cifras estimadas.</strong> El estimador las reescribe cada 4 h; aquí
-            no se aprueba ni se paga nada. Las acciones aparecen cuando el periodo cierre (día 25, cierre
-            nocturno).
+            no se aprueba ni se paga nada. Las acciones aparecen cuando el periodo cierre
+            {selectedPeriod?.endDate
+              ? ` (termina el ${formatDateOnly(selectedPeriod.endDate)}; el cierre corre de madrugada al día siguiente).`
+              : '.'}
           </p>
         </div>
       )}

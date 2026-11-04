@@ -254,7 +254,7 @@ function SistemaContent() {
                   cuando los anteriores quedan vacíos. El bloque 1 (logs) es
                   independiente: se regenera con el uso y puedes re-limpiarlo
                   cuando quieras. El bloque 10 vacía el catálogo de estados
-                  (geo). El resto de catálogos, roles, periodos 26→25 y tu
+                  (geo). El resto de catálogos, roles, periodos de negocio y tu
                   superusuario se conservan.
                 </p>
                 <div className="space-y-3">
@@ -282,7 +282,7 @@ function SistemaContent() {
               <TabsContent value="reset" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
                   Borra TODAS las ventas (pedidos ecommerce + ventas de
-                  sucursal) de un periodo por rango de fecha 26→25, para poder
+                  sucursal) de un periodo por su rango de fechas, para poder
                   re-correr la migración histórica. NO toca comisiones, puntos,
                   rangos ni red (la re-migración los reescribe).
                 </p>
@@ -1517,7 +1517,7 @@ function ResetPeriodSalesCard() {
           <p>
             <strong>Irreversible.</strong> Borra todas las ventas del periodo
             (pedidos ecommerce y ventas de sucursal, con sus items, pagos y
-            envíos) cuyo registro cae en el rango de fechas 26→25 —{' '}
+            envíos) cuyo registro cae en el rango de fechas del periodo —{' '}
             <strong>incluyendo ventas reales</strong>. Úsalo solo para re-correr
             la migración histórica.
           </p>
