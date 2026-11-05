@@ -351,9 +351,9 @@ function CustomerFiscalForm({
           )}
           {isSalaryRegime && !useMessage && (
             <p className="mt-1 text-xs text-gray-500">
-              Sueldos y salarios (605): para compras el SAT solo acepta S01 «Sin efectos fiscales»; las
-              claves D01–D10 son deducciones personales. G03 «Gastos en general» no aplica a este
-              régimen y el PAC rechaza la factura.
+              Sueldos y salarios (605): para facturas de compras el SAT solo acepta S01 «Sin efectos
+              fiscales» (D01–D10 son deducciones personales; G03 no aplica a este régimen). El uso CN01
+              «Nómina» no se captura aquí: los recibos de nómina de los bonos lo ponen solos (605 + CN01).
             </p>
           )}
         </div>
