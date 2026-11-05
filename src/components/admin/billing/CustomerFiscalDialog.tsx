@@ -42,6 +42,10 @@ import {
   type SatCatalogItem,
 } from '@/types/billing';
 
+/** Régimen 605 Sueldos y salarios y uso S01 Sin efectos fiscales (catálogo SAT). */
+const SALARY_REGIME = '605';
+const NO_FISCAL_EFFECTS_USE = 'S01';
+
 interface FormState {
   rfc: string;
   legalName: string;
@@ -116,7 +120,18 @@ function CustomerFiscalForm({
   const { data: uses, isLoading: loadingUses } = useCfdiUses(form.taxRegime || undefined);
 
   const regimeOptions = useMemo(() => satCatalogOptions(regimes), [regimes]);
-  const useOptions = useMemo(() => satCatalogOptions(uses), [uses]);
+  // Sueldos y salarios (605): el SAT no admite G01/G03 en una factura de venta;
+  // lo que aplica es S01 (o D01-D10 si es deducción personal). S01 va primero
+  // para que no quede escondido al final de la lista (petición 5-nov-2026).
+  const isSalaryRegime = form.taxRegime === SALARY_REGIME;
+  const useOptions = useMemo(() => {
+    const options = satCatalogOptions(uses);
+    if (!isSalaryRegime) return options;
+    return [
+      ...options.filter((o) => o.value === NO_FISCAL_EFFECTS_USE),
+      ...options.filter((o) => o.value !== NO_FISCAL_EFFECTS_USE),
+    ];
+  }, [uses, isSalaryRegime]);
 
   // Régimen y uso se limpian SOLO cuando el tipo de persona del último RFC
   // válido cambia de verdad (física ↔ moral). Ajuste de estado durante el
@@ -290,7 +305,11 @@ function CustomerFiscalForm({
             value={form.taxRegime}
             onChange={(val) => {
               setClearedUse(null);
-              setForm((prev) => ({ ...prev, taxRegime: val, cfdiUse: '' }));
+              setForm((prev) => ({
+                ...prev,
+                taxRegime: val,
+                cfdiUse: val === SALARY_REGIME ? NO_FISCAL_EFFECTS_USE : '',
+              }));
             }}
             showAllOption={false}
             placeholder={loadingRegimes ? 'Cargando regímenes…' : 'Elige el régimen'}
@@ -328,6 +347,13 @@ function CustomerFiscalForm({
           {useMessage && (
             <p id="cf-use-error" className="mt-1 text-xs text-red-600" role="alert">
               {useMessage}
+            </p>
+          )}
+          {isSalaryRegime && !useMessage && (
+            <p className="mt-1 text-xs text-gray-500">
+              Sueldos y salarios (605): para compras el SAT solo acepta S01 «Sin efectos fiscales»; las
+              claves D01–D10 son deducciones personales. G03 «Gastos en general» no aplica a este
+              régimen y el PAC rechaza la factura.
             </p>
           )}
         </div>
