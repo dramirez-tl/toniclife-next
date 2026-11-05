@@ -461,11 +461,13 @@ function ReporteFoliosContent() {
                                   {r.replacedByFolio ? (
                                     <p className="mt-0.5 text-[11px] text-amber-700">
                                       sustituida por <span className="font-mono">{r.replacedByFolio}</span>
+                                      {r.replacedByUuid ? <span className="ml-1 font-mono text-[10px] text-gray-400" title={r.replacedByUuid}>{r.replacedByUuid}</span> : null}
                                     </p>
                                   ) : null}
                                   {r.replacesFolio ? (
                                     <p className="mt-0.5 text-[11px] text-gray-500">
                                       sustituye a <span className="font-mono">{r.replacesFolio}</span>
+                                      {r.relatedUuid ? <span className="ml-1 font-mono text-[10px] text-gray-400" title={r.relatedUuid}>{r.relatedUuid}</span> : null}
                                     </p>
                                   ) : null}
                                 </TableCell>

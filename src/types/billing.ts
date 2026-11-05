@@ -1085,6 +1085,7 @@ export interface FoliosReportRow {
   replacedByInvoiceId: string | null;
   replacesInvoiceId?: string | null;
   replacedByFolio?: string | null;
+  replacedByUuid?: string | null;
   replacesFolio?: string | null;
   globalDocumentsLive: number | null;
   globalDocumentsLiveTotal: number | null;
