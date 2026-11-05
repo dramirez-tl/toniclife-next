@@ -458,6 +458,16 @@ function ReporteFoliosContent() {
                                 <TableCell className={TD}>
                                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.label}</span>
                                   {r.status === 'cancelada' && r.cancelledAt ? <span className="ml-1 text-xs text-gray-400">{fmtDay(r.cancelledAt)}</span> : null}
+                                  {r.replacedByFolio ? (
+                                    <p className="mt-0.5 text-[11px] text-amber-700">
+                                      sustituida por <span className="font-mono">{r.replacedByFolio}</span>
+                                    </p>
+                                  ) : null}
+                                  {r.replacesFolio ? (
+                                    <p className="mt-0.5 text-[11px] text-gray-500">
+                                      sustituye a <span className="font-mono">{r.replacesFolio}</span>
+                                    </p>
+                                  ) : null}
                                 </TableCell>
                                 <TableCell className={`${TD} text-right tabular-nums text-gray-700`}>
                                   {isGlobal ? (
