@@ -642,12 +642,13 @@ export default function NuevaSalidaPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      No. Referencia <span className="text-gray-400 font-normal">(opcional)</span>
+                      No. Referencia <span className="text-gray-400 font-normal">(opcional, máx. 50 caracteres)</span>
                     </label>
                     <input
                       type="text"
                       value={formData.referenceNumber}
-                      onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
+                      maxLength={50}
+                      onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value.slice(0, 50) })}
                       placeholder="Ej: NC-001, Ticket-2024-001..."
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500/30 focus:border-red-500 text-sm"
                     />
