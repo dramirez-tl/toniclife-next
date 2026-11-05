@@ -13,6 +13,8 @@ import type {
   ManualCustomerLookupResponse,
   FoliosCuadreQuery,
   FoliosCuadreResponse,
+  FoliosNominativasQuery,
+  FoliosNominativasResponse,
   FoliosReportQuery,
   FoliosReportResponse,
   FiscalData,
@@ -718,6 +720,30 @@ export async function downloadFoliosCuadreXlsx(query: FoliosCuadreQuery): Promis
   );
 }
 
+/** Nominativas timbradas en el rango (por día de TIMBRADO) con el día de venta de cada ticket (cierre de Contabilidad). */
+export async function getFoliosNominativas(query: FoliosNominativasQuery): Promise<FoliosNominativasResponse> {
+  const response = await apiClient.get<FoliosNominativasResponse>(
+    `${BASE_URL}/reports/folios/nominativas${toQueryString({ startDate: query.startDate, endDate: query.endDate, branchId: query.branchId, status: query.status })}`,
+  );
+  return response.data;
+}
+
+/** Excel para el cierre de Contabilidad (NOMINATIVAS por sucursal con subtotales, RESUMEN); el nombre lo pone el API. */
+export async function downloadFoliosNominativasXlsx(query: FoliosNominativasQuery): Promise<void> {
+  const response = await apiClient.get<Blob>(
+    `${BASE_URL}/reports/folios/nominativas/xlsx${toQueryString({ startDate: query.startDate, endDate: query.endDate, branchId: query.branchId, status: query.status })}`,
+    { responseType: 'blob' },
+  );
+  const disposition = String(response.headers?.['content-disposition'] ?? '');
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  saveBlob(
+    response.data as BlobPart,
+    match?.[1] ?? `NOMINATIVAS_TIMBRADAS_${stamp}.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+}
+
 // ================================
 // FACTURACIÓN LIBRE (Contabilidad)
 // ================================
@@ -846,6 +872,8 @@ export const billingService = {
   downloadFoliosReportXlsx,
   getFoliosCuadre,
   downloadFoliosCuadreXlsx,
+  getFoliosNominativas,
+  downloadFoliosNominativasXlsx,
   previewManualInvoices,
   createManualInvoices,
   previewManualFreeInvoice,

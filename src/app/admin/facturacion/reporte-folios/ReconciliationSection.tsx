@@ -84,6 +84,7 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [openDay, setOpenDay] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingNominativas, setDownloadingNominativas] = useState(false);
 
   const branches = cuadre.data?.branches ?? [];
   const totals = cuadre.data?.totals;
@@ -100,6 +101,22 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
       toast.error(billingErrorMessage(err, 'No se pudo generar el Excel del cuadre'));
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Para el cierre de Contabilidad: nominativas por día de TIMBRADO (no de
+  // venta) con el día de venta de cada ticket; las de ventas anteriores al
+  // rango van marcadas para restarlas en este cierre aunque su venta ya se
+  // haya cerrado (4-nov-2026).
+  const downloadNominativas = async () => {
+    setDownloadingNominativas(true);
+    try {
+      await billingService.downloadFoliosNominativasXlsx({ startDate: from, endDate: to, branchId });
+      toast.success('Excel de nominativas timbradas generado');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo generar el Excel de nominativas timbradas'));
+    } finally {
+      setDownloadingNominativas(false);
     }
   };
 
@@ -122,6 +139,17 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
               variant="outline"
               size="sm"
               className="gap-2"
+              onClick={() => void downloadNominativas()}
+              disabled={downloadingNominativas || tooLong}
+              title="Nominativas timbradas en el rango (por fecha de timbrado) con el día de venta de cada ticket, para restarlas en el cierre"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4" />
+              {downloadingNominativas ? 'Generando…' : 'Excel nominativas timbradas (cierre)'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
               onClick={() => void download()}
               disabled={downloading || !query || branches.length === 0}
             >
@@ -131,7 +159,7 @@ export function ReconciliationSection({ branchId, branchLabel, from, to }: Props
           </div>
         </div>
         <p className="mb-4 text-xs text-gray-400">
-          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano (Facturación libre). Cada nominativa cuenta en el día de la VENTA de su ticket; las timbradas en el rango por ventas de otras fechas se listan en azul y no suman al facturado del día.
+          Vendido − facturado (globales vigentes + nominativas) = no facturable (cashback, promoción, dólares, $0, crédito) + pendiente por facturar. Lo pendiente es lo que se factura a mano (Facturación libre). Cada nominativa cuenta en el día de la VENTA de su ticket; las timbradas en el rango por ventas de otras fechas se listan en azul y no suman al facturado del día. Para el cierre de Contabilidad, el Excel de nominativas timbradas las acomoda por día de TIMBRADO con el día de venta de cada ticket.
         </p>
 
         {tooLong ? (

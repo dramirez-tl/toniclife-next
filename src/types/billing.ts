@@ -1188,6 +1188,79 @@ export interface FoliosCuadreResponse {
   generatedAt: string;
 }
 
+// Nominativas timbradas en un rango, por día de TIMBRADO con el día de venta
+// del ticket (`GET /billing/reports/folios/nominativas[/xlsx]`): para el cierre
+// de Contabilidad (4-nov-2026), que resta a los pagos del periodo las
+// nominativas que las sucursales emitieron; las de ventas anteriores al rango
+// (tardías) van marcadas para restarlas en este cierre.
+export interface FoliosNominativasQuery {
+  startDate: string;
+  endDate: string;
+  branchId?: string;
+  /** vigentes (default) | todas (también canceladas). */
+  status?: 'vigentes' | 'todas';
+}
+
+export interface FoliosNominativaRow {
+  id: string;
+  invoiceType: string;
+  typeLabel: string;
+  folioDisplay: string;
+  satUuid: string;
+  branchId: string;
+  branchCode: string | null;
+  branchName: string | null;
+  stampedAt: string;
+  /** 'YYYY-MM-DD HH:mm' en la zona de la sucursal. */
+  stampedAtLocal: string;
+  /** Día local de timbrado (YYYY-MM-DD). */
+  emissionDate: string;
+  saleNumber: string | null;
+  orderNumber: string | null;
+  /** Día local de la venta del ticket. */
+  saleLocalDate: string;
+  daysAfterSale: number;
+  /** true = la venta es anterior al rango (cae en un cierre ya hecho). */
+  saleBeforeRange: boolean;
+  customerNumber: string | null;
+  receiverRfc: string | null;
+  receiverName: string | null;
+  paymentFormCode: string | null;
+  paymentFormName: string | null;
+  paymentMethodCode: string | null;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  status: string;
+  statusLabel: string;
+}
+
+export interface FoliosNominativasTotals {
+  count: number;
+  total: number;
+  lateCount: number;
+  lateTotal: number;
+}
+
+export interface FoliosNominativasBranch extends FoliosNominativasTotals {
+  branchId: string;
+  branchCode: string | null;
+  branchName: string | null;
+  rows: FoliosNominativaRow[];
+}
+
+export interface FoliosNominativasResponse {
+  startDate: string;
+  endDate: string;
+  branchId: string | null;
+  branchLabel: string | null;
+  status: string;
+  branches: FoliosNominativasBranch[];
+  totals: FoliosNominativasTotals;
+  generatedAt: string;
+  truncated: boolean;
+}
+
 // Facturación libre (`POST /billing/manual-invoices[/preview]`, Contabilidad 22-oct-2026).
 export interface ManualInvoiceRequest {
   saleIds: string[];
