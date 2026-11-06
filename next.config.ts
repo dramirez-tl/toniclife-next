@@ -71,12 +71,13 @@ const nextConfig: NextConfig = {
     const csp = [
       "default-src 'self'",
       // Next inyecta scripts inline (hydration) y Stripe carga su JS.
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://va.vercel-scripts.com",
+      // Google Identity Services (botón de Google Sign-In en /login y /vincular-correo).
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://va.vercel-scripts.com https://accounts.google.com",
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: https:`,
       "font-src 'self' data:",
-      `connect-src 'self' ${apiOrigin} https://api.stripe.com https://vitals.vercel-insights.com wss:`,
-      'frame-src https://js.stripe.com https://hooks.stripe.com',
+      `connect-src 'self' ${apiOrigin} https://api.stripe.com https://vitals.vercel-insights.com https://accounts.google.com wss:`,
+      'frame-src https://js.stripe.com https://hooks.stripe.com https://accounts.google.com',
       "object-src 'none'",
       "base-uri 'self'",
       "frame-ancestors 'none'",

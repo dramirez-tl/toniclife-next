@@ -843,6 +843,15 @@
     "toast": {
       "welcome": "Welcome back!",
       "emailLinked": "Your account already has a linked email. Please sign in with your email address."
+    },
+    "google": {
+      "or": "or",
+      "linkTitle": "Link your Google account",
+      "linkText": "The account {email} is not linked to any user yet. Confirm who you are with your distributor number, email or username and your password; next time you will sign in with Google only.",
+      "linkSubmit": "Link and sign in",
+      "linkCancel": "Use another account",
+      "linkedToast": "Google account linked",
+      "error": "Could not sign in with Google. Please try again."
     }
   },
   "distributor": {

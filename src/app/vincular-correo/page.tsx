@@ -22,6 +22,7 @@ import {
 } from '@/store/slices/authSlice';
 import { authService } from '@/services/auth.service';
 import { resolvePortal } from '@/lib/auth-roles';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 
 export default function VincularCorreoPage() {
   const dispatch = useAppDispatch();
@@ -166,6 +167,29 @@ export default function VincularCorreoPage() {
     }
   };
 
+  /** "Continuar con Google": el correo verificado por Google sustituye al código. */
+  const handleGoogleLinkEmail = async (idToken: string) => {
+    setIsLoading(true);
+    try {
+      const response = await authService.linkEmailWithGoogle({
+        linkToken: emailLinkData.linkToken,
+        idToken,
+      });
+      toast.success('Cuenta de Google vinculada');
+      dispatch(setUser(response.user));
+      dispatch(clearEmailLinkRequired());
+      const portal = resolvePortal(response.user.roleCategory, response.user.roles?.[0]);
+      window.location.href = portal === 'admin' ? '/admin' : '/distribuidor';
+    } catch (error) {
+      const data = (error as { response?: { data?: { message?: string } } })?.response?.data;
+      const msg = data?.message || 'No se pudo vincular tu cuenta de Google';
+      toast.error(msg);
+      setEmailError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleBackToEmail = () => {
     setStep(1);
     setCode(['', '', '', '', '', '']);
@@ -230,6 +254,15 @@ export default function VincularCorreoPage() {
                       un correo electrónico real. Este será tu nuevo método de inicio de sesión.
                     </p>
                   </div>
+
+                  {/* Con Google no hay que teclear el correo ni esperar el código */}
+                  <GoogleSignInButton
+                    text="continue_with"
+                    onCredential={handleGoogleLinkEmail}
+                    disabled={isLoading}
+                    dividerLabel="o escribe tu correo y recibe un código"
+                    dividerPosition="below"
+                  />
 
                   <div className="space-y-1.5">
                     <Label>Correo electrónico</Label>

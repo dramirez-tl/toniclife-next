@@ -31,6 +31,44 @@ export function isEmailLinkRequired(result: LoginResult): result is EmailLinkReq
   return 'requiresEmailLink' in result && result.requiresEmailLink === true;
 }
 
+// ---- Google Sign-In (API: POST /auth/google, /auth/google/link, /auth/link-email/google)
+export interface GoogleAuthStatus {
+  enabled: boolean;
+  webClientId: string | null;
+}
+
+/** La cuenta de Google no está vinculada a ningún usuario: se confirma con ID + contraseña. */
+export interface GoogleLinkRequired {
+  requiresAccountLink: true;
+  linkTicket: string;
+  email: string;
+  name: string | null;
+  picture: string | null;
+}
+
+export type GoogleLoginResult = AuthResponse | GoogleLinkRequired;
+
+export function isGoogleLinkRequired(result: GoogleLoginResult): result is GoogleLinkRequired {
+  return 'requiresAccountLink' in result && result.requiresAccountLink === true;
+}
+
+export interface GoogleLoginData {
+  idToken: string;
+  remember?: boolean;
+}
+
+export interface GoogleLinkData {
+  linkTicket: string;
+  identifier: string;
+  password: string;
+  remember?: boolean;
+}
+
+export interface LinkEmailGoogleData {
+  linkToken: string;
+  idToken: string;
+}
+
 export interface RegisterData {
   email: string;
   password: string;
@@ -263,6 +301,51 @@ class AuthService {
 
   async verifyLinkEmail(data: VerifyLinkEmailData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/verify-link-email', data);
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
+    this.setStoredUser(response.data.user);
+    return response.data;
+  }
+
+  // ---- Google Sign-In
+
+  /** Si el servidor tiene Google Sign-In encendido y con qué client ID web. */
+  async googleStatus(): Promise<GoogleAuthStatus> {
+    const response = await api.get<GoogleAuthStatus>('/auth/google/status');
+    return response.data;
+  }
+
+  /** Botón de Google: entra, o pide vincular (requiresAccountLink) sin guardar nada. */
+  async loginWithGoogle(data: GoogleLoginData): Promise<GoogleLoginResult> {
+    const { remember, idToken } = data;
+    this.setRemember(remember ?? false);
+    const response = await api.post<GoogleLoginResult>('/auth/google', {
+      idToken,
+      rememberMe: remember ?? false,
+    });
+    if (isGoogleLinkRequired(response.data)) {
+      return response.data;
+    }
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
+    this.setStoredUser(response.data.user);
+    return response.data;
+  }
+
+  /** Confirma con ID/correo/usuario + contraseña, vincula la cuenta de Google y entra. */
+  async linkGoogle(data: GoogleLinkData): Promise<AuthResponse> {
+    const { remember, ...body } = data;
+    this.setRemember(remember ?? false);
+    const response = await api.post<AuthResponse>('/auth/google/link', {
+      ...body,
+      rememberMe: remember ?? false,
+    });
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
+    this.setStoredUser(response.data.user);
+    return response.data;
+  }
+
+  /** Paso del correo del primer login: vincular Google en vez de teclear correo + código. */
+  async linkEmailWithGoogle(data: LinkEmailGoogleData): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>('/auth/link-email/google', data);
     this.setTokens(response.data.accessToken, response.data.refreshToken);
     this.setStoredUser(response.data.user);
     return response.data;

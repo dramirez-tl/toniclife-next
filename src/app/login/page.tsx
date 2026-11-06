@@ -26,7 +26,14 @@ import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i1
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { resolvePortal } from '@/lib/auth-roles';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { isEmailLinkRequired } from '@/services/auth.service';
+import {
+  authService,
+  isEmailLinkRequired,
+  isGoogleLinkRequired,
+  type GoogleLinkRequired,
+  type UserResponse,
+} from '@/services/auth.service';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import {
   loginAsync,
   logoutAsync,
@@ -34,7 +41,15 @@ import {
   selectAuthError,
   selectEmailLinkRequired,
   clearError,
+  setUser,
 } from '@/store/slices/authSlice';
+
+/** Mensaje del API (NestJS: message string o lista) o un texto por defecto. */
+function apiErrorMessage(error: unknown, fallback: string): string {
+  const data = (error as { response?: { data?: { message?: string | string[] } } })?.response?.data;
+  const message = Array.isArray(data?.message) ? data?.message.join(' ') : data?.message;
+  return message || fallback;
+}
 
 /** Llegó desde la tienda solo para distribuidores (middleware: ?tienda=1): explica por qué pide sesión. */
 function StoreLoginNotice({ text }: { text: string }) {
@@ -68,6 +83,12 @@ export default function LoginPage() {
     remember: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Google Sign-In: la cuenta de Google no está vinculada → pedir ID + contraseña.
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleLink, setGoogleLink] = useState<GoogleLinkRequired | null>(null);
+  const [linkForm, setLinkForm] = useState({ identifier: '', password: '' });
+  const [linkErrors, setLinkErrors] = useState<Record<string, string>>({});
 
   // País + idioma seleccionados en la tienda (cookie NEXT_LOCALE). El login no
   // vive bajo /[locale], pero el provider de i18n del layout raíz lee esa misma
@@ -142,6 +163,60 @@ export default function LoginPage() {
       window.location.href = '/admin';
     } else {
       window.location.href = '/distribuidor';
+    }
+  };
+
+  /** Sesión ya creada por el API (Google): guardar en Redux y entrar al portal. */
+  const finishLogin = (user: UserResponse) => {
+    dispatch(setUser(user));
+    toast.success(t('toast.welcome'));
+    navigateAfterLogin(user.roles?.[0], user.roleCategory);
+  };
+
+  const handleGoogleCredential = async (idToken: string) => {
+    setGoogleBusy(true);
+    try {
+      const result = await authService.loginWithGoogle({ idToken, remember: formData.remember });
+      if (isGoogleLinkRequired(result)) {
+        setLinkForm({ identifier: '', password: '' });
+        setLinkErrors({});
+        setGoogleLink(result);
+        return;
+      }
+      finishLogin(result.user);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('google.error')));
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
+
+  const handleGoogleLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!googleLink) return;
+    const newErrors: Record<string, string> = {};
+    const identifier = linkForm.identifier.trim();
+    if (!identifier) newErrors.identifier = t('errors.identifierRequired');
+    if (!linkForm.password) newErrors.password = t('errors.passwordRequired');
+    if (Object.keys(newErrors).length > 0) {
+      setLinkErrors(newErrors);
+      return;
+    }
+    setLinkErrors({});
+    setGoogleBusy(true);
+    try {
+      const result = await authService.linkGoogle({
+        linkTicket: googleLink.linkTicket,
+        identifier,
+        password: linkForm.password,
+        remember: formData.remember,
+      });
+      toast.success(t('google.linkedToast'));
+      finishLogin(result.user);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('google.error')));
+    } finally {
+      setGoogleBusy(false);
     }
   };
 
@@ -239,6 +314,85 @@ export default function LoginPage() {
 
           <Card className="rounded-3xl border border-gray-100 bg-white/95 shadow-2xl shadow-gray-200/70 backdrop-blur">
             <CardContent className="p-7 sm:p-8 lg:p-9">
+              {googleLink ? (
+                /* La cuenta de Google no está vinculada: confirmar con ID + contraseña */
+                <form onSubmit={handleGoogleLink} className="space-y-6" data-testid="google-link-form">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                    <p className="text-sm font-semibold text-gray-900">{t('google.linkTitle')}</p>
+                    <p className="mt-1 text-sm text-gray-700">
+                      {t('google.linkText', { email: googleLink.email })}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>{t('identifierLabel')}</Label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
+                      <Input
+                        type="text"
+                        placeholder={t('identifierPlaceholder')}
+                        value={linkForm.identifier}
+                        onChange={(e) => setLinkForm({ ...linkForm, identifier: e.target.value })}
+                        autoComplete="username"
+                        disabled={googleBusy}
+                        autoFocus
+                        className="pl-9"
+                        aria-invalid={linkErrors.identifier ? true : undefined}
+                      />
+                    </div>
+                    {linkErrors.identifier && <p className="text-sm text-destructive">{linkErrors.identifier}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>{t('passwordLabel')}</Label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={linkForm.password}
+                        onChange={(e) => setLinkForm({ ...linkForm, password: e.target.value })}
+                        autoComplete="current-password"
+                        disabled={googleBusy}
+                        className="pl-9 pr-10"
+                        aria-invalid={linkErrors.password ? true : undefined}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none"
+                        disabled={googleBusy}
+                        aria-label={showPassword ? t('hidePassword') : t('showPassword')}
+                      >
+                        {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    {linkErrors.password && <p className="text-sm text-destructive">{linkErrors.password}</p>}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="default"
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold"
+                    disabled={googleBusy}
+                  >
+                    {googleBusy ? t('submitting') : t('google.linkSubmit')}
+                  </Button>
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setGoogleLink(null)}
+                      className="text-sm font-medium text-gray-500 transition-colors hover:text-[#3E667D]"
+                      disabled={googleBusy}
+                    >
+                      {t('google.linkCancel')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+              <>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Identifier (email o usuario) */}
                 <div className="space-y-1.5">
@@ -327,6 +481,17 @@ export default function LoginPage() {
                   {t('roleHint')}
                 </div>
               </form>
+
+              {/* Google Sign-In: solo aparece si el API lo tiene encendido */}
+              <GoogleSignInButton
+                className="mt-6"
+                onCredential={handleGoogleCredential}
+                disabled={isLoading || googleBusy}
+                locale={localeLanguage(locale)}
+                dividerLabel={t('google.or')}
+              />
+              </>
+              )}
 
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                 <Link

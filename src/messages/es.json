@@ -843,6 +843,15 @@
     "toast": {
       "welcome": "¡Bienvenid@ de nuevo!",
       "emailLinked": "Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con tu correo electrónico."
+    },
+    "google": {
+      "or": "o",
+      "linkTitle": "Vincula tu cuenta de Google",
+      "linkText": "La cuenta {email} aún no está vinculada a ningún usuario. Confirma quién eres con tu número de distribuidor, correo o usuario y tu contraseña; la próxima vez entrarás solo con Google.",
+      "linkSubmit": "Vincular y entrar",
+      "linkCancel": "Usar otra cuenta",
+      "linkedToast": "Cuenta de Google vinculada",
+      "error": "No se pudo iniciar sesión con Google. Intenta de nuevo."
     }
   },
   "distributor": {
