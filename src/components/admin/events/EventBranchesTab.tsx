@@ -6,7 +6,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Scale } from 'lucide-react';
 import { InformationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useEventBranches, useSetEventBranches } from '@/hooks/useEvents';
+import { evenSplitAllotments, placesPerUnit } from '@/lib/events/allotment';
 import { eventErrorMessage } from '@/lib/events/format';
 import { UNLIMITED_ALLOTMENT, type EventBranchDto, type EventDto } from '@/types/events';
 
@@ -189,6 +190,54 @@ export function EventBranchesTab({ event }: { event: EventDto }) {
     }
   };
 
+  /**
+   * Repartir parejo (5-nov-2026): los boletos que todavía caben en el aforo
+   * (aforo − vigentes, contando titular + invitado) se dividen entre las
+   * sucursales palomeadas, encima de lo que cada una ya vendió. Solo llena
+   * los campos: el usuario revisa y guarda.
+   */
+  const perUnit = placesPerUnit(event.products ?? []);
+  const handleEvenSplit = () => {
+    const selected = branchRows.filter((r) => rowState(r.branchId).checked);
+    if (!event.capacity) {
+      toast.error('Captura primero el aforo del evento (pestaña Datos).');
+      return;
+    }
+    if (selected.length === 0) {
+      toast.error('Palomea las sucursales que van a vender y vuelve a repartir.');
+      return;
+    }
+    const issued = event.stats?.ticketsIssued ?? 0;
+    const split = evenSplitAllotments({
+      capacity: event.capacity,
+      ticketsIssued: issued,
+      placesPerUnit: perUnit,
+      branches: selected.map((r) => ({ branchId: r.branchId, soldUnits: r.current?.soldUnits ?? 0 })),
+    });
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const r of selected) {
+        next[r.branchId] = {
+          ...(prev[r.branchId] ?? base[r.branchId] ?? EMPTY_ROW),
+          checked: true,
+          unlimited: false,
+          allotment: String(split.allotments[r.branchId] ?? 0),
+        };
+      }
+      return next;
+    });
+    const n = selected.length;
+    const detalle = `Aforo ${event.capacity.toLocaleString('es-MX')} − ${issued.toLocaleString('es-MX')} boletos vigentes = ${split.placesLeft.toLocaleString('es-MX')} lugares libres; cada boleto ocupa ${perUnit} ${perUnit === 1 ? 'lugar' : 'lugares'} (titular + invitado).`;
+    if (split.unitsToSplit === 0) {
+      toast.warning(`${detalle} No cabe ningún boleto más: las ${n} sucursales quedan con lo ya vendido (restantes 0). Revisa y guarda.`, { duration: 12000 });
+      return;
+    }
+    toast.info(
+      `${detalle} Se reparten ${split.unitsToSplit.toLocaleString('es-MX')} boletos entre ${n} sucursales: ${split.base} a cada una${split.extra ? ` y ${split.extra} reciben uno más` : ''}, encima de lo ya vendido. Revisa y guarda.`,
+      { duration: 12000 },
+    );
+  };
+
   const isLoading = loadingAssigned || loadingBranches;
 
   return (
@@ -232,6 +281,22 @@ export function EventBranchesTab({ event }: { event: EventDto }) {
                 className="pl-9"
               />
             </div>
+            <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleEvenSplit}
+              disabled={isLoading || !event.capacity || summary.selling === 0 || saveMutation.isPending}
+              title={
+                !event.capacity
+                  ? 'Captura el aforo en la pestaña Datos para poder repartir'
+                  : `Divide entre las sucursales palomeadas los boletos que aún caben en el aforo (cada boleto ocupa ${perUnit} ${perUnit === 1 ? 'lugar' : 'lugares'}: titular + invitado)`
+              }
+            >
+              <Scale className="mr-2 h-4 w-4" aria-hidden />
+              Repartir parejo
+            </Button>
             <p className="text-sm text-gray-600">
               <span className="font-semibold text-gray-900">{summary.selling}</span>{' '}
               {summary.selling === 1 ? 'sucursal vende' : 'sucursales venden'} ·{' '}
@@ -241,6 +306,7 @@ export function EventBranchesTab({ event }: { event: EventDto }) {
               boletos asignados
               {event.capacity ? ` · aforo ${event.capacity.toLocaleString('es-MX')}` : ''}
             </p>
+            </div>
           </div>
 
           {isLoading ? (
