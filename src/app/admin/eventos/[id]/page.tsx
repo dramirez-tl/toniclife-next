@@ -363,6 +363,20 @@ function EventHeader({
         ? `Ej.: ${emitidosDetalle} = ${n(emitidosSuma)}${emitidosSuma !== s.ticketsIssued ? ` (vigentes: ${n(s.ticketsIssued)})` : ''}.`
         : `Ej.: ${n(s.ticketsIssued)} boletos enviados por correo con su QR.`,
     },
+    // Excedentes (5-nov-2026): solo cuando los boletos vigentes ya rebasan el
+    // aforo (p. ej. se capturó el aforo con la venta avanzada). Con el aforo
+    // puesto el POS ya no cobra más; esta tarjeta dice cuántos sobran.
+    ...(event.capacity && s.ticketsIssued > event.capacity
+      ? [
+          {
+            label: 'Excedentes',
+            value: n(s.ticketsIssued - event.capacity),
+            accent: 'text-red-700',
+            hint: 'Boletos vigentes por encima del aforo del evento (emitidos − aforo), contando titular + invitado. Ya estaban emitidos cuando se puso el tope; el POS no cobra ninguno más.',
+            example: `Ej.: ${n(s.ticketsIssued)} emitidos − aforo ${n(event.capacity)} = ${n(s.ticketsIssued - event.capacity)} de más.`,
+          },
+        ]
+      : []),
     {
       label: 'Ingresados',
       value: n(s.ticketsCheckedIn),
