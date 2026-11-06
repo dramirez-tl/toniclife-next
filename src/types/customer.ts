@@ -75,6 +75,9 @@ export interface Customer {
   priceTypeId: string | null;
   branchId: string | null;
   countryId: string | null;
+  /** Acceso al portal (solo en GET /customers/:id): bloqueo por intentos fallidos; null = no bloqueado. */
+  accessLockedUntil?: string | null;
+  accessFailedAttempts?: number;
 
   // MLM
   sponsorId: string | null;
@@ -199,6 +202,8 @@ export interface UpdateCustomerDto {
   priceTypeId?: string;
   branchId?: string;
   countryId?: string;
+  /** Obligatorio cuando countryId cambia: quién lo solicitó y por qué (queda en la auditoría). */
+  countryChangeReason?: string;
   sponsorId?: string;
   uplineId?: string;
   kitType?: string;

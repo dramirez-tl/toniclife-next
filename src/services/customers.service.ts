@@ -154,6 +154,16 @@ class CustomersService {
     return response.data;
   }
 
+  /** Quita el bloqueo de acceso por intentos fallidos de la cuenta ligada al cliente. */
+  async unlockAccess(
+    id: string,
+  ): Promise<{ message: string; unlocked: boolean; wasLockedUntil: string | null }> {
+    const response = await api.post<{ message: string; unlocked: boolean; wasLockedUntil: string | null }>(
+      `${this.basePath}/${id}/unlock-access`,
+    );
+    return response.data;
+  }
+
   async delete(id: string): Promise<void> {
     await api.delete(`${this.basePath}/${id}`);
   }

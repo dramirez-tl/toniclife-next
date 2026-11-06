@@ -14,6 +14,7 @@ import {
   useDeactivateUser,
   useHardDeleteUser,
   useResetEmailVerification,
+  useUnlockUserAccess,
   useEmailVerificationStats,
   useVerifiedUsers,
   useUserBranches,
@@ -42,6 +43,7 @@ import {
   ExclamationTriangleIcon,
   XMarkIcon,
   EyeIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { usersService } from '@/services/users.service';
@@ -228,6 +230,18 @@ function UsuariosContent() {
   const deactivateUser = useDeactivateUser();
   const hardDeleteUser = useHardDeleteUser();
   const resetEmailVerification = useResetEmailVerification();
+  const unlockUserAccess = useUnlockUserAccess();
+  // Desbloqueo de acceso (5-nov-2026): quita el "Cuenta bloqueada. Intenta de nuevo en N minutos".
+  const handleUnlockAccess = async (user: User) => {
+    try {
+      const r = await unlockUserAccess.mutateAsync(user.id);
+      if (r.unlocked) toast.success(`${user.firstName}: ${r.message}`);
+      else toast.info(`${user.firstName}: ${r.message}`);
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'No se pudo desbloquear el acceso');
+    }
+  };
 
   // Computed stats (solo dominio users)
   const stats = useMemo(() => {
@@ -737,6 +751,17 @@ function UsuariosContent() {
               aria-label={`Ver contraseña de ${user.firstName}`}
             >
               <EyeIcon className="h-4 w-4 text-indigo-600" />
+            </button>
+          )}
+          {isSuperAdmin && (
+            <button
+              onClick={() => void handleUnlockAccess(user)}
+              className="rounded-lg p-2 transition-colors hover:bg-muted disabled:opacity-40"
+              title="Desbloquear acceso (quita el bloqueo por intentos fallidos de inicio de sesión)"
+              aria-label={`Desbloquear acceso de ${user.firstName}`}
+              disabled={unlockUserAccess.isPending}
+            >
+              <LockOpenIcon className="h-4 w-4 text-emerald-600" />
             </button>
           )}
           {isSuperAdmin && (

@@ -98,6 +98,16 @@ class UsersService {
   /**
    * Reset email verification for a user (clears email and verification status)
    */
+  /** Quita el bloqueo por intentos fallidos ("Cuenta bloqueada. Intenta de nuevo en N minutos"). */
+  async unlockAccess(
+    id: string,
+  ): Promise<{ message: string; unlocked: boolean; wasLockedUntil: string | null }> {
+    const response = await api.post<{ message: string; unlocked: boolean; wasLockedUntil: string | null }>(
+      `/users/${id}/unlock`,
+    );
+    return response.data;
+  }
+
   async resetEmailVerification(id: string): Promise<{ message: string }> {
     const response = await api.post<{ message: string }>(`/users/${id}/reset-email`);
     return response.data;

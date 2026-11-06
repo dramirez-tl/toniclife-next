@@ -15,7 +15,8 @@ import {
 } from '@/store/slices/customersSlice';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import type { UpdateCustomerDto } from '@/types/customer';
-import { useActivePriceTypes } from '@/hooks/useConfig';
+import { useActivePriceTypes, useActiveCountries } from '@/hooks/useConfig';
+import { customersService } from '@/services/customers.service';
 import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
 import { toast } from 'sonner';
 import {
@@ -29,6 +30,8 @@ import {
   StarIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  GlobeAltIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 
 // Lo que cada estado hace HOY en el sistema (pricing.service, enrollment,
@@ -81,6 +84,8 @@ export default function EditarDistribuidorPage() {
 
   const [loadingCustomer, setLoadingCustomer] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const { data: countries } = useActiveCountries();
   const [successMessage, setSuccessMessage] = useState('');
 
   const [formData, setFormData] = useState<UpdateCustomerDto>({
@@ -94,6 +99,8 @@ export default function EditarDistribuidorPage() {
     curp: '',
     status: 'active',
     customerType: 'distributor',
+    countryId: '',
+    countryChangeReason: '',
   });
 
   useEffect(() => {
@@ -119,11 +126,15 @@ export default function EditarDistribuidorPage() {
         curp: customer.curp ?? '',
         status: (customer.status as UpdateCustomerDto['status']) ?? 'active',
         customerType: customer.customerType ?? 'distributor',
+        countryId: customer.countryId ?? '',
+        countryChangeReason: '',
       });
     }
   }, [customer, id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -178,6 +189,20 @@ export default function EditarDistribuidorPage() {
     if (curp !== orig.curp) payload.curp = curp;
     if (formData.status && formData.status !== orig.status) {
       payload.status = formData.status;
+    }
+
+    // País (5-nov-2026): solo desde el admin y con motivo obligatorio (queda en la
+    // auditoría). La moneda y los precios siguen al país.
+    const countryId = formData.countryId ?? '';
+    if (countryId && countryId !== (customer?.countryId ?? '')) {
+      const reason = (formData.countryChangeReason ?? '').trim();
+      if (reason.length < 5) {
+        toast.error('Escribe el motivo del cambio de país (quién lo solicitó y por qué).');
+        setSaving(false);
+        return;
+      }
+      payload.countryId = countryId;
+      payload.countryChangeReason = reason;
     }
 
     // Tipo de cliente. Si cambia a preferente/cliente, asignamos su tipo de
@@ -427,6 +452,99 @@ export default function EditarDistribuidorPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">18 caracteres</p>
               </div>
+            </div>
+          </div>
+
+          {/* País (5-nov-2026): cambio solo desde el admin, con motivo */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">País</h2>
+            <p className="text-xs text-gray-500 mb-5">
+              Define la moneda, los precios y la tienda que ve el distribuidor. Él no puede cambiarlo desde su portal; aquí
+              sí, dejando el motivo (quién lo solicitó y por qué), que queda en la auditoría.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">País</label>
+                <div className="relative">
+                  <GlobeAltIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <select
+                    name="countryId"
+                    value={formData.countryId ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent bg-white"
+                  >
+                    <option value="">Sin país</option>
+                    {(countries ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}{c.currencyCode ? ` · ${c.currencyCode}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {(formData.countryId ?? '') !== (customer?.countryId ?? '') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Motivo del cambio <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="countryChangeReason"
+                    value={formData.countryChangeReason ?? ''}
+                    onChange={handleChange}
+                    rows={3}
+                    maxLength={300}
+                    placeholder="Ej. Lo solicitó la distribuidora por WhatsApp el 5-nov: se mudó a Guatemala."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Quién lo pidió y por qué. Queda registrado en la auditoría.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Acceso al portal (5-nov-2026): bloqueo por intentos fallidos */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Acceso al portal</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Tras varios intentos fallidos el sistema bloquea el inicio de sesión unos minutos (&quot;Cuenta bloqueada. Intenta de
+              nuevo en N minutos&quot;). Aquí se quita el bloqueo de inmediato.
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {customer?.accessLockedUntil ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-sm text-red-700">
+                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  Bloqueado hasta {new Date(customer.accessLockedUntil).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                  {customer.accessFailedAttempts ? ` · ${customer.accessFailedAttempts} intentos fallidos` : ''}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Sin bloqueo
+                  {customer?.accessFailedAttempts ? ` · ${customer.accessFailedAttempts} intentos fallidos acumulados` : ''}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={unlocking}
+                onClick={async () => {
+                  setUnlocking(true);
+                  try {
+                    const r = await customersService.unlockAccess(id);
+                    if (r.unlocked) toast.success(r.message);
+                    else toast.info(r.message);
+                    await dispatch(fetchCustomerById(id));
+                  } catch (err: unknown) {
+                    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                    toast.error(msg || 'No se pudo desbloquear el acceso');
+                  } finally {
+                    setUnlocking(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <LockOpenIcon className="h-4 w-4 text-emerald-600" />
+                {unlocking ? 'Desbloqueando…' : 'Desbloquear acceso'}
+              </button>
             </div>
           </div>
 

@@ -133,6 +133,17 @@ export function useHardDeleteUser() {
 /**
  * Hook to reset email verification for a user
  */
+export function useUnlockUserAccess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => usersService.unlockAccess(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
 export function useResetEmailVerification() {
   const queryClient = useQueryClient();
 
