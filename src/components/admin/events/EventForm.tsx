@@ -503,9 +503,9 @@ export function EventForm({
               placeholder="Sin tope"
             />
             <p className="text-xs text-gray-400">
-              {linked
-                ? 'Tope total de boletos del evento (informativo).'
-                : 'Tope total de unidades que se pueden asignar a sucursales.'}
+              Tope de boletos vigentes del evento (titular + invitado = personas). Al llegar al tope, el POS rechaza el cobro con
+              &quot;Aforo agotado&quot;
+              {linked ? '.' : ' y la suma asignada a sucursales no puede rebasarlo.'}
             </p>
           </div>
           {!linked && (
