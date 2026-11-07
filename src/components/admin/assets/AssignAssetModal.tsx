@@ -6,8 +6,10 @@
 // UBICACIÓN física: hay equipo (cámaras, DVRs, switches) que se asigna al sitio
 // y no a una persona.
 //
-// Los colaboradores se cargan de /hr/employees, NO de /users: esa tabla tiene
-// 221 mil filas (distribuidores y clientes) y colgaría el selector.
+// Los colaboradores se cargan de GET /it-assets/assignees (expedientes activos
+// CON cuenta de usuario), NO de /users (221 mil filas de distribuidores y
+// clientes, colgaría el selector) ni de /hr/employees (exige hr:read, que el
+// rol `sistemas` no tiene: el selector le salía vacío; 6-nov-2026).
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -27,10 +29,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { groupByRoot } from '@/lib/asset-select-options';
-import { useAssignAsset, useAssetLocations, useReturnAsset, useTransferAsset } from '@/hooks/useAssets';
+import {
+  useAssetAssignees,
+  useAssignAsset,
+  useAssetLocations,
+  useReturnAsset,
+  useTransferAsset,
+} from '@/hooks/useAssets';
 import { useBranches } from '@/hooks/useBranches';
-import { useDepartments, useEmployees } from '@/hooks/useHR';
-import { employeeDisplayName } from '@/types/hr';
+import { useDepartments } from '@/hooks/useHR';
 import {
   ASSET_CONDITIONS,
   ASSET_CONDITION_LABELS,
@@ -74,7 +81,7 @@ export function AssignAssetModal({
   const [returnStatus, setReturnStatus] = useState('available');
   const [notes, setNotes] = useState('');
 
-  const { data: employeesData } = useEmployees({ limit: 200, status: 'active' });
+  const { data: assignees = [] } = useAssetAssignees();
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
   const { data: departments = [] } = useDepartments();
   const { data: locations = [] } = useAssetLocations(branchId ? { branchId } : {});
@@ -85,7 +92,6 @@ export function AssignAssetModal({
   const isSaving =
     assignMutation.isPending || transferMutation.isPending || returnMutation.isPending;
 
-  const employees = employeesData?.data ?? [];
   const branches = branchesData?.data ?? [];
   const hasChildren = (asset?.children?.length ?? 0) > 0;
 
@@ -108,13 +114,13 @@ export function AssignAssetModal({
       // empleado, ruta de la ubicación) en la segunda: en un teléfono el
       // renglón completo se cortaba justo donde está el dato que desempata.
       case 'user':
-        return employees
-          .filter((e) => !!e.userId)
-          .map((e) => ({
-            value: e.userId ?? '',
-            label: employeeDisplayName(e),
-            hint: e.employeeNumber,
-          }));
+        return assignees.map((a) => ({
+          value: a.userId,
+          label: a.name,
+          hint: [a.employeeNumber, a.jobPositionName, a.branchName]
+            .filter((s): s is string => !!s)
+            .join(' · '),
+        }));
       case 'branch':
         return branches.map((b) => ({ value: b.id, label: b.name, hint: b.code }));
       case 'department':
@@ -129,7 +135,7 @@ export function AssignAssetModal({
       default:
         return [];
     }
-  }, [assignmentType, employees, branches, departments, locations]);
+  }, [assignmentType, assignees, branches, departments, locations]);
 
   const handleSubmit = async () => {
     if (!asset) return;

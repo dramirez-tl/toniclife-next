@@ -54,6 +54,8 @@ import type {
   UpdateAssetPurchaseDto,
   UpdateMaintenanceDto,
   UserAssignedAsset,
+  AssetAssignee,
+  AssetAssigneeQueryParams,
 } from '@/types/asset';
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
@@ -162,6 +164,15 @@ class AssetsService {
   /** Qué tiene asignado hoy un colaborador (útil en bajas de personal). */
   async getAssetsByUser(userId: string): Promise<UserAssignedAsset[]> {
     const { data } = await api.get<UserAssignedAsset[]>(`/it-assets/by-user/${userId}`);
+    return data;
+  }
+
+  /**
+   * Colaboradores a los que se les puede asignar un activo (expediente activo
+   * con cuenta de usuario). Bajo los roles del módulo: no exige hr:read.
+   */
+  async getAssignees(params: AssetAssigneeQueryParams = {}): Promise<AssetAssignee[]> {
+    const { data } = await api.get<AssetAssignee[]>('/it-assets/assignees', { params });
     return data;
   }
 

@@ -697,6 +697,29 @@ export interface UserAssignedAsset {
   condition: AssetCondition;
 }
 
+/**
+ * Colaborador al que se le puede asignar un activo (GET /it-assets/assignees):
+ * expediente activo de RRHH con cuenta de usuario activa. `userId` es lo que
+ * recibe /assign. Bajo los roles del módulo (no exige hr:read).
+ */
+export interface AssetAssignee {
+  userId: string;
+  employeeId: string;
+  employeeNumber: string;
+  name: string;
+  email: string | null;
+  branchName: string | null;
+  departmentName: string | null;
+  jobPositionName: string | null;
+  /** Activos que tiene asignados hoy. */
+  assignedCount: number;
+}
+
+export interface AssetAssigneeQueryParams {
+  q?: string;
+  limit?: number;
+}
+
 // ================================
 // MANTENIMIENTO
 // ================================

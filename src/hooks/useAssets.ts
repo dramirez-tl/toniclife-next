@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-query';
 import { assetsService } from '@/services/assets.service';
 import type {
+  AssetAssigneeQueryParams,
   AssetCategoryQueryParams,
   AssetLocationQueryParams,
   AssetPurchaseQueryParams,
@@ -48,6 +49,7 @@ export const assetKeys = {
   stats: () => [...assetKeys.all, 'stats'] as const,
   byTag: (tag: string) => [...assetKeys.all, 'by-tag', tag] as const,
   byUser: (userId: string) => [...assetKeys.all, 'by-user', userId] as const,
+  assignees: (params: AssetAssigneeQueryParams) => [...assetKeys.all, 'assignees', params] as const,
   search: (params: AssetSearchParams) => [...assetKeys.all, 'search', params] as const,
   components: (id: string) => [...assetKeys.all, 'components', id] as const,
   alerts: () => [...assetKeys.all, 'alerts'] as const,
@@ -115,6 +117,15 @@ export function useAssetsByUser(userId: string | undefined) {
     queryKey: assetKeys.byUser(userId ?? ''),
     queryFn: () => assetsService.getAssetsByUser(userId as string),
     enabled: !!userId,
+  });
+}
+
+/** Colaboradores asignables (expediente activo con cuenta); para el selector "Asignar a colaborador". */
+export function useAssetAssignees(params: AssetAssigneeQueryParams = { limit: 200 }) {
+  return useQuery({
+    queryKey: assetKeys.assignees(params),
+    queryFn: () => assetsService.getAssignees(params),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
