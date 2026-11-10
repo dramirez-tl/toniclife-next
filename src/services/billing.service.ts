@@ -186,6 +186,43 @@ export async function listInvoices(query?: InvoiceListQuery): Promise<PaginatedI
   return response.data;
 }
 
+/**
+ * `GET /billing/invoices/xlsx`: el mismo listado en Excel con los filtros que
+ * estén aplicados (sin paginar). Una fila por CFDI con su estado, la
+ * cancelación (motivo, fechas, quién) y con qué folio/UUID se sustituyó. El
+ * nombre del archivo lo pone el API.
+ */
+export async function downloadInvoicesXlsx(query?: InvoiceListQuery): Promise<void> {
+  const qs = toQueryString({
+    search: query?.search,
+    status: query?.status,
+    invoiceType: query?.invoiceType,
+    manualKind: query?.manualKind,
+    cfdiType: query?.cfdiType,
+    paymentMethod: query?.paymentMethod,
+    withBalance: query?.withBalance,
+    branchId: query?.branchId,
+    customerId: query?.customerId,
+    orderId: query?.orderId,
+    posSaleId: query?.posSaleId,
+    emailed: query?.emailed,
+    startDate: query?.startDate,
+    endDate: query?.endDate,
+    sort: query?.sort,
+  });
+  const response = await apiClient.get<Blob>(`${BASE_URL}/invoices/xlsx${qs}`, {
+    responseType: 'blob',
+  });
+  const disposition = String(response.headers?.['content-disposition'] ?? '');
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  saveBlob(
+    response.data as BlobPart,
+    match?.[1] ?? `FACTURAS_${stamp}.xlsx`,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+}
+
 export async function getInvoice(id: string): Promise<InvoiceDetail> {
   const response = await apiClient.get<InvoiceDetail>(`${BASE_URL}/invoices/${id}`);
   return response.data;
@@ -807,6 +844,7 @@ export const billingService = {
   // Invoices (Fase 2)
   createInvoice,
   listInvoices,
+  downloadInvoicesXlsx,
   getInvoice,
   stampInvoice,
   cancelInvoice,

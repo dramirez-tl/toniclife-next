@@ -6,9 +6,13 @@
 // URL (useQueryFilters), la paginación es del servidor y las acciones son las
 // del listado general (ver, PDF, XML, reenviar por correo). Sustituye a la
 // pestaña "Tickets pendientes" de /admin/facturacion/libre.
+// "Descargar Excel" (10-nov-2026): `GET billing/invoices/xlsx` con los MISMOS
+// filtros de la URL, sin paginar; cada fila trae su estado, la cancelación y
+// con qué folio se sustituyó.
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
@@ -19,6 +23,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   MagnifyingGlassIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,6 +35,7 @@ import { useInvoices } from '@/hooks/useBilling';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { billingErrorMessage } from '@/lib/billing-error';
 import { downloadInvoiceFile } from '@/lib/invoice-download';
+import { billingService } from '@/services/billing.service';
 import {
   INVOICE_STATUS_CONFIG,
   InvoiceStatus,
@@ -91,6 +97,20 @@ export function FreeInvoicesTab({ canManage, onNew }: { canManage: boolean; onNe
     [branches],
   );
   const [emailTarget, setEmailTarget] = useState<InvoiceSummary | null>(null);
+
+  // Excel de TODO lo que cumple los filtros aplicados (no solo la página).
+  const [downloading, setDownloading] = useState(false);
+  const downloadExcel = async () => {
+    setDownloading(true);
+    try {
+      await billingService.downloadInvoicesXlsx({ ...query, page: undefined, limit: undefined });
+      toast.success('Excel generado');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo generar el Excel'));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const rows = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -358,7 +378,24 @@ export function FreeInvoicesTab({ canManage, onNew }: { canManage: boolean; onNe
         <CardContent className="p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-gray-900">Facturas sin ticket emitidas</h2>
-            <p className="text-sm text-gray-600">{total} en total</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-gray-600">{total} en total</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => void downloadExcel()}
+                disabled={downloading || isError || total === 0}
+                title={
+                  hasFilters
+                    ? 'Descarga en Excel las facturas que cumplen los filtros aplicados, con su estado, cancelación y folio que las sustituye'
+                    : 'Descarga en Excel todas las facturas sin ticket, con su estado, cancelación y folio que las sustituye'
+                }
+              >
+                <TableCellsIcon className="h-4 w-4" aria-hidden />
+                {downloading ? 'Generando…' : 'Descargar Excel'}
+              </Button>
+            </div>
           </div>
           {isError ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center" role="alert">
