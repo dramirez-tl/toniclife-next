@@ -7,7 +7,8 @@
 // viaticos:read). El rol "Viáticos" solo ve la primera. Como en el sistema
 // anterior: filtro por SEMANA (lunes a domingo) y "Descargar Excel" con los
 // filtros actuales. Filtros en la URL (useQueryFilters -> requiere Suspense);
-// alta/edición y detalle en modales.
+// alta/edición y detalle en modales. Arriba va el aviso del corte semanal
+// (jueves 2:00 p. m., ViaticosCutoffNotice): solo informa.
 
 import { Suspense, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useViaticoSummary, useViaticos } from '@/hooks/useViaticos';
 import { ViaticoFormModal } from '@/components/admin/viaticos/ViaticoFormModal';
 import { ViaticoDetailModal } from '@/components/admin/viaticos/ViaticoDetailModal';
+import { ViaticosCutoffNotice } from '@/components/admin/viaticos/ViaticosCutoffNotice';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { viaticosService } from '@/services/viaticos.service';
 import { saveBlob } from '@/lib/download';
@@ -328,6 +330,8 @@ function ViaticosContent() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+        <ViaticosCutoffNotice />
+
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {chips.map((c) => (
             <Card key={c.label}>

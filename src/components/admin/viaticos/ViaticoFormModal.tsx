@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ViaticosCutoffNotice } from './ViaticosCutoffNotice';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -371,6 +372,8 @@ function ViaticoFormBody({
             distinto.
           </DialogDescription>
         </DialogHeader>
+
+        <ViaticosCutoffNotice />
 
         {!catalog.dailyItemsEnabled && (
           <Alert variant="destructive">
