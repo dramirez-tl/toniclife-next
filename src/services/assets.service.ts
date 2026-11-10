@@ -55,6 +55,7 @@ import type {
   UpdateMaintenanceDto,
   UserAssignedAsset,
   AssetAssignee,
+  AssetAssigneeLookup,
   AssetAssigneeQueryParams,
 } from '@/types/asset';
 
@@ -168,11 +169,22 @@ class AssetsService {
   }
 
   /**
-   * Colaboradores a los que se les puede asignar un activo (expediente activo
-   * con cuenta de usuario). Bajo los roles del módulo: no exige hr:read.
+   * Colaboradores a los que se les puede asignar un activo (expedientes activos
+   * de RRHH, con o sin cuenta). Bajo los roles del módulo: no exige hr:read.
    */
   async getAssignees(params: AssetAssigneeQueryParams = {}): Promise<AssetAssignee[]> {
     const { data } = await api.get<AssetAssignee[]>('/it-assets/assignees', { params });
+    return data;
+  }
+
+  /**
+   * Colaborador de una credencial: lo que leyó la cámara en el código de barras
+   * del reverso (el número de empleado). 404 si no hay expediente con ese número.
+   */
+  async lookupAssignee(code: string): Promise<AssetAssigneeLookup> {
+    const { data } = await api.get<AssetAssigneeLookup>('/it-assets/assignees/lookup', {
+      params: { code },
+    });
     return data;
   }
 

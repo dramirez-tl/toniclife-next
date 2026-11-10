@@ -34,7 +34,15 @@ interface BarcodeScannerDialogProps {
   onDetected: (code: string) => void;
   title?: string;
   description?: string;
+  /**
+   * Limpia lo que leyó la cámara. Si regresa '' la lectura se descarta y el
+   * escáner sigue buscando. Por defecto deja solo los dígitos (etiquetas de
+   * activos); la credencial de un colaborador trae letras (NOI-593).
+   */
+  normalize?: (raw: string) => string;
 }
+
+const digitsOnly = (raw: string) => raw.replace(/[^0-9]/g, '').trim();
 
 /** Formatos que puede traer una etiqueta de activo. */
 const NATIVE_FORMATS = ['code_128', 'code_39', 'ean_13', 'ean_8', 'itf', 'codabar'];
@@ -57,6 +65,7 @@ export function BarcodeScannerDialog({
   onDetected,
   title = 'Escanear etiqueta',
   description = 'Apunta la cámara al código de barras de la etiqueta.',
+  normalize = digitsOnly,
 }: BarcodeScannerDialogProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -88,10 +97,11 @@ export function BarcodeScannerDialog({
     if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
+  /** true = lectura aceptada (el escáner se apaga); false = seguir buscando. */
   const handleHit = useCallback(
-    (raw: string) => {
-      const code = raw.replace(/[^0-9]/g, '').trim();
-      if (!code) return;
+    (raw: string): boolean => {
+      const code = normalize(raw);
+      if (!code) return false;
       stopAll();
       // Vibración corta como confirmación: en la mano se siente antes de mirar.
       try {
@@ -101,8 +111,9 @@ export function BarcodeScannerDialog({
       }
       onDetected(code);
       onOpenChange(false);
+      return true;
     },
-    [onDetected, onOpenChange, stopAll],
+    [normalize, onDetected, onOpenChange, stopAll],
   );
 
   useEffect(() => {
@@ -162,10 +173,9 @@ export function BarcodeScannerDialog({
           if (stoppedRef.current || !videoRef.current) return;
           try {
             const found = await detector.detect(videoRef.current);
-            if (found?.length) {
-              handleHit(found[0].rawValue);
-              return;
-            }
+            // Una lectura que no sirve (sin dígitos, o el QR del sitio en una
+            // credencial) no detiene el escáner: se sigue con el siguiente cuadro.
+            if (found?.some((f) => handleHit(f.rawValue))) return;
           } catch {
             /* frame sin código o aún sin dimensiones: seguir intentando */
           }

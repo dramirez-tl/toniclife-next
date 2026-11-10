@@ -654,6 +654,9 @@ export interface AssetStats {
 
 export interface AssignAssetDto {
   assignmentType: AssignmentType;
+  /** Expediente de RRHH del colaborador (con o sin cuenta de acceso). */
+  assignedEmployeeId?: string | null;
+  /** Forma anterior (por cuenta de usuario); el API la sigue aceptando. */
   assignedUserId?: string | null;
   assignedBranchId?: string | null;
   assignedDepartmentId?: string | null;
@@ -699,12 +702,15 @@ export interface UserAssignedAsset {
 
 /**
  * Colaborador al que se le puede asignar un activo (GET /it-assets/assignees):
- * expediente activo de RRHH con cuenta de usuario activa. `userId` es lo que
- * recibe /assign. Bajo los roles del módulo (no exige hr:read).
+ * cualquier expediente activo de RRHH, tenga o no cuenta de acceso.
+ * `employeeId` es lo que recibe /assign (assignedEmployeeId). Bajo los roles
+ * del módulo (no exige hr:read).
  */
 export interface AssetAssignee {
-  userId: string;
   employeeId: string;
+  /** Cuenta de usuario activa del expediente; null = sin acceso al sistema. */
+  userId: string | null;
+  hasAccount: boolean;
   employeeNumber: string;
   name: string;
   email: string | null;
@@ -713,6 +719,12 @@ export interface AssetAssignee {
   jobPositionName: string | null;
   /** Activos que tiene asignados hoy. */
   assignedCount: number;
+}
+
+/** Colaborador de una credencial escaneada (GET /it-assets/assignees/lookup). */
+export interface AssetAssigneeLookup extends AssetAssignee {
+  /** Foto del expediente (enlace temporal) para confirmar a la vista. */
+  photoUrl: string | null;
 }
 
 export interface AssetAssigneeQueryParams {

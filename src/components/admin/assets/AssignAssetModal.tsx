@@ -6,14 +6,18 @@
 // UBICACIÓN física: hay equipo (cámaras, DVRs, switches) que se asigna al sitio
 // y no a una persona.
 //
-// Los colaboradores se cargan de GET /it-assets/assignees (expedientes activos
-// CON cuenta de usuario), NO de /users (221 mil filas de distribuidores y
-// clientes, colgaría el selector) ni de /hr/employees (exige hr:read, que el
-// rol `sistemas` no tiene: el selector le salía vacío; 6-nov-2026).
+// Los colaboradores se cargan de GET /it-assets/assignees (TODOS los
+// expedientes activos de RRHH, tengan o no cuenta de acceso; 10-nov-2026), NO
+// de /users (221 mil filas de distribuidores y clientes, colgaría el selector)
+// ni de /hr/employees (exige hr:read, que el rol `sistemas` no tiene: el
+// selector le salía vacío; 6-nov-2026). Se asigna al EXPEDIENTE (employeeId).
+//
+// "Escanear credencial": la cámara lee el código de barras del reverso (el
+// número de empleado) y deja elegido al colaborador; la búsqueda manual sigue.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ScanBarcode } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +32,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
+import { BarcodeScannerDialog } from '@/components/admin/assets/BarcodeScannerDialog';
+import { assetsService } from '@/services/assets.service';
 import { groupByRoot } from '@/lib/asset-select-options';
 import {
   useAssetAssignees,
@@ -43,6 +50,7 @@ import {
   ASSET_CONDITION_LABELS,
   ASSIGNMENT_TYPES,
   ASSIGNMENT_TYPE_LABELS,
+  type AssetAssigneeLookup,
   type AssetCondition,
   type AssetDetail,
   type AssignmentType,
@@ -64,6 +72,16 @@ const TITLES: Record<AssignMode, string> = {
   return: 'Devolver activo',
 };
 
+/**
+ * Lo leído en una credencial tal cual (el API lo normaliza). El reverso trae
+ * también un QR al sitio web: una liga no es una credencial, se descarta y el
+ * escáner sigue buscando el código de barras.
+ */
+const badgeCode = (raw: string) => {
+  const code = raw.trim();
+  return /^https?:\/\//i.test(code) ? '' : code;
+};
+
 export function AssignAssetModal({
   open,
   onOpenChange,
@@ -80,6 +98,10 @@ export function AssignAssetModal({
   const [includeChildren, setIncludeChildren] = useState(false);
   const [returnStatus, setReturnStatus] = useState('available');
   const [notes, setNotes] = useState('');
+  // Credencial escaneada: trae la foto y vale aunque el padrón aún no cargue.
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanLookup, setScanLookup] = useState(false);
+  const [scanned, setScanned] = useState<AssetAssigneeLookup | null>(null);
 
   const { data: assignees = [] } = useAssetAssignees();
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
@@ -106,7 +128,39 @@ export function AssignAssetModal({
     setIncludeChildren(false);
     setReturnStatus('available');
     setNotes('');
+    setScanOpen(false);
+    setScanned(null);
   }, [open, asset]);
+
+  // Padrón del selector; se le suma el escaneado por si la lista no lo trae.
+  const people = useMemo(
+    () =>
+      scanned && !assignees.some((a) => a.employeeId === scanned.employeeId)
+        ? [...assignees, scanned]
+        : assignees,
+    [assignees, scanned],
+  );
+  const selectedPerson =
+    assignmentType === 'user' ? people.find((a) => a.employeeId === targetId) : undefined;
+
+  const handleBadgeScanned = useCallback(async (code: string) => {
+    setScanLookup(true);
+    try {
+      const hit = await assetsService.lookupAssignee(code);
+      setScanned(hit);
+      setAssignmentType('user');
+      setTargetId(hit.employeeId);
+      toast.success(`Credencial ${hit.employeeNumber}: ${hit.name}`);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string | string[] } } };
+      const msg = err?.response?.data?.message;
+      toast.error(
+        Array.isArray(msg) ? msg[0] : msg || `No se pudo buscar la credencial ${code}`,
+      );
+    } finally {
+      setScanLookup(false);
+    }
+  }, []);
 
   const targetOptions = useMemo(() => {
     switch (assignmentType) {
@@ -114,10 +168,10 @@ export function AssignAssetModal({
       // empleado, ruta de la ubicación) en la segunda: en un teléfono el
       // renglón completo se cortaba justo donde está el dato que desempata.
       case 'user':
-        return assignees.map((a) => ({
-          value: a.userId,
+        return people.map((a) => ({
+          value: a.employeeId,
           label: a.name,
-          hint: [a.employeeNumber, a.jobPositionName, a.branchName]
+          hint: [a.employeeNumber, a.departmentName, a.jobPositionName, a.branchName]
             .filter((s): s is string => !!s)
             .join(' · '),
         }));
@@ -135,7 +189,7 @@ export function AssignAssetModal({
       default:
         return [];
     }
-  }, [assignmentType, assignees, branches, departments, locations]);
+  }, [assignmentType, people, branches, departments, locations]);
 
   const handleSubmit = async () => {
     if (!asset) return;
@@ -160,7 +214,7 @@ export function AssignAssetModal({
         }
         const dto = {
           assignmentType,
-          assignedUserId: assignmentType === 'user' ? targetId : null,
+          assignedEmployeeId: assignmentType === 'user' ? targetId : null,
           assignedBranchId: assignmentType === 'branch' ? targetId : null,
           assignedDepartmentId: assignmentType === 'department' ? targetId : null,
           assignedLocationId: assignmentType === 'location' ? targetId : null,
@@ -227,13 +281,62 @@ export function AssignAssetModal({
 
               <div className="grid gap-2">
                 <Label>{ASSIGNMENT_TYPE_LABELS[assignmentType]} *</Label>
-                <SearchableSelect
-                  options={targetOptions}
-                  value={targetId}
-                  onChange={setTargetId}
-                  placeholder={`Busca ${ASSIGNMENT_TYPE_LABELS[assignmentType].toLowerCase()}`}
-                  showAllOption={false}
-                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="min-w-0 flex-1">
+                    <SearchableSelect
+                      options={targetOptions}
+                      value={targetId}
+                      onChange={setTargetId}
+                      placeholder={`Busca ${ASSIGNMENT_TYPE_LABELS[assignmentType].toLowerCase()}`}
+                      showAllOption={false}
+                    />
+                  </div>
+                  {assignmentType === 'user' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setScanOpen(true)}
+                      disabled={scanLookup}
+                      title="Lee con la cámara el código de barras del reverso de la credencial"
+                    >
+                      {scanLookup ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ScanBarcode className="mr-2 h-4 w-4" />
+                      )}
+                      Escanear credencial
+                    </Button>
+                  ) : null}
+                </div>
+                {selectedPerson ? (
+                  <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-3">
+                    <EmployeeAvatar
+                      name={selectedPerson.name}
+                      photoUrl={
+                        scanned?.employeeId === selectedPerson.employeeId ? scanned.photoUrl : null
+                      }
+                      size={44}
+                    />
+                    <div className="min-w-0 text-sm">
+                      <p className="truncate font-medium">{selectedPerson.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[
+                          selectedPerson.employeeNumber,
+                          selectedPerson.departmentName,
+                          selectedPerson.branchName,
+                        ]
+                          .filter((s): s is string => !!s)
+                          .join(' · ')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedPerson.assignedCount === 0
+                          ? 'Sin activos asignados hoy'
+                          : `Hoy tiene ${selectedPerson.assignedCount} activo${selectedPerson.assignedCount === 1 ? '' : 's'}`}
+                        {selectedPerson.hasAccount ? '' : ' · Sin cuenta de acceso al sistema'}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
                 {assignmentType === 'location' && !locations.length ? (
                   <p className="text-xs text-muted-foreground">
                     No hay ubicaciones registradas. Créalas en Activos → Ubicaciones.
@@ -365,6 +468,15 @@ export function AssignAssetModal({
             {TITLES[mode]}
           </Button>
         </DialogFooter>
+
+        <BarcodeScannerDialog
+          open={scanOpen}
+          onOpenChange={setScanOpen}
+          onDetected={handleBadgeScanned}
+          normalize={badgeCode}
+          title="Escanear credencial"
+          description="Apunta la cámara al código de barras del reverso de la credencial."
+        />
       </DialogContent>
     </Dialog>
   );

@@ -120,8 +120,11 @@ export function useAssetsByUser(userId: string | undefined) {
   });
 }
 
-/** Colaboradores asignables (expediente activo con cuenta); para el selector "Asignar a colaborador". */
-export function useAssetAssignees(params: AssetAssigneeQueryParams = { limit: 200 }) {
+/**
+ * Colaboradores asignables (todos los expedientes activos de RRHH) para el
+ * selector "Asignar a colaborador". 500 = tope del API: trae el padrón completo.
+ */
+export function useAssetAssignees(params: AssetAssigneeQueryParams = { limit: 500 }) {
   return useQuery({
     queryKey: assetKeys.assignees(params),
     queryFn: () => assetsService.getAssignees(params),
@@ -136,6 +139,8 @@ function useInvalidateAssets() {
     void queryClient.invalidateQueries({ queryKey: assetKeys.lists() });
     void queryClient.invalidateQueries({ queryKey: assetKeys.stats() });
     void queryClient.invalidateQueries({ queryKey: assetKeys.alerts() });
+    // El padrón trae cuántos activos tiene hoy cada colaborador: cambia al asignar o devolver.
+    void queryClient.invalidateQueries({ queryKey: [...assetKeys.all, 'assignees'] });
     if (id) void queryClient.invalidateQueries({ queryKey: assetKeys.detail(id) });
   };
 }
