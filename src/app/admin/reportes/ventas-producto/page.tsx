@@ -5,6 +5,7 @@
 // producto vendido con la venta a la que pertenece (folio, fecha, hora,
 // cliente, cantidad, importe, pago, vendedor), agrupado por producto con
 // subtotales; día local de la sucursal; Excel VENTAS_POR_PRODUCTO.
+// Almacén entra con reports:product_sales (mig 197), sin el resto de reportes.
 
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -155,7 +156,7 @@ export default function VentasProductoPage() {
       : `${formatDateDisplay(applied.startDate)} - ${formatDateDisplay(applied.endDate)}`;
 
   return (
-    <PermissionGuard permissions={['reports:read', 'reports:*']}>
+    <PermissionGuard permissions={['reports:read', 'reports:product_sales']}>
       <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
         {/* Header */}
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3E667D] to-[#2f5165] px-6 py-6 shadow-lg">

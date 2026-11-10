@@ -198,15 +198,17 @@ const navigation: NavItem[] = [
     // siguen exigiendo reports:read.
     // reports:new_distributors (mig 173): Call Center también ve "Nuevos
     // Inscritos" (altas de la semana para invitarlos a los talleres).
-    permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup', 'reports:new_distributors'],
+    // reports:product_sales (mig 197): Almacén ve SOLO "Piezas por Producto" y
+    // "Ventas por Producto" (qué se vendió, para surtir).
+    permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup', 'reports:new_distributors', 'reports:product_sales'],
     children: [
       { name: 'Ventas', href: '/admin/reportes/ventas', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal', permissions: ['reports:read', 'reports', 'reports.sales'] },
       { name: 'Ventas por Usuario', href: '/admin/reportes/ventas-usuario', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:sales_lookup'] },
       { name: 'Nuevos Inscritos', href: '/admin/reportes/nuevos-inscritos', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:new_distributors'] },
-      { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:product_sales'] },
       // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
-      { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales'] },
+      { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:product_sales'] },
       // Formato del sistema anterior: corte de caja (el bono por suscrito vive
       // en Tesorería desde el 26-oct-2026).
       { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },

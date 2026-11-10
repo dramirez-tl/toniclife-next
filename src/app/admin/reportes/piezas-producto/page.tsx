@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useSalesByProductPeriod } from '@/hooks/useReports';
 import { usePeriods } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
+import { PermissionGuard } from '@/components/auth';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -36,7 +37,16 @@ function formatDateDisplay(dateStr: string): string {
   return `${day}/${m}/${y}`;
 }
 
+// Almacén entra con reports:product_sales (mig 197), sin el resto de reportes.
 export default function PiezasProductoPage() {
+  return (
+    <PermissionGuard permissions={['reports:read', 'reports:product_sales']}>
+      <PiezasProductoReport />
+    </PermissionGuard>
+  );
+}
+
+function PiezasProductoReport() {
   const { data: periods, isLoading: periodsLoading } = usePeriods();
 
   // Period range selection
