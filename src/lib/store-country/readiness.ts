@@ -95,10 +95,15 @@ function warehouseDraft(w: WarehouseReadiness, countryName: string): Draft {
         detail: w.warehouse ? `Los pedidos salen de ${w.warehouse}.` : 'Tiene almacén asignado.',
       };
     case 'no_warehouse':
+      // Una zona sin tienda propia (Frontera) compra en la tienda del país: el pedido nace
+      // con el país de la TIENDA y sale de su almacén (checkout del API), así que NO le
+      // falta nada para vender. Lo único que cambia sin almacén propio es que su carrito no
+      // revisa existencias (el API las deja como "desconocidas"). Mismo dicho que la
+      // pantalla de rutas (`noOwnStoreText`).
       return w.isZone
         ? {
-            state: 'missing',
-            detail: `${w.name} no tiene almacén asignado: sus carritos no revisan las existencias reales y un pedido suyo puede quedarse sin envío a domicilio. Se resuelve en Almacenes y envíos con «Usar los mismos almacenes que ${countryName}».`,
+            state: 'attention',
+            detail: `${w.name} compra en la tienda de ${countryName} y sus pedidos salen del almacén de ${countryName}. Como no tiene almacén asignado, su carrito no revisa las existencias: un producto agotado se le avisa hasta el momento de pagar. Para que lo vea antes, en Almacenes y envíos elige «Usar los mismos almacenes que ${countryName}».`,
             action: ROUTES_ACTION,
           }
         : {

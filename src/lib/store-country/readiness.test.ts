@@ -45,11 +45,13 @@ describe('store-country/readiness · renglones', () => {
       detail: 'Los pedidos salen de 164 · Irapuato Almacén General.',
     });
 
+    // Frontera sin almacén propio NO es algo que falte: compra en la tienda de México y le
+    // surte el almacén de México. Solo se avisa lo que cambia (su carrito no revisa existencias).
     const frontera = byId(items, 'warehouse:FN');
-    expect(frontera.state).toBe('missing');
+    expect(frontera.state).toBe('attention');
     expect(frontera.title).toBe('Almacén que surte a Frontera');
     expect(frontera.detail).toBe(
-      'Frontera no tiene almacén asignado: sus carritos no revisan las existencias reales y un pedido suyo puede quedarse sin envío a domicilio. Se resuelve en Almacenes y envíos con «Usar los mismos almacenes que México».',
+      'Frontera compra en la tienda de México y sus pedidos salen del almacén de México. Como no tiene almacén asignado, su carrito no revisa las existencias: un producto agotado se le avisa hasta el momento de pagar. Para que lo vea antes, en Almacenes y envíos elige «Usar los mismos almacenes que México».',
     );
     expect(frontera.action).toEqual({ label: 'Abrir Almacenes y envíos', href: READINESS_LINKS.routes });
 
@@ -224,12 +226,31 @@ describe('store-country/readiness · veredicto', () => {
     purchasesEnabled: true,
   };
 
-  it('lo que falta manda, y las compras apagadas se dicen aparte', () => {
+  /** México con su almacén en pausa: eso sí le impide vender. */
+  const paused: ReadinessInput = {
+    ...today,
+    warehouses: [
+      { code: 'MX', name: 'México', isZone: false, status: 'paused', warehouse: null },
+      { code: 'FN', name: 'Frontera', isZone: true, status: 'no_warehouse', warehouse: null },
+    ],
+  };
+
+  it('México hoy: no le falta nada; Frontera sin almacén propio y la paquetería son puntos por revisar', () => {
     expect(verdictOf(today)).toEqual({
+      state: 'attention',
+      pending: false,
+      title: 'Lista, pero con las compras apagadas',
+      detail:
+        'Nadie puede comprar todavía porque las compras en línea están apagadas para todos los países. Antes de encenderlas conviene revisar el almacén de Frontera y la paquetería.',
+    });
+  });
+
+  it('lo que falta manda, y las compras apagadas se dicen aparte', () => {
+    expect(verdictOf(paused)).toEqual({
       state: 'missing',
       pending: false,
       title: 'Todavía no está lista para vender',
-      detail: 'Falta resolver el almacén de Frontera. Además, las compras en línea están apagadas para todos los países.',
+      detail: 'Falta resolver el almacén de México. Además, las compras en línea están apagadas para todos los países.',
     });
     const co = verdictOf({
       ...today,
@@ -271,7 +292,7 @@ describe('store-country/readiness · veredicto', () => {
   it('mientras se consulta no adelanta un "lista"; lo que no se pudo leer se dice', () => {
     expect(verdictOf({ ...complete, stripe: undefined })).toMatchObject({ state: 'unknown', pending: true, title: 'Revisando…' });
     // Pero algo que ya se sabe que falta no espera a lo demás.
-    expect(verdictOf({ ...today, stripe: undefined })).toMatchObject({ state: 'missing', pending: true });
+    expect(verdictOf({ ...paused, stripe: undefined })).toMatchObject({ state: 'missing', pending: true });
     expect(verdictOf({ ...complete, stripe: null })).toMatchObject({
       state: 'unknown',
       pending: false,

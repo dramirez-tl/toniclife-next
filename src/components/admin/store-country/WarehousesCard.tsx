@@ -21,9 +21,16 @@ interface WarehousesCardProps {
   onRetry: () => void;
 }
 
+/**
+ * Una zona sin tienda propia (Frontera) y sin almacén en su lista NO está sin envío:
+ * compra en la tienda del país y su pedido sale del almacén del país. Lo único que
+ * cambia al darle almacén es que su carrito revise las existencias.
+ */
+const usesCountryWarehouse = (place: StoreWarehousePlace): boolean => place.isZone && place.routes.length === 0;
+
 function emptyText(place: StoreWarehousePlace, countryName: string): string {
   return place.isZone
-    ? `${place.name} no tiene almacén asignado. En Almacenes y envíos se le pueden dar los mismos que a ${countryName}.`
+    ? `${place.name} no tiene almacén propio: compra en la tienda de ${countryName} y sus pedidos salen del almacén de ${countryName}. Si en Almacenes y envíos le das los mismos almacenes, su carrito también revisará las existencias.`
     : `${place.name} no tiene almacén asignado: no se pueden enviar pedidos a domicilio.`;
 }
 
@@ -67,6 +74,8 @@ export function WarehousesCard({ countryName, places, onRetry }: WarehousesCardP
                     <Badge variant="info">
                       <CircleCheck aria-hidden /> Con almacén
                     </Badge>
+                  ) : usesCountryWarehouse(place) ? (
+                    <Badge variant="outline">Le surte el almacén de {countryName}</Badge>
                   ) : (
                     <Badge variant="outline" className="border-red-200 bg-red-100 text-red-900">
                       <CircleAlert aria-hidden /> Sin almacén que surta
