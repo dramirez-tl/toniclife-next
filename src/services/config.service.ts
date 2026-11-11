@@ -357,7 +357,7 @@ class ConfigService {
   // SHIPPING SETTINGS (system_settings)
   // ================================
 
-  /** Costos de envío configurables (admin), por país (default MX). */
+  /** Costos de envío y reglas del envío gratis configurables (admin), por país (default MX). */
   async getShippingSettings(country?: string): Promise<ShippingSettings> {
     const response = await api.get<ShippingSettings>('/config/shipping-settings', {
       params: country ? { country } : undefined,
@@ -444,12 +444,24 @@ class ConfigService {
   }
 }
 
-/** Costos de envío editables desde el admin. */
+/** Costos de envío editables desde el admin, por país. */
 export interface ShippingSettings {
   standardCost: number;
   expressCost: number;
+  /** Subtotal mínimo para el envío estándar gratis (aplica según los dos interruptores). */
   freeThreshold: number;
   kitCost: number;
+  /**
+   * Envío estándar gratis al llegar a `freeThreshold` en este país (por defecto
+   * encendido). Apagado = el envío a domicilio siempre se cobra. Ausente = API
+   * anterior a los interruptores (se comporta como encendido).
+   */
+  freeShippingEnabled?: boolean;
+  /**
+   * El envío gratis por monto también aplica a distribuidores (por defecto no: a un
+   * distribuidor el envío a domicilio siempre se le cobra). Ausente = API anterior.
+   */
+  freeShippingForDistributors?: boolean;
 }
 
 /** Estado global de operación del POS (interruptor de liberación de terminales). */
