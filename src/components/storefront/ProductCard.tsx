@@ -2,7 +2,8 @@
 
 // Tarjeta ÚNICA de producto (catálogo, relacionados). `article` con enlace
 // estirado SOLO sobre imagen + título + precio; el botón "Agregar" es HERMANO del
-// enlace (nunca un <button> dentro de un <a>).
+// enlace (nunca un <button> dentro de un <a>). Con varias tallas o colores el botón no
+// agrega: lleva al producto a elegir (lib/storefront/product-card).
 
 import { useTranslations } from 'next-intl';
 import { track } from '@vercel/analytics';
@@ -11,6 +12,7 @@ import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatProductName } from '@/lib/storefront/content-format';
+import { cardAction, cardBadges, cardFamily, type CardBadge } from '@/lib/storefront/product-card';
 import { productPath } from '@/lib/storefront/slug';
 import type { LanguageCode } from '@/i18n/config';
 import type { StorefrontProductCard } from '@/types/storefront';
@@ -20,9 +22,7 @@ import { useAddToCart } from './useAddToCart';
 
 export const CARD_IMAGE_SIZES = '(min-width:1280px) 25vw, (min-width:768px) 33vw, 50vw';
 
-type BadgeKind = 'outOfStock' | 'lowStock' | 'madeToOrder' | 'new' | 'featured' | 'pack';
-
-const BADGE_STYLES: Record<BadgeKind, string> = {
+const BADGE_STYLES: Record<CardBadge, string> = {
   outOfStock: 'bg-gray-800 text-white',
   lowStock: 'bg-amber-100 text-amber-900',
   madeToOrder: 'bg-sky-100 text-sky-900',
@@ -30,18 +30,6 @@ const BADGE_STYLES: Record<BadgeKind, string> = {
   featured: 'bg-emerald-100 text-emerald-900',
   pack: 'bg-[#C8DDF2] text-[#1f3a4a]',
 };
-
-/** Badges REALES, máximo 2, por prioridad: Agotado > Últimas n > Bajo pedido > Nuevo > Destacado > Paquete. */
-function badgesFor(product: StorefrontProductCard): BadgeKind[] {
-  const badges: BadgeKind[] = [];
-  if (product.availability === 'out_of_stock') badges.push('outOfStock');
-  if (product.availability === 'low_stock' && product.stockLeft !== null) badges.push('lowStock');
-  if (product.madeToOrder) badges.push('madeToOrder');
-  if (product.isNew) badges.push('new');
-  if (product.isFeatured) badges.push('featured');
-  if (product.type === 'pack') badges.push('pack');
-  return badges.slice(0, 2);
-}
 
 interface ProductCardProps {
   product: StorefrontProductCard;
@@ -73,9 +61,11 @@ export function ProductCard({
   const Heading = headingLevel;
   const name = formatProductName(product.name);
   const soldOut = product.availability === 'out_of_stock';
-  const badges = badgesFor(product);
+  const badges = cardBadges(product);
   // Tarjeta de familia (mig 178): habla por todas las variantes que pasan los filtros.
-  const family = product.family && product.family.variantCount > 1 ? product.family : null;
+  const family = cardFamily(product);
+  // Con tallas o colores que elegir, el botón lleva al producto (no agrega la primera talla).
+  const action = cardAction(product);
   const fromPrice = family && family.fromPrice < product.price ? family.fromPrice : null;
 
   return (
@@ -163,6 +153,17 @@ export function ProductCard({
       </div>
 
       <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+        {action !== 'add' && !soldOut ? (
+          <Button asChild className="min-h-11 w-full cursor-pointer">
+            <Link
+              href={productPath(product.slug)}
+              onClick={() => track('select_item', { code: product.code, list: listName })}
+              aria-label={t(action === 'choose_size' ? 'chooseSizeLabel' : 'chooseOptionsLabel', { name })}
+            >
+              {t(action === 'choose_size' ? 'chooseSize' : 'chooseOptions')}
+            </Link>
+          </Button>
+        ) : (
         <Button
           type="button"
           variant={justAdded ? 'success' : 'default'}
@@ -178,6 +179,7 @@ export function ProductCard({
           )}
           {soldOut ? t('soldOut') : isPending ? t('adding') : justAdded ? t('added') : t('add')}
         </Button>
+        )}
         <span className="sr-only" aria-live="polite">
           {announcement}
         </span>
