@@ -2,7 +2,10 @@
 //
 // Tres cosas que la pantalla no decide por su cuenta:
 //  1. Direcciones GUARDADAS (GET /checkout/addresses): cuáles se ofrecen en la tienda de
-//     un país, cuál queda elegida y a cuál le faltan datos antes de poder usarse.
+//     un país, cuál queda elegida y a cuál le faltan datos antes de poder usarse. Casi
+//     todas son las importadas del sistema anterior, que traen calle, número y colonia en
+//     UN renglón ("MADERO 15 CENTRO"): así se entregan y así se usan, sin pedir que se
+//     vuelvan a capturar por partes.
 //  2. El FORMULARIO por país: los campos de `lib/address-forms` (los mismos del alta en
 //     POS, portal y admin) con los topes del DTO del checkout, y el estado / departamento
 //     del catálogo del API (GET /states) en vez de listas fijas.
@@ -225,19 +228,38 @@ function spanOf(keys: readonly AddressFormKey[], index: number): AddressFieldSpa
 }
 
 /**
+ * Para qué se abre el formulario:
+ *  - `new`: una dirección nueva, con todo lo que pide el país (en México, número exterior
+ *    y colonia en su propio campo).
+ *  - `complete`: una guardada que se completa o corrige. Solo se exige lo que exige el API
+ *    (calle, ciudad, estado y código postal): las importadas ya traen el número y la
+ *    colonia dentro del renglón de la calle, y pedirlos otra vez sería capturarlos doble.
+ */
+export type AddressFormMode = 'new' | 'complete';
+
+/** Lo único obligatorio al completar una guardada (lo mismo que el API pide para usarla). */
+const REQUIRED_TO_COMPLETE: ReadonlySet<AddressFormKey> = new Set<AddressFormKey>(['street', 'city', 'state', 'zipCode']);
+
+/**
  * Campos del formulario de envío del país, en el orden en que se capturan: los de
  * `address-forms` + el estado justo después de la ciudad + las referencias al final.
  *  - El código postal es obligatorio en TODOS los países: el API lo exige en un pedido
  *    con envío, aunque el alta lo deje opcional (Guatemala, Colombia).
  *  - Las longitudes se recortan a las del DTO del checkout.
+ *  - En modo `complete` solo son obligatorios calle, ciudad, estado y código postal.
  */
-export function checkoutAddressFields(countryCode: string | null | undefined): CheckoutAddressField[] {
+export function checkoutAddressFields(
+  countryCode: string | null | undefined,
+  mode: AddressFormMode = 'new',
+): CheckoutAddressField[] {
+  const required = (key: AddressFormKey, byCountry: boolean) =>
+    mode === 'complete' ? REQUIRED_TO_COMPLETE.has(key) : key === 'zipCode' ? true : byCountry;
   const fields: Omit<CheckoutAddressField, 'span'>[] = [];
   for (const spec of getAddressForm(countryCode).fields) {
     if (spec.key === 'reference') continue;
     fields.push({
       key: spec.key,
-      required: spec.key === 'zipCode' ? true : spec.required,
+      required: required(spec.key, spec.required),
       maxLength: Math.min(spec.maxLength ?? CHECKOUT_MAX_LENGTH[spec.key], CHECKOUT_MAX_LENGTH[spec.key]),
       ...(spec.placeholder ? { placeholder: spec.placeholder } : {}),
       ...(spec.pattern ? { pattern: spec.pattern } : {}),
@@ -258,8 +280,12 @@ export interface AddressDraftError {
 }
 
 /** Primer problema de la dirección capturada (en el orden del formulario) o `null` si se puede continuar. */
-export function validateAddressDraft(countryCode: string | null | undefined, draft: AddressDraft): AddressDraftError | null {
-  for (const field of checkoutAddressFields(countryCode)) {
+export function validateAddressDraft(
+  countryCode: string | null | undefined,
+  draft: AddressDraft,
+  mode: AddressFormMode = 'new',
+): AddressDraftError | null {
+  for (const field of checkoutAddressFields(countryCode, mode)) {
     const value = (draft[field.key] ?? '').trim();
     if (field.required && !value) return { field: field.key, reason: 'required' };
     if (value && field.pattern && !new RegExp(field.pattern).test(value)) return { field: field.key, reason: 'pattern' };
@@ -273,6 +299,23 @@ export function isValidPostalCode(countryCode: string | null | undefined, value:
   if (!zip) return false;
   const pattern = getAddressForm(countryCode).fields.find((f) => f.key === 'zipCode')?.pattern;
   return !pattern || new RegExp(pattern).test(zip);
+}
+
+/**
+ * Código postal con su cero inicial: el sistema anterior lo guardaba como número y "01000"
+ * quedó en "1000". Solo se antepone el cero si así cumple el formato del país; cualquier
+ * otro valor se devuelve como está. Es para PRELLENAR el formulario que el cliente revisa.
+ */
+export function padPostalCode(countryCode: string | null | undefined, value: string | null | undefined): string {
+  const zip = (value ?? '').trim();
+  if (!zip || !/^\d+$/.test(zip) || isValidPostalCode(countryCode, zip)) return zip;
+  const padded = `0${zip}`;
+  return isValidPostalCode(countryCode, padded) ? padded : zip;
+}
+
+/** Modo del formulario para la elección vigente: una guardada que se completa pide menos que una nueva. */
+export function addressFormMode(choice: AddressChoice): AddressFormMode {
+  return choice.kind === 'complete' ? 'complete' : 'new';
 }
 
 // ===== direcciones guardadas =====
@@ -352,7 +395,8 @@ export function savedAddressOptions(
  * Formulario prellenado con una dirección guardada (para completarla). Un país cuyo
  * formulario no tiene campo de número lo lleva en la línea de la calle: no se pierde.
  * El estado se ajusta al valor del catálogo ("PUEBLA" → "Puebla", "Texas" → "TX"); donde
- * viaja como código y no se reconoce queda vacío para que se elija.
+ * viaja como código y no se reconoce queda vacío para que se elija. El código postal
+ * recupera su cero inicial ("1000" → "01000").
  */
 export function draftFromSavedAddress(address: SavedAddress, ctx: SavedAddressContext): AddressDraft {
   const fields = checkoutAddressFields(ctx.countryCode);
@@ -376,7 +420,7 @@ export function draftFromSavedAddress(address: SavedAddress, ctx: SavedAddressCo
     neighborhood: has('neighborhood') ? cut('neighborhood', address.neighborhood) : '',
     city: cut('city', address.city),
     state: cut('state', state),
-    zipCode: cut('zipCode', address.postalCode),
+    zipCode: cut('zipCode', padPostalCode(ctx.countryCode, address.postalCode)),
     reference: cut('reference', address.reference),
   };
 }
@@ -397,10 +441,17 @@ export function sameAddressChoice(a: AddressChoice | null, b: AddressChoice | nu
   return a.kind === b.kind && a.id === b.id;
 }
 
-/** Sin elección del cliente: la primera que se puede usar tal cual (predeterminada o más reciente); si no hay, una nueva. */
+/**
+ * Sin elección del cliente: la primera que se puede usar tal cual (predeterminada o más
+ * reciente). Si ninguna está lista, la primera guardada llega abierta para COMPLETARSE,
+ * con el formulario prellenado (quien solo tiene una dirección con el código postal mal
+ * guardado no empieza de cero). Sin guardadas, una nueva.
+ */
 export function defaultAddressChoice(options: readonly SavedAddressOption[]): AddressChoice {
-  const first = options.find((option) => option.status === 'ready');
-  return first ? { kind: 'saved', id: first.address.id } : { kind: 'new' };
+  const ready = options.find((option) => option.status === 'ready');
+  if (ready) return { kind: 'saved', id: ready.address.id };
+  const first = options[0];
+  return first ? { kind: 'complete', id: first.address.id } : { kind: 'new' };
 }
 
 /**
@@ -525,7 +576,12 @@ export interface ShippingCountry {
 
 export type ShippingAddressPayload = Pick<
   AuthenticatedCheckoutInput,
-  'shippingAddressId' | 'recipientName' | 'recipientPhone' | 'shippingAddress' | 'saveShippingAddress'
+  | 'shippingAddressId'
+  | 'recipientName'
+  | 'recipientPhone'
+  | 'shippingAddress'
+  | 'saveShippingAddress'
+  | 'replaceShippingAddressId'
 >;
 
 /** `shippingAddress` del pedido (misma forma de siempre): solo los campos del país, sin espacios de sobra ni opcionales vacíos. */
@@ -555,7 +611,9 @@ export function buildCheckoutAddress(
 /**
  * Parte de envío del pedido (POST /checkout/authenticated):
  *  - guardada → `shippingAddressId` + quién recibe, SIN `shippingAddress`;
- *  - nueva o completada → `shippingAddress` + `saveShippingAddress`.
+ *  - nueva o completada → `shippingAddress` + `saveShippingAddress`;
+ *  - completada Y con "guardar" → además `replaceShippingAddressId`: el API actualiza esa
+ *    misma guardada en vez de dejar la original junto a una copia corregida.
  */
 export function buildShippingAddressPayload(input: {
   choice: AddressChoice;
@@ -574,6 +632,9 @@ export function buildShippingAddressPayload(input: {
   return {
     shippingAddress: buildCheckoutAddress(input.draft, input.recipient, input.country),
     saveShippingAddress: input.saveAddress,
+    ...(input.choice.kind === 'complete' && input.saveAddress
+      ? { replaceShippingAddressId: input.choice.id }
+      : {}),
   };
 }
 

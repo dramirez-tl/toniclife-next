@@ -50,6 +50,7 @@ import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry
 import {
   INITIAL_SHIPPING_ADDRESS_STATE,
   activeAddressDraft,
+  addressFormMode,
   buildCheckoutAddress,
   buildShippingAddressPayload,
   chooseAddress,
@@ -367,7 +368,7 @@ export default function CheckoutContent() {
     // Una guardada que se puede usar ya está completa; una nueva (o una guardada por
     // completar) se revisa con los campos y el formato de código postal del país.
     if (addressChoice.kind !== 'saved') {
-      const problem = validateAddressDraft(countryCode, addressDraft);
+      const problem = validateAddressDraft(countryCode, addressDraft, addressFormMode(addressChoice));
       if (problem) {
         setAddressError(problem);
         toast.error(addressTexts.errorText(problem));
@@ -414,7 +415,9 @@ export default function CheckoutContent() {
     // con otra dirección.
     if (!isPickup) {
       const addressProblem =
-        addressChoice.kind === 'saved' ? null : validateAddressDraft(countryCode, addressDraft);
+        addressChoice.kind === 'saved'
+          ? null
+          : validateAddressDraft(countryCode, addressDraft, addressFormMode(addressChoice));
       if (
         addressBookLoading ||
         !sameAddressChoice(shipping.choice, addressChoice) ||
@@ -838,6 +841,7 @@ export default function CheckoutContent() {
                           >
                             <ShippingAddressForm
                               countryCode={countryCode}
+                              mode={addressFormMode(addressChoice)}
                               draft={addressDraft}
                               onChange={(patch) => {
                                 setShipping((state) =>

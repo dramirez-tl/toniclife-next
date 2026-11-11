@@ -129,7 +129,9 @@ export function SavedAddressPicker({ options, choice, onChoose, onDelete, deleti
                 )}
                 {incomplete && (
                   <span className="mt-1 block text-xs text-amber-700">
-                    {t(review ? 'reviewHint' : 'incompleteHint')}
+                    {selected
+                      ? t(review ? 'reviewSelectedHint' : 'incompleteSelectedHint')
+                      : t(review ? 'reviewHint' : 'incompleteHint')}
                   </span>
                 )}
               </span>

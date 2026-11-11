@@ -264,6 +264,11 @@ export interface AuthenticatedCheckoutInput {
   recipientPhone?: string;
   /** Dirección nueva: va con `saveShippingAddress` (el API no duplica una que ya estaba guardada). */
   shippingAddress?: CheckoutAddress;
+  /**
+   * Guardada que el cliente abrió para COMPLETARLA: con `shippingAddress` y
+   * `saveShippingAddress`, el API actualiza esa misma dirección en vez de guardar otra.
+   */
+  replaceShippingAddressId?: string;
   billingAddressId?: string;
   billingAddress?: CheckoutAddress;
   paymentMethod: PaymentMethod;

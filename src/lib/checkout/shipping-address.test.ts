@@ -4,6 +4,7 @@ import {
   EMPTY_ADDRESS_DRAFT,
   INITIAL_SHIPPING_ADDRESS_STATE,
   activeAddressDraft,
+  addressFormMode,
   buildCheckoutAddress,
   buildShippingAddressPayload,
   checkoutAddressFields,
@@ -20,6 +21,7 @@ import {
   isValidPostalCode,
   matchStateValue,
   normalizeSavedAddresses,
+  padPostalCode,
   pinAddressChoice,
   rejectSavedAddress,
   resolveAddressChoice,
@@ -138,6 +140,24 @@ describe('shipping-address · qué guardadas se ofrecen', () => {
     expect(savedAddressStatus(saved(), MX)).toBe('ready');
   });
 
+  it('las importadas del sistema anterior (calle, número y colonia en un renglón) se usan tal cual', () => {
+    const imported = saved({
+      street: 'MADERO 15 CENTRO',
+      extNumber: null,
+      intNumber: null,
+      neighborhood: null,
+      city: 'IRAPUATO',
+      state: 'GUANAJUATO',
+      postalCode: '36500',
+      phone: null,
+      reference: null,
+      isDefault: true,
+    });
+    expect(savedAddressStatus(imported, MX)).toBe('ready');
+    expect(defaultAddressChoice(savedAddressOptions([imported], MX))).toEqual({ kind: 'saved', id: 'a-1' });
+    expect(formatAddressLine(imported)).toBe('MADERO 15 CENTRO, IRAPUATO, GUANAJUATO 36500');
+  });
+
   it('una guardada que el API rechazó al pagar ya no se ofrece tal cual', () => {
     expect(savedAddressStatus(saved(), { ...MX, rejectedIds: ['a-1'] })).toBe('incomplete');
   });
@@ -187,11 +207,33 @@ describe('shipping-address · elección', () => {
     MX,
   );
 
-  it('sin elección del cliente: la primera que se puede usar; si no hay, una nueva', () => {
+  it('sin elección del cliente: la primera que se puede usar; si ninguna, la primera llega para completarse; sin guardadas, una nueva', () => {
     expect(defaultAddressChoice(options)).toEqual({ kind: 'saved', id: 'def' });
-    expect(defaultAddressChoice(options.filter((o) => o.status === 'incomplete'))).toEqual({ kind: 'new' });
+    expect(defaultAddressChoice(options.filter((o) => o.status === 'incomplete'))).toEqual({ kind: 'complete', id: 'inc' });
     expect(defaultAddressChoice([])).toEqual({ kind: 'new' });
     expect(resolveAddressChoice(null, options)).toEqual({ kind: 'saved', id: 'def' });
+  });
+
+  it('quien solo tiene una dirección con el código postal mal guardado la ve abierta y prellenada, no un formulario vacío', () => {
+    const ctx: SavedAddressContext = { countryCode: 'MX', states: MX_STATES };
+    const only = savedAddressOptions(
+      [saved({ id: 'cdmx', street: 'INSURGENTES SUR 1234 DEL VALLE', extNumber: null, neighborhood: null, state: 'CIUDAD DE MEXICO', postalCode: '3100' })],
+      ctx,
+    );
+    const choice = resolveAddressChoice(null, only);
+    expect(choice).toEqual({ kind: 'complete', id: 'cdmx' });
+    const prefilled = activeAddressDraft(INITIAL_SHIPPING_ADDRESS_STATE, choice, only, ctx);
+    expect(prefilled).toMatchObject({
+      street: 'INSURGENTES SUR 1234 DEL VALLE',
+      extNumber: '',
+      neighborhood: '',
+      state: 'Ciudad de México',
+      zipCode: '03100',
+    });
+    // Tal como quedó prellenada ya se puede continuar: no se le pide capturar otra vez número y colonia.
+    expect(validateAddressDraft('MX', prefilled, addressFormMode(choice))).toBeNull();
+    // Como dirección NUEVA sí se pedirían en su propio campo.
+    expect(validateAddressDraft('MX', prefilled)).toEqual({ field: 'extNumber', reason: 'required' });
   });
 
   it('respeta lo que eligió el cliente mientras siga en la lista', () => {
@@ -362,6 +404,38 @@ describe('shipping-address · formulario por país', () => {
   });
 });
 
+describe('shipping-address · completar una guardada pide menos que una nueva', () => {
+  const requiredOf = (country: string, mode?: 'new' | 'complete') =>
+    checkoutAddressFields(country, mode)
+      .filter((f) => f.required)
+      .map((f) => f.key);
+
+  it('nueva: lo que pide el país; completar: solo calle, ciudad, estado y código postal', () => {
+    expect(requiredOf('MX')).toEqual(['street', 'extNumber', 'neighborhood', 'zipCode', 'city', 'state']);
+    expect(requiredOf('MX', 'complete')).toEqual(['street', 'zipCode', 'city', 'state']);
+    expect(requiredOf('GT', 'complete')).toEqual(['street', 'city', 'state', 'zipCode']);
+    expect(requiredOf('US', 'complete')).toEqual(requiredOf('US'));
+  });
+
+  it('los campos, su orden y sus formatos son los mismos en los dos modos', () => {
+    const strip = (country: string, mode?: 'new' | 'complete') =>
+      checkoutAddressFields(country, mode).map(({ key, maxLength, pattern, span }) => ({ key, maxLength, pattern, span }));
+    expect(strip('MX', 'complete')).toEqual(strip('MX'));
+    // El formato del código postal se sigue revisando al completar.
+    expect(validateAddressDraft('MX', draft({ extNumber: '', neighborhood: '', zipCode: '3100' }), 'complete')).toEqual({
+      field: 'zipCode',
+      reason: 'pattern',
+    });
+    expect(validateAddressDraft('MX', draft({ city: '' }), 'complete')).toEqual({ field: 'city', reason: 'required' });
+  });
+
+  it('el modo sale de la elección vigente', () => {
+    expect(addressFormMode({ kind: 'complete', id: 'a-1' })).toBe('complete');
+    expect(addressFormMode({ kind: 'new' })).toBe('new');
+    expect(addressFormMode({ kind: 'saved', id: 'a-1' })).toBe('new');
+  });
+});
+
 describe('shipping-address · validación antes de continuar', () => {
   it('México: completa pasa; falta un obligatorio o el estado', () => {
     expect(validateAddressDraft('MX', draft())).toBeNull();
@@ -393,6 +467,31 @@ describe('shipping-address · validación antes de continuar', () => {
     expect(isValidPostalCode('US', '76234-1234')).toBe(true);
     // País sin formato definido: cualquiera que no esté vacío.
     expect(isValidPostalCode('ZZ', 'AB-123')).toBe(true);
+  });
+});
+
+describe('shipping-address · código postal con su cero inicial', () => {
+  it('el sistema anterior lo guardaba como número: "1000" es "01000"', () => {
+    expect(padPostalCode('MX', '1000')).toBe('01000');
+    expect(padPostalCode('MX', ' 3100 ')).toBe('03100');
+    expect(padPostalCode('US', '2134')).toBe('02134');
+    expect(padPostalCode('CO', '54321')).toBe('054321');
+  });
+
+  it('no toca lo que ya está bien ni lo que un cero no arregla', () => {
+    expect(padPostalCode('MX', '72160')).toBe('72160');
+    expect(padPostalCode('MX', '123')).toBe('123');
+    expect(padPostalCode('MX', '721600')).toBe('721600');
+    expect(padPostalCode('MX', '7216A')).toBe('7216A');
+    expect(padPostalCode('US', '76234-1234')).toBe('76234-1234');
+    expect(padPostalCode('MX', null)).toBe('');
+    // País sin formato definido: cualquier valor vale tal cual.
+    expect(padPostalCode('PE', '1500')).toBe('1500');
+  });
+
+  it('al prellenar el formulario de una guardada', () => {
+    expect(draftFromSavedAddress(saved({ postalCode: '1000' }), MX).zipCode).toBe('01000');
+    expect(draftFromSavedAddress(saved({ countryCode: 'US', state: 'MA', postalCode: '2134' }), US).zipCode).toBe('02134');
   });
 });
 
@@ -517,7 +616,7 @@ describe('shipping-address · cuerpo del pedido', () => {
     expect('shippingAddressId' in payload).toBe(false);
   });
 
-  it('completar una guardada viaja como dirección nueva (el API no la duplica)', () => {
+  it('completar una guardada viaja como dirección nueva y, al guardar, reemplaza a la original', () => {
     const payload = buildShippingAddressPayload({
       choice: { kind: 'complete', id: 'a-1' },
       draft: draft(),
@@ -528,6 +627,27 @@ describe('shipping-address · cuerpo del pedido', () => {
     expect(payload.shippingAddressId).toBeUndefined();
     expect(payload.shippingAddress?.postalCode).toBe('72160');
     expect(payload.saveShippingAddress).toBe(true);
+    expect(payload.replaceShippingAddressId).toBe('a-1');
+  });
+
+  it('sin "guardar" la original no se toca; una dirección nueva nunca reemplaza a otra', () => {
+    const notSaved = buildShippingAddressPayload({
+      choice: { kind: 'complete', id: 'a-1' },
+      draft: draft(),
+      recipient,
+      country: mexico,
+      saveAddress: false,
+    });
+    expect(notSaved.saveShippingAddress).toBe(false);
+    expect('replaceShippingAddressId' in notSaved).toBe(false);
+    const fresh = buildShippingAddressPayload({
+      choice: { kind: 'new' },
+      draft: draft(),
+      recipient,
+      country: mexico,
+      saveAddress: true,
+    });
+    expect('replaceShippingAddressId' in fresh).toBe(false);
   });
 
   it('los opcionales vacíos no viajan y los campos que el país no pide tampoco', () => {

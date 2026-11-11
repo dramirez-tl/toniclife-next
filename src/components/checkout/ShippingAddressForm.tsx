@@ -18,6 +18,7 @@ import {
   type AddressDraftError,
   type AddressFieldSpan,
   type AddressFormKey,
+  type AddressFormMode,
   type StateOption,
 } from '@/lib/checkout/shipping-address';
 
@@ -61,6 +62,8 @@ export function useAddressFormTexts(countryCode: string) {
 interface ShippingAddressFormProps {
   /** País de la tienda (ISO2): define los campos. */
   countryCode: string;
+  /** `complete` = se completa una guardada: solo son obligatorios calle, ciudad, estado y C. P. */
+  mode?: AddressFormMode;
   draft: AddressDraft;
   onChange: (patch: Partial<AddressDraft>) => void;
   /** Opciones del catálogo de estados; vacío = se captura a mano. */
@@ -77,6 +80,7 @@ interface ShippingAddressFormProps {
 
 export function ShippingAddressForm({
   countryCode,
+  mode = 'new',
   draft,
   onChange,
   stateOptions,
@@ -88,7 +92,7 @@ export function ShippingAddressForm({
   hint,
 }: ShippingAddressFormProps) {
   const { t, label, zipHint, errorText } = useAddressFormTexts(countryCode);
-  const fields = checkoutAddressFields(countryCode);
+  const fields = checkoutAddressFields(countryCode, mode);
 
   return (
     <div className="space-y-4">
