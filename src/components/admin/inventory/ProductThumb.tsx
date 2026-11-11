@@ -9,8 +9,9 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { CubeIcon } from '@heroicons/react/24/outline';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useImageAttempt } from '@/hooks/useImageAttempt';
 import { useProductImages } from '@/hooks/useProducts';
-import { imageAttempts, thumbFromGallery, thumbFromRow, type ImageAttempt } from '@/lib/inventory/product-thumb';
+import { imageAttempts, thumbFromGallery, thumbFromRow } from '@/lib/inventory/product-thumb';
 import { cn } from '@/lib/utils';
 
 interface ProductThumbProps {
@@ -34,17 +35,6 @@ function Placeholder({ className, busy = false }: { className?: string; busy?: b
       <CubeIcon className="h-5 w-5 text-[#3E667D]" />
     </div>
   );
-}
-
-/**
- * Intento vigente de una lista (`imageAttempts`) y cómo pasar al siguiente cuando la carga
- * falla. Se recuerda por foto: otra foto empieza de nuevo desde el primer intento.
- */
-function useImageAttempt(attempts: ImageAttempt[]): { current: ImageAttempt | null; fail: () => void } {
-  const key = attempts.map((attempt) => `${attempt.optimized ? 'o' : 'r'}:${attempt.src}`).join('|');
-  const [failed, setFailed] = useState<{ key: string; count: number }>({ key: '', count: 0 });
-  const count = failed.key === key ? failed.count : 0;
-  return { current: attempts[count] ?? null, fail: () => setFailed({ key, count: count + 1 }) };
 }
 
 function ThumbButton({

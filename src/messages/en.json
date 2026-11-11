@@ -17,7 +17,8 @@
       "activeNow": "Live now!",
       "startsOn": "Starts {date}",
       "more": "+{count} more",
-      "gift": "Gift: {name}"
+      "gift": "Gift: {name}",
+      "viewArt": "View the {name} image full size"
     },
     "playVideo": "Play video",
     "pauseVideo": "Pause video",

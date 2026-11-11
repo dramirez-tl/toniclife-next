@@ -1,10 +1,12 @@
 'use client';
 
-// Banner de promociones de temporada (mig 186) para la tienda: temporadas en
-// curso o próximas (≤ 14 días) del país de la tienda, con su arte, sus
-// promociones (3x2, precio especial…) y los productos que participan. El
-// carrito del servidor es quien aplica la promoción; aquí solo se anuncia.
-// Sin temporadas no pinta nada.
+// Banner de promociones de temporada (mig 186) para la tienda: las temporadas del
+// país de la tienda y, dentro, las promociones que corren AHORA (son sorpresa: el
+// API no manda nada antes de su hora), con el arte de la temporada, el arte de
+// cada promoción (al pulsarlo se ve en grande: trae los productos participantes y
+// las condiciones), su mecánica (3x2, precio especial…) y los productos que
+// participan. El carrito del servidor es quien aplica la promoción; aquí solo se
+// anuncia. Sin temporadas no pinta nada.
 
 import { useTranslations } from 'next-intl';
 import { ClockIcon, GiftIcon, SparklesIcon } from '@heroicons/react/24/outline';
@@ -14,6 +16,7 @@ import { useStorefrontSeasonalPromotions } from '@/hooks/useSeasonalPromotions';
 import { productPath } from '@/lib/storefront/slug';
 import { formatLocalStamp } from '@/lib/seasonal-promotions';
 import { cn } from '@/lib/utils';
+import { PromoArt } from './PromoArt';
 
 const MAX_CHIPS = 12;
 
@@ -76,6 +79,18 @@ export function SeasonalPromotionsBanner({
                     const more = Math.max(0, eligible.length - MAX_CHIPS);
                     return (
                       <li key={p.id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                        <div className={cn(p.imageUrl && 'flex flex-col gap-3 sm:flex-row sm:items-start')}>
+                        {p.imageUrl && (
+                          <PromoArt
+                            src={p.imageUrl}
+                            name={p.name}
+                            description={p.description}
+                            label={t('viewArt', { name: p.name })}
+                            sizes={compact ? '144px' : '(min-width: 768px) 256px, (min-width: 640px) 224px, 100vw'}
+                            className={compact ? 'w-32 sm:w-36' : 'w-full sm:w-56 md:w-64'}
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-[#2f5165] px-2.5 py-0.5 text-xs font-bold text-white">
                             {p.typeLabel}
@@ -125,6 +140,8 @@ export function SeasonalPromotionsBanner({
                             ))}
                           </div>
                         )}
+                        </div>
+                        </div>
                       </li>
                     );
                   })}
