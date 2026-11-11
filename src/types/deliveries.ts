@@ -218,3 +218,15 @@ export interface UpdateDeliveryPayload {
   warehouseNotes?: string;
   recipientPhone?: string;
 }
+
+/**
+ * Paquetería ACTIVA del catálogo por país (`GET /pos/deliveries/carriers`, mig 200) para
+ * elegirla al marcar un envío. La entrega sigue guardando solo el nombre (`carrier`).
+ */
+export interface DeliveryCarrierOption {
+  id: string;
+  /** País de la tienda: MX (incluye Frontera), US, CO o GT. */
+  countryCode: string;
+  name: string;
+  isDefault: boolean;
+}

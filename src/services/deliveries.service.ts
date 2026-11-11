@@ -1,8 +1,10 @@
 // deliveries.service.ts - Entregas a domicilio (API pos/deliveries, mig 161)
 
 import api from '@/lib/api';
+import { normalizeDeliveryCarriers } from '@/lib/deliveries/carrier-choice';
 import type {
   Delivery,
+  DeliveryCarrierOption,
   DeliveryListResponse,
   DeliveryQuery,
   UpdateDeliveryPayload,
@@ -41,5 +43,14 @@ export const deliveriesService = {
   async update(id: string, payload: UpdateDeliveryPayload): Promise<Delivery> {
     const { data } = await api.patch<Delivery>(`/pos/deliveries/${id}`, payload);
     return data;
+  },
+
+  /**
+   * Paqueterías ACTIVAS del catálogo por país (mig 200) para marcar un envío. Lista
+   * vacía = no hay catálogo (migración pendiente o ninguna registrada): se escribe a mano.
+   */
+  async getCarriers(): Promise<DeliveryCarrierOption[]> {
+    const { data } = await api.get<unknown>('/pos/deliveries/carriers');
+    return normalizeDeliveryCarriers(data);
   },
 };

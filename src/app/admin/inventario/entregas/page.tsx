@@ -41,12 +41,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useActiveCountries } from '@/hooks/useConfig';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import {
   useDeliveries,
   useDelivery,
+  useDeliveryCarriers,
   useUpdateDelivery,
   useUpdateDeliveryStatus,
 } from '@/hooks/useDeliveries';
@@ -72,6 +75,13 @@ import {
   paymentMethodLabel,
   type DeliveryAction,
 } from '@/lib/deliveries/actions';
+import {
+  OTHER_CARRIER,
+  carriersForDelivery,
+  deliveryStoreCountry,
+  pickCarrier,
+  resolveCarrierChoice,
+} from '@/lib/deliveries/carrier-choice';
 import { currentFontScale } from '@/lib/preferences';
 import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
@@ -212,6 +222,10 @@ function EntregasContent() {
   const [searchInput, setSearchInput] = useState(search);
 
   const { data: branches } = useActiveBranches();
+  // Catálogo de paqueterías y países: se piden al abrir la pantalla para que el diálogo
+  // de "Marcar enviado" ya los tenga (ahí se usan; aquí solo se precargan).
+  useDeliveryCarriers({ enabled: canAct });
+  useActiveCountries();
   const branchOptions = useMemo(
     () => (branches ?? []).map((b) => ({ value: b.id, label: `${b.code} - ${b.name}` })),
     [branches],
@@ -1059,16 +1073,40 @@ function DeliveryActionDialog({
   const busy = updateStatus.isPending || update.isPending;
 
   // Formulario reiniciado por acción (key en el padre = tipo + id).
-  const [carrier, setCarrier] = useState(action?.delivery.carrier ?? '');
+  // Paquetería: null = sin tocar (sale la que ya tenía el envío o, si no tenía, la
+  // predeterminada del país); lo demás lo resuelve lib/deliveries/carrier-choice.
+  const [carrierTyped, setCarrierTyped] = useState<string | null>(null);
+  const [carrierOther, setCarrierOther] = useState<boolean | null>(null);
   const [tracking, setTracking] = useState(action?.delivery.trackingNumber ?? '');
   const [notes, setNotes] = useState('');
   const [reason, setReason] = useState('');
+
+  // Catálogo de paqueterías por país (mig 200). Vacío (API anterior, migración
+  // pendiente o ninguna registrada) = el campo de texto de siempre.
+  const { data: carrierCatalog } = useDeliveryCarriers();
+  const { data: countries } = useActiveCountries();
 
   if (!action) return null;
   const { type, delivery } = action;
   const isOrder = delivery.kind === 'order';
   const mode = deliveryModeOf(delivery);
   const title = deliveryActionTitle(type, mode);
+
+  const carrierOptions = carriersForDelivery(
+    carrierCatalog ?? [],
+    deliveryStoreCountry({
+      addressCountryCode: countries?.find((c) => c.id === delivery.countryId)?.code,
+      currencyCode: delivery.currencyCode,
+    }),
+  );
+  const carrierChoice = resolveCarrierChoice({
+    options: carrierOptions,
+    saved: delivery.carrier,
+    typed: carrierTyped,
+    other: carrierOther,
+  });
+  // Lo que se guarda sigue siendo el NOMBRE de la paquetería, como texto.
+  const carrier = carrierChoice.carrier;
 
   const submit = async () => {
     try {
@@ -1133,14 +1171,51 @@ function DeliveryActionDialog({
             <>
               <div>
                 <Label htmlFor="delivery-carrier">Paquetería</Label>
-                <Input
-                  id="delivery-carrier"
-                  className="mt-1"
-                  value={carrier}
-                  onChange={(e) => setCarrier(e.target.value)}
-                  placeholder="Estafeta, FedEx, DHL, Paquetexpress…"
-                  maxLength={100}
-                />
+                {carrierChoice.mode === 'select' ? (
+                  <>
+                    <Select
+                      value={carrierChoice.selectValue}
+                      onValueChange={(value) => {
+                        const picked = pickCarrier(carrierOptions, value);
+                        setCarrierTyped(picked.typed);
+                        setCarrierOther(picked.other);
+                      }}
+                    >
+                      <SelectTrigger id="delivery-carrier" className="mt-1 w-full">
+                        <SelectValue placeholder="Elige la paquetería" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {carrierOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.name}
+                            {option.isDefault ? ' (predeterminada)' : ''}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value={OTHER_CARRIER}>Otra…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {carrierChoice.showOtherInput && (
+                      <Input
+                        id="delivery-carrier-other"
+                        aria-label="Nombre de la otra paquetería"
+                        className="mt-2"
+                        value={carrier}
+                        onChange={(e) => setCarrierTyped(e.target.value)}
+                        placeholder="Escribe el nombre de la paquetería"
+                        maxLength={100}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <Input
+                    id="delivery-carrier"
+                    className="mt-1"
+                    value={carrier}
+                    onChange={(e) => setCarrierTyped(e.target.value)}
+                    placeholder="Estafeta, FedEx, DHL, Paquetexpress…"
+                    maxLength={100}
+                  />
+                )}
               </div>
               <div>
                 <Label htmlFor="delivery-tracking">Número de guía</Label>
