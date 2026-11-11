@@ -295,6 +295,57 @@ export interface FulfillmentHistoryResponse {
   nextCursor: string | null;
 }
 
+// ── Paqueterías por país de la tienda (mig 200) ──
+
+/** 'fedex' = rastreo automático con FedEx (previsto; se conecta aparte, con sus llaves). */
+export type CarrierIntegration = 'none' | 'fedex';
+
+/** Paquetería con la que se envía en un país de la tienda. México incluye Frontera. */
+export interface Carrier {
+  id: string;
+  /** País de la TIENDA: MX, US, CO o GT. */
+  countryCode: string;
+  name: string;
+  /** Enlace público de rastreo; `{guia}` se sustituye por el número de guía. null = sin enlace. */
+  trackingUrlTemplate: string | null;
+  integration: CarrierIntegration;
+  /** La que se propone al marcar un envío (una por país). */
+  isDefault: boolean;
+  /** false = ya no se ofrece; no se borra para conservar el historial. */
+  isActive: boolean;
+  sortOrder: number;
+  notes: string | null;
+  updatedAt: string | null;
+}
+
+/**
+ * `GET /fulfillment/carriers?country=`. `schemaReady: false` (con lista vacía) = falta
+ * aplicar la migración 200: se avisa y no se puede guardar.
+ */
+export interface CarriersResponse {
+  schemaReady: boolean;
+  carriers: Carrier[];
+}
+
+/** `POST /fulfillment/carriers`. */
+export interface CreateCarrierPayload {
+  countryCode: string;
+  name: string;
+  trackingUrlTemplate?: string | null;
+  isDefault?: boolean;
+  notes?: string | null;
+}
+
+/** `PATCH /fulfillment/carriers/:id` (solo lo que cambia). No hay borrado: se desactiva. */
+export interface UpdateCarrierPayload {
+  name?: string;
+  trackingUrlTemplate?: string | null;
+  isDefault?: boolean;
+  isActive?: boolean;
+  notes?: string | null;
+  sortOrder?: number;
+}
+
 // ── Errores `FUL_*` (§2.17 / §6.3) ──
 
 export type FulfillmentErrorCode =
@@ -310,7 +361,11 @@ export type FulfillmentErrorCode =
   | 'FUL_PRODUCT_INVALID'
   | 'FUL_USE_ROUTES_SCREEN'
   | 'FUL_NO_ROUTE'
-  | 'FUL_MIGRATION_PENDING';
+  | 'FUL_MIGRATION_PENDING'
+  | 'FUL_CARRIER_DUPLICATE'
+  | 'FUL_CARRIER_NOT_FOUND'
+  | 'FUL_CARRIER_INVALID'
+  | 'FUL_CARRIERS_MIGRATION_PENDING';
 
 export interface FulfillmentErrorBody {
   statusCode?: number;

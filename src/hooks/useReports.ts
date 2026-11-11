@@ -287,3 +287,28 @@ export function useNewDistributors(query: NewDistributorsQuery) {
     staleTime: 1000 * 60,
   });
 }
+
+// ================================
+// INGRESOS EN LÍNEA POR PAÍS (Configuración › Tienda en línea por país)
+// ================================
+
+/**
+ * Ingresos de la tienda en línea por país en un rango de días de negocio. El rango sale
+ * del periodo que da el API (o de las fechas que escribe la persona); `null` = aún no
+ * hay rango y no se consulta. Sin reintentos: 403 (sin `reports:read`) y 404 (servidor
+ * que aún no tiene el reporte) se muestran como tales en vez de insistir.
+ */
+export function useOnlineSalesByCountry(
+  range: { from: string; to: string } | null,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ['reports', 'online-sales', 'by-country', range?.from ?? '', range?.to ?? ''],
+    queryFn: () => reportsService.getOnlineSalesByCountry(range?.from ?? '', range?.to ?? ''),
+    enabled: (options?.enabled ?? true) && !!range?.from && !!range?.to,
+    retry: false,
+    staleTime: 1000 * 60,
+    // Al cambiar de fechas se conserva lo anterior a la vista hasta que llega lo nuevo.
+    placeholderData: (prev) => prev,
+  });
+}

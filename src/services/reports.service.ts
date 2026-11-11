@@ -45,7 +45,9 @@ import type {
   SalesByProductDetailResponse,
   CashCutQuery,
   CashCutResponse,
+  OnlineSalesByCountryResponse,
 } from '@/types/reports';
+import { normalizeOnlineSales } from '@/lib/store-country/online-sales';
 
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -529,6 +531,18 @@ class ReportsService {
       `REPORTE_CORTE_CAJA_SUCURSAL_${downloadStamp()}.xlsx`,
       XLSX_MIME,
     );
+  }
+
+  /**
+   * Ingresos de la tienda en línea por país de la tienda (México incluye Frontera) en
+   * un rango de días de negocio. El rango lo pone quien llama (el periodo sale del API
+   * de periodos): aquí no se calcula ningún mes. Backend: GET /reports/online-sales/by-country.
+   */
+  async getOnlineSalesByCountry(from: string, to: string): Promise<OnlineSalesByCountryResponse> {
+    const response = await api.get<unknown>('/reports/online-sales/by-country', { params: { from, to } });
+    const data = normalizeOnlineSales(response.data);
+    if (!data) throw new Error('El servidor respondió los ingresos en línea en un formato que no se pudo leer.');
+    return data;
   }
 }
 

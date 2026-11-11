@@ -28,3 +28,14 @@ export function useFulfillmentPermissions() {
     [permissions, roles],
   );
 }
+
+/**
+ * ¿La sesión tiene al menos uno de estos permisos? Con la misma regla de arriba, para
+ * las secciones de "Tienda en línea por país" que dependen de otro módulo (p. ej. los
+ * ingresos en línea, que piden `reports:read`). El API sigue siendo quien decide.
+ */
+export function useHasAnyPermission(required: readonly string[]): boolean {
+  const permissions = useAppSelector(selectUserPermissions);
+  const roles = useAppSelector(selectUserRoles);
+  return hasAny(permissions, roles, [...required]);
+}

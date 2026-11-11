@@ -462,6 +462,14 @@ export interface ShippingSettings {
    * distribuidor el envío a domicilio siempre se le cobra). Ausente = API anterior.
    */
   freeShippingForDistributors?: boolean;
+  /**
+   * Solo en la LECTURA (no se manda al guardar): ¿el país tiene montos propios
+   * capturados? false = usa los de fábrica o, Frontera, los de México. Ausente = API
+   * anterior o no se pudo saber.
+   */
+  hasOwnSettings?: boolean;
+  /** Solo en la lectura: país del que toma lo que no tiene capturado (Frontera → "MX"); si no hereda, null. */
+  inheritedFrom?: string | null;
 }
 
 /** Estado global de operación del POS (interruptor de liberación de terminales). */

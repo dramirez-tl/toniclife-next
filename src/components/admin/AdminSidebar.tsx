@@ -309,6 +309,13 @@ const navigation: NavItem[] = [
     children: [
       { name: 'General', href: '/admin/configuracion' },
       { name: 'Catálogos', href: '/admin/configuracion/catalogos' },
+      // Tienda en línea por país: lo que cada país necesita para vender (almacén,
+      // cobro, paqueterías, costos de envío, dirección e ingresos) en un solo lugar.
+      {
+        name: 'Tienda en línea por país',
+        href: '/admin/configuracion/tienda-por-pais',
+        permissions: ['fulfillment:read', 'fulfillment:manage'],
+      },
       // Rutas de surtido del ecommerce: qué almacén envía a qué país (mig 144).
       {
         name: 'Almacenes y envíos',

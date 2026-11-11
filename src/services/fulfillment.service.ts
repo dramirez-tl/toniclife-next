@@ -7,7 +7,11 @@
 // se tocan. El orden de `routes` es la prioridad (el API renumera 1..n).
 
 import api from '@/lib/axios';
+import { normalizeCarriersResponse } from '@/lib/store-country/carriers';
 import type {
+  Carrier,
+  CarriersResponse,
+  CreateCarrierPayload,
   FulfillmentDiagnosticsResponse,
   FulfillmentHistoryResponse,
   FulfillmentRoutesResponse,
@@ -16,6 +20,7 @@ import type {
   FulfillmentWarehouseOption,
   SaveFulfillmentRoutesPayload,
   SaveFulfillmentRoutesResponse,
+  UpdateCarrierPayload,
 } from '@/types/fulfillment';
 
 const BASE = '/fulfillment';
@@ -63,6 +68,31 @@ class FulfillmentService {
         ...(params.cursor ? { cursor: params.cursor } : {}),
       },
     });
+    return response.data;
+  }
+
+  // ── Paqueterías por país de la tienda (mig 200) ──
+
+  /**
+   * Catálogo de un país de la tienda (MX incluye Frontera), activas e inactivas; sin
+   * país, todas. `schemaReady: false` = falta aplicar la migración 200 (lista vacía).
+   */
+  async getCarriers(country?: string): Promise<CarriersResponse> {
+    const response = await api.get<unknown>(`${BASE}/carriers`, {
+      params: country?.trim() ? { country: country.trim().toUpperCase() } : undefined,
+    });
+    return normalizeCarriersResponse(response.data);
+  }
+
+  /** Agrega una paquetería a un país (`fulfillment:manage`). */
+  async createCarrier(payload: CreateCarrierPayload): Promise<Carrier> {
+    const response = await api.post<Carrier>(`${BASE}/carriers`, payload);
+    return response.data;
+  }
+
+  /** Cambia una paquetería: datos, predeterminada o activa. No hay borrado: se desactiva. */
+  async updateCarrier(id: string, payload: UpdateCarrierPayload): Promise<Carrier> {
+    const response = await api.patch<Carrier>(`${BASE}/carriers/${id}`, payload);
     return response.data;
   }
 }

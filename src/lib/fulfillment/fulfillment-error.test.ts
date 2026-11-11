@@ -36,6 +36,35 @@ describe('FUL_BRANCH_INACTIVE muestra el mensaje del API (M-4)', () => {
   });
 });
 
+describe('errores de paqueterías (mig 200)', () => {
+  it('nombre repetido, migración pendiente y paquetería borrada salen de la tabla', () => {
+    expect(
+      fulfillmentErrorMessage(httpError(409, { code: 'FUL_CARRIER_DUPLICATE', message: 'Ya hay una paquetería activa con ese nombre en ese país.' })),
+    ).toBe('Ya hay una paquetería activa con ese nombre en este país.');
+    expect(fulfillmentErrorMessage(httpError(503, { code: 'FUL_CARRIERS_MIGRATION_PENDING', message: 'Service Unavailable' }))).toContain(
+      'migración 200',
+    );
+    expect(fulfillmentErrorMessage(httpError(404, { code: 'FUL_CARRIER_NOT_FOUND' }))).toBe('Esa paquetería ya no existe. Recarga la página.');
+  });
+
+  it('un dato inválido muestra lo que dice el API, que nombra el problema', () => {
+    const message = 'El enlace de rastreo debe llevar {guia} donde va el número de guía.';
+    expect(fulfillmentErrorMessage(httpError(400, { code: 'FUL_CARRIER_INVALID', message, field: 'trackingUrlTemplate' }))).toBe(message);
+    expect(parseFulfillmentError(httpError(400, { code: 'FUL_CARRIER_INVALID', message, field: 'trackingUrlTemplate' })).field).toBe(
+      'trackingUrlTemplate',
+    );
+    expect(fulfillmentErrorMessage(httpError(400, { code: 'FUL_CARRIER_INVALID', message: 'Bad Request' }))).toBe(
+      'Revisa los datos de la paquetería.',
+    );
+  });
+
+  it('un servidor que aún no tiene el catálogo (404 sin código) lo dice sin tecnicismos', () => {
+    const notYet = 'Esta función todavía no está disponible en el servidor.';
+    expect(fulfillmentErrorMessage(httpError(404, { statusCode: 404, message: 'Cannot POST /api/v1/fulfillment/carriers' }))).toBe(notYet);
+    expect(fulfillmentErrorMessage(httpError(404, { statusCode: 404, message: 'Not Found' }), 'No se pudo guardar.')).toBe(notYet);
+  });
+});
+
 describe('fulfillment-error', () => {
   it('lee el cuerpo plano y el anidado de Nest', () => {
     expect(parseFulfillmentError(httpError(409, { code: 'FUL_VERSION_CONFLICT', message: 'x' })).code).toBe(

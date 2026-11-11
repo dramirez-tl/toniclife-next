@@ -26,6 +26,9 @@ const GENERIC_MESSAGES = [
   'conflict',
   'unprocessable entity',
   'forbidden',
+  // 404 de un servidor que aún no tiene la ruta: "Cannot GET /api/v1/…", "Not Found".
+  'cannot ',
+  'not found',
 ];
 
 export const FULFILLMENT_ERROR_LABELS: Record<string, string> = {
@@ -44,13 +47,20 @@ export const FULFILLMENT_ERROR_LABELS: Record<string, string> = {
   FUL_USE_ROUTES_SCREEN: 'El almacén de envío ahora se configura en Almacenes y envíos.',
   FUL_MIGRATION_PENDING:
     'Todavía no se puede guardar: Sistemas debe aplicar la actualización de la base de datos de esta pantalla (migración 144).',
+  // Paqueterías por país (mig 200).
+  FUL_CARRIER_DUPLICATE: 'Ya hay una paquetería activa con ese nombre en este país.',
+  FUL_CARRIER_NOT_FOUND: 'Esa paquetería ya no existe. Recarga la página.',
+  FUL_CARRIER_INVALID: 'Revisa los datos de la paquetería.',
+  FUL_CARRIERS_MIGRATION_PENDING:
+    'Todavía no se pueden guardar paqueterías: Sistemas debe aplicar la actualización de la base de datos (migración 200).',
 };
 
 /**
  * Códigos donde el mensaje del API dice MÁS que la tabla (nombra la sucursal:
- * "La sucursal 164 · … está desactivada"): gana el del API si no es genérico.
+ * "La sucursal 164 · … está desactivada"; dice qué dato de la paquetería está mal):
+ * gana el del API si no es genérico.
  */
-const PREFER_API_MESSAGE = new Set<string>(['FUL_BRANCH_INACTIVE']);
+const PREFER_API_MESSAGE = new Set<string>(['FUL_BRANCH_INACTIVE', 'FUL_CARRIER_INVALID']);
 
 export interface ParsedFulfillmentError {
   status: number | null;

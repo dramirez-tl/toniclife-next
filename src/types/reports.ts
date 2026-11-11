@@ -1168,3 +1168,51 @@ export interface SalesByProductDetailResponse {
   totals: SalesByProductTotals;
   products: ProductSalesSummary[];
 }
+
+// ================================
+// INGRESOS EN LÍNEA POR PAÍS (GET /reports/online-sales/by-country)
+// ================================
+
+/** Lo cobrado por una pasarela (y cuenta) dentro del país. */
+export interface OnlineSalesGateway {
+  gateway: string;
+  /** Cuenta de la pasarela ('mx', 'us'…); null si no aplica. */
+  account: string | null;
+  /** Texto listo para mostrar ("Stripe México"). */
+  label: string;
+  orders: number;
+  /** Importe en la moneda del país (texto decimal). */
+  total: string;
+}
+
+/**
+ * Ingresos de la tienda en línea de un país en el rango. Los importes vienen como
+ * texto decimal en la moneda del país. Los pedidos de Frontera cuentan en México.
+ */
+export interface OnlineSalesCountry {
+  countryCode: string;
+  countryName: string;
+  currency: string;
+  paidOrders: number;
+  /** Piezas vendidas. */
+  units: number;
+  /** Productos (antes de descuentos, envío e impuestos). */
+  subtotal: string;
+  discount: string;
+  shipping: string;
+  tax: string;
+  /** Total cobrado. */
+  total: string;
+  points: number;
+  gateways: OnlineSalesGateway[];
+  /** Pedidos creados que aún no se pagan (no cuentan como ingreso). */
+  pendingOrders: number;
+  pendingTotal: string;
+}
+
+export interface OnlineSalesByCountryResponse {
+  from: string;
+  to: string;
+  /** Siempre vienen los cuatro países con tienda, en ceros si no hubo pedidos. */
+  countries: OnlineSalesCountry[];
+}

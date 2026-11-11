@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  useShippingSettings,
-  useUpdateShippingSettings,
   useCountries,
   usePlatformSettings,
   useUpdatePlatformSettings,
@@ -29,48 +27,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { Switch } from '@/components/ui/switch';
 import { PermissionGuard } from '@/components/auth';
-import { formatCurrency } from '@/lib/currency';
-import type { ShippingSettings } from '@/services/config.service';
+import { ShippingSettingsFields } from '@/components/admin/shipping/ShippingSettingsFields';
+import { useShippingSettingsForm } from '@/components/admin/shipping/useShippingSettingsForm';
 
 type StorefrontAccessMode = 'public' | 'members';
-
-/**
- * Ajustes de envío del API → campos del formulario. Un API anterior a los interruptores
- * del envío gratis no los manda: valen lo de siempre (gratis al llegar al mínimo para
- * clientes; los distribuidores siempre lo pagan).
- */
-function shippingFormValues(s: ShippingSettings) {
-  return {
-    freeShippingThreshold: s.freeThreshold,
-    standardShippingCost: s.standardCost,
-    expressShippingCost: s.expressCost,
-    kitShippingCost: s.kitCost,
-    freeShippingEnabled: s.freeShippingEnabled ?? true,
-    freeShippingForDistributors: s.freeShippingForDistributors ?? false,
-  };
-}
-
-/** Qué pasa con el envío estándar a domicilio según los dos interruptores, dicho en llano. */
-function freeShippingEffect(
-  enabled: boolean,
-  forDistributors: boolean,
-  threshold: number,
-  amount: string,
-): string {
-  if (!enabled) {
-    return 'Todas las compras pagan envío estándar, sin importar el monto.';
-  }
-  if (!(threshold > 0)) {
-    return forDistributors
-      ? 'El envío estándar es gratis en todas las compras, porque el monto mínimo está en cero.'
-      : 'El envío estándar es gratis en todas las compras de clientes que no son distribuidores, porque el monto mínimo está en cero. Los distribuidores lo pagan siempre.';
-  }
-  return forDistributors
-    ? `Nadie paga envío estándar en compras de ${amount} o más: ni clientes ni distribuidores.`
-    : `Los clientes que no son distribuidores no pagan envío estándar en compras de ${amount} o más. Los distribuidores lo pagan siempre.`;
-}
 
 /**
  * Pestaña "Tienda en línea": quién puede entrar a la tienda (storefront.access_mode).
@@ -188,15 +149,6 @@ export default function ConfiguracionPage() {
     lowStockThreshold: 10,
     autoReorderEnabled: false,
 
-    // Shipping Settings (conectados a system_settings vía API)
-    freeShippingThreshold: 1500,
-    standardShippingCost: 150,
-    expressShippingCost: 250,
-    kitShippingCost: 150,
-    // Envío gratis por monto: encendido por país y, aparte, para distribuidores.
-    freeShippingEnabled: true,
-    freeShippingForDistributors: false,
-
     // Email Settings
     smtpHost: 'smtp.sendgrid.net',
     smtpPort: 587,
@@ -276,20 +228,10 @@ export default function ConfiguracionPage() {
   };
 
   // ── Costos de envío reales (system_settings), POR PAÍS ──
+  // El formulario (lectura, campos y guardado) es el mismo de Tienda en línea por
+  // país: vive en components/admin/shipping.
   const [shippingCountry, setShippingCountry] = useState('MX');
-  const { data: shippingData } = useShippingSettings(shippingCountry);
-  const updateShipping = useUpdateShippingSettings(shippingCountry);
-
-  useEffect(() => {
-    if (!shippingData) return;
-    setSettings((prev) => ({ ...prev, ...shippingFormValues(shippingData) }));
-  }, [shippingData]);
-
-  // Los interruptores del envío gratis solo viajan si el servidor ya los conoce (los
-  // manda en la lectura): un API anterior rechaza las claves que no admite y no se
-  // guardarían ni los costos. Mientras carga se da por hecho que sí.
-  const freeShippingFlagsSupported =
-    !shippingData || typeof shippingData.freeShippingEnabled === 'boolean';
+  const shippingForm = useShippingSettingsForm(shippingCountry);
 
   // Países: solo para la moneda de los costos de envío. El almacén que surte
   // cada país ya NO se edita aquí (countries.default_shipping_branch_id es un
@@ -301,51 +243,15 @@ export default function ConfiguracionPage() {
     (countries ?? []).find((c) => c.code === shippingCountry)?.currencyCode ||
     'MXN';
 
-  // Texto con la moneda del país para las frases de ayuda ("$1,500.00").
-  const freeShippingAmount = formatCurrency(
-    settings.freeShippingThreshold,
-    shippingCurrency,
-  );
-
-  const handleSaveShipping = () => {
-    // Sin los ajustes del país en pantalla (aún cargan o no se pudieron leer) se
-    // guardarían los del país anterior o los de fábrica, interruptores incluidos.
-    if (!shippingData) {
-      toast.error(
-        'Aún no se cargan los ajustes de envío de este país. Espera un momento o recarga la página.',
-      );
-      return;
-    }
-    updateShipping.mutate(
-      {
-        standardCost: settings.standardShippingCost,
-        expressCost: settings.expressShippingCost,
-        freeThreshold: settings.freeShippingThreshold,
-        kitCost: settings.kitShippingCost,
-        ...(freeShippingFlagsSupported
-          ? {
-              freeShippingEnabled: settings.freeShippingEnabled,
-              freeShippingForDistributors: settings.freeShippingForDistributors,
-            }
-          : {}),
-      },
-      {
-        onSuccess: () => toast.success('Ajustes de envío actualizados'),
-        onError: () =>
-          toast.error('No se pudieron guardar los ajustes de envío'),
-      },
-    );
-  };
-
   const canSaveActiveTab =
     activeTab === 'shipping' || PLATFORM_TABS.includes(activeTab);
   const savingActiveTab =
-    (activeTab === 'shipping' && updateShipping.isPending) ||
+    (activeTab === 'shipping' && shippingForm.isSaving) ||
     (PLATFORM_TABS.includes(activeTab) && updatePlatform.isPending);
 
   const handleSave = () => {
     if (activeTab === 'shipping') {
-      handleSaveShipping();
+      shippingForm.save();
       return;
     }
     if (PLATFORM_TABS.includes(activeTab)) {
@@ -367,9 +273,7 @@ export default function ConfiguracionPage() {
         return next as typeof prev;
       });
     }
-    if (shippingData) {
-      setSettings((prev) => ({ ...prev, ...shippingFormValues(shippingData) }));
-    }
+    shippingForm.reset();
     toast.info('Cambios descartados (se recargó lo guardado).');
   };
 
@@ -679,148 +583,12 @@ export default function ConfiguracionPage() {
                     />
                   </div>
 
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío Estándar ({shippingCurrency})
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={settings.standardShippingCost}
-                          onChange={(e) => setSettings({ ...settings, standardShippingCost: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío Express ({shippingCurrency})
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={settings.expressShippingCost}
-                          onChange={(e) => setSettings({ ...settings, expressShippingCost: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío del Kit de Inscripción ({shippingCurrency})
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={settings.kitShippingCost}
-                          onChange={(e) => setSettings({ ...settings, kitShippingCost: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                        <p className="mt-1 text-xs text-gray-400">
-                          Se cobra cuando el miembro elige envío a domicilio para su kit.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Envío gratis por monto: se enciende por país y, aparte, para
-                        distribuidores. Regla del API: el envío estándar es gratis solo si
-                        está encendido Y la compra llega al monto mínimo Y (quien compra no
-                        es distribuidor O también aplica a distribuidores). */}
-                    <div className="rounded-xl border border-gray-200 p-5">
-                      <h3 className="text-base font-semibold text-gray-900">Envío gratis</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Solo aplica al envío estándar a domicilio. El envío express y el
-                        del kit de inscripción siempre se cobran.
-                      </p>
-
-                      <label className="mt-5 flex items-start gap-3">
-                        <Switch
-                          checked={settings.freeShippingEnabled}
-                          onCheckedChange={(v) => setSettings({ ...settings, freeShippingEnabled: v })}
-                          disabled={!freeShippingFlagsSupported}
-                          className="mt-0.5"
-                        />
-                        <span>
-                          <span className="block text-sm font-medium text-gray-900">
-                            Envío gratis a partir del monto mínimo
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            Encendido: la compra que llega al monto mínimo no paga envío
-                            estándar. Apagado: todas las compras lo pagan.
-                          </span>
-                        </span>
-                      </label>
-
-                      <div
-                        className={`mt-4 pl-11 transition-opacity ${
-                          settings.freeShippingEnabled ? '' : 'opacity-50'
-                        }`}
-                      >
-                        <label
-                          htmlFor="free-shipping-threshold"
-                          className="block text-sm font-medium text-gray-700 mb-2"
-                        >
-                          Monto mínimo para envío gratis ({shippingCurrency})
-                        </label>
-                        <input
-                          id="free-shipping-threshold"
-                          type="number"
-                          min={0}
-                          value={settings.freeShippingThreshold}
-                          disabled={!settings.freeShippingEnabled}
-                          onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseFloat(e.target.value) || 0 })}
-                          className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent disabled:cursor-not-allowed disabled:bg-gray-100"
-                        />
-                        <p className="mt-1 text-xs text-gray-400">
-                          Se compara con el subtotal de la compra.
-                          {!settings.freeShippingEnabled &&
-                            ' No se usa mientras el envío gratis esté apagado.'}
-                        </p>
-                      </div>
-
-                      <label
-                        className={`mt-5 flex items-start gap-3 transition-opacity ${
-                          settings.freeShippingEnabled ? '' : 'opacity-50'
-                        }`}
-                      >
-                        <Switch
-                          checked={settings.freeShippingForDistributors}
-                          onCheckedChange={(v) => setSettings({ ...settings, freeShippingForDistributors: v })}
-                          disabled={!freeShippingFlagsSupported || !settings.freeShippingEnabled}
-                          className="mt-0.5"
-                        />
-                        <span>
-                          <span className="block text-sm font-medium text-gray-900">
-                            También aplica a distribuidores
-                          </span>
-                          <span className="block text-xs text-gray-500">
-                            Encendido: los distribuidores también reciben el envío gratis
-                            al llegar al monto mínimo. Apagado: siempre pagan envío estándar.
-                          </span>
-                        </span>
-                      </label>
-
-                      <p
-                        className="mt-5 rounded-lg bg-[#C8DDF2]/25 px-4 py-3 text-sm text-[#2f5165]"
-                        aria-live="polite"
-                      >
-                        <span className="font-semibold">Así queda: </span>
-                        {freeShippingEffect(
-                          settings.freeShippingEnabled,
-                          settings.freeShippingForDistributors,
-                          settings.freeShippingThreshold,
-                          freeShippingAmount,
-                        )}
-                      </p>
-
-                      {!freeShippingFlagsSupported && (
-                        <p className="mt-3 text-xs text-amber-700">
-                          El servidor todavía no admite estos interruptores: por ahora aplica
-                          la regla de siempre. Se podrán cambiar en cuanto se actualice.
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <ShippingSettingsFields
+                    values={shippingForm.values}
+                    onChange={shippingForm.change}
+                    currency={shippingCurrency}
+                    flagsSupported={shippingForm.flagsSupported}
+                  />
                 </CardContent>
               </Card>
             )}

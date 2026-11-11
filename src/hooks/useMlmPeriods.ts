@@ -23,24 +23,27 @@ export const mlmPeriodKeys = {
 };
 
 /**
- * Hook to get all periods
+ * Hook to get all periods. `options.enabled = false` evita la consulta (p. ej. una
+ * sección que solo ve quien tiene permiso de reportes).
  */
-export function usePeriods() {
+export function usePeriods(options?: { enabled?: boolean }) {
   return useQuery<MlmPeriod[]>({
     queryKey: mlmPeriodKeys.lists(),
     queryFn: () => mlmPeriodsService.getPeriods(),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
 /**
- * Hook to get current active period
+ * Hook to get current active period. `options.enabled = false` evita la consulta.
  */
-export function useCurrentPeriod() {
+export function useCurrentPeriod(options?: { enabled?: boolean }) {
   return useQuery<MlmPeriod>({
     queryKey: mlmPeriodKeys.current(),
     queryFn: () => mlmPeriodsService.getCurrentPeriod(),
     staleTime: 5 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
