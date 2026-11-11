@@ -13,7 +13,6 @@ import {
   ArrowLeftIcon,
   UserIcon,
   BuildingStorefrontIcon,
-  LockClosedIcon,
   IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
@@ -28,10 +27,12 @@ import { LinePersonalization } from '@/components/storefront/LinePersonalization
 import { PickupBranchPicker } from '@/components/storefront/PickupBranchPicker';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { CheckoutSignInGate } from '@/components/checkout/CheckoutSignInGate';
 import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/checkout/SavedAddressPicker';
 import { ShippingAddressForm, addressFieldId, useAddressFormTexts } from '@/components/checkout/ShippingAddressForm';
 import {
   useCart,
+  useCartMergeStatus,
   useCheckoutSummary,
   useGuestCheckout,
   useAuthenticatedCheckout,
@@ -84,12 +85,13 @@ import {
   type ShippingRecipient,
 } from '@/lib/checkout/shipping-address';
 import { cartDisplayCurrency } from '@/lib/storefront/cart-country';
+import { cartMayStillFill } from '@/lib/storefront/cart-merge-status';
 import { cartKeys } from '@/lib/storefront/cart-query-keys';
 import { cartSummaryMismatch } from '@/lib/storefront/cart-sync';
 import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
 import { catalogErrorCode, catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
 import { useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectIsInitialized, selectUser } from '@/store/slices/authSlice';
 import {
   PaymentMethod,
   ShippingMethod,
@@ -142,12 +144,13 @@ export default function CheckoutContent() {
   const router = useRouter();
   const t = useTranslations('checkout');
   // País + idioma de la tienda (locale): moneda, impuesto, envío y estados.
-  const { countryId, countryCode, currency, lang } = useStoreCountry();
+  const { countryId, countryCode, currency, lang, locale } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, cartDisplayCurrency(cart?.currencyCode, currency), lang);
   const taxIncluded = countryCode === 'MX';
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('info');
   const currentUser = useAppSelector(selectUser);
   const isAuthenticated = !!currentUser;
+  const authInitialized = useAppSelector(selectIsInitialized);
   // Modo de entrega: envío a domicilio (default) o recoger en sucursal.
   const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'pickup'>(
     'delivery',
@@ -195,6 +198,13 @@ export default function CheckoutContent() {
   // por cuenta y otra pestaña u otro dispositivo pudo cambiarlo (lib/storefront/cart-sync).
   const queryClient = useQueryClient();
   const { data: cart, isLoading: cartLoading, isFetching: cartFetching } = useCart({ fresh: true });
+  // Quien inicia sesión o crea su cuenta desde aquí vuelve con el carrito de invitado aún
+  // sin pasar a su cuenta (lo mezcla `CartMergeOnLogin`): el carrito de la cuenta puede
+  // llegar vacío un instante. Mientras la sesión no se ha leído, la mezcla sigue en curso
+  // o el carrito se está volviendo a pedir, "vacío" todavía no significa vacío.
+  const mergeStatus = useCartMergeStatus();
+  const cartEmpty = !cart || cart.items.length === 0;
+  const cartSettling = cartFetching || cartMayStillFill({ authInitialized, mergeStatus });
 
   // Direcciones guardadas del comprador y catálogo de estados del país de la tienda.
   // De ahí sale la elección VIGENTE: la que eligió el cliente o, si aún no elige, la
@@ -370,14 +380,15 @@ export default function CheckoutContent() {
     setCustomerInfo((prev) => fillContactFromBuyer(prev, { name: buyerName, phone: buyerPhone }));
   }
 
-  // Check if cart is empty. Con el pedido ya creado el carrito queda vacío (se convirtió
-  // en pedido): ahí no se regresa al carrito, se muestra la confirmación.
+  // Check if cart is empty, ya asentado (ver `cartSettling`). Con el pedido ya creado el
+  // carrito queda vacío (se convirtió en pedido): ahí no se regresa al carrito, se muestra
+  // la confirmación.
   useEffect(() => {
     if (orderResult) return;
-    if (!cartLoading && (!cart || cart.items.length === 0)) {
+    if (!cartLoading && !cartSettling && cartEmpty) {
       router.push('/carrito');
     }
-  }, [cart, cartLoading, router, orderResult]);
+  }, [cartEmpty, cartLoading, cartSettling, router, orderResult]);
 
   // Si cambia el país de la tienda se limpia el estado capturado (un estado MX no
   // aplica a US y viceversa). El país de la dirección sale siempre de `shippingCountry`.
@@ -618,9 +629,13 @@ export default function CheckoutContent() {
     }
   };
 
-  // Loading state. También mientras se regresa al carrito porque quedó vacío (p. ej. lo
-  // vació otra sesión de la misma cuenta): no se pinta un resumen sin productos.
-  if (cartLoading || (!orderResult && cart?.items.length === 0)) {
+  // Loading state: el carrito aún carga; la sesión aún no se lee (evita pintar la puerta de
+  // acceso a quien ya entró); o el carrito está vacío: todavía puede llenarse con el de
+  // invitado (`cartSettling`) o ya se regresa al carrito (p. ej. lo vació otra sesión de la
+  // misma cuenta). No se pinta un resumen sin productos; con el pedido ya creado, sí la
+  // confirmación.
+  const emptyCartPending = !orderResult && (cart?.items.length === 0 || (cartEmpty && cartSettling));
+  if (cartLoading || !authInitialized || emptyCartPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
@@ -629,43 +644,10 @@ export default function CheckoutContent() {
   }
 
   // El checkout requiere sesión (el pago se procesa sobre la cuenta).
-  // Gate amable en vez de dejar fallar el envío del pedido.
+  // Gate amable en vez de dejar fallar el envío del pedido: Google, iniciar sesión o
+  // crear la cuenta. Al entrar con Google aquí mismo, esta puerta deja de pintarse.
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#C8DDF2]/40">
-              <LockClosedIcon className="h-8 w-8 text-[#3E667D]" />
-            </div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {t('authTitle')}
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              {t('authBody')}
-            </p>
-            <div className="mt-6 space-y-3">
-              <Link href="/login?redirect=/checkout" className="block">
-                <Button size="lg" className="w-full">
-                  {t('signIn')}
-                </Button>
-              </Link>
-              <Link href="/registro?redirect=/checkout" className="block">
-                <Button variant="outline" size="lg" className="w-full">
-                  {t('createAccount')}
-                </Button>
-              </Link>
-              <Link
-                href="/carrito"
-                className="inline-block pt-1 text-sm text-gray-500 transition-colors hover:text-[#3E667D]"
-              >
-                {t('backToCart')}
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <CheckoutSignInGate locale={locale} countryCode={countryCode} />;
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { AuthGuard } from '@/components/auth/AuthGuard';
@@ -12,6 +12,9 @@ import { DistributorTour } from '@/components/distributor/DistributorTour';
 import { NetworkExportWatcher } from '@/components/distributor/NetworkExportWatcher';
 import { OnboardingGate } from '@/components/distributor/OnboardingGate';
 import { DistributorLocaleSync } from '@/components/distributor/DistributorLocaleSync';
+import { isStoreAccount, storePathInsteadOf } from '@/lib/auth-area';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 
 // Secciones que aún viven sobre datos de demostración (no conectadas al API).
 // Se muestran como "próximamente" para no presentar números ficticios como
@@ -48,6 +51,24 @@ const DISTRIBUTOR_ROLES = [
   ...LEGACY_ROLE_CODES,
 ];
 
+/**
+ * La cuenta del público (cliente final) comparte rol con el distribuidor, pero no tiene
+ * panel: sin patrocinador, kit ni red, aquí la esperarían la compra del kit de
+ * inscripción (OnboardingGate), el tutorial y "Mi red". Se le lleva a la tienda (o a sus
+ * pedidos, si eso buscaba) sin pintar nada del panel. El middleware ya lo hace con la
+ * cookie de ruteo; esto cubre una sesión cuya cookie no lo diga.
+ */
+function LeavePanelForStore({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]" />
+    </div>
+  );
+}
+
 export default function DistributorLayout({
   children,
 }: {
@@ -55,6 +76,9 @@ export default function DistributorLayout({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const pathname = usePathname();
+  // Cuenta del público: no entra al panel (un colaborador de soporte sí, aunque su
+  // usuario tenga enlazado un cliente de ese tipo: el rol manda).
+  const finalCustomer = isStoreAccount(useAppSelector(selectUser));
   const t = useTranslations('distributor');
   const comingSoonKey = pathname ? COMING_SOON_ROUTES[pathname] : undefined;
   const comingSoonTitle = comingSoonKey
@@ -69,6 +93,10 @@ export default function DistributorLayout({
       allowColaborador
       requiredRoles={DISTRIBUTOR_ROLES}
     >
+      {finalCustomer ? (
+        <LeavePanelForStore to={storePathInsteadOf(pathname ?? '/distribuidor')} />
+      ) : (
+      <>
       {/* Aplica el idioma guardado en la cuenta (users.language) al panel */}
       <DistributorLocaleSync />
       {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}
@@ -109,6 +137,8 @@ export default function DistributorLayout({
           </main>
         </div>
       </div>
+      </>
+      )}
     </AuthGuard>
   );
 }

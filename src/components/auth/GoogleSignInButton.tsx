@@ -51,8 +51,11 @@ interface GoogleSignInButtonProps {
   /** Recibe el ID token de Google; el padre lo manda al API. */
   onCredential: (idToken: string) => void | Promise<void>;
   disabled?: boolean;
-  /** Texto del botón (lo traduce Google con `locale`). */
-  text?: 'signin_with' | 'continue_with';
+  /**
+   * Texto del botón (lo traduce Google con `locale`): "Iniciar sesión con Google",
+   * "Continuar con Google" o "Registrarse con Google".
+   */
+  text?: 'signin_with' | 'continue_with' | 'signup_with';
   /** Idioma del botón: 'es' | 'en'. */
   locale?: string;
   /** Separador ("o") que se dibuja solo si el botón existe. */
@@ -77,7 +80,11 @@ export function GoogleSignInButton({
   }, [onCredential]);
 
   const [clientId, setClientId] = useState<string | null>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  // Si Google Identity Services ya está en la página (otra pantalla lo cargó antes) no
+  // hay que esperar al script; si no, `onReady` de <Script> lo marca al terminar de cargar.
+  const [scriptReady, setScriptReady] = useState(
+    () => typeof window !== 'undefined' && !!window.google?.accounts?.id,
+  );
 
   useEffect(() => {
     let alive = true;

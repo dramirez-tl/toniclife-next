@@ -24,7 +24,8 @@ import { toast } from 'sonner';
 import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
 import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
-import { resolvePortal } from '@/lib/auth-roles';
+import { postLoginPath } from '@/lib/auth-area';
+import { googleLinkStep, signupCountry } from '@/lib/public-signup';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   authService,
@@ -34,6 +35,7 @@ import {
   type UserResponse,
 } from '@/services/auth.service';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { GoogleSignupConfirm } from '@/components/auth/GoogleSignupConfirm';
 import {
   loginAsync,
   logoutAsync,
@@ -85,8 +87,12 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Google Sign-In: la cuenta de Google no está vinculada → pedir ID + contraseña.
+  // Si además nadie tiene cuenta con ese correo (`canSignUp`), se ofrece una segunda
+  // salida para quien es nuevo: crear su cuenta de la tienda (`signup`).
   const [googleBusy, setGoogleBusy] = useState(false);
   const [googleLink, setGoogleLink] = useState<GoogleLinkRequired | null>(null);
+  const [googleMode, setGoogleMode] = useState<'link' | 'signup'>('link');
+  const [signupCountryCode, setSignupCountryCode] = useState('MX');
   const [linkForm, setLinkForm] = useState({ identifier: '', password: '' });
   const [linkErrors, setLinkErrors] = useState<Record<string, string>>({});
 
@@ -127,50 +133,24 @@ export default function LoginPage() {
     }
   }, [emailLinkRequired]);
 
-  const navigateAfterLogin = (roleCode?: string, roleCategory?: string) => {
-    // El portal se decide por la CATEGORÍA del rol (colaborador→admin,
-    // cliente→distribuidor); el código solo es fallback de tokens viejos.
-    // Ver lib/auth-roles.ts — aquí NO hay listas de roles quemadas.
-    const isAdmin = resolvePortal(roleCategory, roleCode) === 'admin';
+  /** `?redirect=` leído directo de la URL (evita useSearchParams/Suspense). */
+  const readRedirect = () => new URLSearchParams(window.location.search).get('redirect');
 
-    // Read redirect param directly from the URL (avoids useSearchParams/Suspense)
-    const params = new URLSearchParams(window.location.search);
-    const redirectPath = params.get('redirect');
-
-    // Honor the redirect only if it matches the user's section
-    // (don't send admins to /distribuidor or vice versa from a stale redirect)
-    if (redirectPath && redirectPath.startsWith('/')) {
-      const isAdminRedirect = redirectPath.startsWith('/admin');
-      const isDistribuidorRedirect = redirectPath.startsWith('/distribuidor');
-
-      if (isAdmin && isAdminRedirect) {
-        window.location.href = redirectPath;
-        return;
-      }
-      if (!isAdmin && isDistribuidorRedirect) {
-        window.location.href = redirectPath;
-        return;
-      }
-      // For neutral redirects (not /admin or /distribuidor), honor them
-      if (!isAdminRedirect && !isDistribuidorRedirect) {
-        window.location.href = redirectPath;
-        return;
-      }
-    }
-
-    // Default: route based on role
-    if (isAdmin) {
-      window.location.href = '/admin';
-    } else {
-      window.location.href = '/distribuidor';
-    }
+  const navigateAfterLogin = (user: UserResponse) => {
+    // El destino lo decide lib/auth-area.ts con el ÁREA de la sesión — categoría del
+    // rol (colaborador→admin, cliente→distribuidor; ver lib/auth-roles.ts, aquí NO hay
+    // listas de roles quemadas) y tipo de cuenta: la cuenta del público (cliente
+    // final) va a la tienda, nunca al panel del distribuidor. `?redirect=` se respeta
+    // solo si es una ruta de este sitio y del área de la persona (no manda a un
+    // colaborador a /distribuidor ni al revés por un enlace viejo).
+    window.location.href = postLoginPath({ user, redirect: readRedirect() });
   };
 
-  /** Sesión ya creada por el API (Google): guardar en Redux y entrar al portal. */
-  const finishLogin = (user: UserResponse) => {
+  /** Sesión ya creada por el API (Google): guardar en Redux y entrar a su sitio. */
+  const finishLogin = (user: UserResponse, created = false) => {
     dispatch(setUser(user));
-    toast.success(t('toast.welcome'));
-    navigateAfterLogin(user.roles?.[0], user.roleCategory);
+    toast.success(created ? t('signup.created') : t('toast.welcome'));
+    navigateAfterLogin(user);
   };
 
   const handleGoogleCredential = async (idToken: string) => {
@@ -180,6 +160,9 @@ export default function LoginPage() {
       if (isGoogleLinkRequired(result)) {
         setLinkForm({ identifier: '', password: '' });
         setLinkErrors({});
+        setGoogleMode('link');
+        // País de la tienda para una cuenta nueva: el del sitio al que iba o el elegido.
+        setSignupCountryCode(signupCountry({ redirect: readRedirect(), storedLocale: getStoredLocale() }));
         setGoogleLink(result);
         return;
       }
@@ -264,11 +247,14 @@ export default function LoginPage() {
       }
 
       toast.success(t('toast.welcome'));
-      navigateAfterLogin(result.user.roles?.[0], result.user.roleCategory);
+      navigateAfterLogin(result.user);
     } catch {
       // Error is handled via authError state
     }
   };
+
+  // La cuenta de Google elegida no es de nadie y se puede abrir una nueva con ella.
+  const googleCanSignUp = googleLinkStep(googleLink) === 'new_account';
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -314,23 +300,52 @@ export default function LoginPage() {
 
           <Card className="rounded-3xl border border-gray-100 bg-white/95 shadow-2xl shadow-gray-200/70 backdrop-blur">
             <CardContent className="p-7 sm:p-8 lg:p-9">
-              {googleLink ? (
+              {googleLink && googleMode === 'signup' ? (
+                /* Persona nueva: confirma sus datos y se crea su cuenta de la tienda */
+                <GoogleSignupConfirm
+                  link={googleLink}
+                  countryCode={signupCountryCode}
+                  remember={formData.remember}
+                  loginHref="/login"
+                  onSignedIn={(user) => finishLogin(user, true)}
+                  onCancel={() => setGoogleLink(null)}
+                  onBack={() => setGoogleMode('link')}
+                />
+              ) : googleLink ? (
                 /* La cuenta de Google no está vinculada: confirmar con ID + contraseña */
                 <form onSubmit={handleGoogleLink} className="space-y-6" data-testid="google-link-form">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
-                    <p className="text-sm font-semibold text-gray-900">{t('google.linkTitle')}</p>
-                    <p className="mt-1 text-sm text-gray-700">
-                      {t('google.linkText', { email: googleLink.email })}
-                    </p>
-                  </div>
+                  {googleCanSignUp ? (
+                    /* Ese correo no es de nadie: aquí llegan distribuidores (que vinculan su
+                       cuenta) y personas nuevas (que crean la suya). Las dos salidas, claras. */
+                    <>
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                        <p className="break-words text-sm font-semibold text-gray-900">
+                          {t('google.choiceTitle', { email: googleLink.email })}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-700">{t('google.choiceText')}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{t('google.linkOptionTitle')}</p>
+                        <p className="mt-1 text-sm text-gray-600">{t('google.linkOptionText')}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                      <p className="text-sm font-semibold text-gray-900">{t('google.linkTitle')}</p>
+                      <p className="mt-1 text-sm text-gray-700">
+                        {t('google.linkText', { email: googleLink.email })}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
-                    <Label>{t('identifierLabel')}</Label>
+                    {/* Aquí sí se nombra el número de distribuidor: es con lo que casi todos vinculan. */}
+                    <Label>{t('google.linkIdentifierLabel')}</Label>
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
                       <Input
                         type="text"
-                        placeholder={t('identifierPlaceholder')}
+                        placeholder={t('google.linkIdentifierPlaceholder')}
                         value={linkForm.identifier}
                         onChange={(e) => setLinkForm({ ...linkForm, identifier: e.target.value })}
                         autoComplete="username"
@@ -379,6 +394,30 @@ export default function LoginPage() {
                   >
                     {googleBusy ? t('submitting') : t('google.linkSubmit')}
                   </Button>
+
+                  {googleCanSignUp && (
+                    <>
+                      <div className="flex items-center gap-3" aria-hidden="true">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-xs uppercase tracking-wide text-gray-400">{t('google.or')}</span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                      </div>
+                      <div className="rounded-2xl border border-gray-200 p-4" data-testid="google-new-account-option">
+                        <p className="text-sm font-semibold text-gray-900">{t('google.newOptionTitle')}</p>
+                        <p className="mt-1 text-sm text-gray-600">{t('google.newOptionText')}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="lg"
+                          className="mt-3 h-auto min-h-11 w-full whitespace-normal py-2"
+                          disabled={googleBusy}
+                          onClick={() => setGoogleMode('signup')}
+                        >
+                          {t('google.newOptionCta')}
+                        </Button>
+                      </div>
+                    </>
+                  )}
 
                   <div className="text-center">
                     <button

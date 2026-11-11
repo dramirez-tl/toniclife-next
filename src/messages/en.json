@@ -6,7 +6,11 @@
     "help": "Help",
     "goToPanel": "Go to Panel",
     "login": "Sign in",
-    "join": "Become a distributor"
+    "join": "Become a distributor",
+    "account": "My account",
+    "accountMenu": "My account menu",
+    "myOrders": "My orders",
+    "logout": "Sign out"
   },
   "common": {
     "tagline": "Natural wellness since 2004 — Tonic Life"
@@ -972,10 +976,119 @@
       "or": "or",
       "linkTitle": "Link your Google account",
       "linkText": "The account {email} is not linked to any user yet. Confirm who you are with your distributor number, email or username and your password; next time you will sign in with Google only.",
+      "linkIdentifierLabel": "Distributor number, email or username",
+      "linkIdentifierPlaceholder": "Your number, email or username",
       "linkSubmit": "Link and sign in",
       "linkCancel": "Use another account",
       "linkedToast": "Google account linked",
-      "error": "Could not sign in with Google. Please try again."
+      "error": "Could not sign in with Google. Please try again.",
+      "tooMany": "Too many attempts. Wait a few minutes and try again.",
+      "network": "Could not connect. Check your connection and try again.",
+      "choiceTitle": "{email} does not have an account with us yet",
+      "choiceText": "Choose how you want to continue with that Google account.",
+      "linkOptionTitle": "I am already a distributor: link with my number and password",
+      "linkOptionText": "Confirm who you are once with your distributor number (or your email or username) and your password. After that you will sign in with Google only.",
+      "newOptionTitle": "New here? Create your account with this email",
+      "newOptionText": "This is the account for shopping in the online store. You do not need a distributor number or a password.",
+      "newOptionCta": "I am new: create my account"
+    },
+    "signup": {
+      "title": "Create your account with {email}",
+      "hint": "Confirm your details to finish. No password needed: you will sign in with your Google account.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone (optional)",
+      "phoneHint": "So we can reach you about your order.",
+      "phoneDial": "Country code",
+      "phoneDigits": "{country} · {digits} digits",
+      "phoneInvalid": "{country}: it must be {digits} digits ({count}).",
+      "terms": "I accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
+      "submit": "Create my account",
+      "submitting": "Creating your account…",
+      "otherAccount": "Use another Google account",
+      "back": "Back",
+      "signInCta": "Sign in",
+      "created": "All set! Your account has been created.",
+      "createdVerify": "All set! Your account has been created. We sent an email to {email} so you can verify it.",
+      "signedIn": "Signed in.",
+      "entering": "Signing you in…",
+      "errors": {
+        "firstName": {
+          "required": "Enter your first name.",
+          "too_short": "Your first name must have at least 2 letters.",
+          "too_long": "Your first name is too long."
+        },
+        "lastName": {
+          "required": "Enter your last name.",
+          "too_short": "Your last name must have at least 2 letters.",
+          "too_long": "Your last name is too long."
+        },
+        "email": {
+          "required": "Enter your email.",
+          "invalid": "That email does not look right. Please check it."
+        },
+        "phone": {
+          "invalid": "The phone number is incomplete. Complete it or leave it empty."
+        },
+        "password": {
+          "required": "Enter a password.",
+          "weak": "The password does not meet the requirements.",
+          "too_long": "The password is too long (100 characters maximum)."
+        },
+        "confirmPassword": {
+          "mismatch": "The passwords do not match."
+        },
+        "acceptTerms": {
+          "must_accept": "To create your account you must accept the terms and conditions."
+        }
+      },
+      "failures": {
+        "ticket_expired": "The Google step expired. Press the Google button again.",
+        "account_exists": "There is already an account with that email. Sign in to continue.",
+        "signup_closed": "New accounts are not being opened in the store right now. If you are already a distributor, sign in.",
+        "too_many": "Too many attempts. Wait a few minutes and try again.",
+        "invalid": "Check your details and try again.",
+        "unavailable": "We cannot create your account right now. Please try again later.",
+        "network": "Could not connect. Check your connection and try again.",
+        "unknown": "Your account could not be created. Please try again."
+      },
+      "exists": {
+        "title": "That email already has an account",
+        "body": "{email} is already registered with us. Sign in to continue; if this is your first time using Google, you can link it right there with your distributor number (or your email) and your password."
+      },
+      "closed": {
+        "title": "New accounts are not being opened right now",
+        "body": "New accounts are not being opened in the store right now. If you are already a distributor, sign in."
+      }
+    },
+    "register": {
+      "title": "Create your account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "googleDivider": "or with your email",
+      "firstName": "First name",
+      "firstNamePlaceholder": "John",
+      "lastName": "Last name",
+      "lastNamePlaceholder": "Smith",
+      "email": "Email",
+      "emailPlaceholder": "you@email.com",
+      "phone": "Phone (optional)",
+      "phoneHint": "We will contact you about your order",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "passwordRequirements": "Password requirements:",
+      "passwordRules": {
+        "length": "At least 8 characters",
+        "upper": "One uppercase letter",
+        "lower": "One lowercase letter",
+        "digit": "One number",
+        "special": "One special character (e.g. !@#$%.)"
+      },
+      "submit": "Create account",
+      "submitting": "Creating account...",
+      "distributorTitle": "Want to become a distributor?",
+      "distributorText": "Earn money sharing wellness",
+      "distributorCta": "Learn more"
     }
   },
   "distributor": {
@@ -1938,6 +2051,7 @@
     "orders": {
       "title": "My Orders",
       "subtitle": "Your online store orders and your home deliveries with Call Center: status, payment and shipping.",
+      "subtitleStore": "Your online store orders: status, payment and shipping.",
       "backToPanel": "Back to Main Panel",
       "buyProducts": "Buy products",
       "exploreProducts": "Explore products",
@@ -1996,7 +2110,8 @@
       },
       "empty": {
         "title": "You don't have any orders yet",
-        "body": "When you buy in the online store or request a home delivery with Call Center, you'll see the order, payment and shipping status here."
+        "body": "When you buy in the online store or request a home delivery with Call Center, you'll see the order, payment and shipping status here.",
+        "bodyStore": "When you buy in the online store, you'll see the order, payment and shipping status here."
       },
       "error": {
         "title": "We couldn't load your orders",

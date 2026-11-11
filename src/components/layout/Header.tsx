@@ -21,6 +21,8 @@ import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeFromPath
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { readyAccountCountry } from '@/hooks/useStoreCountry';
 import { resolvePortal } from '@/lib/auth-roles';
+import { isStoreAccount } from '@/lib/auth-area';
+import { StoreAccountLinks, StoreAccountMenu } from './StoreAccountMenu';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { openCartDrawer } from '@/lib/storefront/cart-drawer-store';
 import { useStorefrontAccess } from '@/hooks/useStorefrontAccess';
@@ -104,6 +106,10 @@ export function Header() {
     ? buildLocale(localeLanguage(locale), accountCountry)
     : locale;
   const currentCountry = countryMeta(localeCountry(effectiveLocale));
+
+  // La cuenta del público (cliente final) no tiene panel: en vez de "Ir a Panel" ve su
+  // menú "Mi cuenta" (mis pedidos, cerrar sesión). Ver lib/auth-area.ts.
+  const storeAccount = isAuthenticated && isStoreAccount(user);
 
   // Portal por CATEGORÍA del rol (ver lib/auth-roles.ts) — sin listas quemadas.
   const dashboardUrl = useMemo(() => {
@@ -301,6 +307,8 @@ export function Header() {
             <div className="hidden sm:block ml-2">
               {!isInitialized ? (
                 <div className="h-9 w-28 rounded-full bg-gray-100 animate-pulse" />
+              ) : storeAccount && user ? (
+                <StoreAccountMenu user={user} />
               ) : (
               <Link href={isAuthenticated ? dashboardUrl : '/login'} className="cursor-pointer">
                 {isAuthenticated && user ? (
@@ -403,6 +411,9 @@ export function Header() {
             ))}
 
             <div className="pt-4 mt-2 border-t border-gray-100">
+              {storeAccount ? (
+                <StoreAccountLinks onNavigate={() => setMobileMenuOpen(false)} />
+              ) : (
               <Link
                 href={dashboardUrl}
                 onClick={() => setMobileMenuOpen(false)}
@@ -412,6 +423,7 @@ export function Header() {
                   {isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión'}
                 </Button>
               </Link>
+              )}
             </div>
           </div>
         </div>

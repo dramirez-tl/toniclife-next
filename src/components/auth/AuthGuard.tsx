@@ -12,7 +12,7 @@ import {
   selectUserRoles,
 } from '@/store/slices/authSlice';
 import { authService } from '@/services/auth.service';
-import { resolvePortal } from '@/lib/auth-roles';
+import { areaHome, sessionArea } from '@/lib/auth-area';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -122,12 +122,21 @@ export function AuthGuard({
   // Sin acceso a ESTA sección: pantalla clara con salidas reales (su portal,
   // o cerrar sesión). Nunca un redirect ciego ni un spinner infinito.
   if (!hasAccess) {
-    // resolvePortal (no solo la categoría): una sesión con token viejo sin
-    // roleCategory también merece su botón de escape hacia su portal.
-    const portal = resolvePortal(user?.roleCategory, userRoles[0]);
-    const homeHref = portal === 'distributor' ? '/distribuidor' : '/admin';
+    // Área de la sesión (no solo la categoría): una sesión con token viejo sin
+    // roleCategory también merece su botón de escape hacia su portal, y la cuenta
+    // del público (cliente final) sale a la tienda, no al panel del distribuidor.
+    const portal = sessionArea({
+      roleCategory: user?.roleCategory,
+      roles: userRoles,
+      customerType: user?.customerType,
+    });
+    const homeHref = areaHome(portal);
     const homeLabel =
-      portal === 'distributor' ? 'Ir a mi panel de distribuidor' : 'Ir al panel de administración';
+      portal === 'distributor'
+        ? 'Ir a mi panel de distribuidor'
+        : portal === 'store'
+          ? 'Ir a la tienda'
+          : 'Ir al panel de administración';
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md text-center">

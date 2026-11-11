@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import { writeAuthCookies, clearAuthCookies } from '@/lib/auth-cookies';
+import type { GoogleSignupBody, RegisterBody } from '@/lib/public-signup';
 
 // Types
 export interface LoginCredentials {
@@ -31,19 +32,31 @@ export function isEmailLinkRequired(result: LoginResult): result is EmailLinkReq
   return 'requiresEmailLink' in result && result.requiresEmailLink === true;
 }
 
-// ---- Google Sign-In (API: POST /auth/google, /auth/google/link, /auth/link-email/google)
+// ---- Google Sign-In (API: POST /auth/google, /auth/google/link, /auth/google/signup, /auth/link-email/google)
 export interface GoogleAuthStatus {
   enabled: boolean;
   webClientId: string | null;
 }
 
-/** La cuenta de Google no está vinculada a ningún usuario: se confirma con ID + contraseña. */
+/**
+ * La cuenta de Google no está vinculada a ningún usuario. Qué sigue depende de `canSignUp`
+ * (ver `googleLinkStep` en lib/public-signup): crear la cuenta del público con ese correo
+ * o vincular una cuenta que ya existe con ID + contraseña.
+ */
 export interface GoogleLinkRequired {
   requiresAccountLink: true;
+  /** Ticket de 10 min para terminar: POST /auth/google/link o /auth/google/signup. */
   linkTicket: string;
   email: string;
   name: string | null;
   picture: string | null;
+  /**
+   * true = nadie tiene cuenta con esa cuenta de Google ni con ese correo y la tienda está
+   * abriendo cuentas: se puede crear una de cliente. false = ya hay una cuenta con ese
+   * correo (se vincula con ID y contraseña) o la tienda está en "solo miembros". Ausente
+   * en un API anterior: cuenta como false.
+   */
+  canSignUp?: boolean;
 }
 
 export type GoogleLoginResult = AuthResponse | GoogleLinkRequired;
@@ -69,13 +82,20 @@ export interface LinkEmailGoogleData {
   idToken: string;
 }
 
-export interface RegisterData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
+/** Opciones de la sesión que se abre al crear la cuenta. */
+export interface SignupSessionOptions {
+  /** Sesión que sobrevive al cierre del navegador (como "Recordarme" en /login). */
+  remember?: boolean;
 }
+
+/**
+ * Cuerpo de POST /auth/register. El API rechaza propiedades de más: se arma con
+ * `buildRegisterBody` (lib/public-signup), nunca con el estado crudo del formulario.
+ */
+export type RegisterData = RegisterBody;
+
+/** Tipo de cuenta del cliente enlazado al usuario (customers.customer_type). */
+export type CustomerType = 'distributor' | 'preferred_customer' | 'final_customer';
 
 export interface UserResponse {
   id: string;
@@ -97,6 +117,12 @@ export interface UserResponse {
    *  respuestas del API previas a ago-2026. */
   roleCategory?: string;
   customerId?: string;
+  /**
+   * Tipo de cuenta del cliente: distribuidor, cliente preferente o `final_customer` (la
+   * cuenta que abre el público en la tienda: sin red, puntos ni panel de distribuidor;
+   * ver lib/auth-area.ts). Ausente en colaboradores y en un API anterior al 11-nov-2026.
+   */
+  customerType?: CustomerType | (string & {});
   countryCode?: string;
   currencyCode?: string;
   defaultBranchId?: string;
@@ -222,7 +248,7 @@ class AuthService {
     return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
-  setTokens(accessToken: string, refreshToken?: string): void {
+  setTokens(accessToken: string, refreshToken?: string, user?: Pick<UserResponse, 'customerType'> | null): void {
     if (typeof window === 'undefined') return;
     const storage = this.getStorage();
     const other = storage === localStorage ? sessionStorage : localStorage;
@@ -240,8 +266,17 @@ class AuthService {
       other.removeItem(REFRESH_TOKEN_KEY);
     }
 
-    // Routing cookies for the middleware (lifetime matches the storage mode).
-    writeAuthCookies(accessToken);
+    // Routing cookies for the middleware (lifetime matches the storage mode). El tipo de
+    // cuenta no viaja en el JWT: sale del usuario de la respuesta (la cuenta del público
+    // se rutea a la tienda, no al panel del distribuidor).
+    writeAuthCookies(accessToken, user?.customerType);
+  }
+
+  /** Guarda la sesión que devolvió el API (tokens, cookies de ruteo y usuario). */
+  private saveSession(auth: AuthResponse): AuthResponse {
+    this.setTokens(auth.accessToken, auth.refreshToken, auth.user);
+    this.setStoredUser(auth.user);
+    return auth;
   }
 
   clearTokens(): void {
@@ -288,10 +323,7 @@ class AuthService {
     }
 
     // Login normal: guardar tokens
-    const authResponse = response.data as AuthResponse;
-    this.setTokens(authResponse.accessToken, authResponse.refreshToken);
-    this.setStoredUser(authResponse.user);
-    return authResponse;
+    return this.saveSession(response.data as AuthResponse);
   }
 
   async linkEmail(data: LinkEmailData): Promise<MessageResponse> {
@@ -301,9 +333,7 @@ class AuthService {
 
   async verifyLinkEmail(data: VerifyLinkEmailData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/verify-link-email', data);
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
   }
 
   // ---- Google Sign-In
@@ -325,9 +355,7 @@ class AuthService {
     if (isGoogleLinkRequired(response.data)) {
       return response.data;
     }
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
   }
 
   /** Confirma con ID/correo/usuario + contraseña, vincula la cuenta de Google y entra. */
@@ -338,24 +366,37 @@ class AuthService {
       ...body,
       rememberMe: remember ?? false,
     });
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
+  }
+
+  /**
+   * Crea la cuenta del público con la cuenta de Google que la persona acaba de elegir
+   * (`canSignUp`): correo ya verificado y sin contraseña. Deja la sesión iniciada.
+   * `body` se arma con `buildGoogleSignupBody` (el API rechaza propiedades de más).
+   */
+  async signUpWithGoogle(body: GoogleSignupBody, options: SignupSessionOptions = {}): Promise<AuthResponse> {
+    const remember = options.remember ?? false;
+    this.setRemember(remember);
+    const response = await api.post<AuthResponse>('/auth/google/signup', { ...body, rememberMe: remember });
+    return this.saveSession(response.data);
   }
 
   /** Paso del correo del primer login: vincular Google en vez de teclear correo + código. */
   async linkEmailWithGoogle(data: LinkEmailGoogleData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/link-email/google', data);
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
   }
 
-  async register(data: RegisterData): Promise<AuthResponse> {
+  /**
+   * Formulario "Crea tu cuenta": crea la cuenta del público (cliente final) y deja la
+   * sesión iniciada. `data` se arma con `buildRegisterBody`: el API no admite
+   * `rememberMe` ni nada fuera de su DTO, así que "recordar" solo decide dónde se guardan
+   * los tokens en este navegador.
+   */
+  async register(data: RegisterData, options: SignupSessionOptions = {}): Promise<AuthResponse> {
+    if (options.remember !== undefined) this.setRemember(options.remember);
     const response = await api.post<AuthResponse>('/auth/register', data);
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
   }
 
   async logout(): Promise<void> {
@@ -390,9 +431,7 @@ class AuthService {
         ? { refreshToken: storedRefresh, rememberMe: this.isRemembered() }
         : {},
     );
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
-    this.setStoredUser(response.data.user);
-    return response.data;
+    return this.saveSession(response.data);
   }
 
   async getProfile(): Promise<UserResponse> {

@@ -1,7 +1,7 @@
 // useCart.ts - React Query hooks for e-commerce cart
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
-import { useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { keepPreviousData, useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -15,6 +15,12 @@ import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-stor
 import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
 import { normalizePersonalization, samePersonalization } from '@/lib/storefront/personalization';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
+import {
+  getCartMergeStatus,
+  getServerCartMergeStatus,
+  subscribeCartMergeStatus,
+  type CartMergeStatus,
+} from '@/lib/storefront/cart-merge-status';
 import { cartKeys } from '@/lib/storefront/cart-query-keys';
 import { pickupBranchesRefreshPolicy } from '@/lib/checkout/pickup-branches';
 import {
@@ -451,6 +457,13 @@ export const useMergeCarts = () => {
     },
   });
 };
+
+/**
+ * `merging` mientras `CartMergeOnLogin` pasa el carrito de invitado a la cuenta recién
+ * iniciada. El checkout lo usa para no dar por vacío un carrito que está por llenarse.
+ */
+export const useCartMergeStatus = (): CartMergeStatus =>
+  useSyncExternalStore(subscribeCartMergeStatus, getCartMergeStatus, getServerCartMergeStatus);
 
 // ================================
 // CHECKOUT QUERIES

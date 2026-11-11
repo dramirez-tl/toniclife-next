@@ -40,6 +40,8 @@ function isBeforeLaunch(): boolean {
 const protectedRoutes = [
   '/distribuidor',
   '/admin',
+  // "Mis pedidos" de la cuenta del público (cliente final), con el encabezado de la tienda.
+  '/mis-pedidos',
 ];
 
 // Routes that are only accessible when NOT authenticated
@@ -65,11 +67,15 @@ const authOnlyRoutes = [
 // escribe en la cookie authPortal derivándolo de la CATEGORÍA del rol
 // (roles.category en el JWT: colaborador→admin, cliente→distributor). Las
 // listas legacy de auth-roles.ts solo cubren sesiones con token viejo.
+// Tercer valor, 'store' (11-nov-2026): la cuenta que abre el público en la
+// tienda (cliente final). No tiene panel: nunca entra a /distribuidor ni a
+// /admin; sus pedidos viven en /mis-pedidos (ver lib/auth-area.ts).
 // Un portal 'unknown' NUNCA se queda ciclando: se le limpian las cookies y se
 // le deja ver /login (antes, un rol fuera de las listas quemadas quedaba
 // atrapado en /login→/distribuidor→/ durante 7 días y el usuario tenía que
 // borrar caché — bug de roles corporativos, ago-2026).
 import { resolvePortal, type Portal } from './lib/auth-roles';
+import { STORE_HOME, storePathInsteadOf } from './lib/auth-area';
 import { getStorefrontAccessEdge, STORE_ROUTE_RE } from './lib/storefront/access';
 
 const AUTH_COOKIES = ['accessToken', 'authRole', 'authPortal'];
@@ -204,6 +210,7 @@ export async function middleware(request: NextRequest) {
   // The client stores three small cookies for the middleware:
   //   accessToken = "1"                    → the user is logged-in
   //   authPortal  = "admin"|"distributor"  → portal por CATEGORÍA del rol
+  //               = "store"                → cuenta del público (cliente final)
   //   authRole    = "administrador" (…)    → solo fallback de sesiones viejas
   // The full JWT lives only in web storage (it can exceed the 4 KB cookie
   // limit when it embeds many permissions).
@@ -214,6 +221,8 @@ export async function middleware(request: NextRequest) {
     portalCookie === 'admin' || portalCookie === 'distributor'
       ? portalCookie
       : resolvePortal(null, role);
+  // Cuenta del público (cliente final): su sitio es la tienda, no un panel.
+  const storeSession = portalCookie === 'store';
 
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
@@ -238,6 +247,23 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // ── Cuenta del público (cliente final) ─────────────────────────────────
+  // Con sesión no ve las páginas de acceso (ya entró: va a la tienda) y NUNCA
+  // entra al panel del distribuidor ni al admin: ahí la esperarían la compra del
+  // kit de inscripción, el tutorial y "Mi red", que no son para ella. El enlace
+  // "ver mi pedido" de los correos (/distribuidor/pedidos) la lleva a sus pedidos
+  // en la tienda. Va ANTES de las reglas por portal: con rol de categoría
+  // 'cliente' caería en las del distribuidor.
+  if (isLoggedIn && storeSession) {
+    if ((isAuthRoute || isAuthOnlyRoute) && !isPublicRegistrationRoute) {
+      return NextResponse.redirect(new URL(STORE_HOME, request.url));
+    }
+    if (pathname.startsWith('/admin') || pathname.startsWith('/distribuidor')) {
+      return NextResponse.redirect(new URL(storePathInsteadOf(pathname), request.url));
+    }
+    return NextResponse.next();
   }
 
   // If already authenticated and trying to access auth routes, redirect to dashboard

@@ -37,7 +37,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated, selectIsInitialized } from '@/store/slices/authSlice';
+import { selectIsAuthenticated, selectIsInitialized, selectUser } from '@/store/slices/authSlice';
+import { isStoreAccount, ordersPath } from '@/lib/auth-area';
 import { myOrderQueryKey, useMyOrder, useMyOrderTracking } from '@/hooks/useOrders';
 import { usePickupBranches } from '@/hooks/useCart';
 import {
@@ -114,6 +115,11 @@ export default function ConfirmacionContent() {
 
   const isInitialized = useAppSelector(selectIsInitialized);
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  // "Mis pedidos" de quien compró: en su panel (distribuidor) o en la tienda (la cuenta
+  // del público, que no tiene panel ni puntos; ver lib/auth-area.ts).
+  const sessionUser = useAppSelector(selectUser);
+  const ordersHref = ordersPath(sessionUser);
+  const hasPanel = isAuthenticated && !isStoreAccount(sessionUser);
 
   // --- Camino 1: distribuidor con sesión (Mis pedidos) ---
   const authFlow = isInitialized && isAuthenticated && !!orderId;
@@ -189,7 +195,7 @@ export default function ConfirmacionContent() {
         tone="error"
       >
         {isAuthenticated && (
-          <Link href="/distribuidor/pedidos">
+          <Link href={ordersHref}>
             <Button variant="outline">{t('myOrders')}</Button>
           </Link>
         )}
@@ -205,7 +211,7 @@ export default function ConfirmacionContent() {
       return (
         <Notice title={t('awaitingTitle')} body={t('awaitingTimeout')} tone="warning">
           {isAuthenticated && (
-            <Link href="/distribuidor/pedidos">
+            <Link href={ordersHref}>
               <Button>{t('myOrders')}</Button>
             </Link>
           )}
@@ -248,7 +254,7 @@ export default function ConfirmacionContent() {
     return (
       <Notice title={t('cancelledTitle')} body={t('cancelledBody', { number: view.orderNumber })} tone="warning">
         {isAuthenticated && (
-          <Link href="/distribuidor/pedidos">
+          <Link href={ordersHref}>
             <Button variant="outline">{t('myOrders')}</Button>
           </Link>
         )}
@@ -259,7 +265,16 @@ export default function ConfirmacionContent() {
     );
   }
 
-  return <ConfirmedOrder view={view} t={t} lang={lang} isAuthenticated={isAuthenticated} />;
+  return (
+    <ConfirmedOrder
+      view={view}
+      t={t}
+      lang={lang}
+      isAuthenticated={isAuthenticated}
+      ordersHref={ordersHref}
+      hasPanel={hasPanel}
+    />
+  );
 }
 
 // ================================
@@ -271,11 +286,17 @@ function ConfirmedOrder({
   t,
   lang,
   isAuthenticated,
+  ordersHref,
+  hasPanel,
 }: {
   view: ConfirmationView;
   t: T;
   lang: 'es' | 'en';
   isAuthenticated: boolean;
+  /** "Mis pedidos" de esta sesión (panel del distribuidor o tienda). */
+  ordersHref: string;
+  /** La sesión tiene panel de distribuidor (ahí se ven los puntos). */
+  hasPanel: boolean;
 }) {
   const money = (n: number) => formatCurrency(n, view.currencyCode, lang);
   const steps = confirmationSteps(view);
@@ -320,7 +341,7 @@ function ConfirmedOrder({
             {t('share')}
           </Button>
           {isAuthenticated && (
-            <Link href="/distribuidor/pedidos">
+            <Link href={ordersHref}>
               <Button variant="outline">
                 <TruckIcon className="h-5 w-5" />
                 {t('trackCta')}
@@ -467,7 +488,7 @@ function ConfirmedOrder({
                   </h3>
                   <p className="text-sm text-gray-600">{t('pointsBody')}</p>
                 </div>
-                {isAuthenticated && (
+                {hasPanel && (
                   <Link href="/distribuidor">
                     <Button variant="outline" size="sm">
                       {t('viewPoints')}
@@ -486,7 +507,7 @@ function ConfirmedOrder({
               <CardContent className="p-6">
                 <h3 className="font-bold text-lg mb-2">{t('trackTitle')}</h3>
                 <p className="text-white/80 text-sm mb-4">{t('trackBody')}</p>
-                <Link href="/distribuidor/pedidos">
+                <Link href={ordersHref}>
                   <Button variant="secondary" size="sm">
                     {t('trackCta')}
                     <ArrowRightIcon className="h-4 w-4" />

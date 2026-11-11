@@ -68,6 +68,11 @@ let failedQueue: Array<{
 const AUTH_ENDPOINTS = [
   '/auth/login',
   '/auth/register',
+  // Botón de Google (entrar, vincular, crear la cuenta): su 401 es "Google no validó
+  // la cuenta", "contraseña incorrecta" o "el paso con Google caducó". Sin esto el
+  // interceptor intentaba refrescar una sesión que no existe, cambiaba ese mensaje
+  // por el del refresh y, fuera de /login, mandaba a la persona a /login.
+  '/auth/google',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-email',
@@ -177,8 +182,9 @@ api.interceptors.response.use(
           // No rota, pero re-guardarlo mantiene la sesión viva sin depender de
           // cookies de tercero (incógnito / Chrome / Safari).
           if (newRefresh) setToken(REFRESH_TOKEN_KEY, newRefresh);
-          // Renew routing cookies (lifetime matches the storage mode + the new role)
-          writeAuthCookies(accessToken);
+          // Renew routing cookies (lifetime matches the storage mode + the new role).
+          // El tipo de cuenta (cliente final → tienda) sale del usuario de la respuesta.
+          writeAuthCookies(accessToken, response.data.user?.customerType);
           // Persistir también el user actualizado del refresh: así una sesión
           // iniciada ANTES de que el API incluyera roleCategory converge sola
           // (el AuthGuard lee el user de storage; sin esto, cookie y user

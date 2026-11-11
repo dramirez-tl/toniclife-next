@@ -6,7 +6,11 @@
     "help": "Ayuda",
     "goToPanel": "Ir a Panel",
     "login": "Iniciar sesión",
-    "join": "Quiero ser distribuidor"
+    "join": "Quiero ser distribuidor",
+    "account": "Mi cuenta",
+    "accountMenu": "Menú de mi cuenta",
+    "myOrders": "Mis pedidos",
+    "logout": "Cerrar sesión"
   },
   "common": {
     "tagline": "Bienestar natural desde 2004 — Tonic Life"
@@ -972,10 +976,119 @@
       "or": "o",
       "linkTitle": "Vincula tu cuenta de Google",
       "linkText": "La cuenta {email} aún no está vinculada a ningún usuario. Confirma quién eres con tu número de distribuidor, correo o usuario y tu contraseña; la próxima vez entrarás solo con Google.",
+      "linkIdentifierLabel": "Número de distribuidor, correo o usuario",
+      "linkIdentifierPlaceholder": "Tu número, correo o usuario",
       "linkSubmit": "Vincular y entrar",
       "linkCancel": "Usar otra cuenta",
       "linkedToast": "Cuenta de Google vinculada",
-      "error": "No se pudo iniciar sesión con Google. Intenta de nuevo."
+      "error": "No se pudo iniciar sesión con Google. Intenta de nuevo.",
+      "tooMany": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+      "network": "No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.",
+      "choiceTitle": "{email} todavía no tiene cuenta con nosotros",
+      "choiceText": "Elige cómo quieres continuar con esa cuenta de Google.",
+      "linkOptionTitle": "Ya soy distribuidor: vincular con mi número y contraseña",
+      "linkOptionText": "Confirma quién eres una sola vez con tu número de distribuidor (o tu correo o usuario) y tu contraseña. Después entrarás solo con Google.",
+      "newOptionTitle": "¿Eres nuevo? Crea tu cuenta con este correo",
+      "newOptionText": "Es la cuenta para comprar en la tienda en línea. No necesitas número de distribuidor ni contraseña.",
+      "newOptionCta": "Soy nuevo: crear mi cuenta"
+    },
+    "signup": {
+      "title": "Crea tu cuenta con {email}",
+      "hint": "Confirma tus datos para terminar. No necesitas contraseña: entrarás con tu cuenta de Google.",
+      "firstName": "Nombre",
+      "lastName": "Apellidos",
+      "phone": "Teléfono (opcional)",
+      "phoneHint": "Para avisarte sobre tu pedido.",
+      "phoneDial": "Lada",
+      "phoneDigits": "{country} · {digits} dígitos",
+      "phoneInvalid": "{country}: deben ser {digits} dígitos ({count}).",
+      "terms": "Acepto los <terms>términos y condiciones</terms> y la <privacy>política de privacidad</privacy>.",
+      "submit": "Crear mi cuenta",
+      "submitting": "Creando tu cuenta…",
+      "otherAccount": "Usar otra cuenta de Google",
+      "back": "Volver",
+      "signInCta": "Iniciar sesión",
+      "created": "¡Listo! Tu cuenta está creada.",
+      "createdVerify": "¡Listo! Tu cuenta está creada. Te enviamos un correo a {email} para verificarla.",
+      "signedIn": "Sesión iniciada.",
+      "entering": "Entrando…",
+      "errors": {
+        "firstName": {
+          "required": "Escribe tu nombre.",
+          "too_short": "El nombre debe tener al menos 2 letras.",
+          "too_long": "El nombre es demasiado largo."
+        },
+        "lastName": {
+          "required": "Escribe tus apellidos.",
+          "too_short": "Los apellidos deben tener al menos 2 letras.",
+          "too_long": "Los apellidos son demasiado largos."
+        },
+        "email": {
+          "required": "Escribe tu correo electrónico.",
+          "invalid": "Ese correo no parece válido. Revísalo."
+        },
+        "phone": {
+          "invalid": "El teléfono está incompleto. Complétalo o déjalo vacío."
+        },
+        "password": {
+          "required": "Escribe una contraseña.",
+          "weak": "La contraseña no cumple los requisitos.",
+          "too_long": "La contraseña es demasiado larga (máximo 100 caracteres)."
+        },
+        "confirmPassword": {
+          "mismatch": "Las contraseñas no coinciden."
+        },
+        "acceptTerms": {
+          "must_accept": "Para crear tu cuenta debes aceptar los términos y condiciones."
+        }
+      },
+      "failures": {
+        "ticket_expired": "El paso con Google caducó. Vuelve a pulsar el botón de Google.",
+        "account_exists": "Ya existe una cuenta con ese correo. Inicia sesión para continuar.",
+        "signup_closed": "Por ahora no se están abriendo cuentas nuevas en la tienda. Si ya eres distribuidor, inicia sesión.",
+        "too_many": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+        "invalid": "Revisa tus datos e inténtalo de nuevo.",
+        "unavailable": "Por ahora no podemos crear tu cuenta. Inténtalo de nuevo más tarde.",
+        "network": "No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.",
+        "unknown": "No se pudo crear tu cuenta. Inténtalo de nuevo."
+      },
+      "exists": {
+        "title": "Ese correo ya tiene una cuenta",
+        "body": "{email} ya está registrado con nosotros. Inicia sesión para continuar; si es la primera vez que usas Google, ahí mismo lo vinculas con tu número de distribuidor (o tu correo) y tu contraseña."
+      },
+      "closed": {
+        "title": "Por ahora no se abren cuentas nuevas",
+        "body": "Por ahora no se están abriendo cuentas nuevas en la tienda. Si ya eres distribuidor, inicia sesión."
+      }
+    },
+    "register": {
+      "title": "Crea tu cuenta",
+      "haveAccount": "¿Ya tienes cuenta?",
+      "signIn": "Inicia sesión",
+      "googleDivider": "o con tu correo",
+      "firstName": "Nombre",
+      "firstNamePlaceholder": "Juan",
+      "lastName": "Apellidos",
+      "lastNamePlaceholder": "Pérez",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "tu@email.com",
+      "phone": "Teléfono (opcional)",
+      "phoneHint": "Te contactaremos sobre tu pedido",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "passwordRequirements": "Requisitos de contraseña:",
+      "passwordRules": {
+        "length": "Al menos 8 caracteres",
+        "upper": "Una letra mayúscula",
+        "lower": "Una letra minúscula",
+        "digit": "Un número",
+        "special": "Un carácter especial (ej. !@#$%.)"
+      },
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta...",
+      "distributorTitle": "¿Quieres ser distribuidor?",
+      "distributorText": "Gana dinero compartiendo bienestar",
+      "distributorCta": "Conocer más"
     }
   },
   "distributor": {
@@ -1938,6 +2051,7 @@
     "orders": {
       "title": "Mis Pedidos",
       "subtitle": "Tus pedidos de la tienda en línea y tus entregas a domicilio con Call Center: estatus, pago y envío.",
+      "subtitleStore": "Tus pedidos de la tienda en línea: estatus, pago y envío.",
       "backToPanel": "Volver al Panel Principal",
       "buyProducts": "Comprar productos",
       "exploreProducts": "Explorar productos",
@@ -1996,7 +2110,8 @@
       },
       "empty": {
         "title": "Aún no tienes pedidos",
-        "body": "Cuando compres en la tienda en línea o pidas una entrega a domicilio con Call Center, aquí verás el estatus del pedido, el pago y el envío."
+        "body": "Cuando compres en la tienda en línea o pidas una entrega a domicilio con Call Center, aquí verás el estatus del pedido, el pago y el envío.",
+        "bodyStore": "Cuando compres en la tienda en línea, aquí verás el estatus del pedido, el pago y el envío."
       },
       "error": {
         "title": "No pudimos cargar tus pedidos",

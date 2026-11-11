@@ -16,6 +16,10 @@
 // se mezcla: el login puede revertirse ahí mismo (cuenta con correo vinculado).
 // Un 404/405 (API sin el endpoint) se ignora en silencio y no deja marca; un fallo de red
 // o 5xx tampoco avisa: se reintenta en la siguiente carga de página.
+//
+// Mientras la mezcla está en curso lo avisa en `cart-merge-status`: el checkout espera a
+// que termine antes de dar el carrito por vacío (quien inicia sesión o crea su cuenta
+// desde el checkout vuelve ahí con el carrito de la cuenta aún sin sus artículos).
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -26,6 +30,7 @@ import { cartService } from '@/services/cart.service';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectIsInitialized, selectUser } from '@/store/slices/authSlice';
 import { MERGE_DONE_KEY, mergeAction, mergeHasNews, mergeMovedNothing, type MergeLineNote } from '@/lib/storefront/cart-merge';
+import { beginCartMerge } from '@/lib/storefront/cart-merge-status';
 
 const NAMES_SHOWN = 3;
 // Un intento por `x-session-id` y por carga de página (StrictMode monta los efectos dos veces).
@@ -73,6 +78,7 @@ export function CartMergeOnLogin() {
     }
     if (action !== 'merge' || !guestSessionId || attempted.has(guestSessionId)) return;
     attempted.add(guestSessionId);
+    const finishMerge = beginCartMerge();
 
     const names = (lines: readonly MergeLineNote[]) => {
       const known = lines.map((line) => line.name).filter(Boolean);
@@ -103,7 +109,8 @@ export function CartMergeOnLogin() {
       })
       .catch(() => {
         // Red, 401 o 5xx: sin aviso. El carrito de invitado sigue intacto y se reintenta en otra carga.
-      });
+      })
+      .finally(finishMerge);
   }, [authInitialized, hasCustomerSession, pathname, mergeCarts, router, t]);
 
   return null;

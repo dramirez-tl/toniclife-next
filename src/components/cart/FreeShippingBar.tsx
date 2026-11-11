@@ -20,7 +20,7 @@ import { useStoreShipping } from '@/hooks/useStoreShipping';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
-import { resolvePortal } from '@/lib/auth-roles';
+import { sessionArea } from '@/lib/auth-area';
 import { effectiveCartCountry, normalizeCurrencyCode, pinnedCartCountry } from '@/lib/storefront/cart-country';
 import {
   freeShippingEligible,
@@ -52,8 +52,10 @@ function useFreeShipping({ subtotal, cartCurrencyCode, cartCountryCode, slugs }:
 
   const viewer = {
     hasCustomerSession,
-    // Solo lectura del rol de la sesión (sin tocar auth): portal de cliente = distribuidor.
-    distributorSession: hasCustomerSession && resolvePortal(user?.roleCategory, user?.roles?.[0]) === 'distributor',
+    // Solo lectura de la sesión (sin tocar auth): área de cliente = distribuidor. La cuenta
+    // del público (cliente final) NO lo es: compra a precio público y el envío gratis por
+    // monto le aplica como a un visitante (sin esto, la barra se le escondía).
+    distributorSession: hasCustomerSession && sessionArea(user) === 'distributor',
     cartCurrencyCode: normalizeCurrencyCode(cartCurrencyCode),
     viewerCurrencyCode: hasCustomerSession ? user?.currencyCode : null,
     countryCode,
