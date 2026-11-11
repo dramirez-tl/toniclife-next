@@ -2,8 +2,9 @@
 
 // ShippingSettingsFields — Campos de costos de envío y envío gratis de un país.
 //
-// Los mismos en Configuración › Envíos y en Tienda en línea por país: tres costos y el
-// bloque "Envío gratis" con sus dos interruptores. No guarda nada: avisa cada cambio
+// Los mismos en Configuración › Envíos y en Tienda en línea por país: dos costos (envío
+// estándar y envío del kit; el exprés se dejó de ofrecer el 11-nov-2026) y el bloque
+// "Envío gratis" con sus dos interruptores. No guarda nada: avisa cada cambio
 // con `onChange`; el guardado lo hace quien lo usa (`useShippingSettingsForm`).
 
 import { Switch } from '@/components/ui/switch';
@@ -43,18 +44,6 @@ export function ShippingSettingsFields({ values, onChange, currency, flagsSuppor
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Costo de Envío Express ({currency})
-          </label>
-          <input
-            type="number"
-            min={0}
-            value={values.expressShippingCost}
-            onChange={(e) => onChange({ expressShippingCost: parseFloat(e.target.value) || 0 })}
-            className={INPUT_CLASS}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
             Costo de Envío del Kit de Inscripción ({currency})
           </label>
           <input
@@ -77,8 +66,8 @@ export function ShippingSettingsFields({ values, onChange, currency, flagsSuppor
       <div className="rounded-xl border border-gray-200 p-5">
         <h3 className="text-base font-semibold text-gray-900">Envío gratis</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Solo aplica al envío estándar a domicilio. El envío express y el
-          del kit de inscripción siempre se cobran.
+          Aplica al envío estándar a domicilio, que es el único que ofrece la
+          tienda. El envío del kit de inscripción siempre se cobra.
         </p>
 
         <label className="mt-5 flex items-start gap-3">

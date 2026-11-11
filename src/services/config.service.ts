@@ -447,6 +447,7 @@ class ConfigService {
 /** Costos de envío editables desde el admin, por país. */
 export interface ShippingSettings {
   standardCost: number;
+  /** Sin uso desde el 11-nov-2026: la tienda ya no ofrece envío exprés. El API lo sigue mandando; no se muestra ni se guarda. */
   expressCost: number;
   /** Subtotal mínimo para el envío estándar gratis (aplica según los dos interruptores). */
   freeThreshold: number;

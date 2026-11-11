@@ -46,6 +46,7 @@ import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { useStates } from '@/hooks/useStates';
 import { buyerDistributorNumber, fillContactFromBuyer } from '@/lib/checkout/buyer';
+import { standardShippingInfo } from '@/lib/checkout/shipping-method';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
 import {
   INITIAL_SHIPPING_ADDRESS_STATE,
@@ -224,6 +225,9 @@ export default function CheckoutContent() {
     countryId,
     shippingArea.state,
   );
+  // Envío estándar a domicilio (el único que se ofrece): lo que se va a cobrar y en
+  // cuántos días llega, tal como lo da el resumen del API.
+  const standardShipping = standardShippingInfo(checkoutSummary, selectedShippingMethod);
   const guestCheckout = useGuestCheckout();
   const authenticatedCheckout = useAuthenticatedCheckout();
   const { data: pickupBranches } = usePickupBranches();
@@ -868,45 +872,29 @@ export default function CheckoutContent() {
                       </>
                     )}
 
-                    {/* Shipping Method Selection */}
+                    {/* Método de envío. El único envío a domicilio es el ESTÁNDAR: el exprés
+                        se dejó de ofrecer (11-nov-2026) y recoger en sucursal se elige arriba.
+                        No hay nada que escoger, así que se informa, con el costo que se va a
+                        cobrar (el del resumen: ya trae el envío gratis por monto o por cupón). */}
                     <div className="pt-4 border-t border-gray-200">
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        {t('shippingMethod')}
-                      </label>
-                      <div className="space-y-3">
-                        {checkoutSummary?.shippingOptions?.map((option) => (
-                          <label
-                            key={option.method}
-                            className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              selectedShippingMethod === option.method
-                                ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="shippingMethod"
-                                value={option.method}
-                                checked={selectedShippingMethod === option.method}
-                                onChange={(e) => setSelectedShippingMethod(e.target.value as ShippingMethod)}
-                                className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
-                              />
-                              <div>
-                                <p className="font-medium text-gray-900">{option.name}</p>
-                                <p className="text-sm text-gray-500">{option.description}</p>
-                                {option.estimatedDays > 0 && (
-                                  <p className="text-xs text-gray-400">
-                                    {t('businessDays', { days: option.estimatedDays })}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <span className="font-bold text-[#3E667D]">
-                              {parseFloat(option.cost) === 0 ? t('free') : fmt(option.cost)}
-                            </span>
-                          </label>
-                        ))}
+                      <p className="block text-sm font-medium text-gray-700 mb-3">{t('shippingMethod')}</p>
+                      <div className="flex items-center justify-between gap-3 rounded-lg border-2 border-[#a7c1e2] bg-[#C8DDF2]/5 p-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <TruckIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900">{t('standardShipping')}</p>
+                            {standardShipping.days > 0 && (
+                              <p className="text-xs text-gray-500">{t('businessDays', { days: standardShipping.days })}</p>
+                            )}
+                          </div>
+                        </div>
+                        <span className="flex-shrink-0 font-bold text-[#3E667D]">
+                          {standardShipping.cost === null
+                            ? '…'
+                            : standardShipping.cost === 0
+                              ? t('free')
+                              : fmt(standardShipping.cost)}
+                        </span>
                       </div>
                     </div>
                       </>

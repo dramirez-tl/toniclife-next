@@ -25,7 +25,6 @@ describe('store-country/shipping-costs · formulario', () => {
   it('pasa los ajustes del API a los campos del formulario', () => {
     expect(shippingFormValues(settings({ standardCost: 12, expressCost: 25, freeThreshold: 100, kitCost: 12 }))).toEqual({
       standardShippingCost: 12,
-      expressShippingCost: 25,
       freeShippingThreshold: 100,
       kitShippingCost: 12,
       freeShippingEnabled: true,
@@ -46,13 +45,11 @@ describe('store-country/shipping-costs · formulario', () => {
     const values = { ...DEFAULT_SHIPPING_FORM, standardShippingCost: 180, freeShippingEnabled: false };
     expect(buildShippingPayload(values, false)).toEqual({
       standardCost: 180,
-      expressCost: 250,
       freeThreshold: 1500,
       kitCost: 150,
     });
     expect(buildShippingPayload(values, true)).toEqual({
       standardCost: 180,
-      expressCost: 250,
       freeThreshold: 1500,
       kitCost: 150,
       freeShippingEnabled: false,
@@ -63,13 +60,27 @@ describe('store-country/shipping-costs · formulario', () => {
   it('el cuerpo del guardado nunca lleva lo que solo viene en la lectura', () => {
     const payload = buildShippingPayload(shippingFormValues(settings({ hasOwnSettings: false, inheritedFrom: 'MX' })), true);
     expect(Object.keys(payload).sort()).toEqual([
-      'expressCost',
       'freeShippingEnabled',
       'freeShippingForDistributors',
       'freeThreshold',
       'kitCost',
       'standardCost',
     ]);
+  });
+
+  it('el envío exprés ya no se ofrece: su costo no se captura, no se guarda y no cuenta como cambio', () => {
+    // El API lo sigue mandando (lo que el país tuviera guardado), pero el formulario no lo lleva…
+    const saved = settings({ expressCost: 999 });
+    expect(shippingFormValues(saved)).not.toHaveProperty('expressShippingCost');
+    expect(DEFAULT_SHIPPING_FORM).not.toHaveProperty('expressShippingCost');
+    // …no viaja al guardar (así el valor guardado se queda como está)…
+    expect(buildShippingPayload(shippingFormValues(saved), true)).not.toHaveProperty('expressCost');
+    // …y un país con otro costo exprés guardado no aparece con cambios sin guardar.
+    expect(isShippingFormDirty(shippingFormValues(saved), saved)).toBe(false);
+    // Tampoco estorba para reconocer a un país que cayó en los montos de fábrica de México.
+    expect(
+      shippingCostsOrigin({ countryCode: 'CO', settings: settings({ expressCost: 999, hasOwnSettings: false, inheritedFrom: null }) }),
+    ).toEqual({ kind: 'defaults', mexicoAmounts: true });
   });
 
   it('sabe si hay cambios sin guardar', () => {

@@ -648,6 +648,7 @@
       }
     },
     "shippingMethod": "Shipping method",
+    "standardShipping": "Standard home delivery",
     "notesLabel": "Order notes (optional)",
     "notesPlaceholder": "Example: exact name to personalize your t-shirt",
     "notesHint": "If your product is customizable, write here the exact name you want stamped. The warehouse sees it when preparing your order.",

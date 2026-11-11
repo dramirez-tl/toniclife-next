@@ -18,7 +18,6 @@ import { storeCountryOfCode } from './countries';
 export interface ShippingFormValues {
   freeShippingThreshold: number;
   standardShippingCost: number;
-  expressShippingCost: number;
   kitShippingCost: number;
   /** Envío gratis por monto: encendido por país… */
   freeShippingEnabled: boolean;
@@ -30,7 +29,6 @@ export interface ShippingFormValues {
 export const DEFAULT_SHIPPING_FORM: ShippingFormValues = {
   freeShippingThreshold: 1500,
   standardShippingCost: 150,
-  expressShippingCost: 250,
   kitShippingCost: 150,
   freeShippingEnabled: true,
   freeShippingForDistributors: false,
@@ -45,7 +43,6 @@ export function shippingFormValues(s: ShippingSettings): ShippingFormValues {
   return {
     freeShippingThreshold: s.freeThreshold,
     standardShippingCost: s.standardCost,
-    expressShippingCost: s.expressCost,
     kitShippingCost: s.kitCost,
     freeShippingEnabled: s.freeShippingEnabled ?? true,
     freeShippingForDistributors: s.freeShippingForDistributors ?? false,
@@ -81,11 +78,14 @@ export function shippingFlagsSupported(settings: ShippingSettings | null | undef
   return !settings || typeof settings.freeShippingEnabled === 'boolean';
 }
 
-/** Cuerpo del guardado: los cuatro montos y, si el servidor los admite, los dos interruptores. */
+/**
+ * Cuerpo del guardado: los tres montos y, si el servidor los admite, los dos interruptores.
+ * El costo del envío exprés ya no viaja (la tienda dejó de ofrecerlo el 11-nov-2026): lo
+ * que el país tuviera guardado se queda como está.
+ */
 export function buildShippingPayload(values: ShippingFormValues, flagsSupported: boolean): Partial<ShippingSettings> {
   return {
     standardCost: values.standardShippingCost,
-    expressCost: values.expressShippingCost,
     freeThreshold: values.freeShippingThreshold,
     kitCost: values.kitShippingCost,
     ...(flagsSupported
@@ -104,7 +104,6 @@ export function isShippingFormDirty(values: ShippingFormValues, saved: ShippingS
   const amounts: (keyof ShippingFormValues)[] = [
     'freeShippingThreshold',
     'standardShippingCost',
-    'expressShippingCost',
     'kitShippingCost',
   ];
   if (amounts.some((key) => values[key] !== base[key])) return true;
@@ -135,7 +134,6 @@ function hasMexicoFactoryAmounts(settings: Partial<ShippingSettings> | null): bo
   return (
     !!settings &&
     settings.standardCost === DEFAULT_SHIPPING_FORM.standardShippingCost &&
-    settings.expressCost === DEFAULT_SHIPPING_FORM.expressShippingCost &&
     settings.freeThreshold === DEFAULT_SHIPPING_FORM.freeShippingThreshold &&
     settings.kitCost === DEFAULT_SHIPPING_FORM.kitShippingCost
   );

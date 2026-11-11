@@ -648,6 +648,7 @@
       }
     },
     "shippingMethod": "Método de envío",
+    "standardShipping": "Envío estándar a domicilio",
     "notesLabel": "Notas para tu pedido (opcional)",
     "notesPlaceholder": "Ejemplo: nombre exacto para personalizar tu playera",
     "notesHint": "Si tu producto es personalizable, escribe aquí el nombre exacto que quieres estampar. Almacén lo verá al preparar tu pedido.",

@@ -71,7 +71,7 @@ export default function FAQPage() {
     },
     {
       question: '¿Cuáles son los tiempos de envío?',
-      answer: 'Los pedidos generalmente se procesan en 1-2 días hábiles. El tiempo de envío depende de tu ubicación: 3-5 días hábiles para envío estándar nacional, 7-10 días para envío internacional. Ofrecemos envío express con entrega en 1-2 días hábiles por un costo adicional.',
+      answer: 'Los pedidos generalmente se procesan en 1-2 días hábiles. El tiempo de envío depende de tu ubicación: 3-5 días hábiles para envío estándar nacional, 7-10 días para envío internacional.',
       category: 'envios'
     },
     {

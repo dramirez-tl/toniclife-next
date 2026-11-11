@@ -17,30 +17,22 @@ export default function EnviosPage() {
     {
       zone: 'Nacional (México)',
       standard: '3-5 días hábiles',
-      express: '1-2 días hábiles',
       cost: 'Gratis en pedidos >$50 USD',
-      expressCoast: '$15 USD'
     },
     {
       zone: 'Centroamérica',
       standard: '7-10 días hábiles',
-      express: '3-5 días hábiles',
       cost: '$12 USD',
-      expressCoast: '$35 USD'
     },
     {
       zone: 'Sudamérica',
       standard: '10-15 días hábiles',
-      express: '5-7 días hábiles',
       cost: '$18 USD',
-      expressCoast: '$45 USD'
     },
     {
       zone: 'Estados Unidos',
       standard: '5-7 días hábiles',
-      express: '2-3 días hábiles',
       cost: '$10 USD',
-      expressCoast: '$25 USD'
     }
   ];
 
@@ -111,11 +103,6 @@ export default function EnviosPage() {
                     <p className="text-gray-600">Estándar</p>
                     <p className="font-medium text-gray-900">{zone.standard}</p>
                     <p className="text-[#3E667D] font-medium">{zone.cost}</p>
-                  </div>
-                  <div className="pt-3 border-t">
-                    <p className="text-gray-600">Express</p>
-                    <p className="font-medium text-gray-900">{zone.express}</p>
-                    <p className="text-[#3E667D] font-medium">{zone.expressCoast}</p>
                   </div>
                 </div>
               </div>

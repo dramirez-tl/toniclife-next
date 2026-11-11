@@ -16,8 +16,10 @@ export enum PaymentMethod {
 
 export enum ShippingMethod {
   STANDARD = 'standard',
+  /** Ya NO se ofrece (11-nov-2026): el API lo rechaza con 422 CHK_SHIPPING_METHOD_UNAVAILABLE. Queda por los pedidos que lo traigan. */
   EXPRESS = 'express',
   PICKUP = 'pickup',
+  /** Nunca lo elige el cliente: el envío gratis lo calcula el servidor. */
   FREE = 'free',
 }
 
