@@ -30,6 +30,7 @@ import {
 } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { ProductThumb } from '@/components/admin/inventory/ProductThumb';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -279,9 +280,14 @@ function InventarioContent() {
       sortValue: (item) => item.productName,
       render: (item) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-[#3E667D]/10 flex items-center justify-center">
-            <CubeIcon className="h-5 w-5 text-[#3E667D]" />
-          </div>
+          {/* Miniatura del producto (al pulsarla se ve en grande); sin foto, el cubo de siempre. */}
+          <ProductThumb
+            productId={item.productId}
+            name={item.productName}
+            code={item.productCode}
+            imageUrl={item.imageUrl}
+            thumbnailUrl={item.thumbnailUrl}
+          />
           <div>
             <p className="font-semibold text-gray-900">{item.productName}</p>
             <p className="text-sm text-gray-500 font-mono">{item.productCode}</p>

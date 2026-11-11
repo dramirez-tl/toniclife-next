@@ -131,6 +131,14 @@ export interface ProductStockDto {
   productId: string;
   productCode: string;
   productName: string;
+  /**
+   * Foto principal del producto. `null` = no tiene foto. AUSENTE = el API todavía no la
+   * manda en la lista: la miniatura se busca en la galería del producto
+   * (lib/inventory/product-thumb).
+   */
+  imageUrl?: string | null;
+  /** Versión pequeña de la foto principal, si existe. */
+  thumbnailUrl?: string | null;
   productType?: string;
   branchId: string;
   branchName: string;
