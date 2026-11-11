@@ -11,11 +11,13 @@ export const stateKeys = {
   detail: (id: string) => [...stateKeys.all, 'detail', id] as const,
 };
 
-export function useStates(params?: StateQueryParams) {
+/** `options.enabled = false` evita la consulta (p. ej. mientras no se conoce el país). */
+export function useStates(params?: StateQueryParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: stateKeys.list(params),
     queryFn: () => statesService.getStates(params),
     staleTime: 10 * 60 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

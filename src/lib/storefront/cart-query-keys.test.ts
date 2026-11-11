@@ -41,4 +41,15 @@ describe('invalidateCartDerived (tras agregar, cambiar cantidad, quitar o vaciar
     expect(cartKeys.checkout()).toEqual(['cart', 'checkout']);
     expect(cartKeys.addresses()).toEqual(['cart', 'checkout', 'addresses']);
   });
+
+  it('las direcciones guardadas van por cuenta y se invalidan todas con el prefijo', () => {
+    expect(cartKeys.addresses('u-1')).toEqual(['cart', 'checkout', 'addresses', 'u-1']);
+    expect(cartKeys.addresses(null)).toEqual(['cart', 'checkout', 'addresses']);
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(cartKeys.addresses('u-1'), []);
+    queryClient.setQueryData(cartKeys.addresses('u-2'), []);
+    void queryClient.invalidateQueries({ queryKey: cartKeys.addresses() });
+    expect(queryClient.getQueryState(cartKeys.addresses('u-1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(cartKeys.addresses('u-2'))?.isInvalidated).toBe(true);
+  });
 });

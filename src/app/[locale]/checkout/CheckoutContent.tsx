@@ -2,7 +2,7 @@
 // Extracted from page.tsx to allow Suspense boundary for useSearchParams
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -15,6 +15,7 @@ import {
   BuildingStorefrontIcon,
   MapPinIcon,
   LockClosedIcon,
+  IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -27,32 +28,62 @@ import { LinePersonalization } from '@/components/storefront/LinePersonalization
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/checkout/SavedAddressPicker';
+import { ShippingAddressForm, addressFieldId, useAddressFormTexts } from '@/components/checkout/ShippingAddressForm';
 import {
   useCart,
   useCheckoutSummary,
   useGuestCheckout,
   useAuthenticatedCheckout,
   useCustomerAddresses,
+  useDeleteCustomerAddress,
   usePickupBranches,
 } from '@/hooks/useCart';
-import { useReferralCode } from '@/hooks/useReferralCode';
+import { getReferralCode } from '@/hooks/useReferralCode';
 import { usePilotPublicState } from '@/hooks/usePilot';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
+import { useStates } from '@/hooks/useStates';
+import { buyerDistributorNumber, fillContactFromBuyer } from '@/lib/checkout/buyer';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
+import {
+  INITIAL_SHIPPING_ADDRESS_STATE,
+  activeAddressDraft,
+  buildCheckoutAddress,
+  buildShippingAddressPayload,
+  chooseAddress,
+  clearDraftStates,
+  draftAddressParts,
+  editAddressDraft,
+  formatAddressLine,
+  pinAddressChoice,
+  rejectSavedAddress,
+  resolveAddressChoice,
+  sameAddressChoice,
+  savedAddressOptions,
+  shippingAreaOf,
+  stateSelectOptions,
+  stateValueIsCode,
+  validateAddressDraft,
+  type AddressDraftError,
+  type SavedAddressContext,
+  type ShippingAddressState,
+  type ShippingRecipient,
+} from '@/lib/checkout/shipping-address';
 import { cartDisplayCurrency } from '@/lib/storefront/cart-country';
 import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
+import { catalogErrorCode, catalogErrorMessage } from '@/lib/storefront/errors';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
   PaymentMethod,
   ShippingMethod,
-  type CheckoutAddress,
   type InvoiceData,
   type GuestCheckoutInput,
   type AuthenticatedCheckoutInput,
   type CheckoutResponse,
+  type SavedAddress,
 } from '@/types/cart';
 
 function CheckoutProductImage({ src, name }: { src?: string; name: string }) {
@@ -84,28 +115,8 @@ function CheckoutProductImage({ src, name }: { src?: string; name: string }) {
 
 type CheckoutStep = 'info' | 'shipping' | 'payment' | 'confirmation';
 
-// Mexican states
-const MEXICAN_STATES = [
-  'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas',
-  'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México',
-  'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit',
-  'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí',
-  'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas',
-];
-
-// US states + DC (códigos de 2 letras = state_codes en tax_rules para sales tax).
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID',
-  'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO',
-  'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA',
-  'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-];
-
-const STATES_BY_COUNTRY: Record<string, string[]> = {
-  MX: MEXICAN_STATES,
-  US: US_STATES,
-};
-
+// Nombre del país que viaja en `shippingAddress.country`. Los estados ya no son listas
+// fijas: salen del catálogo del API (GET /states), ver lib/checkout/shipping-address.
 const COUNTRY_NAMES: Record<string, string> = {
   MX: 'México',
   US: 'United States',
@@ -119,7 +130,6 @@ export default function CheckoutContent() {
   // País + idioma de la tienda (locale): moneda, impuesto, envío y estados.
   const { countryId, countryCode, currency, lang } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, cartDisplayCurrency(cart?.currencyCode, currency), lang);
-  const statesForCountry = STATES_BY_COUNTRY[countryCode] ?? MEXICAN_STATES;
   const taxIncluded = countryCode === 'MX';
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('info');
   const currentUser = useAppSelector(selectUser);
@@ -142,19 +152,12 @@ export default function CheckoutContent() {
     phone: '',
   });
 
-  const [shippingAddress, setShippingAddress] = useState<CheckoutAddress>({
-    fullName: '',
-    phone: '',
-    street: '',
-    exteriorNumber: '',
-    interiorNumber: '',
-    neighborhood: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: 'México',
-    references: '',
-  });
+  // Envío a domicilio: quién recibe (editable siempre) y la dirección, que es una
+  // guardada o una capturada. Qué se ofrece, qué queda elegido y qué viaja en el
+  // pedido lo decide lib/checkout/shipping-address.
+  const [recipient, setRecipient] = useState<ShippingRecipient>({ name: '', phone: '' });
+  const [shipping, setShipping] = useState<ShippingAddressState>(INITIAL_SHIPPING_ADDRESS_STATE);
+  const [addressError, setAddressError] = useState<AddressDraftError | null>(null);
 
   const [selectedShippingMethod, setSelectedShippingMethod] = useState<ShippingMethod>(ShippingMethod.STANDARD);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(PaymentMethod.STRIPE);
@@ -169,19 +172,59 @@ export default function CheckoutContent() {
   });
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [notes, setNotes] = useState('');
-  const [referralCode, setReferralCode] = useState('');
 
   // API hooks
   const { data: cart, isLoading: cartLoading } = useCart();
-  const { data: checkoutSummary, isLoading: summaryLoading } = useCheckoutSummary(
+
+  // Direcciones guardadas del comprador y catálogo de estados del país de la tienda.
+  // De ahí sale la elección VIGENTE: la que eligió el cliente o, si aún no elige, la
+  // primera guardada que se puede usar tal cual (si no hay, una dirección nueva).
+  const savedAddressesQuery = useCustomerAddresses();
+  const deleteSavedAddress = useDeleteCustomerAddress();
+  const statesQuery = useStates({ countryId, isActive: true }, { enabled: !!countryId });
+  const addressCtx = useMemo<SavedAddressContext>(
+    () => ({ countryCode, states: statesQuery.data, rejectedIds: shipping.rejectedIds }),
+    [countryCode, statesQuery.data, shipping.rejectedIds],
+  );
+  const addressOptions = useMemo(
+    () => savedAddressOptions(savedAddressesQuery.data, addressCtx),
+    [savedAddressesQuery.data, addressCtx],
+  );
+  const addressChoice = useMemo(
+    () => resolveAddressChoice(shipping.choice, addressOptions),
+    [shipping.choice, addressOptions],
+  );
+  const addressDraft = useMemo(
+    () => activeAddressDraft(shipping, addressChoice, addressOptions, addressCtx),
+    [shipping, addressChoice, addressOptions, addressCtx],
+  );
+  const selectedSavedAddress =
+    addressChoice.kind === 'saved'
+      ? addressOptions.find((option) => option.address.id === addressChoice.id)?.address
+      : undefined;
+  const addressTexts = useAddressFormTexts(countryCode);
+  const shippingCountry = useMemo(
+    () => ({ code: countryCode, name: COUNTRY_NAMES[countryCode] || 'México' }),
+    [countryCode],
+  );
+
+  // El envío y el impuesto del resumen se cotizan con el C. P. y el estado de la
+  // dirección vigente. Recoger en sucursal sigue como siempre: con lo capturado.
+  const shippingArea = useMemo(
+    () =>
+      deliveryMode === 'pickup'
+        ? { postalCode: shipping.newDraft.zipCode, state: shipping.newDraft.state }
+        : shippingAreaOf(addressChoice, addressOptions, addressDraft),
+    [deliveryMode, shipping.newDraft, addressChoice, addressOptions, addressDraft],
+  );
+  const { data: checkoutSummary } = useCheckoutSummary(
     selectedShippingMethod,
-    shippingAddress.postalCode,
+    shippingArea.postalCode,
     countryId,
-    shippingAddress.state,
+    shippingArea.state,
   );
   const guestCheckout = useGuestCheckout();
   const authenticatedCheckout = useAuthenticatedCheckout();
-  const { data: savedAddresses } = useCustomerAddresses();
   const { data: pickupBranches } = usePickupBranches();
   // Piloto: compras del checkout gateadas globalmente desde /admin/sistema.
   const { data: pilotState } = usePilotPublicState();
@@ -201,19 +244,26 @@ export default function CheckoutContent() {
     country: storeCountryName(countryCode, lang),
   });
 
-  // Referral code from URL or localStorage
-  const { referralCode: storedReferralCode } = useReferralCode();
+  // Mientras cargan las guardadas (y, donde el estado viaja como código, su catálogo)
+  // aún no se sabe qué dirección queda elegida: va un esqueleto, no el formulario.
+  const addressBookLoading =
+    savedAddressesQuery.isLoading ||
+    (stateValueIsCode(countryCode) && (countriesLoading || statesQuery.isLoading));
 
-  // Pre-fill referral code from stored value (captured from URL)
-  useEffect(() => {
-    if (storedReferralCode && !referralCode) {
-      setReferralCode(storedReferralCode);
-    }
-  }, [storedReferralCode, referralCode]);
+  // Quién compra (resumen del API). A un distribuidor se le muestra su número: la
+  // compra y sus puntos se registran a su cuenta. Ya no se pide código de referido a
+  // nadie. No depende del código postal: se recuerda mientras el resumen se recotiza.
+  const summaryDistributorNumber = buyerDistributorNumber(checkoutSummary);
+  const [distributorNumber, setDistributorNumber] = useState<string | null>(null);
+  if (checkoutSummary && summaryDistributorNumber !== distributorNumber) {
+    setDistributorNumber(summaryDistributorNumber);
+  }
 
-  // Pre-llenar datos de contacto del usuario autenticado (no los reescribe).
-  useEffect(() => {
-    if (!currentUser) return;
+  // Pre-llenar datos de contacto del usuario autenticado (no los reescribe). Se
+  // ajusta al renderizar cuando cambia el usuario en sesión, no en un efecto.
+  const [contactUser, setContactUser] = useState<typeof currentUser>(null);
+  if (currentUser && contactUser !== currentUser) {
+    setContactUser(currentUser);
     const fullName = [currentUser.firstName, currentUser.lastName]
       .filter(Boolean)
       .join(' ')
@@ -223,7 +273,17 @@ export default function CheckoutContent() {
       name: prev.name || fullName,
       phone: prev.phone || currentUser.phone || '',
     }));
-  }, [currentUser]);
+  }
+
+  // Lo que siga vacío se completa UNA vez con la ficha del comprador que manda el
+  // resumen (un distribuidor suele tener el teléfono en su ficha y no en su usuario).
+  const buyerName = checkoutSummary?.buyer?.name ?? null;
+  const buyerPhone = checkoutSummary?.buyer?.phone ?? null;
+  const [buyerContactApplied, setBuyerContactApplied] = useState(false);
+  if (!buyerContactApplied && (buyerName || buyerPhone)) {
+    setBuyerContactApplied(true);
+    setCustomerInfo((prev) => fillContactFromBuyer(prev, { name: buyerName, phone: buyerPhone }));
+  }
 
   // Check if cart is empty
   useEffect(() => {
@@ -232,14 +292,13 @@ export default function CheckoutContent() {
     }
   }, [cart, cartLoading, router]);
 
-  // País del store (locale) → país de la dirección; si cambia el país, limpia el
-  // estado seleccionado (un estado MX no aplica a US y viceversa).
-  useEffect(() => {
-    const name = COUNTRY_NAMES[countryCode] || 'México';
-    setShippingAddress((prev) =>
-      prev.country === name ? prev : { ...prev, country: name, state: '' },
-    );
-  }, [countryCode]);
+  // Si cambia el país de la tienda se limpia el estado capturado (un estado MX no
+  // aplica a US y viceversa). El país de la dirección sale siempre de `shippingCountry`.
+  const [draftsCountry, setDraftsCountry] = useState(countryCode);
+  if (draftsCountry !== countryCode) {
+    setDraftsCountry(countryCode);
+    setShipping((state) => clearDraftStates(state));
+  }
 
   const steps = [
     { id: 'info', name: t('steps.info'), icon: UserIcon },
@@ -260,18 +319,23 @@ export default function CheckoutContent() {
       return;
     }
 
-    // El código de referido es OPCIONAL: no bloquea el checkout.
-
-    // Pre-fill shipping address name and phone
-    if (!shippingAddress.fullName) {
-      setShippingAddress(prev => ({
-        ...prev,
-        fullName: customerInfo.name,
-        phone: customerInfo.phone,
-      }));
+    // Quién recibe: por defecto quien compra (se puede cambiar en el siguiente paso).
+    if (!recipient.name) {
+      setRecipient({ name: customerInfo.name, phone: customerInfo.phone });
     }
 
     setCurrentStep('shipping');
+  };
+
+  // Eliminar una dirección guardada (ya confirmado en el diálogo). Si era la elegida,
+  // la elección vuelve sola a la siguiente guardada o a una dirección nueva.
+  const handleDeleteAddress = async (address: SavedAddress) => {
+    try {
+      await deleteSavedAddress.mutateAsync(address.id);
+      toast.success(t('addressBook.deleted'));
+    } catch (error) {
+      toast.error(catalogErrorMessage(error, t('addressBook.deleteError'), { useApiMessage: lang === 'es' }));
+    }
   };
 
   const handleShippingSubmit = (e: React.FormEvent) => {
@@ -292,16 +356,30 @@ export default function CheckoutContent() {
       return;
     }
 
-    const requiredFields: (keyof CheckoutAddress)[] = [
-      'fullName', 'phone', 'street', 'city', 'state', 'postalCode', 'country',
-    ];
-    const missingFields = requiredFields.filter(field => !shippingAddress[field]);
+    // Las guardadas aún cargan: todavía no hay dirección que validar.
+    if (addressBookLoading) return;
 
-    if (missingFields.length > 0) {
+    if (!recipient.name.trim() || !recipient.phone) {
       toast.error(t('toasts.fillRequired'));
       return;
     }
 
+    // Una guardada que se puede usar ya está completa; una nueva (o una guardada por
+    // completar) se revisa con los campos y el formato de código postal del país.
+    if (addressChoice.kind !== 'saved') {
+      const problem = validateAddressDraft(countryCode, addressDraft);
+      if (problem) {
+        setAddressError(problem);
+        toast.error(addressTexts.errorText(problem));
+        document.getElementById(addressFieldId(problem.field))?.focus();
+        return;
+      }
+    }
+
+    // Se fija la dirección con la que el cliente continúa: si la lista de guardadas
+    // cambia después, no se cambia sola por otra.
+    setShipping((state) => pinAddressChoice(state, addressChoice, addressOptions, addressCtx));
+    setAddressError(null);
     setCurrentStep('payment');
     toast.success(t('toasts.shippingSaved'));
   };
@@ -328,24 +406,52 @@ export default function CheckoutContent() {
     // El país de la tienda aún está cargando: el botón ya espera; esto cubre el Enter.
     if (waitingForCountry) return;
 
-    try {
-      const isPickup = deliveryMode === 'pickup';
+    const isPickup = deliveryMode === 'pickup';
 
+    // Envío a domicilio: la dirección debe ser la MISMA con la que se continuó en
+    // "Envío". Si la guardada ya no está (se eliminó en otra pestaña), dejó de poder
+    // usarse o a lo capturado le falta algo, se regresa a ese paso en vez de pagar
+    // con otra dirección.
+    if (!isPickup) {
+      const addressProblem =
+        addressChoice.kind === 'saved' ? null : validateAddressDraft(countryCode, addressDraft);
+      if (
+        addressBookLoading ||
+        !sameAddressChoice(shipping.choice, addressChoice) ||
+        addressProblem ||
+        !recipient.name.trim() ||
+        !recipient.phone
+      ) {
+        setAddressError(addressProblem);
+        setCurrentStep('shipping');
+        toast.error(t('toasts.reviewAddress'));
+        return;
+      }
+    }
+
+    try {
       // Usuarios autenticados (distribuidores/clientes) van por el checkout
       // autenticado; los invitados por el de invitado. En recoger se manda
-      // pickupBranchId; en envío, la dirección.
+      // pickupBranchId; en envío, la dirección: una guardada (su id + quién recibe)
+      // o una nueva (con la casilla "guardar para mis próximas compras").
       let result: CheckoutResponse;
       if (isAuthenticated) {
         const authData: AuthenticatedCheckoutInput = {
           countryId,
-          shippingAddress: isPickup ? undefined : shippingAddress,
-          pickupBranchId: isPickup ? pickupBranchId : undefined,
+          ...(isPickup
+            ? { pickupBranchId, saveShippingAddress: false }
+            : buildShippingAddressPayload({
+                choice: addressChoice,
+                draft: addressDraft,
+                recipient,
+                country: shippingCountry,
+                saveAddress: shipping.saveAddress,
+              })),
           paymentMethod: selectedPaymentMethod,
           shippingMethod: selectedShippingMethod,
           requiresInvoice,
           invoiceData: requiresInvoice ? invoiceData : undefined,
           notes: notes || undefined,
-          saveShippingAddress: !isPickup,
         };
         result = await authenticatedCheckout.mutateAsync(authData);
       } else {
@@ -353,13 +459,15 @@ export default function CheckoutContent() {
           email: customerInfo.email,
           name: customerInfo.name,
           phone: customerInfo.phone,
-          shippingAddress,
+          shippingAddress: buildCheckoutAddress(addressDraft, recipient, shippingCountry),
           paymentMethod: selectedPaymentMethod,
           shippingMethod: selectedShippingMethod,
           requiresInvoice,
           invoiceData: requiresInvoice ? invoiceData : undefined,
           notes: notes || undefined,
-          referralCode: referralCode || undefined,
+          // Al público no se le pide código: solo viaja el del enlace con el que llegó
+          // a la tienda (ReferralCodeCapture), si lo hay.
+          referralCode: getReferralCode() || undefined,
           acceptTerms,
         };
         result = await guestCheckout.mutateAsync(checkoutData);
@@ -380,10 +488,20 @@ export default function CheckoutContent() {
           window.location.href = result.paymentUrl;
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 409 CHK_COUNTRY_MISMATCH (C2): el API no creó el pedido; aviso con enlace al carrito y a su tienda.
       if (reportCheckoutCountryMismatch(error)) return;
-      toast.error(error.response?.data?.message || t('toasts.orderError'));
+      // 422 CHK_ADDRESS_NOT_USABLE: el API no aceptó la dirección guardada (es de otro
+      // país o le faltan datos). No se creó el pedido: se regresa a "Envío" con esa
+      // dirección abierta en el formulario para completarla; ya no se ofrece tal cual.
+      if (catalogErrorCode(error) === 'CHK_ADDRESS_NOT_USABLE' && addressChoice.kind === 'saved') {
+        const rejectedId = addressChoice.id;
+        setShipping((state) => rejectSavedAddress(state, rejectedId));
+        setCurrentStep('shipping');
+      }
+      const apiMessage = (error as { response?: { data?: { message?: string | string[] } } } | null)?.response
+        ?.data?.message;
+      toast.error(apiMessage || t('toasts.orderError'));
     }
   };
 
@@ -554,21 +672,21 @@ export default function CheckoutContent() {
                       </div>
                     </div>
 
-                    {/* Referral Code */}
-                    <div className="pt-4 border-t border-gray-200">
-                      <div className="space-y-1.5">
-                        <Label>{t('referralCode')}</Label>
-                        <Input
-                          type="text"
-                          value={referralCode}
-                          onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                          placeholder={t('referralPlaceholder')}
-                        />
+                    {/* Distribuidor: su número, solo lectura. La compra y sus puntos se
+                        registran a su cuenta; al público en general no se le muestra nada
+                        (ya no se pide código de referido). */}
+                    {distributorNumber && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="flex items-start gap-3 rounded-lg border border-[#a7c1e2]/30 bg-[#C8DDF2]/10 p-4">
+                          <IdentificationIcon className="h-6 w-6 flex-shrink-0 text-[#3E667D]" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-700">{t('distributor.label')}</p>
+                            <p className="font-mono text-lg font-semibold text-[#3E667D]">{distributorNumber}</p>
+                            <p className="mt-1 text-xs text-gray-500">{t('distributor.note')}</p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {t('referralHint')}
-                      </p>
-                    </div>
+                    )}
 
                     <Button type="submit" size="lg" className="w-full">
                       {t('continueToShipping')}
@@ -671,109 +789,80 @@ export default function CheckoutContent() {
 
                     {deliveryMode === 'delivery' && !homeDeliveryUnavailable && (
                       <>
+                    {/* Quién recibe: se puede cambiar siempre, también con una dirección guardada */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label>{t('recipientName')}</Label>
+                        <Label htmlFor="checkout-recipient-name">{t('recipientName')}</Label>
                         <Input
+                          id="checkout-recipient-name"
                           type="text"
-                          value={shippingAddress.fullName}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, fullName: e.target.value })}
+                          value={recipient.name}
+                          onChange={(e) => setRecipient({ ...recipient, name: e.target.value })}
+                          maxLength={200}
                           required
                         />
                       </div>
                       <div className="space-y-1.5">
                         <Label>{t('phone')}</Label>
                         <PhoneInput
-                          value={shippingAddress.phone}
-                          onChange={(v) => setShippingAddress({ ...shippingAddress, phone: v })}
+                          value={recipient.phone}
+                          onChange={(v) => setRecipient((current) => ({ ...current, phone: v }))}
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-2 space-y-1.5">
-                        <Label>{t('street')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.street}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, street: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>{t('extNumber')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.exteriorNumber || ''}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, exteriorNumber: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <Label>{t('intNumber')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.interiorNumber || ''}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, interiorNumber: e.target.value })}
-                          placeholder={t('intNumberPlaceholder')}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>{t('neighborhood')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.neighborhood || ''}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, neighborhood: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-1.5">
-                        <Label>{t('city')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.city}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          {t('state')}
-                        </label>
-                        <SearchableSelect
-                          options={statesForCountry.map(state => ({ value: state, label: state }))}
-                          value={shippingAddress.state}
-                          onChange={(val) => setShippingAddress({ ...shippingAddress, state: val })}
-                          showAllOption={false}
-                          placeholder={t('statePlaceholder')}
-                          className="w-full"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>{t('postalCode')}</Label>
-                        <Input
-                          type="text"
-                          value={shippingAddress.postalCode}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
-                          maxLength={countryCode === 'US' ? 10 : 5}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label>{t('references')}</Label>
-                      <Input
-                        type="text"
-                        value={shippingAddress.references || ''}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, references: e.target.value })}
-                        placeholder={t('referencesPlaceholder')}
-                      />
-                    </div>
+                    {/* Dirección: una guardada o una nueva (lib/checkout/shipping-address) */}
+                    {addressBookLoading ? (
+                      <SavedAddressPickerSkeleton />
+                    ) : (
+                      <>
+                        {addressOptions.length > 0 && (
+                          <SavedAddressPicker
+                            options={addressOptions}
+                            choice={addressChoice}
+                            onChoose={(choice) => {
+                              setShipping((state) => chooseAddress(state, choice));
+                              setAddressError(null);
+                            }}
+                            onDelete={handleDeleteAddress}
+                            deletingId={deleteSavedAddress.isPending ? deleteSavedAddress.variables : null}
+                          />
+                        )}
+                        {addressChoice.kind !== 'saved' && (
+                          <div
+                            className={
+                              addressOptions.length > 0
+                                ? 'rounded-lg border border-gray-200 bg-gray-50/60 p-4'
+                                : undefined
+                            }
+                          >
+                            <ShippingAddressForm
+                              countryCode={countryCode}
+                              draft={addressDraft}
+                              onChange={(patch) => {
+                                setShipping((state) =>
+                                  editAddressDraft(state, addressChoice, patch, addressOptions, addressCtx),
+                                );
+                                setAddressError(null);
+                              }}
+                              stateOptions={stateSelectOptions(statesQuery.data, countryCode, addressDraft.state)}
+                              statesLoading={statesQuery.isLoading || (!countryId && countriesLoading)}
+                              error={addressError}
+                              saveAddress={shipping.saveAddress}
+                              onSaveAddressChange={(save) => setShipping((state) => ({ ...state, saveAddress: save }))}
+                              title={
+                                addressOptions.length === 0
+                                  ? undefined
+                                  : addressChoice.kind === 'complete'
+                                    ? t('addressForm.completeTitle')
+                                    : t('addressForm.newTitle')
+                              }
+                              hint={addressChoice.kind === 'complete' ? t('addressForm.completeHint') : undefined}
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
 
                     {/* Shipping Method Selection */}
                     <div className="pt-4 border-t border-gray-200">
@@ -845,7 +934,12 @@ export default function CheckoutContent() {
                       >
                         {t('back')}
                       </Button>
-                      <Button type="submit" size="lg" className="flex-1" disabled={deliveryBlocked}>
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="flex-1"
+                        disabled={deliveryBlocked || (deliveryMode === 'delivery' && addressBookLoading)}
+                      >
                         {t('continueToPayment')}
                       </Button>
                     </div>
@@ -974,13 +1068,13 @@ export default function CheckoutContent() {
                           <div className="flex justify-between">
                             <span className="text-gray-600">{t('shipTo')}</span>
                             <span className="font-medium text-gray-900">
-                              {shippingAddress.fullName}
+                              {recipient.name}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">{t('address')}</span>
                             <span className="font-medium text-gray-900 text-right max-w-xs">
-                              {shippingAddress.street} {shippingAddress.exteriorNumber}, {shippingAddress.neighborhood && `${shippingAddress.neighborhood},`} {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postalCode}
+                              {formatAddressLine(selectedSavedAddress ?? draftAddressParts(addressDraft))}
                             </span>
                           </div>
                         </>

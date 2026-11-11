@@ -553,9 +553,10 @@
     "fullName": "Full name *",
     "fullNamePlaceholder": "John Doe",
     "phone": "Phone *",
-    "referralCode": "Referral code (optional)",
-    "referralPlaceholder": "CODE123",
-    "referralHint": "If a distributor referred you, enter their code (optional).",
+    "distributor": {
+      "label": "Your distributor number",
+      "note": "This purchase and its points are recorded on your account."
+    },
     "continueToShipping": "Continue to shipping",
     "shippingTitle": "Shipping address",
     "deliveryHome": "Home delivery",
@@ -566,17 +567,84 @@
     "pickupBranch": "Pickup branch *",
     "pickupPlaceholder": "Select a branch...",
     "recipientName": "Recipient name *",
-    "street": "Street *",
-    "extNumber": "Ext. number",
-    "intNumber": "Interior number",
-    "intNumberPlaceholder": "Apt, suite, etc.",
-    "neighborhood": "Neighborhood",
-    "city": "City *",
-    "state": "State *",
-    "statePlaceholder": "Select...",
-    "postalCode": "ZIP / Postal Code *",
-    "references": "Location notes",
-    "referencesPlaceholder": "Cross streets, house color, etc.",
+    "addressBook": {
+      "title": "Your saved addresses",
+      "default": "Default",
+      "incomplete": "Missing details",
+      "incompleteHint": "Select it to fill in what is missing and use it for this order.",
+      "review": "Check details",
+      "reviewHint": "Select it to confirm its details and use it for this order.",
+      "noStreet": "Address without street",
+      "interior": "unit {value}",
+      "postalCode": "ZIP {code}",
+      "phone": "Phone {phone}",
+      "useOther": "Use a different address",
+      "showMore": "{count, plural, one {Show # more address} other {Show # more addresses}}",
+      "delete": "Delete address",
+      "deleteAria": "Delete the address {address}",
+      "deleteTitle": "Delete this address?",
+      "deleteBody": "It will no longer appear in your saved addresses. Your previous orders are not affected.",
+      "deleteCancel": "Cancel",
+      "deleteConfirm": "Delete",
+      "deleted": "Address deleted",
+      "deleteError": "We could not delete the address. Please try again."
+    },
+    "addressForm": {
+      "newTitle": "New address",
+      "completeTitle": "Complete this address",
+      "completeHint": "Check the details and add what is missing so we can ship your order.",
+      "statePlaceholder": "Select...",
+      "stateLoading": "Loading…",
+      "intNumberPlaceholder": "Apt, suite, etc.",
+      "referencePlaceholder": "Cross streets, house color, etc.",
+      "save": "Save this address for my next purchases",
+      "fields": {
+        "default": {
+          "street": "Street address",
+          "extNumber": "Exterior number",
+          "intNumber": "Interior number",
+          "neighborhood": "Neighborhood",
+          "city": "City",
+          "state": "State / Province",
+          "zipCode": "Postal code",
+          "reference": "Location notes"
+        },
+        "MX": {
+          "street": "Street",
+          "city": "Municipality / Borough",
+          "state": "State"
+        },
+        "US": {
+          "intNumber": "Apt / Suite / Unit",
+          "state": "State",
+          "zipCode": "ZIP code"
+        },
+        "GT": {
+          "street": "Address (street or avenue and number)",
+          "neighborhood": "Zone",
+          "city": "City / Municipality",
+          "state": "Department"
+        },
+        "CO": {
+          "street": "Address (street or carrera and number)",
+          "neighborhood": "Neighborhood (barrio)",
+          "city": "City / Municipality",
+          "state": "Department"
+        }
+      },
+      "zipHint": {
+        "MX": "5 digits",
+        "US": "5 digits, or ZIP+4 (12345-6789)",
+        "GT": "5 digits",
+        "CO": "6 digits"
+      },
+      "errors": {
+        "required": "Missing: {field}",
+        "select": "Please choose: {field}",
+        "zipCode": "Check the postal code: {hint}",
+        "invalid": "Check this field: {field}"
+      }
+    },
     "shippingMethod": "Shipping method",
     "notesLabel": "Order notes (optional)",
     "notesPlaceholder": "Example: exact name to personalize your t-shirt",
@@ -629,6 +697,7 @@
       "selectPickup": "Select a branch to pick up your order",
       "pickupSelected": "Pickup branch selected",
       "shippingSaved": "Shipping information saved",
+      "reviewAddress": "Check the shipping address to continue",
       "mustAcceptTerms": "You must accept the terms & conditions",
       "orderCreated": "Order created successfully!",
       "orderError": "Failed to process the order"

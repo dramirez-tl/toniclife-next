@@ -553,9 +553,10 @@
     "fullName": "Nombre completo *",
     "fullNamePlaceholder": "Juan Pérez",
     "phone": "Teléfono *",
-    "referralCode": "Código de referido (opcional)",
-    "referralPlaceholder": "CODIGO123",
-    "referralHint": "Si te refirió un distribuidor, ingresa su código (opcional).",
+    "distributor": {
+      "label": "Tu número de distribuidor",
+      "note": "Esta compra y sus puntos se registran a tu cuenta."
+    },
     "continueToShipping": "Continuar al envío",
     "shippingTitle": "Dirección de envío",
     "deliveryHome": "Envío a domicilio",
@@ -566,17 +567,84 @@
     "pickupBranch": "Sucursal de recolección *",
     "pickupPlaceholder": "Selecciona una sucursal...",
     "recipientName": "Nombre del destinatario *",
-    "street": "Calle *",
-    "extNumber": "Número ext.",
-    "intNumber": "Número interior",
-    "intNumberPlaceholder": "Depto, oficina, etc.",
-    "neighborhood": "Colonia",
-    "city": "Ciudad *",
-    "state": "Estado *",
-    "statePlaceholder": "Seleccionar...",
-    "postalCode": "Código Postal *",
-    "references": "Referencias de ubicación",
-    "referencesPlaceholder": "Entre calles, color de casa, etc.",
+    "addressBook": {
+      "title": "Tus direcciones guardadas",
+      "default": "Predeterminada",
+      "incomplete": "Faltan datos",
+      "incompleteHint": "Elígela para completar lo que falta y usarla en este pedido.",
+      "review": "Revisar datos",
+      "reviewHint": "Elígela para confirmar sus datos y usarla en este pedido.",
+      "noStreet": "Dirección sin calle",
+      "interior": "int. {value}",
+      "postalCode": "C.P. {code}",
+      "phone": "Tel. {phone}",
+      "useOther": "Usar otra dirección",
+      "showMore": "{count, plural, one {Ver # dirección más} other {Ver # direcciones más}}",
+      "delete": "Eliminar dirección",
+      "deleteAria": "Eliminar la dirección {address}",
+      "deleteTitle": "¿Eliminar esta dirección?",
+      "deleteBody": "Dejará de aparecer en tus direcciones guardadas. Tus pedidos anteriores no cambian.",
+      "deleteCancel": "Cancelar",
+      "deleteConfirm": "Eliminar",
+      "deleted": "Dirección eliminada",
+      "deleteError": "No se pudo eliminar la dirección. Intenta de nuevo."
+    },
+    "addressForm": {
+      "newTitle": "Nueva dirección",
+      "completeTitle": "Completa esta dirección",
+      "completeHint": "Revisa los datos y agrega lo que falta para poder enviar tu pedido.",
+      "statePlaceholder": "Seleccionar...",
+      "stateLoading": "Cargando…",
+      "intNumberPlaceholder": "Depto, oficina, etc.",
+      "referencePlaceholder": "Entre calles, color de casa, etc.",
+      "save": "Guardar esta dirección para mis próximas compras",
+      "fields": {
+        "default": {
+          "street": "Dirección (calle y número)",
+          "extNumber": "Número exterior",
+          "intNumber": "Número interior",
+          "neighborhood": "Colonia",
+          "city": "Ciudad",
+          "state": "Estado / Provincia",
+          "zipCode": "Código postal",
+          "reference": "Referencias de ubicación"
+        },
+        "MX": {
+          "street": "Calle",
+          "city": "Municipio / Alcaldía",
+          "state": "Estado"
+        },
+        "US": {
+          "intNumber": "Depto / Suite",
+          "state": "Estado",
+          "zipCode": "Código ZIP"
+        },
+        "GT": {
+          "street": "Dirección (calle o avenida y número)",
+          "neighborhood": "Zona",
+          "city": "Ciudad / Municipio",
+          "state": "Departamento"
+        },
+        "CO": {
+          "street": "Dirección (calle o carrera y número)",
+          "neighborhood": "Barrio",
+          "city": "Ciudad / Municipio",
+          "state": "Departamento"
+        }
+      },
+      "zipHint": {
+        "MX": "5 dígitos",
+        "US": "5 dígitos, o ZIP+4 (12345-6789)",
+        "GT": "5 dígitos",
+        "CO": "6 dígitos"
+      },
+      "errors": {
+        "required": "Falta capturar: {field}",
+        "select": "Falta elegir: {field}",
+        "zipCode": "Revisa el código postal: {hint}",
+        "invalid": "Revisa este dato: {field}"
+      }
+    },
     "shippingMethod": "Método de envío",
     "notesLabel": "Notas para tu pedido (opcional)",
     "notesPlaceholder": "Ejemplo: nombre exacto para personalizar tu playera",
@@ -629,6 +697,7 @@
       "selectPickup": "Selecciona una sucursal para recoger tu pedido",
       "pickupSelected": "Sucursal de recolección seleccionada",
       "shippingSaved": "Información de envío guardada",
+      "reviewAddress": "Revisa la dirección de envío para continuar",
       "mustAcceptTerms": "Debes aceptar los términos y condiciones",
       "orderCreated": "¡Pedido creado exitosamente!",
       "orderError": "Error al procesar el pedido"

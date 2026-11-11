@@ -2,6 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
 import api from '@/lib/api';
+import { normalizeSavedAddresses } from '@/lib/checkout/shipping-address';
 import { addWithStoreCountry, createCountrySupportMemo } from '@/lib/storefront/cart-country';
 import { GUEST_SESSION_KEY, newGuestSessionId } from '@/lib/storefront/cart-merge';
 import type {
@@ -210,9 +211,15 @@ class CartService {
     return response.data;
   }
 
+  /** Direcciones de envío guardadas del comprador: la predeterminada y las más recientes primero. */
   async getCustomerAddresses(): Promise<SavedAddress[]> {
-    const response = await api.get<SavedAddress[]>('/checkout/addresses');
-    return response.data;
+    const response = await api.get<unknown>('/checkout/addresses');
+    return normalizeSavedAddresses(response.data);
+  }
+
+  /** Quita (baja lógica) una dirección guardada del comprador. */
+  async deleteCustomerAddress(addressId: string): Promise<void> {
+    await api.delete(`/checkout/addresses/${encodeURIComponent(addressId)}`);
   }
 
   async getPickupBranches(): Promise<PickupBranch[]> {

@@ -20,7 +20,14 @@ export const cartKeys = {
       'summary',
       { shippingMethod, postalCode, countryId, state },
     ] as const,
-  addresses: () => [...cartKeys.checkout(), 'addresses'] as const,
+  /**
+   * Direcciones guardadas. Con `userId`, las de ESA cuenta (nunca se muestran las de otra
+   * sesión que quedó en caché); sin él, el prefijo de todas, para invalidar.
+   */
+  addresses: (userId?: string | null) =>
+    userId
+      ? ([...cartKeys.checkout(), 'addresses', userId] as const)
+      : ([...cartKeys.checkout(), 'addresses'] as const),
 };
 
 /**

@@ -16,6 +16,8 @@ import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/
 import { normalizePersonalization, samePersonalization } from '@/lib/storefront/personalization';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
 import { cartKeys, invalidateCartDerived } from '@/lib/storefront/cart-query-keys';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import type {
   Cart,
   AddCartItemInput,
@@ -23,6 +25,7 @@ import type {
   ApplyCouponInput,
   GuestCheckoutInput,
   AuthenticatedCheckoutInput,
+  SavedAddress,
   ShippingMethod,
 } from '@/types/cart';
 
@@ -423,15 +426,35 @@ export const useCheckoutSummary = (
   });
 };
 
+/**
+ * Direcciones de envío guardadas del comprador. Corre con SESIÓN (el usuario del store),
+ * no con `localStorage.accessToken`: con "Recordarme" apagado el token vive en
+ * sessionStorage y la consulta nunca salía. La key lleva la cuenta para que las
+ * direcciones de una sesión jamás se muestren en otra.
+ */
 export const useCustomerAddresses = () => {
-  // Only fetch addresses if user is authenticated
-  const isAuthenticated = typeof window !== 'undefined' && !!localStorage.getItem('accessToken');
+  const user = useAppSelector(selectUser);
 
   return useQuery({
-    queryKey: cartKeys.addresses(),
+    queryKey: cartKeys.addresses(user?.id),
     queryFn: () => cartService.getCustomerAddresses(),
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: isAuthenticated, // Only run if authenticated
+    enabled: !!user,
+  });
+};
+
+/** Quita una dirección guardada: sale de la lista de inmediato y se vuelve a pedir. */
+export const useDeleteCustomerAddress = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (addressId: string) => cartService.deleteCustomerAddress(addressId),
+    onSuccess: (_data, addressId) => {
+      queryClient.setQueriesData<SavedAddress[]>({ queryKey: cartKeys.addresses() }, (list) =>
+        list?.filter((address) => address.id !== addressId),
+      );
+      void queryClient.invalidateQueries({ queryKey: cartKeys.addresses() });
+    },
   });
 };
 

@@ -195,10 +195,29 @@ export interface CheckoutAddress {
   references?: string;
 }
 
-export interface SavedAddress extends CheckoutAddress {
+/**
+ * Dirección de envío guardada del comprador (GET /checkout/addresses): la
+ * predeterminada y las más recientes primero. No guarda quién recibe: el nombre
+ * y el teléfono del destinatario viajan aparte en el pedido.
+ */
+export interface SavedAddress {
   id: string;
-  alias?: string;
-  isDefault?: boolean;
+  street: string | null;
+  extNumber: string | null;
+  intNumber: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  countryId: string | null;
+  /** ISO2 del país (MX, FN, US…). */
+  countryCode: string | null;
+  phone: string | null;
+  reference: string | null;
+  isDefault: boolean;
+  /** Tiene calle, ciudad, estado y código postal. Una incompleta no se puede usar tal cual. */
+  isComplete: boolean;
+  createdAt: string | null;
 }
 
 // ================================
@@ -226,7 +245,7 @@ export interface GuestCheckoutInput {
   shippingAddress: CheckoutAddress;
   billingAddress?: CheckoutAddress;
   paymentMethod: PaymentMethod;
-  paymentData?: Record<string, any>;
+  paymentData?: Record<string, unknown>;
   shippingMethod: ShippingMethod;
   requiresInvoice?: boolean;
   invoiceData?: InvoiceData;
@@ -238,12 +257,17 @@ export interface GuestCheckoutInput {
 export interface AuthenticatedCheckoutInput {
   /** País de la tienda (locale): define moneda, impuesto y envío del pedido. */
   countryId?: string;
+  /** Dirección guardada (GET /checkout/addresses): va con `recipientName`/`recipientPhone` y SIN `shippingAddress`. */
   shippingAddressId?: string;
+  /** Quién recibe, al usar una dirección guardada (las guardadas no llevan nombre). */
+  recipientName?: string;
+  recipientPhone?: string;
+  /** Dirección nueva: va con `saveShippingAddress` (el API no duplica una que ya estaba guardada). */
   shippingAddress?: CheckoutAddress;
   billingAddressId?: string;
   billingAddress?: CheckoutAddress;
   paymentMethod: PaymentMethod;
-  paymentData?: Record<string, any>;
+  paymentData?: Record<string, unknown>;
   shippingMethod: ShippingMethod;
   /** Sucursal donde recoger (requerido si shippingMethod=PICKUP). */
   pickupBranchId?: string;
@@ -294,6 +318,14 @@ export interface ShippingQuote {
   estimatedDeliveryDate?: string;
 }
 
+/** Quién compra (GET /checkout/summary). A un distribuidor la tienda le muestra su número en vez de pedirle un código de referido. */
+export interface CheckoutBuyer {
+  isDistributor: boolean;
+  customerNumber: string | null;
+  name: string | null;
+  phone: string | null;
+}
+
 export interface CheckoutSummary {
   subtotal: string;
   taxAmount: string;
@@ -317,4 +349,6 @@ export interface CheckoutSummary {
    * envío respondería 422 FUL_NO_ROUTE. Ausente = se comporta como siempre.
    */
   delivery?: { shippingAvailable?: boolean };
+  /** Quién compra (opcional: un API anterior no lo manda y entonces no se muestra nada). */
+  buyer?: CheckoutBuyer | null;
 }
