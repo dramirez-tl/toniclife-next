@@ -79,9 +79,20 @@ export function ProductContentSections({ product }: { product: StorefrontProduct
       <>
         <div className="hidden lg:block">
           <Tabs defaultValue={sections[0].key}>
-            <TabsList className="h-auto flex-wrap justify-start gap-1">
+            {/* Pestañas con subrayado: una línea bajo toda la fila y la activa marcada con el color
+                de la marca. Las alturas se fijan con las MISMAS variantes del componente base
+                (`group-data-[orientation=horizontal]/tabs:`): con un `h-auto` suelto la lista se
+                quedaba en 36 px y los botones de 44 px se salían de su marco. */}
+            <TabsList
+              variant="line"
+              className="flex w-full flex-wrap justify-start gap-x-8 gap-y-0 border-b border-gray-200 p-0 group-data-[orientation=horizontal]/tabs:h-auto"
+            >
               {sections.map((section) => (
-                <TabsTrigger key={section.key} value={section.key} className="min-h-11 cursor-pointer px-5 text-sm">
+                <TabsTrigger
+                  key={section.key}
+                  value={section.key}
+                  className="h-12 flex-none cursor-pointer px-1 text-base font-semibold text-gray-600 transition-colors after:rounded-full after:bg-[#3E667D] hover:text-[#2f5165] hover:after:opacity-30 data-[state=active]:text-[#2f5165] group-data-[orientation=horizontal]/tabs:after:bottom-[-1px] group-data-[orientation=horizontal]/tabs:after:h-[3px]"
+                >
                   {t(section.key)}
                 </TabsTrigger>
               ))}
