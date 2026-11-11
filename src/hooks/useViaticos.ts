@@ -14,6 +14,7 @@ import type {
   CancelViaticoDto,
   CreateViaticoDto,
   RejectViaticoDto,
+  SaveViaticoItemProofsDto,
   SubmitViaticoProofDto,
   UpdateViaticoDto,
   Viatico,
@@ -136,8 +137,28 @@ function useApplyDetail() {
 export function useUploadViaticoFiles() {
   const apply = useApplyDetail();
   return useMutation({
-    mutationFn: ({ id, kind, files }: { id: string; kind: ViaticoFileKind; files: File[] }) =>
-      viaticosService.uploadFiles(id, kind, files),
+    mutationFn: ({
+      id,
+      kind,
+      files,
+      itemId,
+    }: {
+      id: string;
+      kind: ViaticoFileKind;
+      files: File[];
+      /** Gasto al que pertenecen; sin él son comprobantes generales. */
+      itemId?: string;
+    }) => viaticosService.uploadFiles(id, kind, files, itemId),
+    onSuccess: apply,
+  });
+}
+
+/** Lo gastado por gasto y los gastos no previstos (la "caja chica" del viático). */
+export function useSaveViaticoItemProofs() {
+  const apply = useApplyDetail();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: SaveViaticoItemProofsDto }) =>
+      viaticosService.saveItemProofs(id, dto),
     onSuccess: apply,
   });
 }

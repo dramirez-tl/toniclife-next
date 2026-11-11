@@ -8,11 +8,17 @@
  */
 export type ViaticoStatus = 'pending' | 'approved' | 'proof_submitted' | 'verified' | 'rejected' | 'cancelled';
 
-export type ViaticoFileKind = 'receipt' | 'refund';
+/**
+ * receipt = recibo o ticket; invoice = factura (PDF y XML, mig 199);
+ * refund = ficha del depósito con que se devolvió el sobrante.
+ */
+export type ViaticoFileKind = 'receipt' | 'invoice' | 'refund';
 
 export interface ViaticoFile {
   id: string;
   kind: ViaticoFileKind;
+  /** Gasto al que pertenece (items[].id); null/ausente = comprobante general. */
+  itemId?: string | null;
   fileName: string;
   mimeType: string;
   sizeBytes: number;
@@ -44,10 +50,18 @@ export interface ViaticoConceptCatalog {
   dailyItemsEnabled: boolean;
   /** La BD ya admite la comprobación (mig 158). Opcional: API anterior. */
   proofEnabled?: boolean;
+  /** La BD ya admite comprobantes por gasto, facturas y lo gastado (mig 199). */
+  itemProofEnabled?: boolean;
 }
 
 /** Monto de un concepto en un día. */
 export interface ViaticoItem {
+  /** Id del gasto: es el itemId de sus comprobantes (API con mig 199). */
+  id?: string;
+  /** Lo que de verdad se gastó (captura manual al comprobar); null = sin capturar. */
+  spentAmount?: number | null;
+  /** Aclaración del gasto al comprobar. */
+  proofNote?: string | null;
   conceptCode: string;
   conceptLabel: string;
   category: ViaticoCategory;
@@ -117,6 +131,8 @@ export interface Viatico {
   proofTotal?: number | null;
   /** Autorizado − comprobado: + sobró (se devuelve), − gastó de más. */
   proofBalance?: number | null;
+  /** Gastos no previstos en la solicitud, incluidos en el total comprobado (mig 199). */
+  proofExtraAmount?: number | null;
   proofNotes?: string | null;
   proofSubmittedAt?: string | null;
   proofReviewedByName?: string | null;
@@ -208,6 +224,25 @@ export interface CancelViaticoDto {
 }
 
 export interface SubmitViaticoProofDto {
-  proofTotal: number;
+  /**
+   * Total comprobado. Con lo gastado capturado por gasto el API lo calcula
+   * (suma + no previstos) y este valor no se usa.
+   */
+  proofTotal?: number;
+  /** Gastos no previstos en la solicitud (mig 199). */
+  extraAmount?: number;
   notes?: string;
+}
+
+/** Lo gastado y la aclaración de un gasto. undefined = no cambiar; null = borrar. */
+export interface ViaticoItemProofInput {
+  itemId: string;
+  spentAmount?: number | null;
+  note?: string | null;
+}
+
+export interface SaveViaticoItemProofsDto {
+  items?: ViaticoItemProofInput[];
+  /** Gastos no previstos. undefined = no cambiar; null = borrar. */
+  extraAmount?: number | null;
 }

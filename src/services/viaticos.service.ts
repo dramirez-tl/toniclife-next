@@ -6,6 +6,7 @@ import type {
   CancelViaticoDto,
   CreateViaticoDto,
   RejectViaticoDto,
+  SaveViaticoItemProofsDto,
   SubmitViaticoProofDto,
   UpdateViaticoDto,
   Viatico,
@@ -73,14 +74,18 @@ class ViaticosService {
     return data;
   }
 
-  // ---- Comprobación (mig 158) ----
+  // ---- Comprobación (mig 158; por gasto, mig 199) ----
 
-  /** Sube comprobantes (receipt) o la ficha de devolución (refund). */
-  async uploadFiles(id: string, kind: ViaticoFileKind, files: File[]): Promise<Viatico> {
+  /**
+   * Sube recibos (receipt), facturas (invoice) o la ficha de devolución
+   * (refund). Con `itemId` quedan en ese gasto; sin él son comprobantes
+   * generales de la solicitud.
+   */
+  async uploadFiles(id: string, kind: ViaticoFileKind, files: File[], itemId?: string): Promise<Viatico> {
     const form = new FormData();
     for (const f of files) form.append('files', f);
     const { data } = await api.post<Viatico>(`/viaticos/${id}/files`, form, {
-      params: { kind },
+      params: { kind, itemId },
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120_000,
     });
@@ -95,6 +100,12 @@ class ViaticosService {
   /** URL firmada (10 min) para ver/descargar un archivo. */
   async getFileUrl(id: string, fileId: string): Promise<ViaticoFileUrl> {
     const { data } = await api.get<ViaticoFileUrl>(`/viaticos/${id}/files/${fileId}/url`);
+    return data;
+  }
+
+  /** Guarda lo gastado (y la aclaración) por gasto y los gastos no previstos. */
+  async saveItemProofs(id: string, dto: SaveViaticoItemProofsDto): Promise<Viatico> {
+    const { data } = await api.patch<Viatico>(`/viaticos/${id}/proof/items`, dto);
     return data;
   }
 

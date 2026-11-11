@@ -11,6 +11,7 @@
 // (jueves 2:00 p. m., ViaticosCutoffNotice): solo informa.
 
 import { Suspense, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
@@ -263,9 +264,21 @@ function ViaticosContent() {
               : v.isMine && v.status === 'approved'
                 ? 'Comprobar'
                 : null;
+        // Comprobar y validar tienen su propia pantalla (recibos y facturas
+        // de cada gasto); aprobar o rechazar se hace en el detalle.
+        const toProofScreen = action === 'Comprobar' || action === 'Validar';
         return (
           <div className="flex justify-end gap-1">
-            {action ? (
+            {action && toProofScreen ? (
+              <>
+                <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetail(v)}>
+                  <EyeIcon className="h-5 w-5" />
+                </Button>
+                <Button asChild size="sm">
+                  <Link href={`/admin/viaticos/${v.id}/comprobacion`}>{action}</Link>
+                </Button>
+              </>
+            ) : action ? (
               <Button size="sm" onClick={() => setDetail(v)}>
                 {action}
               </Button>
