@@ -2,7 +2,7 @@
 // Extracted from page.tsx to allow Suspense boundary for useSearchParams
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -74,6 +75,8 @@ import {
   type ShippingRecipient,
 } from '@/lib/checkout/shipping-address';
 import { cartDisplayCurrency } from '@/lib/storefront/cart-country';
+import { cartKeys } from '@/lib/storefront/cart-query-keys';
+import { cartSummaryMismatch } from '@/lib/storefront/cart-sync';
 import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
 import { catalogErrorCode, catalogErrorMessage } from '@/lib/storefront/errors';
 import { useAppSelector } from '@/store/hooks';
@@ -175,8 +178,10 @@ export default function CheckoutContent() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [notes, setNotes] = useState('');
 
-  // API hooks
-  const { data: cart, isLoading: cartLoading } = useCart();
+  // API hooks. El carrito se relee SIEMPRE al entrar y al volver a la ventana: es uno
+  // por cuenta y otra pestaña u otro dispositivo pudo cambiarlo (lib/storefront/cart-sync).
+  const queryClient = useQueryClient();
+  const { data: cart, isLoading: cartLoading, isFetching: cartFetching } = useCart({ fresh: true });
 
   // Direcciones guardadas del comprador y catálogo de estados del país de la tienda.
   // De ahí sale la elección VIGENTE: la que eligió el cliente o, si aún no elige, la
@@ -219,12 +224,24 @@ export default function CheckoutContent() {
         : shippingAreaOf(addressChoice, addressOptions, addressDraft),
     [deliveryMode, shipping.newDraft, addressChoice, addressOptions, addressDraft],
   );
-  const { data: checkoutSummary } = useCheckoutSummary(
+  const { data: checkoutSummary, isFetching: summaryFetching } = useCheckoutSummary(
     selectedShippingMethod,
     shippingArea.postalCode,
     countryId,
     shippingArea.state,
   );
+  // Las líneas salen del carrito y los montos del resumen: son dos respuestas del API. Si
+  // dejan de coincidir (11-nov-2026: otra sesión de la misma cuenta vació el carrito y
+  // aquí se vio Subtotal $363.00 con Total $150.00), el carrito en pantalla es viejo: se
+  // vuelve a pedir UNA vez por desacuerdo y, mientras llega, no se muestran montos.
+  const summaryMismatch = orderResult ? null : cartSummaryMismatch(cart, checkoutSummary);
+  const resyncedMismatch = useRef<string | null>(null);
+  useEffect(() => {
+    if (!summaryMismatch || resyncedMismatch.current === summaryMismatch) return;
+    resyncedMismatch.current = summaryMismatch;
+    void queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+  }, [summaryMismatch, queryClient]);
+  const amountsSyncing = !!summaryMismatch && (cartFetching || summaryFetching);
   // Envío estándar a domicilio (el único que se ofrece): lo que se va a cobrar y en
   // cuántos días llega, tal como lo da el resumen del API.
   const standardShipping = standardShippingInfo(checkoutSummary, selectedShippingMethod);
@@ -290,12 +307,14 @@ export default function CheckoutContent() {
     setCustomerInfo((prev) => fillContactFromBuyer(prev, { name: buyerName, phone: buyerPhone }));
   }
 
-  // Check if cart is empty
+  // Check if cart is empty. Con el pedido ya creado el carrito queda vacío (se convirtió
+  // en pedido): ahí no se regresa al carrito, se muestra la confirmación.
   useEffect(() => {
+    if (orderResult) return;
     if (!cartLoading && (!cart || cart.items.length === 0)) {
       router.push('/carrito');
     }
-  }, [cart, cartLoading, router]);
+  }, [cart, cartLoading, router, orderResult]);
 
   // Si cambia el país de la tienda se limpia el estado capturado (un estado MX no
   // aplica a US y viceversa). El país de la dirección sale siempre de `shippingCountry`.
@@ -512,8 +531,9 @@ export default function CheckoutContent() {
     }
   };
 
-  // Loading state
-  if (cartLoading) {
+  // Loading state. También mientras se regresa al carrito porque quedó vacío (p. ej. lo
+  // vació otra sesión de la misma cuenta): no se pinta un resumen sin productos.
+  if (cartLoading || (!orderResult && cart?.items.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
@@ -1169,7 +1189,12 @@ export default function CheckoutContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('subtotal')}</span>
                     <span className="font-medium text-gray-900">
-                      {cart ? fmt(cart.subtotal) : '-'}
+                      {/* Mismo origen que el total: el resumen del API (el carrito solo mientras llega). */}
+                      {amountsSyncing
+                        ? t('calculating')
+                        : checkoutSummary
+                          ? fmt(checkoutSummary.subtotal)
+                          : cart ? fmt(cart.subtotal) : '-'}
                     </span>
                   </div>
 
@@ -1227,9 +1252,11 @@ export default function CheckoutContent() {
                   <div className="flex justify-between">
                     <span className="text-lg font-bold text-gray-900">{t('total')}</span>
                     <span className="text-2xl font-bold text-[#3E667D]">
-                      {checkoutSummary
-                        ? fmt(checkoutSummary.total)
-                        : fmt(cart?.total || '0')
+                      {amountsSyncing
+                        ? t('calculating')
+                        : checkoutSummary
+                          ? fmt(checkoutSummary.total)
+                          : fmt(cart?.total || '0')
                       }
                     </span>
                   </div>

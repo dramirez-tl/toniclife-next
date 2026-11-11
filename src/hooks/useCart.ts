@@ -15,7 +15,14 @@ import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-stor
 import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
 import { normalizePersonalization, samePersonalization } from '@/lib/storefront/personalization';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
-import { cartKeys, invalidateCartDerived } from '@/lib/storefront/cart-query-keys';
+import { cartKeys } from '@/lib/storefront/cart-query-keys';
+import {
+  applyCartMutation,
+  cartActivity,
+  readCartInSync,
+  settleCartMutation,
+  type CartElsewhereNotifier,
+} from '@/lib/storefront/cart-sync';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import type {
@@ -119,6 +126,24 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason
   );
 }
 
+/**
+ * Aviso de que el carrito cambió en OTRA sesión (otra pestaña u otro dispositivo con la
+ * misma cuenta): el carrito es uno por cuenta, así que lo que se quita allá desaparece
+ * aquí. Un solo toast con id fijo: los avisos no se apilan. Qué cuenta como "otra
+ * sesión" lo decide `lib/storefront/cart-sync`.
+ */
+function useCartElsewhereNotice(): CartElsewhereNotifier {
+  const t = useTranslations('storefront.cart.sync');
+  return useCallback(
+    (change, cart) => {
+      // Un carrito de invitado vive en este navegador: solo otra pestaña pudo cambiarlo.
+      const scope = cart.customerId ? 'account' : 'guest';
+      toast.info(t(`${change}.${scope}`), { id: 'cart-changed-elsewhere', duration: 9000 });
+    },
+    [t],
+  );
+}
+
 /** Carrito en caché o, si aún no se pidió, del API (para conocer la línea que hay que ajustar). */
 async function currentCart(queryClient: QueryClient): Promise<Cart> {
   return queryClient.getQueryData<Cart>(cartKeys.cart()) ?? (await cartService.getCart());
@@ -171,12 +196,23 @@ export { cartKeys };
 // CART QUERIES
 // ================================
 
-export const useCart = () => {
+/**
+ * El carrito es UNO por cuenta: otra pestaña u otro dispositivo pudo cambiarlo. Por eso
+ * se relee al volver a la ventana (si la copia ya tiene más de un minuto) y, con
+ * `fresh` (la página del carrito y el checkout, donde se decide y se paga), SIEMPRE al
+ * entrar y al volver a la ventana. Si la última lectura falló no se insiste al enfocar.
+ */
+export const useCart = (options: { fresh?: boolean } = {}) => {
+  const queryClient = useQueryClient();
+  const notifyElsewhere = useCartElsewhereNotice();
+  const refetch = options.fresh ? ('always' as const) : true;
+
   return useQuery({
     queryKey: cartKeys.cart(),
-    queryFn: () => cartService.getCart(),
+    queryFn: () => readCartInSync(queryClient, () => cartService.getCart(), notifyElsewhere),
     staleTime: 60 * 1000, // 1 minute
-    refetchOnWindowFocus: false,
+    refetchOnMount: refetch,
+    refetchOnWindowFocus: (query) => (query.state.status === 'success' ? refetch : false),
   });
 };
 
@@ -185,7 +221,8 @@ export const useCartSummary = (enabled = true) => {
     queryKey: cartKeys.summary(),
     queryFn: () => cartService.getCartSummary(),
     staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
+    // El contador del encabezado también se pone al día al volver a la ventana.
+    refetchOnWindowFocus: (query) => query.state.status === 'success',
     // Tienda solo para distribuidores + visitante sin sesión: no hay carrito
     // que consultar (el API respondería 401 STF_MEMBERS_ONLY).
     enabled,
@@ -206,10 +243,12 @@ export const useCartSummary = (enabled = true) => {
 export const useAddCartItem = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
+  const notifyElsewhere = useCartElsewhereNotice();
   const adjustToStock = useStockAdjust();
   const { countryCode } = useStoreCountry();
 
   return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
     mutationFn: async (input: AddCartItemInput) => {
       // Mig 179: el texto viaja limpio y SOLO si hay texto (un producto que no se personaliza
       // o un API sin la migración no deben recibir el campo vacío).
@@ -226,10 +265,11 @@ export const useAddCartItem = () => {
         return adjustToStock(err, locateAddedLine(data), data);
       }
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      invalidateCartDerived(queryClient);
+    onSuccess: (data, input) => {
+      // La línea de esta alta es propia; cualquier otra diferencia la hizo otra sesión.
+      applyCartMutation(queryClient, data, [locateAddedLine(input)(data)?.id], notifyElsewhere);
     },
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
     onError: (err, data) => {
       if (mapCartError(err).kind === 'country_change') {
         const cached = queryClient.getQueryData<Cart>(cartKeys.cart());
@@ -253,9 +293,11 @@ export const useAddCartItem = () => {
 export const useUpdateCartItem = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
+  const notifyElsewhere = useCartElsewhereNotice();
   const adjustToStock = useStockAdjust();
 
   return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
     mutationFn: async ({ itemId, data }: { itemId: string; data: UpdateCartItemInput }) => {
       try {
         return await cartService.updateItem(itemId, data);
@@ -263,10 +305,8 @@ export const useUpdateCartItem = () => {
         return adjustToStock(err, (cart) => cart.items.find((i) => i.id === itemId));
       }
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      invalidateCartDerived(queryClient);
-    },
+    onSuccess: (data, { itemId }) => applyCartMutation(queryClient, data, [itemId], notifyElsewhere),
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
     onError: (err, { itemId }) =>
       toastCartError(err, 'update', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.id === itemId))),
   });
@@ -275,13 +315,13 @@ export const useUpdateCartItem = () => {
 export const useRemoveCartItem = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
+  const notifyElsewhere = useCartElsewhereNotice();
 
   return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      invalidateCartDerived(queryClient);
-    },
+    onSuccess: (data, itemId) => applyCartMutation(queryClient, data, [itemId], notifyElsewhere),
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
     onError: (err) => toastCartError(err, 'remove'),
   });
 };
@@ -289,13 +329,13 @@ export const useRemoveCartItem = () => {
 export const useClearCart = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
+  const notifyElsewhere = useCartElsewhereNotice();
 
   return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
     mutationFn: () => cartService.clearCart(),
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      invalidateCartDerived(queryClient);
-    },
+    onSuccess: (data) => applyCartMutation(queryClient, data, 'all', notifyElsewhere),
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
     onError: (err) => toastCartError(err, 'clear'),
   });
 };
@@ -308,8 +348,10 @@ export const useClearCart = () => {
 export const useSwitchCartCountry = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
+  const notifyElsewhere = useCartElsewhereNotice();
 
   return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
     mutationFn: async (country: string) => {
       try {
         return await cartService.switchCountry(country);
@@ -319,10 +361,8 @@ export const useSwitchCartCountry = () => {
         return cartService.clearCart();
       }
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      invalidateCartDerived(queryClient);
-    },
+    onSuccess: (data) => applyCartMutation(queryClient, data, 'all', notifyElsewhere),
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
     onError: (err) => toastCartError(err, 'clear'),
   });
 };
@@ -388,6 +428,9 @@ export const useMergeCarts = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Mezclar el carrito de invitado es un cambio de ESTA pestaña: nunca se avisa como ajeno.
+    onMutate: () => cartActivity.mutationStarted(),
+    onSettled: (_outcome, error) => settleCartMutation(queryClient, !error),
     mutationFn: async (guestSessionId: string): Promise<MergeCartsOutcome> => {
       try {
         const data = await cartService.mergeGuestCart(guestSessionId);

@@ -459,6 +459,16 @@
         "checkoutGoToStore": "Pagar en la tienda de {country}",
         "checkoutViewCart": "Ver mi carrito"
       },
+      "sync": {
+        "changed": {
+          "account": "Tu carrito cambió: lo modificaron desde otra pestaña o dispositivo con esta misma cuenta.",
+          "guest": "Tu carrito cambió: lo modificaste desde otra pestaña."
+        },
+        "emptied": {
+          "account": "Tu carrito se vació desde otra pestaña o dispositivo con esta misma cuenta.",
+          "guest": "Tu carrito se vació desde otra pestaña."
+        }
+      },
       "merge": {
         "title": "Pasamos a tu cuenta el carrito que armaste antes de iniciar sesión",
         "titleNone": "No pudimos pasar a tu cuenta el carrito que armaste antes de iniciar sesión",

@@ -459,6 +459,16 @@
         "checkoutGoToStore": "Pay in the {country} store",
         "checkoutViewCart": "View my cart"
       },
+      "sync": {
+        "changed": {
+          "account": "Your cart changed: it was updated from another tab or device signed in to this account.",
+          "guest": "Your cart changed: you updated it from another tab."
+        },
+        "emptied": {
+          "account": "Your cart was emptied from another tab or device signed in to this account.",
+          "guest": "Your cart was emptied from another tab."
+        }
+      },
       "merge": {
         "title": "We moved the cart you built before signing in to your account",
         "titleNone": "We couldn't move the cart you built before signing in to your account",
