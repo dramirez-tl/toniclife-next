@@ -7,14 +7,18 @@
 // las condiciones), su mecánica (3x2, precio especial…) y los productos que
 // participan. El carrito del servidor es quien aplica la promoción; aquí solo se
 // anuncia. Sin temporadas no pinta nada.
+//
+// Las promociones que NO valen en línea (solo punto de venta: sucursales y Call
+// Center) también se anuncian, con el aviso "Solo en sucursales y Call Center" y sin
+// enlaces a sus productos: en el carrito en línea no se aplicarían.
 
 import { useTranslations } from 'next-intl';
-import { ClockIcon, GiftIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, ClockIcon, GiftIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { Link } from '@/i18n/routing';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontSeasonalPromotions } from '@/hooks/useSeasonalPromotions';
 import { productPath } from '@/lib/storefront/slug';
-import { formatLocalStamp } from '@/lib/seasonal-promotions';
+import { formatLocalStamp, isOnlinePromotion } from '@/lib/seasonal-promotions';
 import { cn } from '@/lib/utils';
 import { PromoArt } from './PromoArt';
 
@@ -77,6 +81,8 @@ export function SeasonalPromotionsBanner({
                     const eligible = p.products.filter((x) => x.role === 'eligible');
                     const gifts = p.products.filter((x) => x.role === 'gift');
                     const more = Math.max(0, eligible.length - MAX_CHIPS);
+                    // Solo punto de venta: se anuncia con aviso y sin enlaces para comprarla en línea.
+                    const online = isOnlinePromotion(p);
                     return (
                       <li key={p.id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
                         <div className={cn(p.imageUrl && 'flex flex-col gap-3 sm:flex-row sm:items-start')}>
@@ -100,6 +106,15 @@ export function SeasonalPromotionsBanner({
                             {formatLocalStamp(p.effectiveStartsAt, { weekday: true })} →{' '}
                             {formatLocalStamp(p.effectiveEndsAt, { weekday: true })}
                           </span>
+                          {!online && (
+                            <span
+                              data-testid="seasonal-store-only"
+                              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900"
+                            >
+                              <BuildingStorefrontIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              {t('storeOnly')}
+                            </span>
+                          )}
                         </div>
                         {p.description && (
                           <p className="mt-1 whitespace-pre-line text-xs text-gray-600">{p.description}</p>
@@ -107,7 +122,7 @@ export function SeasonalPromotionsBanner({
                         {!compact && (eligible.length > 0 || gifts.length > 0) && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {eligible.slice(0, MAX_CHIPS).map((x) =>
-                              x.slug ? (
+                              online && x.slug ? (
                                 <Link
                                   key={x.productId}
                                   href={productPath(x.slug)}

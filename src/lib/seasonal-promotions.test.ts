@@ -5,6 +5,7 @@ import {
   formFromPromotion,
   formFromSeason,
   formatLocalStamp,
+  isOnlinePromotion,
   normalizeInputStamp,
   nowCdmxStamp,
   promotionSummary,
@@ -229,5 +230,23 @@ describe('promoción: formulario ⇄ payload', () => {
 
   it('resumen de la tabla', () => {
     expect(promotionSummary(PROMO)).toBe('3x2 · 2 productos · POS · Tienda');
+  });
+});
+
+describe('tienda: ¿la promoción vale comprando en línea?', () => {
+  it('con canal en línea (solo o junto con punto de venta) sí vale', () => {
+    expect(isOnlinePromotion({ channels: ['online'] })).toBe(true);
+    expect(isOnlinePromotion({ channels: ['pos', 'online'] })).toBe(true);
+  });
+
+  it('solo punto de venta (sucursales y Call Center) no vale en línea', () => {
+    // Buen Fin 2026: el kit del viernes y "compra 5 y llévate 1 gratis".
+    expect(isOnlinePromotion({ channels: ['pos'] })).toBe(false);
+  });
+
+  it('sin canales capturados vale en los dos, como la guarda el API', () => {
+    expect(isOnlinePromotion({ channels: [] })).toBe(true);
+    expect(isOnlinePromotion({ channels: null })).toBe(true);
+    expect(isOnlinePromotion({})).toBe(true);
   });
 });

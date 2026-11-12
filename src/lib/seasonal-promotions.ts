@@ -102,6 +102,20 @@ export function channelsLabel(channels: SeasonalPromoChannel[]): string {
   return parts.join(' · ') || '—';
 }
 
+/**
+ * ¿La promoción se puede aprovechar comprando en la tienda en línea? Solo si su canal
+ * incluye "online". Sin canales capturados vale en los dos (así la guarda el API).
+ *
+ * La tienda anuncia TODAS las promociones que corren ahora, también las que son solo de
+ * punto de venta (sucursales y Call Center): a esas el banner les pone el aviso "Solo en
+ * sucursales y Call Center" y no enlaza sus productos, para que nadie las busque en el
+ * carrito en línea (Buen Fin 2026: el kit del viernes y "compra 5 y llévate 1 gratis").
+ */
+export function isOnlinePromotion(promotion: { channels?: readonly SeasonalPromoChannel[] | null }): boolean {
+  const channels = promotion.channels ?? [];
+  return channels.length === 0 || channels.includes('online');
+}
+
 const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const WEEKDAYS_ES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 

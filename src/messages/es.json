@@ -18,7 +18,8 @@
       "startsOn": "Empieza el {date}",
       "more": "+{count} más",
       "gift": "Regalo: {name}",
-      "viewArt": "Ver la imagen de {name} en grande"
+      "viewArt": "Ver la imagen de {name} en grande",
+      "storeOnly": "Solo en sucursales y Call Center"
     },
     "playVideo": "Reproducir video",
     "pauseVideo": "Pausar video",

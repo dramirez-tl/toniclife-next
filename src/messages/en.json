@@ -18,7 +18,8 @@
       "startsOn": "Starts {date}",
       "more": "+{count} more",
       "gift": "Gift: {name}",
-      "viewArt": "View the {name} image full size"
+      "viewArt": "View the {name} image full size",
+      "storeOnly": "In stores and Call Center only"
     },
     "playVideo": "Play video",
     "pauseVideo": "Pause video",
