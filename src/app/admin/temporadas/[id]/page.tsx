@@ -25,6 +25,7 @@ import { PermissionGuard } from '@/components/auth';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useProductPermissions } from '@/components/admin/products/lib/permissions';
 import { SeasonForm } from '@/components/admin/seasonal-promotions/SeasonForm';
+import { ArtZoom } from '@/components/admin/seasonal-promotions/ArtZoom';
 import { PromotionDialog } from '@/components/admin/seasonal-promotions/PromotionDialog';
 import { SeasonUsagesSection } from '@/components/admin/seasonal-promotions/SeasonUsagesSection';
 import { CountryChips } from '@/app/admin/productos/_tabs/TemporadasTab';
@@ -219,14 +220,14 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
                       className={`flex flex-wrap items-center gap-4 p-4 ${p.isActive ? '' : 'bg-gray-50/70'}`}
                     >
                       {p.imageUrl ? (
-                        <div className="h-12 w-20 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={p.imageThumbnailUrl ?? p.imageUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
+                        // Al pulsar la miniatura el arte se ve en grande (productos y letra chica).
+                        <ArtZoom
+                          thumbSrc={p.imageThumbnailUrl ?? p.imageUrl}
+                          fullSrc={p.imageUrl}
+                          title={p.name}
+                          caption="Arte de la promoción"
+                          className="h-12 w-20 rounded-md"
+                        />
                       ) : (
                         <div className="flex h-12 w-20 flex-shrink-0 items-center justify-center rounded-md bg-[#C8DDF2]/40">
                           <SparklesIcon className="h-5 w-5 text-[#2f5165]" />

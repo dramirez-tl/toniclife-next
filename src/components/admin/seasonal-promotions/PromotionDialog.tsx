@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { ArtZoom } from './ArtZoom';
 import { useProducts } from '@/hooks/useProducts';
 import {
   useCreateSeasonPromotion,
@@ -712,18 +713,18 @@ export function PromotionDialog({
                 <Label htmlFor={inputId('imageUrl')}>Arte de la promoción</Label>
                 <div className="flex items-start gap-3">
                   {form.imageUrl.trim() ? (
-                    <div className="aspect-video w-36 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={
-                          promotion?.imageThumbnailUrl && form.imageUrl === promotion.imageUrl
-                            ? promotion.imageThumbnailUrl
-                            : form.imageUrl
-                        }
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+                    // Al pulsar la vista previa el arte se ve en grande.
+                    <ArtZoom
+                      thumbSrc={
+                        promotion?.imageThumbnailUrl && form.imageUrl === promotion.imageUrl
+                          ? promotion.imageThumbnailUrl
+                          : form.imageUrl.trim()
+                      }
+                      fullSrc={form.imageUrl.trim()}
+                      title={form.name.trim() || 'Promoción'}
+                      caption="Arte de la promoción"
+                      className="aspect-video w-36 rounded-lg border"
+                    />
                   ) : (
                     <div className="flex aspect-video w-36 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
                       <PhotoIcon className="h-5 w-5 text-gray-400" />

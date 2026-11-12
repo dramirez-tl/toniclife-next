@@ -29,6 +29,7 @@ import { usePromoSeasons } from '@/hooks/useSeasonalPromotions';
 import { useCountries } from '@/hooks/useConfig';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useProductPermissions } from '@/components/admin/products/lib/permissions';
+import { ArtZoom } from '@/components/admin/seasonal-promotions/ArtZoom';
 import type { PromoSeason, PromoSeasonListQueryParams, SeasonStatusFilter } from '@/types/seasonal-promotion';
 import {
   FLAGS,
@@ -143,11 +144,14 @@ export function TemporadasTab() {
       render: (s) => (
         <div className="flex items-center gap-3">
           {s.imageUrl ? (
-            <div className="h-10 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-              {/* URL libre (cualquier host): next/image exige dominios registrados. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={s.imageThumbnailUrl ?? s.imageUrl} alt="" className="h-10 w-16 object-cover" />
-            </div>
+            // Al pulsar la miniatura el arte de la temporada se ve en grande.
+            <ArtZoom
+              thumbSrc={s.imageThumbnailUrl ?? s.imageUrl}
+              fullSrc={s.imageUrl}
+              title={s.name}
+              caption="Arte de la temporada"
+              className="h-10 w-16 rounded-lg"
+            />
           ) : (
             <div className="flex h-10 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-[#C8DDF2]/40">
               <CalendarDaysIcon className="h-5 w-5 text-[#2f5165]" />

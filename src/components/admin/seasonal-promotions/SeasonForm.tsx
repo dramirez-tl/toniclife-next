@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { useUploadSeasonImage } from '@/hooks/useSeasonalPromotions';
+import { ArtZoom } from './ArtZoom';
 import type { CreatePromoSeasonDto } from '@/types/seasonal-promotion';
 import {
   FLAGS,
@@ -294,10 +295,14 @@ export function SeasonForm({
               <Label htmlFor={inputId('imageUrl')}>Arte de la temporada</Label>
               <div className="flex items-start gap-3">
                 {previewSrc ? (
-                  <div className="aspect-video w-44 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={previewSrc} alt="" className="h-full w-full object-cover" />
-                  </div>
+                  // Al pulsar la vista previa el arte se ve en grande.
+                  <ArtZoom
+                    thumbSrc={previewSrc}
+                    fullSrc={typedImageUrl}
+                    title={form.name.trim() || 'Temporada'}
+                    caption="Arte de la temporada"
+                    className="aspect-video w-44 rounded-lg border"
+                  />
                 ) : (
                   <div className="flex aspect-video w-44 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
                     <PhotoIcon className="h-6 w-6 text-gray-400" />
