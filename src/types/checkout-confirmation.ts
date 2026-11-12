@@ -4,7 +4,7 @@
 // session_id de Stripe de ESE pedido (lo recibe solo quien pagó), con o sin
 // sesión: nunca trae correo ni teléfono del comprador.
 
-import type { OrderDeliverySummary } from '@/types/order';
+import type { OrderDeliverySummary, OrderOxxo } from '@/types/order';
 
 export interface CheckoutConfirmationItem {
   productName: string;
@@ -41,6 +41,8 @@ export interface CheckoutConfirmation {
   status: string;
   /** Estado del cobro de ESA sesión de Stripe. */
   paymentStatus: 'paid' | 'pending' | 'failed';
+  /** Pago en efectivo en OXXO; ausente o `null` si el pedido se paga de otra forma. */
+  oxxo?: OrderOxxo | null;
   createdAt: string;
   orderDate: string;
   currencyCode: string;

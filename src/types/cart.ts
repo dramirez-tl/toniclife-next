@@ -8,6 +8,12 @@
 
 export enum PaymentMethod {
   STRIPE = 'stripe',
+  /**
+   * Efectivo en OXXO con ficha de Stripe (12-nov-2026). Solo la tienda de México, con sesión
+   * y si el servidor lo tiene encendido; fuera de eso el API responde 422
+   * CHK_PAYMENT_METHOD_UNAVAILABLE. Ver `lib/checkout/payment-options`.
+   */
+  OXXO = 'oxxo',
   PAYPAL = 'paypal',
   MERCADOPAGO = 'mercadopago',
   CASH = 'cash',

@@ -12,6 +12,11 @@
 // cualquier comprador veía 403.
 // Moneda: si el pedido con sesión no trae currencyCode (OrderDto anterior al
 // Bloque 1), se toma de la confirmación pública del mismo pedido (ver abajo).
+// Pago en efectivo en OXXO (12-nov-2026): el pedido sigue pendiente hasta que el
+// comprador paga en la tienda y OXXO avisa (siguiente día hábil). En vez de
+// "estamos confirmando tu pago" se muestra su ficha, fija: cuánto, hasta cuándo,
+// la referencia y el enlace a la ficha de Stripe. Solo se sigue consultando
+// mientras Stripe genera la ficha (lib/checkout/payment-options).
 
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -21,6 +26,7 @@ import confetti from 'canvas-confetti';
 import {
   ArrowRightIcon,
   ArrowTopRightOnSquareIcon,
+  BanknotesIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -52,9 +58,11 @@ import {
   fromGuestConfirmation,
   fromMyOrder,
   pickupStepHintKey,
+  type ConfirmationOxxo,
   type ConfirmationStep,
   type ConfirmationView,
 } from '@/lib/checkout/confirmation';
+import { formatOxxoDeadline, formatOxxoReference, shouldPollPendingPayment } from '@/lib/checkout/payment-options';
 import { formatCurrency } from '@/lib/currency';
 import { apiErrorStatus } from '@/lib/api-error';
 import { localeLanguage } from '@/i18n/config';
@@ -64,8 +72,13 @@ type T = ReturnType<typeof useTranslations<'checkout.confirmation'>>;
 const BRAND = '#3E667D';
 const BRAND_SOFT = '#C8DDF2';
 
-/** El pedido del distribuidor sigue "pendiente" hasta que el webhook de Stripe lo confirma. */
-const isMyOrderPending = (order: Order | undefined) => !!order && order.status === 'pending';
+/**
+ * El pedido del distribuidor sigue "pendiente" hasta que el webhook de Stripe lo confirma.
+ * Uno que se paga en OXXO con la ficha ya generada deja de consultarse: su pago llega
+ * cuando el comprador pasa a la tienda, no en segundos.
+ */
+const isMyOrderPending = (order: Order | undefined) =>
+  !!order && order.status === 'pending' && shouldPollPendingPayment(order);
 const myOrderRefetchInterval = pendingRefetchInterval<Order>(isMyOrderPending);
 
 function Spinner({ text }: { text: string }) {
@@ -206,6 +219,44 @@ export default function ConfirmacionContent() {
     );
   }
 
+  // Pago en efectivo en OXXO. "Venció" lo dice Stripe (pago fallido), así que se afirma que
+  // no se cobró. Si solo pasó la fecha límite no se afirma: quien pagó el último día sigue
+  // pendiente hasta que OXXO avisa, y decirle que no pagó lo llevaría a comprar dos veces.
+  const oxxo = view.oxxo;
+  if (oxxo && (oxxo.state === 'expired' || oxxo.state === 'deadline_passed')) {
+    const expired = oxxo.state === 'expired';
+    return (
+      <Notice
+        title={expired ? t('oxxo.expiredTitle') : t('oxxo.deadlinePassedTitle')}
+        body={expired ? t('oxxo.expiredBody') : t('oxxo.deadlinePassedBody')}
+        tone="warning"
+      >
+        {isAuthenticated && (
+          <Link href={ordersHref}>
+            <Button variant="outline">{t('myOrders')}</Button>
+          </Link>
+        )}
+        <Link href="/productos">
+          <Button>{t('goToProducts')}</Button>
+        </Link>
+      </Notice>
+    );
+  }
+  // Por pagar: su ficha (o el aviso de que se está generando) en vez del "confirmando tu pago".
+  if (oxxo && (oxxo.state === 'awaiting_payment' || oxxo.state === 'voucher_pending')) {
+    return (
+      <OxxoPaymentPanel
+        view={view}
+        oxxo={oxxo}
+        pollingExhausted={pollingExhausted}
+        t={t}
+        lang={lang}
+        isAuthenticated={isAuthenticated}
+        ordersHref={ordersHref}
+      />
+    );
+  }
+
   if (view.awaitingPayment) {
     if (pollingExhausted) {
       return (
@@ -274,6 +325,123 @@ export default function ConfirmacionContent() {
       ordersHref={ordersHref}
       hasPanel={hasPanel}
     />
+  );
+}
+
+// ================================
+// Pedido por pagar en OXXO
+// ================================
+// Página fija (el pago llega cuando el comprador pasa a la tienda): cuánto paga, hasta
+// cuándo, la referencia y el enlace a su ficha de Stripe. Mientras Stripe genera la ficha
+// (llega por webhook segundos después de terminar su página) se avisa y se sigue
+// consultando; si tarda más que eso, se le dice dónde la va a encontrar, sin alarmar.
+
+function OxxoPaymentPanel({
+  view,
+  oxxo,
+  pollingExhausted,
+  t,
+  lang,
+  isAuthenticated,
+  ordersHref,
+}: {
+  view: ConfirmationView;
+  oxxo: ConfirmationOxxo;
+  /** Se dejó de consultar y la ficha aún no llega. */
+  pollingExhausted: boolean;
+  t: T;
+  lang: 'es' | 'en';
+  isAuthenticated: boolean;
+  /** "Mis pedidos" de esta sesión (panel del distribuidor o tienda). */
+  ordersHref: string;
+}) {
+  // Siempre en hora del centro de México, sea cual sea la zona del navegador.
+  const deadline = formatOxxoDeadline(oxxo.expiresAt, lang);
+  const reference = formatOxxoReference(oxxo.reference);
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+      <Card className="max-w-lg w-full">
+        <CardContent className="p-6 sm:p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-[#C8DDF2]/60 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BanknotesIcon aria-hidden="true" className="h-9 w-9 text-[#3E667D]" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('oxxo.title')}</h1>
+            <p className="text-gray-600">{t('oxxo.intro')}</p>
+          </div>
+
+          <dl className="mt-6 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <dt className="text-gray-600">{t('orderNumber')}</dt>
+              <dd className="break-all text-right font-mono font-semibold text-gray-900">{view.orderNumber}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <dt className="text-gray-600">{t('oxxo.amount')}</dt>
+              <dd className="text-right text-lg font-bold text-[#3E667D]">
+                {formatCurrency(view.totals.total, view.currencyCode, lang)}
+              </dd>
+            </div>
+          </dl>
+
+          {deadline && (
+            <p className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+              <ClockIcon aria-hidden="true" className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <span>{t('oxxo.deadline', { deadline })}</span>
+            </p>
+          )}
+
+          {reference && (
+            <div className="mt-4 rounded-lg border border-gray-200 p-4 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('oxxo.reference')}</p>
+              {/* Ancho para 4 grupos por renglón: los 32 dígitos quedan en dos renglones parejos. */}
+              <p className="mx-auto mt-1 max-w-[15rem] break-words font-mono text-lg font-semibold text-gray-900 [word-spacing:0.2em]">
+                {reference}
+              </p>
+              <p className="mt-2 text-xs text-gray-500">{t('oxxo.referenceHint')}</p>
+            </div>
+          )}
+
+          {/* La ficha: el enlace cuando ya existe; mientras, que se está generando. El cambio se anuncia. */}
+          <div aria-live="polite" className="mt-6">
+            {oxxo.voucherUrl ? (
+              <Button asChild size="xl" className="w-full">
+                <a href={oxxo.voucherUrl} target="_blank" rel="noopener noreferrer">
+                  {t('oxxo.viewVoucher')}
+                  <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-5 w-5" />
+                  <span className="sr-only">{t('oxxo.opensNewTab')}</span>
+                </a>
+              </Button>
+            ) : pollingExhausted ? (
+              <p className="rounded-lg border border-[#a7c1e2]/60 bg-[#C8DDF2]/20 p-4 text-sm text-gray-700">
+                {t('oxxo.voucherLater')}
+              </p>
+            ) : (
+              <div className="flex items-center justify-center gap-3 rounded-lg border border-[#a7c1e2]/60 bg-[#C8DDF2]/20 p-4 text-sm font-medium text-[#3E667D]">
+                <div
+                  aria-hidden="true"
+                  className="h-5 w-5 flex-shrink-0 animate-spin rounded-full border-2 border-[#3E667D] border-t-transparent"
+                />
+                <p>{t('oxxo.generating')}</p>
+              </div>
+            )}
+          </div>
+
+          <p className="mt-6 text-sm text-gray-600">{t('oxxo.note')}</p>
+
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {isAuthenticated && (
+              <Link href={ordersHref}>
+                <Button variant="outline">{t('myOrders')}</Button>
+              </Link>
+            )}
+            <Link href="/productos">
+              <Button variant="outline">{t('goToProducts')}</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -457,7 +625,9 @@ function ConfirmedOrder({
                   <CreditCardIcon className="h-5 w-5 text-[#3E667D]" />
                   {t('payment')}
                 </h3>
-                <p className="text-sm text-gray-900 font-medium">{t('paymentConfirmed')}</p>
+                <p className="text-sm text-gray-900 font-medium">
+                  {view.oxxo ? t('oxxo.paymentConfirmed') : t('paymentConfirmed')}
+                </p>
                 {view.createdAt && (
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(view.createdAt).toLocaleString(lang === 'en' ? 'en-US' : 'es-MX', {

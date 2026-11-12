@@ -221,6 +221,94 @@ describe('confirmation · fromGuestConfirmation (sin sesión)', () => {
   });
 });
 
+describe('confirmation · pago en efectivo en OXXO', () => {
+  // Viernes 13-nov, mediodía en México; la ficha vence el sábado 14 a las 23:59:59.
+  const now = new Date('2026-11-13T18:00:00.000Z');
+  const afterDeadline = new Date('2026-11-15T06:00:00.000Z');
+  const voucher = {
+    voucherUrl: 'https://payments.stripe.com/oxxo/voucher/abc',
+    expiresAt: '2026-11-15T05:59:59.000Z',
+    reference: '12345678901234567890123456789012',
+  };
+  const noVoucher = { voucherUrl: null, expiresAt: null, reference: null };
+  const pending = { status: 'pending', paymentStatus: 'pending' } as const;
+
+  it('con tarjeta (sin `oxxo`, o con un API anterior) la vista queda igual: oxxo = null', () => {
+    expect(fromMyOrder(order()).oxxo).toBeNull();
+    expect(fromMyOrder(order({ oxxo: null })).oxxo).toBeNull();
+    expect(fromGuestConfirmation(guest()).oxxo).toBeNull();
+    expect(fromGuestConfirmation(guest({ oxxo: null })).oxxo).toBeNull();
+    // Y sus banderas son las de siempre.
+    const awaiting = fromMyOrder(order({ ...pending }), null, { now });
+    expect(awaiting).toMatchObject({ awaitingPayment: true, paymentFailed: false, cancelled: false, oxxo: null });
+    const failed = fromGuestConfirmation(guest({ status: 'pending', paymentStatus: 'failed' }), now);
+    expect(failed).toMatchObject({ awaitingPayment: false, paymentFailed: true, cancelled: false, oxxo: null });
+  });
+
+  it('fromMyOrder: por pagar con la ficha ya generada (sigue "pendiente", sin pasos cumplidos)', () => {
+    const v = fromMyOrder(order({ ...pending, oxxo: voucher }), null, { now });
+    expect(v.oxxo).toEqual({ ...voucher, state: 'awaiting_payment' });
+    expect(v.awaitingPayment).toBe(true);
+    expect(v.paymentFailed).toBe(false);
+    expect(confirmationSteps(v).every((s) => s.state === 'todo')).toBe(true);
+    // Sin paymentStatus (se infiere del estado del pedido) da lo mismo.
+    expect(fromMyOrder(order({ status: 'pending', paymentStatus: undefined, oxxo: voucher }), null, { now }).oxxo?.state).toBe(
+      'awaiting_payment',
+    );
+  });
+
+  it('fromMyOrder: la ficha aún no llega de Stripe', () => {
+    const v = fromMyOrder(order({ ...pending, oxxo: noVoucher }), null, { now });
+    expect(v.oxxo).toEqual({ ...noVoucher, state: 'voucher_pending' });
+    expect(v.awaitingPayment).toBe(true);
+  });
+
+  it('fromGuestConfirmation: por pagar, con y sin ficha', () => {
+    const ready = fromGuestConfirmation(guest({ ...pending, currencyCode: 'MXN', oxxo: voucher }), now);
+    expect(ready.oxxo).toEqual({ ...voucher, state: 'awaiting_payment' });
+    expect(ready.awaitingPayment).toBe(true);
+    const generating = fromGuestConfirmation(guest({ ...pending, oxxo: noVoucher }), now);
+    expect(generating.oxxo).toEqual({ ...noVoucher, state: 'voucher_pending' });
+  });
+
+  it('limpia lo que llega: un enlace que no es http(s) no se ofrece como ficha', () => {
+    const v = fromGuestConfirmation(guest({ ...pending, oxxo: { ...voucher, voucherUrl: 'javascript:alert(1)' } }), now);
+    expect(v.oxxo).toMatchObject({ voucherUrl: null, state: 'voucher_pending' });
+  });
+
+  it('la ficha venció sin pago (lo avisa Stripe): expired, aunque el pedido ya esté cancelado', () => {
+    const failed = fromMyOrder(order({ status: 'pending', paymentStatus: 'failed', oxxo: voucher }), null, { now });
+    expect(failed.oxxo?.state).toBe('expired');
+    expect(failed.paymentFailed).toBe(true);
+    const cancelled = fromGuestConfirmation(guest({ status: 'cancelled', paymentStatus: 'failed', oxxo: voucher }), now);
+    expect(cancelled.oxxo?.state).toBe('expired');
+    expect(cancelled.cancelled).toBe(true);
+  });
+
+  it('pasó la fecha límite y sigue pendiente: deadline_passed (no se afirma que no pagó)', () => {
+    const mine = fromMyOrder(order({ ...pending, oxxo: voucher }), null, { now: afterDeadline });
+    expect(mine.oxxo?.state).toBe('deadline_passed');
+    expect(mine.paymentFailed).toBe(false);
+    expect(fromGuestConfirmation(guest({ ...pending, oxxo: voucher }), afterDeadline).oxxo?.state).toBe('deadline_passed');
+  });
+
+  it('pagado: el pedido se confirma como cualquier otro y recuerda que fue en OXXO', () => {
+    const mine = fromMyOrder(order({ status: 'confirmed', paymentStatus: 'paid', oxxo: voucher }), null, {
+      now: afterDeadline,
+    });
+    expect(mine.oxxo?.state).toBe('paid');
+    expect(mine).toMatchObject({ awaitingPayment: false, paymentFailed: false, cancelled: false });
+    expect(confirmationSteps(mine)[0]).toEqual({ key: 'confirmed', state: 'done' });
+    expect(fromGuestConfirmation(guest({ oxxo: voucher }), afterDeadline).oxxo?.state).toBe('paid');
+  });
+
+  it('cancelado sin aviso de vencimiento: se muestra como cualquier pedido cancelado', () => {
+    const v = fromMyOrder(order({ status: 'cancelled', paymentStatus: 'pending', oxxo: voucher }), null, { now });
+    expect(v.oxxo).toBeNull();
+    expect(v.cancelled).toBe(true);
+  });
+});
+
 describe('confirmation · pasos', () => {
   it('recoger: 3 pasos; sin entrega = preparando (current)', () => {
     const v = fromGuestConfirmation(guest());

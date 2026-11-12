@@ -5,10 +5,12 @@
 // (el session_id de Stripe es la llave). Aquí ambos se reducen a UNA vista para
 // que la pantalla no sepa de dónde vino el dato: estado del pago, renglones con
 // NOMBRE de producto (nunca "#id"), totales con moneda, dirección o sucursal de
-// recogida, entrega de almacén y los pasos de la línea de tiempo.
+// recogida, entrega de almacén y los pasos de la línea de tiempo. Un pedido que se
+// paga en efectivo en OXXO lleva además su ficha y en qué va ese pago (12-nov-2026).
 
-import type { Order, OrderDeliverySummary, TrackingInfo } from '@/types/order';
+import type { Order, OrderDeliverySummary, OrderOxxo, TrackingInfo } from '@/types/order';
 import type { CheckoutConfirmation } from '@/types/checkout-confirmation';
+import { oxxoOrderState, readOrderOxxo, type OxxoOrderState } from '@/lib/checkout/payment-options';
 import { personalizationOf } from '@/lib/storefront/personalization';
 
 export type ConfirmationDeliveryMode = 'shipping' | 'pickup';
@@ -36,6 +38,14 @@ export interface ConfirmationFulfillment {
   deliveredAt: string | null;
 }
 
+/**
+ * Pago en efectivo en OXXO del pedido: la ficha y en qué va (`lib/checkout/payment-options`).
+ * Nunca `none`: un pedido sin nada de OXXO que mostrar lleva `oxxo: null` en la vista.
+ */
+export interface ConfirmationOxxo extends OrderOxxo {
+  state: Exclude<OxxoOrderState, 'none'>;
+}
+
 export interface ConfirmationView {
   orderId: string;
   orderNumber: string;
@@ -46,6 +56,12 @@ export interface ConfirmationView {
   awaitingPayment: boolean;
   paymentFailed: boolean;
   cancelled: boolean;
+  /**
+   * Pedido que se paga en OXXO; `null` con tarjeta (o con un API anterior). Las banderas de
+   * arriba no cambian: un pedido de OXXO sin pagar sigue en `awaitingPayment`, y la página
+   * muestra su ficha en vez de "estamos confirmando tu pago".
+   */
+  oxxo: ConfirmationOxxo | null;
   currencyCode: string;
   createdAt: string | null;
   buyerFirstName: string | null;
@@ -139,6 +155,22 @@ function flags(status: string, paymentStatus: ConfirmationPaymentStatus) {
   return { cancelled, paymentFailed, awaitingPayment };
 }
 
+/**
+ * Pago en OXXO de la vista, con el estado del pedido y del cobro TAL COMO los manda el API
+ * (antes de reducirlos a los de la vista). `null` = no es de OXXO o no hay nada que mostrar.
+ */
+function oxxoFrom(
+  raw: unknown,
+  status: string,
+  paymentStatus: string | null | undefined,
+  now: Date,
+): ConfirmationOxxo | null {
+  const oxxo = readOrderOxxo(raw);
+  if (!oxxo) return null;
+  const state = oxxoOrderState({ oxxo, status, paymentStatus, now });
+  return state === 'none' ? null : { ...oxxo, state };
+}
+
 // ===== constructores =====
 
 /**
@@ -146,12 +178,13 @@ function flags(status: string, paymentStatus: ConfirmationPaymentStatus) {
  * del API es derivado (paid | partial | pending | refunded | failed); si no viene
  * (pedidos migrados) se infiere del estado del pedido. `extra.currencyCode` es la
  * moneda que la página obtuvo por otro camino (confirmación pública del mismo
- * pedido) para cuando el pedido no la trae.
+ * pedido) para cuando el pedido no la trae. `extra.now` es el instante contra el que
+ * se compara la fecha límite de una ficha de OXXO (por omisión, ahora).
  */
 export function fromMyOrder(
   order: Order,
   tracking?: TrackingInfo | null,
-  extra: { pickupBranchName?: string | null; currencyCode?: string | null } = {},
+  extra: { pickupBranchName?: string | null; currencyCode?: string | null; now?: Date } = {},
 ): ConfirmationView {
   const status = order.status || 'pending';
   const raw = order.paymentStatus;
@@ -185,6 +218,7 @@ export function fromMyOrder(
     status,
     paymentStatus,
     ...flags(status, paymentStatus),
+    oxxo: oxxoFrom(order.oxxo, status, raw, extra.now ?? new Date()),
     // Moneda: la del pedido si el API la manda (OrderDto.currencyCode, Bloque 1);
     // si no, la que la página obtuvo de la confirmación pública del mismo pedido;
     // MXN solo como último recurso. Antes SIEMPRE caía a MXN: el cast ocultaba
@@ -213,8 +247,11 @@ export function fromMyOrder(
   };
 }
 
-/** Vista desde GET /checkout/confirmation/:orderId?session_id=… (invitado o sin sesión). */
-export function fromGuestConfirmation(dto: CheckoutConfirmation): ConfirmationView {
+/**
+ * Vista desde GET /checkout/confirmation/:orderId?session_id=… (invitado o sin sesión).
+ * `now` es el instante contra el que se compara la fecha límite de una ficha de OXXO.
+ */
+export function fromGuestConfirmation(dto: CheckoutConfirmation, now: Date = new Date()): ConfirmationView {
   const status = dto.status || 'pending';
   const paymentStatus: ConfirmationPaymentStatus =
     dto.paymentStatus === 'paid' || dto.paymentStatus === 'pending' || dto.paymentStatus === 'failed'
@@ -228,6 +265,7 @@ export function fromGuestConfirmation(dto: CheckoutConfirmation): ConfirmationVi
     status,
     paymentStatus,
     ...flags(status, paymentStatus),
+    oxxo: oxxoFrom(dto.oxxo, status, dto.paymentStatus, now),
     currencyCode: dto.currencyCode || 'MXN',
     createdAt: dto.createdAt || null,
     buyerFirstName: text(dto.buyer?.firstName) || null,

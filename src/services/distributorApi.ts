@@ -10,6 +10,7 @@ import type {
   DistributorPurchasesResponse,
 } from '@/types/distributor';
 import type { WhatsAppMarketingPreference } from '@/types/customer';
+import type { OrderOxxo } from '@/types/order';
 
 // ===== Alta de miembro en la red (Ruta A: sponsor paga / Ruta B: invitación) =====
 
@@ -152,6 +153,11 @@ export interface MyOrder {
   readyAt?: string | null;
   /** Quién lo recogió en mostrador (lo captura la sucursal al entregar). Opcional. */
   receivedByName?: string | null;
+  /**
+   * Pago en efectivo en OXXO (12-nov-2026): la ficha, su fecha límite y su referencia.
+   * Ausente o `null` si el pedido se paga de otra forma (o el API es anterior).
+   */
+  oxxo?: OrderOxxo | null;
 }
 
 /** Sucursal donde se recoge un pedido (GET /distributor/orders). Los datos pueden venir vacíos o con ".". */

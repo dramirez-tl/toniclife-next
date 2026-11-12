@@ -8,9 +8,10 @@
 //     de la tienda y sin nada del panel.
 
 import { useId, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
+  BanknotesIcon,
   ChevronDownIcon,
   ClipboardDocumentListIcon,
   TruckIcon,
@@ -33,6 +34,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useMyOrders } from '@/hooks/useMyOrders';
 import { useMyOrder } from '@/hooks/useOrders';
+import { localeLanguage, type LanguageCode } from '@/i18n/config';
+import {
+  formatOxxoDeadline,
+  oxxoOrderState,
+  readOrderOxxo,
+  type OxxoOrderState,
+} from '@/lib/checkout/payment-options';
 import { pickupAddressLine } from '@/lib/checkout/pickup-branches';
 import { parseOrderDate } from '@/lib/orders/order-date';
 import {
@@ -152,6 +160,7 @@ interface MyOrdersViewProps {
 export function MyOrdersView({ variant = 'panel' }: MyOrdersViewProps) {
   const inStore = variant === 'store';
   const t = useTranslations('distributor.orders');
+  const lang = localeLanguage(useLocale());
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch, isFetching } = useMyOrders({
     page,
@@ -207,7 +216,7 @@ export function MyOrdersView({ variant = 'panel' }: MyOrdersViewProps) {
           <>
             <div className="space-y-4">
               {orders.map((order) => (
-                <OrderCard key={order.id} order={order} t={t} />
+                <OrderCard key={order.id} order={order} t={t} lang={lang} />
               ))}
             </div>
 
@@ -249,13 +258,17 @@ export function MyOrdersView({ variant = 'panel' }: MyOrdersViewProps) {
 // existe: las del POS siempre; las de pedidos web desde la mig 176 (se crea al
 // confirmarse el pago). Un pedido web para recoger en sucursal no lleva
 // domicilio ni guía: "Recoger en…" y, abajo, su seguimiento de 4 pasos con el
-// aviso que le toca y la sucursal (PickupOrderSection, 11-nov-2026).
+// aviso que le toca y la sucursal (PickupOrderSection, 11-nov-2026). Un pedido
+// que se paga en efectivo en OXXO y sigue sin pagar dice hasta cuándo se puede
+// pagar y enlaza a su ficha (OxxoOrderNotice, 12-nov-2026).
 
-function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
+function OrderCard({ order, t, lang }: { order: MyOrder; t: OrdersT; lang: LanguageCode }) {
   const home = order.kind === 'home_delivery';
   const pickup = order.deliveryMode === 'pickup' || (!home && order.delivery === 'pickup');
   // Solo pedidos para recoger: en qué paso va y qué se le dice (lib/orders/pickup-progress).
   const pickupView = pickupOrderView(order);
+  // Solo pedidos que se pagan en OXXO: en qué va ese pago (lib/checkout/payment-options).
+  const oxxoState = oxxoOrderState({ oxxo: order.oxxo, paymentStatus: order.paymentStatus, status: order.status });
   const showsFulfillment = home || !!order.deliveryStatus;
   const currencyFmt = currencyFormatter(order.currencyCode);
   return (
@@ -363,10 +376,60 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
             </div>
           </div>
         </div>
+        <OxxoOrderNotice order={order} state={oxxoState} t={t} lang={lang} />
         {pickupView && <PickupOrderSection view={pickupView} t={t} />}
         {!home && order.itemsCount > 0 && <OrderItems order={order} t={t} />}
       </CardContent>
     </Card>
+  );
+}
+
+// ===== Pedido que se paga en efectivo en OXXO =====
+// Mientras está por pagar: hasta cuándo se puede pagar (hora del centro de México) y el
+// enlace a la ficha de Stripe, si ya se generó. Si Stripe avisó que la ficha venció, se dice.
+// Si solo pasó la fecha límite no se afirma que no pagó: quien pagó el último día sigue
+// pendiente hasta que OXXO avisa. Pagado, cancelado o con tarjeta: nada.
+
+function OxxoOrderNotice({
+  order,
+  state,
+  t,
+  lang,
+}: {
+  order: MyOrder;
+  state: OxxoOrderState;
+  t: OrdersT;
+  lang: LanguageCode;
+}) {
+  if (state === 'none' || state === 'paid') return null;
+
+  if (state === 'expired' || state === 'deadline_passed') {
+    return (
+      <p className="mt-4 flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+        <ClockIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-gray-500" />
+        <span>{state === 'expired' ? t('oxxo.expired') : t('oxxo.deadlinePassed')}</span>
+      </p>
+    );
+  }
+
+  const oxxo = readOrderOxxo(order.oxxo);
+  const deadline = formatOxxoDeadline(oxxo?.expiresAt, lang);
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-sm text-amber-900">
+      <p className="flex min-w-0 items-start gap-2 py-2 font-medium">
+        <BanknotesIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+        <span>{deadline ? t('oxxo.pendingUntil', { deadline }) : t('oxxo.pending')}</span>
+      </p>
+      {oxxo?.voucherUrl ? (
+        <a href={oxxo.voucherUrl} target="_blank" rel="noopener noreferrer" className={PICKUP_LINK}>
+          {t('oxxo.viewVoucher')}
+          <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+          <span className="sr-only">{t('oxxo.opensNewTab')}</span>
+        </a>
+      ) : (
+        <p className="py-2">{t('oxxo.voucherNotReady')}</p>
+      )}
+    </div>
   );
 }
 

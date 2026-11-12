@@ -51,6 +51,21 @@ export interface AddressSnapshot {
   references?: string;
 }
 
+/**
+ * Pago en efectivo en OXXO de un pedido de la tienda (12-nov-2026). El API manda el objeto
+ * cuando el pedido se paga en OXXO, en cualquier estado del cobro; `null` o ausente si se
+ * paga de otra forma (o el API es anterior). Qué se muestra con él lo decide
+ * `lib/checkout/payment-options`.
+ */
+export interface OrderOxxo {
+  /** Página de Stripe con la ficha; `null` hasta que Stripe la genera (llega por webhook). */
+  voucherUrl: string | null;
+  /** Instante ISO-8601 hasta el que se puede pagar. */
+  expiresAt: string | null;
+  /** Referencia de la ficha (32 dígitos). */
+  reference: string | null;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -59,6 +74,8 @@ export interface Order {
   status: string;
   /** Estado de pago derivado en backend: paid | partial | pending | refunded | failed */
   paymentStatus?: string;
+  /** Pago en efectivo en OXXO; ausente o `null` si el pedido se paga de otra forma. */
+  oxxo?: OrderOxxo | null;
   subtotal: string;
   taxAmount: string;
   discountAmount: string;

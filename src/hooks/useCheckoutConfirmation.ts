@@ -7,6 +7,7 @@
 // sin estado ni efectos propios.
 
 import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { shouldPollPendingPayment } from '@/lib/checkout/payment-options';
 import { getCheckoutConfirmation } from '@/services/checkout-confirmation.service';
 import type { CheckoutConfirmation } from '@/types/checkout-confirmation';
 
@@ -60,8 +61,15 @@ export const checkoutConfirmationKeys = {
     ['checkout', 'confirmation', orderId, sessionId] as const,
 };
 
+/**
+ * El pedido sigue pendiente Y tiene caso volver a consultarlo. Un pedido que se paga en
+ * OXXO con la ficha ya generada sigue pendiente horas o días (hasta que el comprador pasa
+ * a la tienda): ahí la página se queda fija y ya no se consulta (12-nov-2026).
+ */
 export function isConfirmationPending(data: CheckoutConfirmation | undefined): boolean {
-  return !!data && data.status !== 'cancelled' && data.paymentStatus === 'pending';
+  return (
+    !!data && data.status !== 'cancelled' && data.paymentStatus === 'pending' && shouldPollPendingPayment(data)
+  );
 }
 
 export function useCheckoutConfirmation(

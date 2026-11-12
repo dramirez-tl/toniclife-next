@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   pilotService,
   type PilotFeature,
+  type PilotOxxoPatch,
 } from '@/services/pilot.service';
 
 export const pilotKeys = {
@@ -37,6 +38,23 @@ export const useSetPilotCheckout = () => {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: pilotKeys.checkout() });
       void qc.invalidateQueries({ queryKey: pilotKeys.publicState() });
+    },
+  });
+};
+
+/**
+ * Pago en OXXO de la tienda: encender/apagar o cambiar la vigencia de la ficha. Invalida lo
+ * mismo que el interruptor de compras (el estado del admin y el público que lee la tienda)
+ * y espera a que el del admin se vuelva a leer: hasta entonces la mutación sigue en curso y
+ * los controles, deshabilitados, no alcanzan a mostrar el valor anterior.
+ */
+export const useSetPilotOxxo = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: PilotOxxoPatch) => pilotService.setOxxo(patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: pilotKeys.publicState() });
+      return qc.invalidateQueries({ queryKey: pilotKeys.checkout() });
     },
   });
 };

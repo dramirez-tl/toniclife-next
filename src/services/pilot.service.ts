@@ -1,7 +1,7 @@
 // pilot.service.ts - Gating del piloto del panel de distribuidor (mig 110).
-// Admin (/admin/pilot, super_admin): liberar features por distribuidor y el
-// switch global de compras. Consumo: panel (/distributor/pilot-features) y
-// tienda (/config/pilot-public, sin auth).
+// Admin (/admin/pilot, super_admin): liberar features por distribuidor, el
+// switch global de compras y el pago en OXXO de la tienda de México. Consumo:
+// panel (/distributor/pilot-features) y tienda (/config/pilot-public, sin auth).
 import api from '@/lib/axios';
 
 export type PilotFeature =
@@ -24,8 +24,30 @@ export interface PilotDistributorRow {
   features: DistributorPilotFeatures;
 }
 
+/**
+ * Pago en efectivo en OXXO en la tienda de México (12-nov-2026). Se lee siempre con
+ * `readOxxoConfig` (lib/checkout/payment-options): un API anterior no manda el bloque.
+ */
+export interface PilotOxxoState {
+  enabled: boolean;
+  /** Vigencia de la ficha en días naturales (1–7): vence a las 23:59, hora del centro de México. */
+  expiresAfterDays: number;
+  /** Límites de Stripe por pedido, en pesos. */
+  minAmount: number;
+  maxAmount: number;
+}
+
 export interface PilotCheckoutState {
   checkoutEnabled: boolean;
+  /** Ausente = el API aún no conoce OXXO: no se ofrece. */
+  oxxo?: PilotOxxoState;
+}
+
+/** Lo que se puede cambiar de OXXO desde el admin (PATCH /admin/pilot/oxxo). */
+export interface PilotOxxoPatch {
+  enabled?: boolean;
+  /** Entero de 1 a 7. */
+  expiresAfterDays?: number;
 }
 
 class PilotService {
@@ -67,6 +89,15 @@ class PilotService {
     const { data } = await api.patch<PilotCheckoutState>(
       '/admin/pilot/checkout',
       { enabled },
+    );
+    return data;
+  }
+
+  /** Enciende o apaga OXXO, o cambia la vigencia de la ficha. Responde el estado completo. */
+  async setOxxo(patch: PilotOxxoPatch): Promise<PilotCheckoutState> {
+    const { data } = await api.patch<PilotCheckoutState>(
+      '/admin/pilot/oxxo',
+      patch,
     );
     return data;
   }

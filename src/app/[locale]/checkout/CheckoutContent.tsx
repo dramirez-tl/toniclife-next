@@ -28,6 +28,7 @@ import { PickupBranchPicker } from '@/components/storefront/PickupBranchPicker';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { CheckoutSignInGate } from '@/components/checkout/CheckoutSignInGate';
+import { PaymentMethodPicker } from '@/components/checkout/PaymentMethodPicker';
 import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/checkout/SavedAddressPicker';
 import { ShippingAddressForm, addressFieldId, useAddressFormTexts } from '@/components/checkout/ShippingAddressForm';
 import {
@@ -41,7 +42,7 @@ import {
   usePickupBranches,
 } from '@/hooks/useCart';
 import { getReferralCode } from '@/hooks/useReferralCode';
-import { usePilotPublicState } from '@/hooks/usePilot';
+import { pilotKeys, usePilotPublicState } from '@/hooks/usePilot';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
@@ -49,6 +50,7 @@ import { useStates } from '@/hooks/useStates';
 import { buyerDistributorNumber, fillContactFromBuyer } from '@/lib/checkout/buyer';
 import { standardShippingInfo } from '@/lib/checkout/shipping-method';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
+import { oxxoOption, readOxxoConfig } from '@/lib/checkout/payment-options';
 import {
   findPickupBranch,
   isPickupBranchSelectable,
@@ -273,6 +275,34 @@ export default function CheckoutContent() {
   // Piloto: compras del checkout gateadas globalmente desde /admin/sistema.
   const { data: pilotState } = usePilotPublicState();
   const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
+
+  // Pago en efectivo en OXXO (lib/checkout/payment-options; solo interfaz, no cambia montos):
+  // se ofrece en la tienda de México, en pesos, con sesión y si el servidor lo tiene
+  // encendido. Para saber si se puede elegir se compara el total que ya se muestra con los
+  // límites de Stripe; mientras los montos se ponen al día no hay total que comparar.
+  const oxxoConfig = readOxxoConfig(pilotState);
+  const oxxo = oxxoOption({
+    pilotOxxo: isAuthenticated ? oxxoConfig : null,
+    storeCountryCode: countryCode,
+    currencyCode: cartDisplayCurrency(cart?.currencyCode, currency),
+    total: amountsSyncing ? null : checkoutSummary ? checkoutSummary.total : cart?.total,
+  });
+  // OXXO estaba elegido y dejó de poder elegirse (el total salió del rango o se apagó desde
+  // el panel): se vuelve a tarjeta y se avisa. Se ajusta al renderizar; el aviso sale en un
+  // efecto. Con el pedido en camino al API o ya creado no se toca nada.
+  const [oxxoNotice, setOxxoNotice] = useState<{ text: string } | null>(null);
+  if (
+    selectedPaymentMethod === PaymentMethod.OXXO &&
+    !oxxo.selectable &&
+    !orderResult &&
+    !authenticatedCheckout.isPending
+  ) {
+    setSelectedPaymentMethod(PaymentMethod.STRIPE);
+    setOxxoNotice({ text: t('oxxo.noLongerAvailable') });
+  }
+  useEffect(() => {
+    if (oxxoNotice) toast.warning(oxxoNotice.text, { id: 'checkout-oxxo', duration: 9000 });
+  }, [oxxoNotice]);
 
   // Rutas de surtido (solo interfaz; no cambia montos ni el cuerpo del pedido):
   //  · si el API dice que ningún almacén envía a este país, "Envío a domicilio" se
@@ -608,6 +638,13 @@ export default function CheckoutContent() {
         const rejectedId = addressChoice.id;
         setShipping((state) => rejectSavedAddress(state, rejectedId));
         setCurrentStep('shipping');
+      }
+      // 422 CHK_PAYMENT_METHOD_UNAVAILABLE: OXXO se apagó, no aplica a este pedido o el
+      // monto quedó fuera del rango. No se creó el pedido: se queda en "Pago" con tarjeta
+      // elegida, se vuelve a pedir el interruptor de OXXO y abajo se muestra lo que dijo el API.
+      if (catalogErrorCode(error) === 'CHK_PAYMENT_METHOD_UNAVAILABLE') {
+        setSelectedPaymentMethod(PaymentMethod.STRIPE);
+        void queryClient.invalidateQueries({ queryKey: pilotKeys.publicState() });
       }
       const apiMessage = (error as { response?: { data?: { message?: string | string[] } } } | null)?.response
         ?.data?.message;
@@ -1060,18 +1097,32 @@ export default function CheckoutContent() {
                       </div>
                     </div>
 
-                    {/* Único método de pago: tarjeta vía Stripe */}
-                    <div className="flex items-center gap-3 rounded-lg border-2 border-[#a7c1e2] bg-[#C8DDF2]/5 p-4">
-                      <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {t('card')}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {t('cardDesc')}
-                        </p>
+                    {/* Forma de pago. Donde la tienda ofrece OXXO (México, encendido en el servidor)
+                        se elige entre tarjeta y efectivo en OXXO. En cualquier otro caso queda
+                        el único método de siempre: tarjeta vía Stripe. */}
+                    {oxxo.offered && oxxoConfig ? (
+                      <PaymentMethodPicker
+                        value={selectedPaymentMethod}
+                        onChange={setSelectedPaymentMethod}
+                        oxxo={oxxo}
+                        config={oxxoConfig}
+                        formatAmount={fmt}
+                        lang={lang}
+                        disabled={authenticatedCheckout.isPending}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3 rounded-lg border-2 border-[#a7c1e2] bg-[#C8DDF2]/5 p-4">
+                        <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {t('card')}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {t('cardDesc')}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Términos */}
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -1118,7 +1169,15 @@ export default function CheckoutContent() {
                         {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         )}
-                        {t('placeOrder')}
+                        {selectedPaymentMethod === PaymentMethod.OXXO ? (
+                          // En celular el texto completo no cabe junto a "Regresar": va el corto.
+                          <>
+                            <span className="sm:hidden">{t('oxxo.submitShort')}</span>
+                            <span className="hidden sm:inline">{t('oxxo.submit')}</span>
+                          </>
+                        ) : (
+                          t('placeOrder')
+                        )}
                       </Button>
                     </div>
                   </form>
@@ -1182,14 +1241,16 @@ export default function CheckoutContent() {
                     </div>
                   </div>
 
-                  {/* Pago en línea: redirección a la pasarela segura (Stripe) */}
+                  {/* Pago en línea: redirección a la pasarela segura (Stripe). Con OXXO esa
+                      página es donde se genera la ficha. */}
                   {(selectedPaymentMethod === PaymentMethod.STRIPE ||
+                    selectedPaymentMethod === PaymentMethod.OXXO ||
                     selectedPaymentMethod === PaymentMethod.PAYPAL ||
                     selectedPaymentMethod === PaymentMethod.MERCADOPAGO) && (
                     <div className="bg-[#C8DDF2]/20 border border-[#a7c1e2]/40 rounded-lg p-4 mb-4 flex items-center justify-center gap-2 text-[#3E667D]">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <p className="text-sm font-medium">
-                        {t('redirecting')}
+                        {selectedPaymentMethod === PaymentMethod.OXXO ? t('oxxo.redirecting') : t('redirecting')}
                       </p>
                     </div>
                   )}

@@ -5,19 +5,29 @@
 // Lo informativo del panel es base (no se gatea). Aquí el Super Admin libera
 // manualmente, POR DISTRIBUIDOR: compartir carrito (generar link), registro
 // público con su código de referido, y alta de socios/preferentes. Además el
-// switch GLOBAL de compras del checkout (aplica a cualquier comprador).
+// switch GLOBAL de compras del checkout (aplica a cualquier comprador) y el del
+// pago en efectivo en OXXO de la tienda de México (12-nov-2026).
 //
 // Requiere la mig 110 en el API; sin ella todo se comporta bloqueado y
 // liberar devuelve el error claro del backend.
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  BanknotesIcon,
   MagnifyingGlassIcon,
   ShoppingCartIcon,
   UserGroupIcon,
@@ -30,11 +40,21 @@ import {
   usePilotCheckout,
   useSetPilotCheckout,
   useSetPilotFeature,
+  useSetPilotOxxo,
 } from '@/hooks/usePilot';
+import {
+  OXXO_DEFAULT_EXPIRES_AFTER_DAYS,
+  OXXO_DEFAULT_MAX_AMOUNT,
+  OXXO_DEFAULT_MIN_AMOUNT,
+  OXXO_EXPIRES_AFTER_DAYS_OPTIONS,
+  clampOxxoDays,
+  readOxxoConfig,
+} from '@/lib/checkout/payment-options';
 import {
   pilotService,
   type PilotDistributorRow,
   type PilotFeature,
+  type PilotOxxoPatch,
 } from '@/services/pilot.service';
 
 const apiError = (err: unknown, fallback: string) => {
@@ -80,6 +100,7 @@ export function PilotGatingTab() {
         interruptor global aparte.
       </p>
       <CheckoutGateCard />
+      <OxxoGateCard />
       <DistributorSearchCard />
       <ReleasedDistributorsList />
     </div>
@@ -161,6 +182,209 @@ function CheckoutGateCard() {
             </>
           )}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pago en efectivo en OXXO (tienda de México y Frontera)
+// ─────────────────────────────────────────────────────────────────────────────
+// Interruptor y vigencia de la ficha, ambos por PATCH /admin/pilot/oxxo. El estado
+// llega en el mismo GET /admin/pilot/checkout del interruptor de compras; si el API
+// no manda el bloque `oxxo` (servidor anterior) la tarjeta queda deshabilitada.
+
+const pesos = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+});
+
+/** Nombre de un evento de Stripe: largo y sin espacios, se parte donde haga falta. */
+const EVENT_CODE = 'break-all font-mono text-xs';
+
+function OxxoGateCard() {
+  const { data, isLoading, isError, refetch } = usePilotCheckout();
+  const setOxxo = useSetPilotOxxo();
+  const switchId = useId();
+  const daysId = useId();
+  const daysHelpId = `${daysId}-help`;
+
+  if (isLoading) return <Skeleton className="h-56 w-full" />;
+
+  // null = el API no manda `oxxo`: todavía no conoce esta forma de pago.
+  const config = readOxxoConfig(data);
+  const supported = config !== null;
+  const enabled = config?.enabled ?? false;
+  const days = config?.expiresAfterDays ?? OXXO_DEFAULT_EXPIRES_AFTER_DAYS;
+  const minAmount = config?.minAmount ?? OXXO_DEFAULT_MIN_AMOUNT;
+  const maxAmount = config?.maxAmount ?? OXXO_DEFAULT_MAX_AMOUNT;
+  // Sin estado (la consulta falló) no se sabe qué hay encendido: no se cambia nada a ciegas.
+  const locked = !supported || !data || setOxxo.isPending;
+
+  const save = (patch: PilotOxxoPatch, okMessage: string) =>
+    setOxxo.mutate(patch, {
+      onSuccess: () => toast.success(okMessage),
+      onError: (e) => toast.error(apiError(e, 'No se pudo guardar el pago en OXXO')),
+    });
+
+  return (
+    <Card>
+      <CardContent className="space-y-5 p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+                enabled
+                  ? 'bg-emerald-100 text-emerald-600'
+                  : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              <BanknotesIcon className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold text-gray-900">
+                  Pago en OXXO (tienda de México y Frontera)
+                </h3>
+                <Badge
+                  variant="outline"
+                  className={
+                    !data || !supported
+                      ? 'border-amber-200 bg-amber-50 text-amber-700'
+                      : enabled
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-600'
+                  }
+                >
+                  {!data
+                    ? 'Sin datos'
+                    : !supported
+                      ? 'Requiere actualizar el servidor'
+                      : enabled
+                        ? 'Encendido'
+                        : 'Apagado'}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                El comprador genera una ficha con su referencia y paga en
+                efectivo en cualquier OXXO. Solo se ofrece en la tienda de
+                México (ahí compra también la zona Frontera) y con sesión
+                iniciada; en las demás tiendas no aparece. La tarjeta sigue
+                disponible siempre.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Switch
+              id={switchId}
+              checked={enabled}
+              disabled={locked}
+              onCheckedChange={(next) =>
+                save(
+                  { enabled: next },
+                  next
+                    ? 'Pago en OXXO ENCENDIDO en la tienda'
+                    : 'Pago en OXXO apagado',
+                )
+              }
+            />
+            <Label htmlFor={switchId} className="text-sm">
+              Ofrecer OXXO
+            </Label>
+          </div>
+        </div>
+
+        {isError && !data ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            No se pudo cargar el estado del pago en OXXO.{' '}
+            <button className="underline" onClick={() => void refetch()}>
+              Reintentar
+            </button>
+          </div>
+        ) : (
+          !supported && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              El servidor todavía no conoce el pago en OXXO: requiere
+              actualizar el servidor (API) para poder encenderlo.
+            </p>
+          )
+        )}
+
+        <div className="grid gap-5 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+          <div className="space-y-1.5">
+            <Label htmlFor={daysId}>Vigencia de la ficha</Label>
+            <Select
+              value={String(days)}
+              onValueChange={(value) => {
+                const next = clampOxxoDays(value);
+                if (next === days) return;
+                save(
+                  { expiresAfterDays: next },
+                  `Vigencia de la ficha de OXXO: ${next === 1 ? '1 día' : `${next} días`}`,
+                );
+              }}
+              disabled={locked}
+            >
+              <SelectTrigger
+                id={daysId}
+                className="w-full"
+                aria-describedby={daysHelpId}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OXXO_EXPIRES_AFTER_DAYS_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option === 1 ? '1 día' : `${option} días`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p id={daysHelpId} className="text-xs text-muted-foreground">
+              La ficha vence a las 23:59 (hora del centro de México) de ese
+              número de días naturales después de generarse. El cambio aplica
+              a las fichas que se generen después.
+            </p>
+          </div>
+
+          <div className="text-sm">
+            <p className="font-medium text-gray-900">
+              Antes de encenderlo, confirma que:
+            </p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-5 text-muted-foreground">
+              <li>
+                OXXO está activado en la cuenta de Stripe de México (Settings ›
+                Payment methods).
+              </li>
+              <li>
+                El webhook de Stripe de esa cuenta está suscrito a{' '}
+                <code className={EVENT_CODE}>checkout.session.completed</code>
+                ,{' '}
+                <code className={EVENT_CODE}>
+                  checkout.session.async_payment_succeeded
+                </code>
+                ,{' '}
+                <code className={EVENT_CODE}>
+                  checkout.session.async_payment_failed
+                </code>{' '}
+                y <code className={EVENT_CODE}>checkout.session.expired</code>.
+              </li>
+              <li>
+                Ya se hizo un pedido de prueba real, pagado de principio a
+                fin.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <p className="border-t pt-4 text-xs text-muted-foreground">
+          Máximo {pesos.format(maxAmount)} MXN por pedido (mínimo{' '}
+          {pesos.format(minAmount)} MXN): fuera de ese rango la tienda muestra
+          OXXO deshabilitado. Los pagos se confirman al siguiente día hábil;
+          hasta entonces el pedido queda pendiente con sus productos
+          apartados. Los pagos en OXXO no se pueden reembolsar desde Stripe.
+        </p>
       </CardContent>
     </Card>
   );
