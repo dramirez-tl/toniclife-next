@@ -143,6 +143,26 @@ export interface MyOrder {
   fulfillBranchName: string | null;
   shippedAt: string | null;
   deliveredAt: string | null;
+  /**
+   * Recoger en sucursal (11-nov-2026): la sucursal donde se recoge, con su dirección y
+   * teléfono. Opcional: un API anterior no la manda (queda solo `pickupBranchName`).
+   */
+  pickupBranch?: MyOrderPickupBranch | null;
+  /** Cuándo quedó listo para recoger (ISO). Opcional: un API anterior no lo manda. */
+  readyAt?: string | null;
+  /** Quién lo recogió en mostrador (lo captura la sucursal al entregar). Opcional. */
+  receivedByName?: string | null;
+}
+
+/** Sucursal donde se recoge un pedido (GET /distributor/orders). Los datos pueden venir vacíos o con ".". */
+export interface MyOrderPickupBranch {
+  code: string;
+  name: string;
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
 }
 
 export interface MyOrdersResponse {

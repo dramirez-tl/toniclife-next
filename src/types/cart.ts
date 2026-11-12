@@ -299,6 +299,14 @@ export interface PickupBranch {
   longitude: number | null;
   countryCode: string;
   countryName: string;
+  /**
+   * ¿La sucursal tiene existencias para TODO el carrito del comprador? Solo viene en la
+   * lista de la tienda (`?countryId=`) y con productos en el carrito. Ausente = el API no
+   * lo revisó (o es un API anterior): la sucursal se puede elegir y no lleva etiqueta.
+   */
+  availability?: 'available' | 'unavailable';
+  /** Nombres de los productos del carrito que no alcanzan en esa sucursal. */
+  missingItems?: string[];
 }
 
 export interface CheckoutResponse {

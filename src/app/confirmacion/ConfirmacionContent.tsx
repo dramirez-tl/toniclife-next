@@ -50,6 +50,7 @@ import {
   confirmationSteps,
   fromGuestConfirmation,
   fromMyOrder,
+  pickupStepHintKey,
   type ConfirmationStep,
   type ConfirmationView,
 } from '@/lib/checkout/confirmation';
@@ -581,7 +582,12 @@ function StepRow({
   if ((step === 'delivered' || step === 'pickupDelivered') && f?.deliveredAt) detail = dateOf(f.deliveredAt);
 
   const title = t(`steps.${step}.title` as never);
-  const hint = step === 'pickupDelivered' ? t('steps.pickupDelivered.hint', { branch }) : t(`steps.${step}.hint` as never);
+  // Recoger en sucursal: el texto del último paso sigue al avance (se le avisará cuando
+  // esté listo y qué llevar → ya puede pasar por él → entregado).
+  const hint =
+    step === 'pickupDelivered'
+      ? t(`steps.pickupDelivered.${pickupStepHintKey(state)}`, { branch })
+      : t(`steps.${step}.hint` as never);
   const Icon = step === 'shipped' ? TruckIcon : step === 'pickupDelivered' ? BuildingStorefrontIcon : CheckCircleIcon;
 
   return (

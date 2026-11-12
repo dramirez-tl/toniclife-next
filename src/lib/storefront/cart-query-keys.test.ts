@@ -52,4 +52,35 @@ describe('invalidateCartDerived (tras agregar, cambiar cantidad, quitar o vaciar
     expect(queryClient.getQueryState(cartKeys.addresses('u-1'))?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(cartKeys.addresses('u-2'))?.isInvalidated).toBe(true);
   });
+
+  it('sucursales para recoger: sin país, la key de siempre; con país, van el país y la firma del carrito', () => {
+    expect(cartKeys.pickupBranches()).toEqual(['cart', 'checkout', 'pickup-branches']);
+    expect(cartKeys.pickupBranches(null)).toEqual(['cart', 'checkout', 'pickup-branches']);
+    expect(cartKeys.pickupBranches('mx-uuid', 'p-1:2')).toEqual([
+      'cart',
+      'checkout',
+      'pickup-branches',
+      { countryId: 'mx-uuid', cartSignature: 'p-1:2' },
+    ]);
+    expect(cartKeys.pickupBranches('mx-uuid')).toEqual([
+      'cart',
+      'checkout',
+      'pickup-branches',
+      { countryId: 'mx-uuid', cartSignature: '' },
+    ]);
+  });
+
+  it('la disponibilidad por sucursal se vuelve a pedir cuando cambia el carrito (prefijo cartKeys.checkout())', () => {
+    const queryClient = new QueryClient();
+    const store = cartKeys.pickupBranches('mx-uuid', 'p-1:2');
+    queryClient.setQueryData(store, []);
+    queryClient.setQueryData(cartKeys.pickupBranches(), []);
+    invalidateCartDerived(queryClient);
+    expect(queryClient.getQueryState(store)?.isInvalidated).toBe(true);
+    // Y con el prefijo se invalidan todas (tras un rechazo del API al pagar).
+    const other = cartKeys.pickupBranches('mx-uuid', 'p-1:3');
+    queryClient.setQueryData(other, []);
+    void queryClient.invalidateQueries({ queryKey: cartKeys.pickupBranches() });
+    expect(queryClient.getQueryState(other)?.isInvalidated).toBe(true);
+  });
 });

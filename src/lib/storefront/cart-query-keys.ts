@@ -28,6 +28,16 @@ export const cartKeys = {
     userId
       ? ([...cartKeys.checkout(), 'addresses', userId] as const)
       : ([...cartKeys.checkout(), 'addresses'] as const),
+  /**
+   * Sucursales para recoger. Sin país, la lista de siempre (carrito compartido y
+   * confirmación del pedido) y, a la vez, el prefijo de todas, para invalidar. Con el país
+   * de la tienda (checkout), las de la zona del comprador con la disponibilidad de SU
+   * carrito: la firma del carrito va en la clave para que se vuelva a pedir cuando cambia.
+   */
+  pickupBranches: (countryId?: string | null, cartSignature?: string) =>
+    countryId
+      ? ([...cartKeys.checkout(), 'pickup-branches', { countryId, cartSignature: cartSignature ?? '' }] as const)
+      : ([...cartKeys.checkout(), 'pickup-branches'] as const),
 };
 
 /**

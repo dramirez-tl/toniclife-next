@@ -12,6 +12,7 @@ export type DeliveryKind = 'pos_sale' | 'order';
 /** Envío con paquetería o recoger en sucursal (solo pedidos web; el POS siempre envía). */
 export type DeliveryMode = 'shipping' | 'pickup';
 
+/** Etiquetas de los envíos. En un pedido para RECOGER, "listo" se dice "Listo para recoger": usar `deliveryStatusLabel` (lib/deliveries/actions). */
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   production: 'En elaboración',
   pending: 'Pendiente de surtir',
@@ -142,6 +143,13 @@ export interface Delivery {
   shippedByName: string | null;
   deliveredAt: string | null;
   deliveredByName: string | null;
+  /**
+   * Recoger en sucursal (11-nov-2026): quién recogió el pedido en mostrador (lo captura
+   * quien entrega). Ausente con un API anterior.
+   */
+  receivedByName?: string | null;
+  /** Recoger en sucursal: terminal del POS desde la que se entregó (la llena el API). */
+  handoffTerminal?: string | null;
   cancelledAt: string | null;
   cancelledByName: string | null;
   cancelReason: string | null;
@@ -210,6 +218,8 @@ export interface UpdateDeliveryStatusPayload {
   trackingNumber?: string;
   warehouseNotes?: string;
   reason?: string;
+  /** Recoger en sucursal: quién recoge el pedido (al marcar entregado en mostrador; máx. 255). */
+  receivedByName?: string;
 }
 
 export interface UpdateDeliveryPayload {

@@ -3,12 +3,14 @@
 // Desde la mig 176 la bandeja lleva ventas POS y PEDIDOS WEB pagados en línea
 // (kind), con envío a domicilio o para recoger en sucursal (deliveryMode).
 // Espejo de canTransitionDelivery del API: envío = pendiente → listo → enviado
-// → entregado; recoger = pendiente → entregado en mostrador | cancelado (sin
-// "listo" ni "enviado"). La entrega de un PEDIDO WEB nunca se cancela desde la
-// bandeja (ver canCancelDelivery). La autoridad sigue siendo el API; esto solo
-// decide qué botones ofrecer y cómo nombrar las cosas.
+// → entregado; recoger (11-nov-2026) = pendiente → listo para recoger →
+// entregado en mostrador, con pendiente → entregado (surtir y entregar de una
+// vez) y listo → pendiente (corrección); nunca "enviado". La entrega de un
+// PEDIDO WEB nunca se cancela desde la bandeja (ver canCancelDelivery). La
+// autoridad sigue siendo el API; esto solo decide qué botones ofrecer y cómo
+// nombrar las cosas.
 
-import type { Delivery, DeliveryMode, DeliveryStatus } from '@/types/deliveries';
+import { DELIVERY_STATUS_LABELS, type Delivery, type DeliveryMode, type DeliveryStatus } from '@/types/deliveries';
 
 export type DeliveryAction = 'produced' | 'ready' | 'shipped' | 'delivered' | 'edit' | 'unready' | 'unship' | 'cancelled';
 
@@ -62,7 +64,8 @@ export function deliveryCancelNotice(d: Partial<Pick<Delivery, 'kind'>> & Pick<D
  * Acciones disponibles por estado, modo, cobro y origen. Sin permiso = ninguna.
  * Envío: pendiente → listo/enviado (si está cobrada) o cancelar; listo → enviado,
  * regresar a pendiente, cancelar; enviado → entregado, corregir guía, no se envió.
- * Recoger: pendiente → entregado en mostrador (si está pagado) o cancelar.
+ * Recoger: pendiente → listo para recoger o entregar en mostrador (si está pagado);
+ * listo → entregar en mostrador (si está pagado) o regresar a pendiente.
  * Pedido web (kind 'order'): igual, pero sin "cancelar" (ver canCancelDelivery).
  */
 export function availableDeliveryActions(
@@ -80,8 +83,13 @@ export function availableDeliveryActions(
     return out;
   }
   if (deliveryModeOf(d) === 'pickup') {
+    // Recoger en sucursal: nunca "enviado" (ni corregir guía).
     if (d.status === 'pending') {
+      if (paid) out.push('ready', 'delivered');
+      if (cancellable) out.push('cancelled');
+    } else if (d.status === 'ready') {
       if (paid) out.push('delivered');
+      out.push('unready');
       if (cancellable) out.push('cancelled');
     }
     return out;
@@ -116,11 +124,39 @@ const ACTION_TITLES: Record<DeliveryAction, string> = {
   unship: 'Regresar a listo (no se envió)',
 };
 
-/** Título de la acción; "entregado" cambia según el modo (mostrador vs domicilio). */
+/** Recoger en sucursal: "listo" y "entregado" se dicen como los ve el mostrador. */
+const PICKUP_ACTION_TITLES: Partial<Record<DeliveryAction, string>> = {
+  ready: 'Marcar listo para recoger',
+  delivered: 'Entregar en mostrador',
+};
+
+/** Título de la acción; "listo" y "entregado" cambian según el modo (mostrador vs domicilio). */
 export function deliveryActionTitle(action: DeliveryAction, mode: DeliveryMode = 'shipping'): string {
-  if (action === 'delivered' && mode === 'pickup') return 'Entregado en mostrador';
-  return ACTION_TITLES[action];
+  return (mode === 'pickup' ? PICKUP_ACTION_TITLES[action] : undefined) ?? ACTION_TITLES[action];
 }
+
+/** Estado "listo" de un pedido para recoger: ya está surtido y apartado en mostrador. */
+export const PICKUP_READY_LABEL = 'Listo para recoger';
+
+/**
+ * Etiqueta del estado de una entrega. Un pedido para RECOGER que ya está listo dice
+ * "Listo para recoger" (no "Listo para envío"), lo diga o no el API; en lo demás manda la
+ * etiqueta del API (`statusLabel`) y, si no viene, la de la tabla.
+ */
+export function deliveryStatusLabel(
+  d: Pick<Delivery, 'status'> & Partial<Pick<Delivery, 'deliveryMode' | 'statusLabel'>>,
+): string {
+  if (d.status === 'ready' && deliveryModeOf(d) === 'pickup') return PICKUP_READY_LABEL;
+  return d.statusLabel || DELIVERY_STATUS_LABELS[d.status] || d.status;
+}
+
+/** "¿Quién recoge?" es obligatorio al entregar en mostrador un pedido para recoger. */
+export function needsReceivedByName(action: DeliveryAction, mode: DeliveryMode): boolean {
+  return action === 'delivered' && mode === 'pickup';
+}
+
+/** Tope del nombre de quien recoge (el del API). */
+export const RECEIVED_BY_NAME_MAX = 255;
 
 /** 'Pedido web TL…' | 'Venta 164-…' (un API anterior sin kind = venta). */
 export function deliveryDocLabel(d: Partial<Pick<Delivery, 'kind'>> & Pick<Delivery, 'saleNumber'>): string {

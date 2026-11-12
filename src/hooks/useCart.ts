@@ -4,7 +4,7 @@
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
@@ -529,12 +529,36 @@ export const useAuthenticatedCheckout = () => {
   });
 };
 
-/** Sucursales disponibles para recoger (todos los países). `enabled` = false evita la consulta (p. ej. sin sesión). */
-export const usePickupBranches = (enabled = true) => {
+export interface PickupBranchesOptions {
+  /**
+   * País de la tienda (checkout). Con él el API ofrece solo las sucursales de la zona de
+   * precios del comprador y dice en cuáles hay existencias para su carrito.
+   */
+  countryId?: string;
+  /** Firma del carrito (`pickupCartSignature`): al cambiar, la disponibilidad se vuelve a pedir. */
+  cartSignature?: string;
+  /** `false` evita la consulta (p. ej. sin sesión o mientras no se elige "recoger"). */
+  enabled?: boolean;
+}
+
+/**
+ * Sucursales disponibles para recoger.
+ *  - Sin país (`usePickupBranches()` o `usePickupBranches(enabled)`): todas, de cualquier
+ *    país, como siempre. Así lo usan el carrito compartido y la confirmación del pedido.
+ *  - Con el país de la tienda (checkout): las de la zona del comprador con la
+ *    disponibilidad de SU carrito. Esa respuesta envejece rápido (se vende en caja): se
+ *    da por buena solo 30 s y se vuelve a pedir cuando cambia el carrito (su firma va en
+ *    la clave). Mientras llega la nueva se conserva la lista anterior en pantalla.
+ */
+export const usePickupBranches = (options: boolean | PickupBranchesOptions = true) => {
+  const { countryId, cartSignature, enabled = true }: PickupBranchesOptions =
+    typeof options === 'boolean' ? { enabled: options } : options;
+
   return useQuery({
-    queryKey: [...cartKeys.checkout(), 'pickup-branches'],
-    queryFn: () => cartService.getPickupBranches(),
+    queryKey: cartKeys.pickupBranches(countryId, cartSignature),
+    queryFn: () => cartService.getPickupBranches(countryId),
     enabled,
-    staleTime: 10 * 60 * 1000, // 10 min — cambian poco
+    staleTime: countryId ? 30 * 1000 : 10 * 60 * 1000, // 30 s con existencias; 10 min la lista sola (cambia poco)
+    placeholderData: countryId ? keepPreviousData : undefined,
   });
 };

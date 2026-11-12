@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { DeliveryStatus } from '@/types/deliveries';
 import {
   ORDER_CANCEL_NOTICE,
+  PICKUP_READY_LABEL,
+  RECEIVED_BY_NAME_MAX,
   availableDeliveryActions,
   canCancelDelivery,
   deliveryActionTitle,
@@ -11,7 +13,9 @@ import {
   deliveryPaymentNotice,
   deliveryPaymentShort,
   deliveryStatusClasses,
+  deliveryStatusLabel,
   isDeliveryPaid,
+  needsReceivedByName,
   paymentMethodLabel,
 } from './actions';
 
@@ -52,16 +56,23 @@ describe('deliveries/actions · acciones por estado, modo y cobro', () => {
     expect(unpaid('ready')).toEqual(['unready', 'cancelled']);
   });
 
-  it('recoger en sucursal: pendiente → entregado en mostrador o cancelar; nunca listo/enviado', () => {
+  it('recoger en sucursal: pendiente → listo para recoger o entregado en mostrador; listo → entregado o regresar a pendiente; nunca enviado', () => {
     const pickup = (status: DeliveryStatus, saleStatus = 'completed') =>
       availableDeliveryActions({ status, saleStatus, deliveryMode: 'pickup' }, true);
-    expect(pickup('pending')).toEqual(['delivered', 'cancelled']);
-    expect(pickup('pending', 'pending')).toEqual(['cancelled']);
-    expect(pickup('pending', 'cancelled')).toEqual(['cancelled']);
-    expect(pickup('ready')).toEqual([]);
+    expect(pickup('pending')).toEqual(['ready', 'delivered', 'cancelled']);
+    expect(pickup('ready')).toEqual(['delivered', 'unready', 'cancelled']);
     expect(pickup('shipped')).toEqual([]);
     expect(pickup('delivered')).toEqual([]);
     expect(pickup('cancelled')).toEqual([]);
+    // Sin pagar no se surte ni se entrega; "listo" solo puede regresar a pendiente.
+    expect(pickup('pending', 'pending')).toEqual(['cancelled']);
+    expect(pickup('pending', 'cancelled')).toEqual(['cancelled']);
+    expect(pickup('ready', 'pending')).toEqual(['unready', 'cancelled']);
+    for (const status of STATUSES) {
+      expect(pickup(status)).not.toContain('shipped');
+      expect(pickup(status)).not.toContain('edit');
+      expect(pickup(status)).not.toContain('unship');
+    }
   });
 
   it('pedido web: nunca "cancelar entrega" (se anula desde Pedidos, en cascada); lo demás igual', () => {
@@ -70,11 +81,15 @@ describe('deliveries/actions · acciones por estado, modo y cobro', () => {
     expect(web('pending')).toEqual(['ready', 'shipped']);
     expect(web('ready')).toEqual(['shipped', 'unready']);
     expect(web('shipped')).toEqual(['delivered', 'edit', 'unship']);
-    expect(web('pending', 'pickup')).toEqual(['delivered']);
+    // Recoger (11-nov-2026): pendiente → listo para recoger o entregar; listo → entregar o regresar.
+    expect(web('pending', 'pickup')).toEqual(['ready', 'delivered']);
+    expect(web('ready', 'pickup')).toEqual(['delivered', 'unready']);
+    expect(web('delivered', 'pickup')).toEqual([]);
     // Sin pagar / cancelado: tampoco hay cancelación de entrega (el pedido manda).
     expect(web('pending', 'shipping', 'pending')).toEqual([]);
     expect(web('ready', 'shipping', 'pending')).toEqual(['unready']);
     expect(web('pending', 'pickup', 'cancelled')).toEqual([]);
+    expect(web('ready', 'pickup', 'pending')).toEqual(['unready']);
     for (const status of STATUSES) {
       expect(web(status)).not.toContain('cancelled');
       expect(web(status, 'pickup')).not.toContain('cancelled');
@@ -114,9 +129,38 @@ describe('deliveries/actions · etiquetas', () => {
   it('título de la acción según el modo', () => {
     expect(deliveryActionTitle('delivered')).toBe('Marcar entregado');
     expect(deliveryActionTitle('delivered', 'shipping')).toBe('Marcar entregado');
-    expect(deliveryActionTitle('delivered', 'pickup')).toBe('Entregado en mostrador');
+    expect(deliveryActionTitle('delivered', 'pickup')).toBe('Entregar en mostrador');
+    expect(deliveryActionTitle('ready')).toBe('Marcar listo para envío');
+    expect(deliveryActionTitle('ready', 'pickup')).toBe('Marcar listo para recoger');
+    expect(deliveryActionTitle('unready', 'pickup')).toBe('Regresar a pendiente');
     expect(deliveryActionTitle('shipped', 'pickup')).toBe('Marcar enviado');
     expect(deliveryActionTitle('cancelled')).toBe('Cancelar entrega');
+  });
+
+  it('estado "listo" de un pedido para recoger: "Listo para recoger", lo diga o no el API', () => {
+    expect(PICKUP_READY_LABEL).toBe('Listo para recoger');
+    expect(deliveryStatusLabel({ status: 'ready', deliveryMode: 'pickup' })).toBe('Listo para recoger');
+    // Un API anterior todavía manda la etiqueta de los envíos.
+    expect(deliveryStatusLabel({ status: 'ready', deliveryMode: 'pickup', statusLabel: 'Listo para envío' })).toBe(
+      'Listo para recoger',
+    );
+  });
+
+  it('en lo demás manda la etiqueta del API y, si no viene, la de la tabla', () => {
+    expect(deliveryStatusLabel({ status: 'ready', deliveryMode: 'shipping' })).toBe('Listo para envío');
+    expect(deliveryStatusLabel({ status: 'ready' })).toBe('Listo para envío');
+    expect(deliveryStatusLabel({ status: 'pending', deliveryMode: 'pickup', statusLabel: 'Por surtir' })).toBe('Por surtir');
+    expect(deliveryStatusLabel({ status: 'pending', deliveryMode: 'pickup' })).toBe('Pendiente de surtir');
+    expect(deliveryStatusLabel({ status: 'delivered', deliveryMode: 'pickup', statusLabel: '' })).toBe('Entregado');
+    expect(deliveryStatusLabel({ status: 'otro' as DeliveryStatus })).toBe('otro');
+  });
+
+  it('"¿Quién recoge?" solo se pide al entregar en mostrador un pedido para recoger', () => {
+    expect(needsReceivedByName('delivered', 'pickup')).toBe(true);
+    expect(needsReceivedByName('delivered', 'shipping')).toBe(false);
+    expect(needsReceivedByName('ready', 'pickup')).toBe(false);
+    expect(needsReceivedByName('unready', 'pickup')).toBe(false);
+    expect(RECEIVED_BY_NAME_MAX).toBe(255);
   });
 
   it('documento: pedido web vs venta POS (sin kind = venta)', () => {

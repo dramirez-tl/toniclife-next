@@ -222,8 +222,17 @@ class CartService {
     await api.delete(`/checkout/addresses/${encodeURIComponent(addressId)}`);
   }
 
-  async getPickupBranches(): Promise<PickupBranch[]> {
-    const response = await api.get<PickupBranch[]>('/checkout/pickup-branches');
+  /**
+   * Sucursales para recoger. Sin `countryId` el API responde como siempre: todas las de
+   * recolección, de cualquier país (carrito compartido y confirmación del pedido). Con el
+   * país de la tienda (checkout) ofrece solo las de la zona de precios del comprador y, si
+   * tiene carrito, dice en cuáles hay existencias para todo el pedido (`availability`).
+   */
+  async getPickupBranches(countryId?: string): Promise<PickupBranch[]> {
+    const response = await api.get<PickupBranch[]>(
+      '/checkout/pickup-branches',
+      countryId ? { params: { countryId } } : undefined,
+    );
     return response.data;
   }
 

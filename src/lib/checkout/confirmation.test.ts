@@ -7,6 +7,7 @@ import {
   fromGuestConfirmation,
   fromMyOrder,
   isAwaitingPayment,
+  pickupStepHintKey,
 } from './confirmation';
 
 function order(over: Partial<Order> = {}): Order {
@@ -292,6 +293,35 @@ describe('confirmation · pasos', () => {
       }),
     );
     expect(confirmationSteps(v).every((s) => s.state === 'done')).toBe(true);
+  });
+
+  it('recoger: el texto del último paso sigue al avance (se le avisará → ya puede pasar → entregado)', () => {
+    const fulfillment = (status: string) => ({
+      id: 'd',
+      status,
+      statusLabel: '',
+      mode: 'pickup' as const,
+      fulfillBranchName: '427',
+      carrier: null,
+      trackingNumber: null,
+      trackingUrl: null,
+      requestedAt: '',
+      readyAt: null,
+      shippedAt: null,
+      deliveredAt: null,
+      cancelledAt: null,
+    });
+    const lastHint = (status?: string) => {
+      const steps = confirmationSteps(fromGuestConfirmation(guest(status ? { fulfillment: fulfillment(status) } : {})));
+      const last = steps[steps.length - 1];
+      return [last.key, pickupStepHintKey(last.state)];
+    };
+    // Recién pagado (sin entrega) o por surtir: se le avisará cuando esté listo y qué llevar.
+    expect(lastHint()).toEqual(['pickupDelivered', 'hint']);
+    expect(lastHint('pending')).toEqual(['pickupDelivered', 'hint']);
+    // Listo para recoger: ya puede pasar por él.
+    expect(lastHint('ready')).toEqual(['pickupDelivered', 'hintReady']);
+    expect(lastHint('delivered')).toEqual(['pickupDelivered', 'hintDone']);
   });
 });
 

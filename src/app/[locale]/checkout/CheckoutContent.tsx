@@ -13,7 +13,6 @@ import {
   ArrowLeftIcon,
   UserIcon,
   BuildingStorefrontIcon,
-  MapPinIcon,
   LockClosedIcon,
   IdentificationIcon,
 } from '@heroicons/react/24/outline';
@@ -26,9 +25,9 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
+import { PickupBranchPicker } from '@/components/storefront/PickupBranchPicker';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/checkout/SavedAddressPicker';
 import { ShippingAddressForm, addressFieldId, useAddressFormTexts } from '@/components/checkout/ShippingAddressForm';
 import {
@@ -49,6 +48,16 @@ import { useStates } from '@/hooks/useStates';
 import { buyerDistributorNumber, fillContactFromBuyer } from '@/lib/checkout/buyer';
 import { standardShippingInfo } from '@/lib/checkout/shipping-method';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
+import {
+  findPickupBranch,
+  isPickupBranchSelectable,
+  isPickupCheckoutRejection,
+  noPickupBranchAvailable,
+  pickupAddressLine,
+  pickupCartSignature,
+  pickupPlace,
+  pickupSelectionProblem,
+} from '@/lib/checkout/pickup-branches';
 import {
   INITIAL_SHIPPING_ADDRESS_STATE,
   activeAddressDraft,
@@ -78,7 +87,7 @@ import { cartDisplayCurrency } from '@/lib/storefront/cart-country';
 import { cartKeys } from '@/lib/storefront/cart-query-keys';
 import { cartSummaryMismatch } from '@/lib/storefront/cart-sync';
 import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
-import { catalogErrorCode, catalogErrorMessage } from '@/lib/storefront/errors';
+import { catalogErrorCode, catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -144,10 +153,14 @@ export default function CheckoutContent() {
     'delivery',
   );
   const [pickupBranchId, setPickupBranchId] = useState<string>('');
+  // Aviso por mostrar cuando la sucursal elegida deja de poder elegirse (un objeto nuevo por aviso).
+  const [pickupNotice, setPickupNotice] = useState<{ text: string } | null>(null);
   const [orderResult, setOrderResult] = useState<{
     orderId: string;
     orderNumber: string;
     total: string;
+    /** Sucursal donde se recoge (solo en "recoger"); se guarda aquí porque la lista deja de consultarse. */
+    pickupBranchName?: string;
   } | null>(null);
 
   // Form data states
@@ -247,7 +260,6 @@ export default function CheckoutContent() {
   const standardShipping = standardShippingInfo(checkoutSummary, selectedShippingMethod);
   const guestCheckout = useGuestCheckout();
   const authenticatedCheckout = useAuthenticatedCheckout();
-  const { data: pickupBranches } = usePickupBranches();
   // Piloto: compras del checkout gateadas globalmente desde /admin/sistema.
   const { data: pilotState } = usePilotPublicState();
   const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
@@ -265,6 +277,57 @@ export default function CheckoutContent() {
   const homeDeliveryUnavailableText = t('deliveryHomeUnavailable', {
     country: storeCountryName(countryCode, lang),
   });
+
+  // Recoger en sucursal (lib/checkout/pickup-branches): las sucursales de la zona del
+  // comprador con la disponibilidad de SU carrito. Se piden al elegir "recoger", con el país
+  // de la tienda: mientras ese país carga se espera (sin él el API manda las de todos los
+  // países) y, si no se pudo cargar, se pide la lista de siempre. La firma del carrito va en
+  // la clave: si el carrito cambia, aquí o en otra sesión, la disponibilidad se vuelve a pedir.
+  const pickupQuery = usePickupBranches({
+    countryId,
+    cartSignature: pickupCartSignature(cart?.items),
+    enabled: deliveryMode === 'pickup' && !orderResult && (!!countryId || !countriesLoading),
+  });
+  const pickupBranches = pickupQuery.data;
+  const selectedPickupBranch = findPickupBranch(pickupBranches, pickupBranchId);
+  // Sin sucursal elegida, o con una que no tiene existencias, no se continúa ni se paga.
+  const pickupReady = !!selectedPickupBranch && isPickupBranchSelectable(selectedPickupBranch);
+  // Nombre y dirección de la elegida: se repiten en el paso de pago, antes de cobrar.
+  const selectedPickupPlace = selectedPickupBranch ? pickupPlace(selectedPickupBranch) : null;
+  const selectedPickupAddress = selectedPickupPlace
+    ? pickupAddressLine(selectedPickupPlace, (code) => t('pickup.zip', { code }))
+    : '';
+  // Lo que se le dice entonces: que elija una; o, si no hay sucursales en su zona o ninguna
+  // tiene todo su pedido, eso mismo (no hay nada que elegir).
+  const pickupMissingText =
+    pickupBranches?.length === 0
+      ? t('pickup.empty')
+      : noPickupBranchAvailable(pickupBranches)
+        ? t('pickup.allUnavailableTitle')
+        : t('toasts.selectPickup');
+
+  // La lista se vuelve a pedir sola: cuando cambia el carrito y al volver a la ventana
+  // pasados 30 s. Si con la lista NUEVA la sucursal elegida ya no se puede elegir (se quedó
+  // sin existencias o dejó de ofrecerse), se quita la selección, se avisa y, si ya iba en
+  // "Pago", se regresa a "Envío". Se ajusta al renderizar; el aviso sale en un efecto.
+  // Con el pedido en camino al API no se toca nada: ahí decide su respuesta.
+  const pickupProblem =
+    deliveryMode === 'pickup' && !orderResult && !authenticatedCheckout.isPending && !pickupQuery.isPlaceholderData
+      ? pickupSelectionProblem(pickupBranches, pickupBranchId)
+      : null;
+  if (pickupProblem) {
+    setPickupBranchId('');
+    setPickupNotice({
+      text:
+        pickupProblem.kind === 'unavailable'
+          ? t('pickup.noLongerAvailable', { branch: pickupProblem.name })
+          : t('pickup.noLongerOffered'),
+    });
+    if (currentStep === 'payment') setCurrentStep('shipping');
+  }
+  useEffect(() => {
+    if (pickupNotice) toast.warning(pickupNotice.text, { id: 'checkout-pickup-branch', duration: 9000 });
+  }, [pickupNotice]);
 
   // Mientras cargan las guardadas (y, donde el estado viaja como código, su catálogo)
   // aún no se sabe qué dirección queda elegida: va un esqueleto, no el formulario.
@@ -366,8 +429,9 @@ export default function CheckoutContent() {
     e.preventDefault();
 
     if (deliveryMode === 'pickup') {
-      if (!pickupBranchId) {
-        toast.error(t('toasts.selectPickup'));
+      // Sin sucursal elegida (o con una que ya no tiene existencias) no se continúa.
+      if (!pickupReady) {
+        toast.error(pickupMissingText);
         return;
       }
       setCurrentStep('payment');
@@ -431,6 +495,14 @@ export default function CheckoutContent() {
     if (waitingForCountry) return;
 
     const isPickup = deliveryMode === 'pickup';
+
+    // Recoger: la sucursal debe seguir elegida y con existencias. Si se quitó (la lista se
+    // vuelve a pedir sola), se regresa a "Envío" a elegir otra en vez de pagar sin sucursal.
+    if (isPickup && !pickupReady) {
+      setCurrentStep('shipping');
+      toast.error(pickupMissingText);
+      return;
+    }
 
     // Envío a domicilio: la dirección debe ser la MISMA con la que se continuó en
     // "Envío". Si la guardada ya no está (se eliminó en otra pestaña), dejó de poder
@@ -504,6 +576,7 @@ export default function CheckoutContent() {
           orderId: result.orderId,
           orderNumber: result.orderNumber,
           total: result.total,
+          pickupBranchName: isPickup ? selectedPickupPlace?.name : undefined,
         });
         setCurrentStep('confirmation');
         toast.success(t('toasts.orderCreated'));
@@ -527,6 +600,20 @@ export default function CheckoutContent() {
       }
       const apiMessage = (error as { response?: { data?: { message?: string | string[] } } } | null)?.response
         ?.data?.message;
+      // 400 al pagar para RECOGER: la sucursal ya no se le ofrece al comprador
+      // (CHK_PICKUP_BRANCH_UNAVAILABLE) o ya no tiene existencias ("Stock insuficiente
+      // para: …"). No se creó el pedido: se regresa a "Envío" sin sucursal elegida, con las
+      // sucursales recién pedidas, y abajo se muestra lo que dijo el API.
+      if (
+        isPickupCheckoutRejection(
+          { status: catalogErrorStatus(error), code: catalogErrorCode(error), message: apiMessage },
+          isPickup,
+        )
+      ) {
+        setPickupBranchId('');
+        setCurrentStep('shipping');
+        void queryClient.invalidateQueries({ queryKey: cartKeys.pickupBranches() });
+      }
       toast.error(apiMessage || t('toasts.orderError'));
     }
   };
@@ -777,41 +864,26 @@ export default function CheckoutContent() {
                       </button>
                     </div>
 
+                    {/* Sucursal donde se recoge: buscador y tarjetas con la disponibilidad del
+                        carrito en cada una; la elegida se detalla abajo (PickupBranchPicker). */}
                     {deliveryMode === 'pickup' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t('pickupBranch')}
-                        </label>
-                        <SearchableSelect
-                          options={(pickupBranches ?? []).map((b) => ({
-                            value: b.id,
-                            label: `${b.name} — ${b.countryName}${b.addressCity ? ` (${b.addressCity})` : ''}`,
-                          }))}
-                          value={pickupBranchId}
-                          onChange={setPickupBranchId}
-                          showAllOption={false}
-                          placeholder={t('pickupPlaceholder')}
-                          className="w-full"
-                        />
-                        {pickupBranchId &&
-                          (() => {
-                            const b = (pickupBranches ?? []).find(
-                              (x) => x.id === pickupBranchId,
-                            );
-                            if (!b) return null;
-                            return (
-                              <div className="mt-3 flex items-start gap-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
-                                <MapPinIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#3E667D]" />
-                                <span>
-                                  {[b.addressStreet, b.addressCity, b.addressState, b.countryName]
-                                    .filter(Boolean)
-                                    .join(', ')}
-                                  {b.phone ? ` · Tel: ${b.phone}` : ''}
-                                </span>
-                              </div>
-                            );
-                          })()}
-                      </div>
+                      <PickupBranchPicker
+                        branches={pickupBranches}
+                        loading={pickupQuery.isPending}
+                        refreshing={pickupQuery.isFetching && !pickupQuery.isPending}
+                        failed={pickupQuery.isError}
+                        onRetry={() => void pickupQuery.refetch()}
+                        value={pickupBranchId}
+                        onChange={setPickupBranchId}
+                        onChooseDelivery={
+                          homeDeliveryUnavailable
+                            ? undefined
+                            : () => {
+                                setDeliveryMode('delivery');
+                                setSelectedShippingMethod(ShippingMethod.STANDARD);
+                              }
+                        }
+                      />
                     )}
 
                     {deliveryMode === 'delivery' && !homeDeliveryUnavailable && (
@@ -950,7 +1022,11 @@ export default function CheckoutContent() {
                         type="submit"
                         size="lg"
                         className="flex-1"
-                        disabled={deliveryBlocked || (deliveryMode === 'delivery' && addressBookLoading)}
+                        disabled={
+                          deliveryBlocked ||
+                          (deliveryMode === 'delivery' && addressBookLoading) ||
+                          (deliveryMode === 'pickup' && pickupQuery.isPending)
+                        }
                       >
                         {t('continueToPayment')}
                       </Button>
@@ -971,6 +1047,27 @@ export default function CheckoutContent() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                    {/* Recoger en sucursal: antes de pagar se repite DÓNDE se recoge, con un atajo para cambiarla. */}
+                    {deliveryMode === 'pickup' && selectedPickupPlace && (
+                      <div className="flex items-start gap-3 rounded-lg border border-[#a7c1e2] bg-[#C8DDF2]/15 p-4">
+                        <BuildingStorefrontIcon aria-hidden="true" className="h-6 w-6 flex-shrink-0 text-[#3E667D]" />
+                        <div className="min-w-0 flex-1 text-sm">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-[#2f5165]">
+                            {t('pickup.selectedTitle')}
+                          </p>
+                          <p className="break-words font-semibold text-gray-900">{selectedPickupPlace.name}</p>
+                          {selectedPickupAddress && <p className="break-words text-gray-600">{selectedPickupAddress}</p>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep('shipping')}
+                          className="inline-flex min-h-11 flex-shrink-0 cursor-pointer items-center rounded-sm text-sm font-medium text-[#3E667D] underline-offset-4 hover:text-[#2f5165] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]"
+                        >
+                          {t('pickup.change')}
+                        </button>
+                      </div>
+                    )}
+
                     <div className="bg-[#C8DDF2]/10 border border-[#a7c1e2]/30 rounded-lg p-4 flex items-start gap-3">
                       <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
                       <div className="text-sm">
@@ -1071,8 +1168,7 @@ export default function CheckoutContent() {
                         <div className="flex justify-between">
                           <span className="text-gray-600">{t('pickupAt')}</span>
                           <span className="font-medium text-gray-900 text-right max-w-xs">
-                            {(pickupBranches ?? []).find((b) => b.id === pickupBranchId)
-                              ?.name ?? t('selectedBranch')}
+                            {orderResult.pickupBranchName || t('selectedBranch')}
                           </span>
                         </div>
                       ) : (
@@ -1129,7 +1225,7 @@ export default function CheckoutContent() {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                     <p className="text-sm text-gray-700">
                       <strong>{t('whatsNext')}</strong><br />
-                      {t('whatsNextBody')}
+                      {deliveryMode === 'pickup' ? t('pickup.whatsNextBody') : t('whatsNextBody')}
                     </p>
                   </div>
 

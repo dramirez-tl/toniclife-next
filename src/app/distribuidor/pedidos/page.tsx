@@ -9,9 +9,13 @@ import {
   TruckIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
+  CheckIcon,
   ClockIcon,
   XCircleIcon,
   ArrowPathIcon,
+  ArrowTopRightOnSquareIcon,
+  MapPinIcon,
+  PhoneIcon,
   ShoppingBagIcon,
   CubeIcon,
 } from '@heroicons/react/24/outline';
@@ -22,6 +26,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useMyOrders } from '@/hooks/useMyOrders';
 import { useMyOrder } from '@/hooks/useOrders';
+import { pickupAddressLine } from '@/lib/checkout/pickup-branches';
+import { parseOrderDate } from '@/lib/orders/order-date';
+import {
+  pickupOrderView,
+  usesPickupReadyLabel,
+  type PickupOrderBranch,
+  type PickupOrderView,
+} from '@/lib/orders/pickup-progress';
 import { personalizationOf } from '@/lib/storefront/personalization';
 import { cn } from '@/lib/utils';
 import type { MyOrder } from '@/services/distributorApi';
@@ -46,9 +58,10 @@ function currencyFormatter(code: string | null | undefined): Intl.NumberFormat {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
+  // La fecha del pedido llega sin hora ("2026-11-11"): es ESE día, no la medianoche UTC
+  // (que en México se veía como el día anterior). Ver lib/orders/order-date.
+  const d = parseOrderDate(value);
+  if (!d) return '—';
   return d.toLocaleDateString('es-MX', {
     day: '2-digit',
     month: 'short',
@@ -89,10 +102,16 @@ const PAYMENT_STATUS: Record<
 
 type OrdersT = ReturnType<typeof useTranslations<'distributor.orders'>>;
 
-function orderStatusBadge(status: string, t: OrdersT) {
+function orderStatusBadge(order: MyOrder, t: OrdersT) {
+  const { status } = order;
   const variant = ORDER_STATUS[status] ?? ('secondary' as const);
-  // Etiqueta traducida; si el código es desconocido se muestra tal cual.
-  const label = ORDER_STATUS[status] ? t(`status.${status}` as never) : status;
+  // Etiqueta traducida; si el código es desconocido se muestra tal cual. "Listo" en un
+  // pedido para recoger es "Listo para recoger" (la general, "Listo para envío", es de envíos).
+  const label = usesPickupReadyLabel(order)
+    ? t('pickup.statusReady')
+    : ORDER_STATUS[status]
+      ? t(`status.${status}` as never)
+      : status;
   return <Badge variant={variant}>{label}</Badge>;
 }
 
@@ -214,11 +233,14 @@ export default function MisPedidosPage() {
 // entrega de almacén (sucursal que surte, guía, enviado/entregado) cuando
 // existe: las del POS siempre; las de pedidos web desde la mig 176 (se crea al
 // confirmarse el pago). Un pedido web para recoger en sucursal no lleva
-// domicilio ni guía: solo "Recoger en…" y "Entregado en mostrador el…".
+// domicilio ni guía: "Recoger en…" y, abajo, su seguimiento de 4 pasos con el
+// aviso que le toca y la sucursal (PickupOrderSection, 11-nov-2026).
 
 function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
   const home = order.kind === 'home_delivery';
   const pickup = order.deliveryMode === 'pickup' || (!home && order.delivery === 'pickup');
+  // Solo pedidos para recoger: en qué paso va y qué se le dice (lib/orders/pickup-progress).
+  const pickupView = pickupOrderView(order);
   const showsFulfillment = home || !!order.deliveryStatus;
   const currencyFmt = currencyFormatter(order.currencyCode);
   return (
@@ -233,7 +255,7 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
                   ? t('saleNumber', { number: order.orderNumber })
                   : t('orderNumber', { number: order.orderNumber })}
               </span>
-              {orderStatusBadge(order.status, t)}
+              {orderStatusBadge(order, t)}
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                 {home ? t('kindCallCenter') : t('kindOnline')}
               </span>
@@ -281,20 +303,11 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
                       : t('trackingOnly', { tracking: order.trackingNumber })}
                   </p>
                 )}
-                {order.deliveredAt ? (
-                  <p className="text-green-700">
-                    {pickup
-                      ? t('pickupDelivered', { date: formatDate(order.deliveredAt) })
-                      : t('deliveredOn', { date: formatDate(order.deliveredAt) })}
-                  </p>
-                ) : order.shippedAt && !pickup ? (
+                {/* Recoger en sucursal: el avance (preparando, listo, entregado) va abajo, en su seguimiento. */}
+                {pickup ? null : order.deliveredAt ? (
+                  <p className="text-green-700">{t('deliveredOn', { date: formatDate(order.deliveredAt) })}</p>
+                ) : order.shippedAt ? (
                   <p className="text-gray-500">{t('shippedOn', { date: formatDate(order.shippedAt) })}</p>
-                ) : order.deliveryStatus === 'ready' && pickup ? (
-                  <p className="text-[#3E667D]">
-                    {t('awaitingPickup', {
-                      branch: order.pickupBranchName || order.fulfillBranchName || t('pickupDefaultBranch'),
-                    })}
-                  </p>
                 ) : order.deliveryStatus === 'pending' && order.status !== 'cancelled' ? (
                   <p className="text-gray-500">{t('preparing')}</p>
                 ) : null}
@@ -335,9 +348,157 @@ function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
             </div>
           </div>
         </div>
+        {pickupView && <PickupOrderSection view={pickupView} t={t} />}
         {!home && order.itemsCount > 0 && <OrderItems order={order} t={t} />}
       </CardContent>
     </Card>
+  );
+}
+
+// ===== Pedido para recoger en sucursal =====
+// Seguimiento de 4 pasos (Pagado → Preparando → Listo para recoger → Entregado) con el
+// aviso que le toca a cada uno y, mientras se prepara o está listo, la sucursal con su
+// dirección, teléfono y mapa. Sin pagar va el aviso de "pendiente de pago" en lugar del
+// seguimiento; cancelado, nada. Qué paso va y qué se dice lo decide lib/orders/pickup-progress.
+
+const PICKUP_LINK =
+  'inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-[#3E667D] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]';
+
+function PickupOrderSection({ view, t }: { view: PickupOrderView; t: OrdersT }) {
+  if (view.stage === 'cancelled') return null;
+
+  if (view.stage === 'unpaid') {
+    return (
+      <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <ClockIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="min-w-0">
+          <p className="font-semibold">{t('pickup.unpaidTitle')}</p>
+          <p>{t('pickup.unpaidBody')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
+      <ol aria-label={t('pickup.progress')} className="flex items-start">
+        {view.steps.map((step, index) => {
+          const reached = step.state !== 'todo';
+          // "Entregado" es el final: queda palomeado y es el paso que se resalta.
+          const highlighted = step.state === 'current' || (view.stage === 'delivered' && step.key === 'delivered');
+          return (
+            <li
+              key={step.key}
+              aria-current={highlighted ? 'step' : undefined}
+              className="relative flex min-w-0 flex-1 flex-col items-center text-center"
+            >
+              {/* Línea que une este paso con el anterior (de centro a centro). */}
+              {index > 0 && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'absolute right-1/2 top-4 h-0.5 w-full -translate-y-1/2',
+                    reached ? 'bg-[#3E667D]' : 'bg-gray-200',
+                  )}
+                />
+              )}
+              <span
+                className={cn(
+                  'relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold',
+                  step.state === 'done'
+                    ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                    : step.state === 'current'
+                      ? 'border-[#3E667D] bg-white text-[#3E667D] ring-4 ring-[#C8DDF2]'
+                      : 'border-gray-300 bg-white text-gray-400',
+                )}
+              >
+                {step.state === 'done' ? (
+                  <CheckIcon aria-hidden="true" className="h-4 w-4" strokeWidth={2.5} />
+                ) : (
+                  <span aria-hidden="true">{index + 1}</span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  'mt-1.5 px-0.5 text-[11px] leading-tight sm:text-xs',
+                  highlighted ? 'font-semibold text-[#2f5165]' : reached ? 'text-gray-700' : 'text-gray-500',
+                )}
+              >
+                {t(`pickup.steps.${step.key}` as never)}
+                <span className="sr-only"> ({t(`pickup.stepState.${step.state}` as never)})</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {view.stage === 'preparing' && <p className="text-sm text-gray-600">{t('pickup.preparingNote')}</p>}
+
+      {view.stage === 'ready' && (
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+          <CheckCircleIcon aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <div className="min-w-0">
+            <p className="font-semibold text-emerald-900">{t('pickup.readyTitle')}</p>
+            <p className="text-emerald-900">{t('pickup.readyBody')}</p>
+            {view.readyAt && (
+              <p className="mt-0.5 text-xs text-emerald-800">{t('pickup.readySince', { date: formatDate(view.readyAt) })}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view.stage === 'delivered' && (view.deliveredAt || view.receivedByName) && (
+        <div className="text-sm">
+          {view.deliveredAt && (
+            <p className="font-medium text-green-700">{t('pickupDelivered', { date: formatDate(view.deliveredAt) })}</p>
+          )}
+          {view.receivedByName && <p className="text-gray-600">{t('pickup.receivedBy', { name: view.receivedByName })}</p>}
+        </div>
+      )}
+
+      {view.branch && <PickupBranchInfo branch={view.branch} t={t} />}
+    </div>
+  );
+}
+
+function PickupBranchInfo({ branch, t }: { branch: PickupOrderBranch; t: OrdersT }) {
+  const address = pickupAddressLine(branch, (code) => t('pickup.zip', { code }));
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+      <p className="flex items-start gap-2 font-medium text-gray-900">
+        <BuildingStorefrontIcon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[#3E667D]" />
+        <span className="min-w-0 break-words">{branch.name}</span>
+      </p>
+      {address && <p className="mt-0.5 break-words pl-6 text-gray-600">{address}</p>}
+      {(branch.phone || branch.mapUrl) && (
+        <div className="flex flex-wrap gap-x-6 pl-6">
+          {branch.phone &&
+            (branch.phoneHref ? (
+              <a
+                href={branch.phoneHref}
+                aria-label={t('pickup.callBranch', { phone: branch.phone })}
+                className={PICKUP_LINK}
+              >
+                <PhoneIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                {branch.phone}
+              </a>
+            ) : (
+              <span className="inline-flex min-h-11 items-center gap-1.5 text-gray-700">
+                <PhoneIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-[#3E667D]" />
+                {branch.phone}
+              </span>
+            ))}
+          {branch.mapUrl && (
+            <a href={branch.mapUrl} target="_blank" rel="noopener noreferrer" className={PICKUP_LINK}>
+              <MapPinIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              {t('pickup.viewMap')}
+              <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+              <span className="sr-only">{t('pickup.opensNewTab')}</span>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

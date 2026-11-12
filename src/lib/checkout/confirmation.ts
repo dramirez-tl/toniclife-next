@@ -266,9 +266,10 @@ export function isAwaitingPayment(v: ConfirmationView): boolean {
 /**
  * Pasos de la línea de tiempo. Envío: confirmado → en preparación → listo →
  * enviado → entregado. Recoger: confirmado → en preparación → entregado en
- * mostrador (sin "listo para recoger" por ahora, decisión 5). Un paso alcanzado
- * queda `done`; `current` solo marca lo que está en curso (Almacén preparando,
- * o listo para que pasen por él).
+ * mostrador; "listo para recoger" no es un paso aparte: es el último paso en
+ * curso, y su texto lo dice (`pickupStepHintKey`). Un paso alcanzado queda
+ * `done`; `current` solo marca lo que está en curso (Almacén preparando, o
+ * listo para que pasen por él).
  */
 export function confirmationSteps(
   v: ConfirmationView,
@@ -299,4 +300,15 @@ export function confirmationSteps(
     key,
     state: i < doneCount ? 'done' : i === doneCount && inProgress ? 'current' : 'todo',
   }));
+}
+
+/**
+ * Texto bajo el último paso de un pedido para RECOGER, según su avance (11-nov-2026):
+ * mientras se prepara (`todo`) se le dice que se le avisará cuando esté listo y qué llevar
+ * (`hint`); ya listo para que pase por él (`current`), que ya puede ir (`hintReady`);
+ * entregado (`done`), dónde lo recogió (`hintDone`). Son las claves de
+ * `checkout.confirmation.steps.pickupDelivered`.
+ */
+export function pickupStepHintKey(state: ConfirmationStepState): 'hint' | 'hintReady' | 'hintDone' {
+  return state === 'current' ? 'hintReady' : state === 'done' ? 'hintDone' : 'hint';
 }

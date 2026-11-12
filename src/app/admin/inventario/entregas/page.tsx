@@ -4,10 +4,12 @@
 // modo staff con domicilio confirmado y, desde la mig 176 (28-oct-2026), los
 // PEDIDOS WEB pagados en línea (badge "Pedido web"; se crean solos al confirmarse
 // el pago). Almacén los surte, los marca listos, enviados (paquetería + guía) y
-// entregados; un pedido web para RECOGER en sucursal solo se marca "entregado en
-// mostrador". Puede ver la orden de surtido y el ticket e imprimirlos. Sin
-// fechas, el API muestra desde HOY más todo lo que siga abierto (las ventas
-// anteriores al arranque se surtieron en el legacy).
+// entregados; un pedido web para RECOGER en sucursal se marca "listo para
+// recoger" (ya apartado en mostrador) y "entregado en mostrador", anotando quién
+// lo recoge (11-nov-2026; lo normal es que lo haga la sucursal desde su POS).
+// Puede ver la orden de surtido y el ticket e imprimirlos. Sin fechas, el API
+// muestra desde HOY más todo lo que siga abierto (las ventas anteriores al
+// arranque se surtieron en el legacy).
 
 import { Fragment, Suspense, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
@@ -15,6 +17,7 @@ import { toast } from 'sonner';
 import {
   ArrowPathIcon,
   ArrowUturnLeftIcon,
+  BuildingStorefrontIcon,
   CheckCircleIcon,
   ClockIcon,
   EyeIcon,
@@ -65,6 +68,8 @@ import {
 import { buildPickingSheetHtml, buildTicketHtml, printHtml } from '@/lib/delivery-print';
 import {
   DELIVERY_DETAIL_ONLY_ACTIONS,
+  PICKUP_READY_LABEL,
+  RECEIVED_BY_NAME_MAX,
   availableDeliveryActions,
   deliveryActionTitle,
   deliveryCancelNotice,
@@ -72,6 +77,8 @@ import {
   deliveryModeOf,
   deliveryPaymentNotice,
   deliveryPaymentShort,
+  deliveryStatusLabel,
+  needsReceivedByName,
   paymentMethodLabel,
   type DeliveryAction,
 } from '@/lib/deliveries/actions';
@@ -127,6 +134,15 @@ const ACTION_BUTTON: Record<ActionType, { Icon: typeof CheckCircleIcon; classNam
   unready: { Icon: ArrowUturnLeftIcon },
   unship: { Icon: ArrowUturnLeftIcon },
   cancelled: { Icon: NoSymbolIcon, className: 'text-red-600 hover:bg-red-50' },
+};
+
+/**
+ * Recoger en sucursal: un pedido pendiente ofrece a la vez "listo para recoger" y "entregar
+ * en mostrador"; la entrega en mostrador lleva su propio ícono para no confundirlas.
+ */
+const PICKUP_HANDOFF_BUTTON: (typeof ACTION_BUTTON)[ActionType] = {
+  Icon: BuildingStorefrontIcon,
+  className: 'text-green-700 hover:bg-green-50',
 };
 
 /** Badges de origen y modo (solo cuando aportan: pedido web / recoger en sucursal). */
@@ -402,11 +418,16 @@ function EntregasContent() {
         header: 'Estado',
         render: (d) => (
           <div className="space-y-1">
-            <StatusBadge status={d.status} label={d.statusLabel} />
+            <StatusBadge status={d.status} label={deliveryStatusLabel(d)} />
             {d.members.some((m) => m.status !== d.status) && (
               <p className="text-xs text-amber-700">Estados mixtos en el envío; abre el detalle</p>
             )}
-            {d.status === 'shipped' || d.status === 'delivered' ? (
+            {/* Recoger en sucursal no lleva paquetería: entregado dice quién lo recogió (si se anotó). */}
+            {deliveryModeOf(d) === 'pickup' ? (
+              d.status === 'delivered' && d.receivedByName ? (
+                <p className="text-xs text-gray-600">Recogió: {d.receivedByName}</p>
+              ) : null
+            ) : d.status === 'shipped' || d.status === 'delivered' ? (
               <p className="text-xs text-gray-600">
                 {d.carrier ?? 'Paquetería s/d'}
                 {d.trackingNumber ? ` · ${d.trackingNumber}` : ''}
@@ -433,7 +454,8 @@ function EntregasContent() {
             {availableDeliveryActions(d, canAct)
               .filter((a) => !DELIVERY_DETAIL_ONLY_ACTIONS.includes(a))
               .map((a) => {
-                const { Icon, className } = ACTION_BUTTON[a];
+                const { Icon, className } =
+                  a === 'delivered' && deliveryModeOf(d) === 'pickup' ? PICKUP_HANDOFF_BUTTON : ACTION_BUTTON[a];
                 return (
                   <Button
                     key={a}
@@ -466,7 +488,7 @@ function EntregasContent() {
             <p className="mt-1 text-sm text-white/70">
               Pedidos cobrados por Call Center en el POS con domicilio confirmado y pedidos web pagados en
               línea. Surte, marca listo, enviado (con guía) y entregado; los pedidos para recoger en sucursal
-              se marcan entregados en mostrador. Se actualiza solo cada minuto.
+              se marcan listos para recoger y entregados en mostrador. Se actualiza solo cada minuto.
             </p>
           </div>
           <button
@@ -667,7 +689,7 @@ function DeliveryDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             {d ? deliveryDocLabel(d) : 'Entrega'}
-            {d ? <StatusBadge status={d.status} label={d.statusLabel} /> : null}
+            {d ? <StatusBadge status={d.status} label={deliveryStatusLabel(d)} /> : null}
             {d && d.kind === 'order' && deliveryModeOf(d) === 'pickup' ? (
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                 {DELIVERY_MODE_LABELS.pickup}
@@ -726,8 +748,8 @@ function DeliveryDetailDialog({
 
         {d && canAct ? (
           <DialogFooter className="flex-wrap gap-2 sm:justify-start">
-            {/* Botones según estado, modo, cobro y origen (recoger: solo "Entregado en mostrador" / cancelar;
-                pedido web: sin "Cancelar entrega"). */}
+            {/* Botones según estado, modo, cobro y origen (recoger: "Listo para recoger", "Entregar en
+                mostrador" y "Regresar a pendiente"; pedido web: sin "Cancelar entrega"). */}
             {availableDeliveryActions(d, canAct).map((a) => {
               const mode = deliveryModeOf(d);
               if (a === 'produced')
@@ -739,7 +761,8 @@ function DeliveryDetailDialog({
               if (a === 'ready')
                 return (
                   <Button key={a} onClick={() => onAction(a, d)}>
-                    <CheckCircleIcon className="mr-1 h-4 w-4" /> Listo para envío
+                    <CheckCircleIcon className="mr-1 h-4 w-4" />{' '}
+                    {mode === 'pickup' ? PICKUP_READY_LABEL : 'Listo para envío'}
                   </Button>
                 );
               if (a === 'shipped')
@@ -752,7 +775,7 @@ function DeliveryDetailDialog({
                 return (
                   <Button key={a} onClick={() => onAction(a, d)}>
                     <CheckCircleIcon className="mr-1 h-4 w-4" />{' '}
-                    {mode === 'pickup' ? 'Entregado en mostrador' : 'Entregado'}
+                    {mode === 'pickup' ? deliveryActionTitle(a, mode) : 'Entregado'}
                   </Button>
                 );
               if (a === 'edit')
@@ -972,19 +995,29 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           </tr>
         </tfoot>
       </table>
-      {(d.carrier || d.trackingNumber || d.warehouseNotes) && (
+      {(d.carrier || d.trackingNumber || d.warehouseNotes || d.receivedByName || d.handoffTerminal) && (
         <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-700">
           {d.carrier || d.trackingNumber ? (
             <p>
               Paquetería: {d.carrier ?? '—'} · Guía: {d.trackingNumber ?? '—'}
             </p>
           ) : null}
+          {/* Recoger en sucursal: quién lo recogió y desde qué terminal del POS se entregó (si el API lo manda). */}
+          {d.receivedByName ? (
+            <p>
+              Recogió en mostrador: <span className="font-semibold">{d.receivedByName}</span>
+            </p>
+          ) : null}
+          {d.handoffTerminal ? <p>Terminal que entregó: {d.handoffTerminal}</p> : null}
           {d.warehouseNotes ? <p>Observaciones de Almacén: {d.warehouseNotes}</p> : null}
         </div>
       )}
       <div className="grid grid-cols-2 gap-x-4 text-xs text-gray-500 md:grid-cols-4">
         <p>Listo: {formatDateTime(d.readyAt, timeZone)}{d.readyByName ? ` · ${d.readyByName}` : ''}</p>
-        <p>Enviado: {formatDateTime(d.shippedAt, timeZone)}{d.shippedByName ? ` · ${d.shippedByName}` : ''}</p>
+        {/* Un pedido para recoger nunca se envía. */}
+        {!pickup && (
+          <p>Enviado: {formatDateTime(d.shippedAt, timeZone)}{d.shippedByName ? ` · ${d.shippedByName}` : ''}</p>
+        )}
         <p>Entregado: {formatDateTime(d.deliveredAt, timeZone)}{d.deliveredByName ? ` · ${d.deliveredByName}` : ''}</p>
         {d.cancelledAt ? (
           <p>
@@ -1080,6 +1113,8 @@ function DeliveryActionDialog({
   const [tracking, setTracking] = useState(action?.delivery.trackingNumber ?? '');
   const [notes, setNotes] = useState('');
   const [reason, setReason] = useState('');
+  // Recoger en sucursal: quién se lleva el pedido (obligatorio al entregar en mostrador).
+  const [receivedBy, setReceivedBy] = useState('');
 
   // Catálogo de paqueterías por país (mig 200). Vacío (API anterior, migración
   // pendiente o ninguna registrada) = el campo de texto de siempre.
@@ -1091,6 +1126,7 @@ function DeliveryActionDialog({
   const isOrder = delivery.kind === 'order';
   const mode = deliveryModeOf(delivery);
   const title = deliveryActionTitle(type, mode);
+  const asksWhoPicksUp = needsReceivedByName(type, mode);
 
   const carrierOptions = carriersForDelivery(
     carrierCatalog ?? [],
@@ -1127,6 +1163,12 @@ function DeliveryActionDialog({
           toast.error('Indica el motivo de la cancelación');
           return;
         }
+        // Recoger en sucursal: no se entrega en mostrador sin anotar quién se lo lleva.
+        if (asksWhoPicksUp && !receivedBy.trim()) {
+          toast.error('Escribe quién recoge el pedido');
+          document.getElementById('delivery-received-by')?.focus();
+          return;
+        }
         await updateStatus.mutateAsync({
           id: delivery.id,
           payload: {
@@ -1135,6 +1177,7 @@ function DeliveryActionDialog({
             ...(type === 'shipped' && tracking.trim() ? { trackingNumber: tracking.trim() } : {}),
             ...(notes.trim() ? { warehouseNotes: notes.trim() } : {}),
             ...(status === 'cancelled' ? { reason: reason.trim() } : {}),
+            ...(asksWhoPicksUp ? { receivedByName: receivedBy.trim() } : {}),
           },
         });
         toast.success(
@@ -1145,7 +1188,7 @@ function DeliveryActionDialog({
                   ? 'elaborado, pasa a surtido'
                   : status === 'delivered' && mode === 'pickup'
                     ? 'entregado en mostrador'
-                    : DELIVERY_STATUS_LABELS[status].toLowerCase()
+                    : deliveryStatusLabel({ status, deliveryMode: mode }).toLowerCase()
               }`,
         );
       }
@@ -1167,6 +1210,27 @@ function DeliveryActionDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {asksWhoPicksUp && (
+            <div>
+              <Label htmlFor="delivery-received-by">¿Quién recoge?</Label>
+              <Input
+                id="delivery-received-by"
+                className="mt-1"
+                value={receivedBy}
+                onChange={(e) => setReceivedBy(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !busy) void submit();
+                }}
+                placeholder="Nombre completo de quien se lleva el pedido"
+                maxLength={RECEIVED_BY_NAME_MAX}
+                autoComplete="off"
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Obligatorio. Pide una identificación o el número de distribuidor antes de entregar.
+              </p>
+            </div>
+          )}
           {(type === 'shipped' || type === 'edit') && (
             <>
               <div>
@@ -1259,10 +1323,16 @@ function DeliveryActionDialog({
               />
             </div>
           )}
+          {type === 'ready' && mode === 'pickup' && (
+            <p className="text-sm text-gray-600">
+              Confirma que el pedido ya está surtido y apartado en mostrador. Al comprador se le avisa que ya
+              puede pasar por él.
+            </p>
+          )}
           {type === 'delivered' && (
             <p className="text-sm text-gray-600">
               {mode === 'pickup'
-                ? 'Confirma que el comprador recogió su pedido en mostrador; quedará como entregado en Mis pedidos y en el rastreo.'
+                ? 'Confirma que el comprador recogió su pedido en mostrador. Las piezas que tenía apartadas salen de las existencias de la sucursal y el pedido queda como entregado en Mis pedidos.'
                 : isOrder
                   ? 'Se marcará como entregado al comprador; quedará como entregado en Mis pedidos y en el rastreo del pedido.'
                   : 'Se marcará como entregado al distribuidor; se le avisa a quien capturó la venta.'}

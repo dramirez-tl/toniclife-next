@@ -20,8 +20,8 @@
 // enmarcado bajo el producto; el ticket lo lista bajo el nombre.
 
 import type { Delivery } from '@/types/deliveries';
-import { DELIVERY_MODE_LABELS, DELIVERY_STATUS_LABELS } from '@/types/deliveries';
-import { deliveryDocLabel, deliveryModeOf, paymentMethodLabel } from '@/lib/deliveries/actions';
+import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
+import { deliveryDocLabel, deliveryModeOf, deliveryStatusLabel, paymentMethodLabel } from '@/lib/deliveries/actions';
 import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 
 // Compatibilidad: el nombre vivía aquí; ahora la regla está en lib/deliveries/actions.
@@ -183,7 +183,7 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
     : `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td></tr></tfoot>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${baseCss(scaleOf(fontScale))}</style></head><body>
     <h1>Hoja de surtido · ${esc(title)}</h1>
-    <div class="muted">${esc(DELIVERY_MODE_LABELS[deliveryModeOf(d)])} · ${esc(DELIVERY_STATUS_LABELS[d.status] ?? d.status)} · ${pickup ? 'Entrega en mostrador' : 'Surte'}: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
+    <div class="muted">${esc(DELIVERY_MODE_LABELS[deliveryModeOf(d)])} · ${esc(deliveryStatusLabel({ status: d.status, deliveryMode: d.deliveryMode }))} · ${pickup ? 'Entrega en mostrador' : 'Surte'}: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
     <div class="grid">
       <div class="box">
         ${distributorBox}
