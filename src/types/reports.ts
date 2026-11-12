@@ -1138,6 +1138,17 @@ export interface ProductSaleLine {
   points: number;
   paymentMethod: string;
   sellerName: string;
+  /**
+   * true = las piezas del renglón salieron GRATIS por una promoción de temporada
+   * (la 3.ª de un 3x2, la 6.ª de un "compra 5 y llévate 1", un regalo por compra);
+   * el renglón va en $0.
+   */
+  freeByPromotion?: boolean;
+  /** Promoción de temporada del renglón (gratis o cobrado con ella). */
+  promotionCode?: string | null;
+  promotionName?: string | null;
+  /** Valor de lo regalado en el renglón, a precio de venta. */
+  giftedValue?: number;
 }
 
 export interface ProductSalesSummary {
@@ -1146,7 +1157,10 @@ export interface ProductSalesSummary {
   productName: string;
   /** Ventas (folios) distintas. */
   salesCount: number;
+  /** Piezas que salieron (cobradas + gratis). */
   units: number;
+  /** De esas piezas, las que salieron gratis por promociones de temporada. */
+  freeUnits?: number;
   amount: number;
   points: number;
   lines: ProductSaleLine[];
@@ -1156,8 +1170,24 @@ export interface SalesByProductTotals {
   sales: number;
   lines: number;
   units: number;
+  /** Piezas gratis por promociones de temporada (incluidas en `units`). */
+  freeUnits?: number;
   amount: number;
   points: number;
+}
+
+/** Piezas gratis de un producto por promoción de temporada. */
+export interface FreeByPromotionRow {
+  promotionCode: string;
+  promotionName: string;
+  productId: string;
+  productSku: string;
+  productName: string;
+  /** Ventas (folios) distintas en las que salió gratis. */
+  salesCount: number;
+  units: number;
+  /** Valor de lo regalado, a precio de venta. */
+  giftedValue: number;
 }
 
 export interface SalesByProductDetailResponse {
@@ -1166,6 +1196,8 @@ export interface SalesByProductDetailResponse {
   branchId: string | null;
   branchLabel: string;
   totals: SalesByProductTotals;
+  /** Lo que regaló cada promoción de temporada en el rango, por producto. */
+  freeByPromotion?: FreeByPromotionRow[];
   products: ProductSalesSummary[];
 }
 

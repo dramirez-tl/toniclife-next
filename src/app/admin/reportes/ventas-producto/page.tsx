@@ -6,6 +6,11 @@
 // cliente, cantidad, importe, pago, vendedor), agrupado por producto con
 // subtotales; día local de la sucursal; Excel VENTAS_POR_PRODUCTO.
 // Almacén entra con reports:product_sales (mig 197), sin el resto de reportes.
+//
+// Piezas GRATIS de promociones de temporada (12-nov-2026): la 3.ª de un 3x2, la
+// 6.ª de un "compra 5 y llévate 1" o un regalo por compra cuentan en Piezas
+// (salieron de la existencia) y se distinguen con la columna Gratis, la etiqueta
+// del renglón y el resumen por promoción.
 
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -148,6 +153,8 @@ export default function VentasProductoPage() {
 
   const products: ProductSalesSummary[] = data?.products ?? [];
   const totals = data?.totals;
+  const freeByPromotion = data?.freeByPromotion ?? [];
+  const totalFreeUnits = totals?.freeUnits ?? 0;
   const hasData = products.length > 0;
   const allBranches = !applied.branchId;
   const rangeLabel =
@@ -173,7 +180,7 @@ export default function VentasProductoPage() {
             <button
               onClick={handleDownload}
               disabled={!applied.startDate || isFetching || downloading}
-              title="VENTAS_POR_PRODUCTO: hoja POR PRODUCTO (un renglón por venta con subtotales por producto) + RESUMEN"
+              title="VENTAS_POR_PRODUCTO: hoja POR PRODUCTO (un renglón por venta con subtotales por producto) + RESUMEN + GRATIS POR PROMOCIÓN (piezas que salieron gratis por promociones de temporada)"
               className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {downloading ? (
@@ -256,7 +263,9 @@ export default function VentasProductoPage() {
             </button>
           </div>
           <p className="mt-3 text-xs text-gray-400">
-            Ventas del POS completadas (no canceladas), día y hora locales de la sucursal.
+            Ventas del POS completadas (no canceladas), día y hora locales de la sucursal. Las piezas que salieron
+            gratis por una promoción de temporada (3x2, compra 5 y llévate 1, regalos) cuentan en Piezas y se
+            muestran aparte en la columna Gratis.
           </p>
         </div>
 
@@ -276,12 +285,56 @@ export default function VentasProductoPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Piezas</p>
               <p className="text-lg font-bold text-gray-900">{formatUnits(totals.units)}</p>
-              <p className="text-xs text-gray-400 mt-1">{formatUnits(totals.points)} puntos</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {formatUnits(totals.points)} puntos
+                {totalFreeUnits > 0 ? (
+                  <span className="font-medium text-emerald-700"> · {formatUnits(totalFreeUnits)} gratis por promoción</span>
+                ) : null}
+              </p>
             </div>
             <div className="rounded-xl border border-[#3E667D]/30 bg-[#3E667D] p-4 shadow-sm">
               <p className="text-xs font-medium text-white/70 uppercase tracking-wide mb-2">Importe</p>
               <p className="text-lg font-bold text-white">{formatAmount(totals.amount)}</p>
               <p className="text-xs text-white/70 mt-1">{allBranches ? 'en la moneda de cada sucursal' : 'moneda de la sucursal'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Piezas gratis por promociones de temporada: lo que regaló cada promoción */}
+        {data && freeByPromotion.length > 0 && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm" data-testid="free-by-promotion">
+            <h2 className="text-sm font-semibold text-emerald-900 uppercase tracking-wide">
+              Piezas gratis por promociones de temporada · {formatUnits(totalFreeUnits)} piezas
+            </h2>
+            <p className="mt-1 text-xs text-emerald-900/80">
+              Lo que salió sin cobrarse por una promoción (la 3.ª pieza de un 3x2, la 6.ª de un «compra 5 y llévate 1»,
+              un regalo por compra). Ya está contado en Piezas; aquí se ve por promoción y producto.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-emerald-900/70">
+                    <th className="py-1.5 pr-4">Promoción</th>
+                    <th className="py-1.5 pr-4">Clave</th>
+                    <th className="py-1.5 pr-4">Producto</th>
+                    <th className="py-1.5 pr-4 text-right">Ventas</th>
+                    <th className="py-1.5 pr-4 text-right">Piezas gratis</th>
+                    <th className="py-1.5 text-right">Valor regalado</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-800">
+                  {freeByPromotion.map((f) => (
+                    <tr key={`${f.promotionCode}-${f.productId}`} className="border-t border-emerald-200/70">
+                      <td className="py-1.5 pr-4">{f.promotionName}</td>
+                      <td className="py-1.5 pr-4 font-mono text-gray-900 whitespace-nowrap">{f.productSku}</td>
+                      <td className="py-1.5 pr-4">{f.productName}</td>
+                      <td className="py-1.5 pr-4 text-right tabular-nums">{f.salesCount}</td>
+                      <td className="py-1.5 pr-4 text-right font-semibold tabular-nums">{formatUnits(f.units)}</td>
+                      <td className="py-1.5 text-right tabular-nums">{formatAmount(f.giftedValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -315,8 +368,12 @@ export default function VentasProductoPage() {
                         {h}
                       </TableHead>
                     ))}
-                    {['Ventas', 'Piezas', 'Importe', 'Puntos'].map((h) => (
-                      <TableHead key={h} className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    {['Ventas', 'Piezas', 'Gratis', 'Importe', 'Puntos'].map((h) => (
+                      <TableHead
+                        key={h}
+                        title={h === 'Gratis' ? 'Piezas que salieron gratis por una promoción de temporada (ya incluidas en Piezas)' : undefined}
+                        className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                      >
                         {h}
                       </TableHead>
                     ))}
@@ -336,6 +393,15 @@ export default function VentasProductoPage() {
                           <TableCell className="px-4 py-3 text-sm text-gray-700">{p.productName}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right text-gray-600 tabular-nums">{p.salesCount}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right font-semibold text-gray-900 tabular-nums">{formatUnits(p.units)}</TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-right tabular-nums">
+                            {(p.freeUnits ?? 0) > 0 ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                                {formatUnits(p.freeUnits ?? 0)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right text-gray-900 tabular-nums">{formatAmount(p.amount)}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right text-gray-600 tabular-nums">{formatUnits(p.points)}</TableCell>
                           <TableCell className="px-4 py-3 whitespace-nowrap text-right">
@@ -344,7 +410,7 @@ export default function VentasProductoPage() {
                         </TableRow>
                         {open && (
                           <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
-                            <TableCell colSpan={7} className="px-6 py-2">
+                            <TableCell colSpan={8} className="px-6 py-2">
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="text-gray-500">
@@ -355,6 +421,7 @@ export default function VentasProductoPage() {
                                     <th className="py-1 pr-3 text-right font-medium">Cant</th>
                                     <th className="py-1 pr-3 text-right font-medium">Precio</th>
                                     <th className="py-1 pr-3 text-right font-medium">Importe</th>
+                                    <th className="py-1 pr-3 text-left font-medium">Promoción</th>
                                     <th className="py-1 pr-3 text-left font-medium">Pago</th>
                                     <th className="py-1 pr-3 text-left font-medium">Vendedor</th>
                                     {allBranches && <th className="py-1 text-left font-medium">Sucursal</th>}
@@ -362,7 +429,10 @@ export default function VentasProductoPage() {
                                 </thead>
                                 <tbody className="text-gray-700">
                                   {p.lines.map((l, i) => (
-                                    <tr key={`${l.saleId}-${i}`} className="border-t border-gray-100">
+                                    <tr
+                                      key={`${l.saleId}-${i}`}
+                                      className={`border-t border-gray-100 ${l.freeByPromotion ? 'bg-emerald-50' : ''}`}
+                                    >
                                       <td className="py-1 pr-3 font-mono text-gray-900 whitespace-nowrap">{l.saleNumber}</td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{formatDateDisplay(l.saleDate)}</td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{l.saleTime}</td>
@@ -373,6 +443,20 @@ export default function VentasProductoPage() {
                                       <td className="py-1 pr-3 text-right tabular-nums">{formatUnits(l.quantity)}</td>
                                       <td className="py-1 pr-3 text-right tabular-nums">{formatAmount(l.unitPrice)}</td>
                                       <td className="py-1 pr-3 text-right tabular-nums font-medium">{formatAmount(l.total)}</td>
+                                      <td className="py-1 pr-3">
+                                        {l.freeByPromotion ? (
+                                          <span className="mr-1 inline-flex items-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                            Gratis
+                                          </span>
+                                        ) : null}
+                                        {l.promotionName || l.promotionCode ? (
+                                          <span className={l.freeByPromotion ? 'text-emerald-900' : 'text-gray-500'}>
+                                            {l.promotionName || l.promotionCode}
+                                          </span>
+                                        ) : !l.freeByPromotion ? (
+                                          <span className="text-gray-300">—</span>
+                                        ) : null}
+                                      </td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{PAYMENT_LABELS[l.paymentMethod] ?? l.paymentMethod ?? '—'}</td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{l.sellerName || '—'}</td>
                                       {allBranches && <td className="py-1 whitespace-nowrap">{l.branchCode} {l.branchName}</td>}
@@ -395,6 +479,9 @@ export default function VentasProductoPage() {
                       </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{totals.sales}</TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatUnits(totals.units)}</TableCell>
+                      <TableCell className="px-4 py-4 text-sm text-right font-bold text-emerald-700 tabular-nums">
+                        {totalFreeUnits > 0 ? formatUnits(totalFreeUnits) : '—'}
+                      </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(totals.amount)}</TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatUnits(totals.points)}</TableCell>
                       <TableCell className="px-4 py-4" />

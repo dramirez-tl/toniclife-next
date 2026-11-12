@@ -6,6 +6,9 @@
 // Los dueños de CEDEA (rol cedea_owner) y CEDEAS Supervisor solo reciben sus
 // sucursales asignadas; Administrador/Sistemas/Operaciones ven todas las CEDEAS.
 // La ganancia es un ESTIMADO (ventas netas × porcentaje del contrato o 5 %).
+// Piezas gratis por promociones de temporada (12-nov-2026): lo que salió sin
+// cobrarse por un 3x2, un "compra 5 y llévate 1" o un regalo por compra, por
+// promoción y producto (caja y pedidos en línea de la sucursal).
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -127,6 +130,83 @@ function TotalsRow({ total }: { total: CedeaCurrencyTotal }) {
         value={formatInt(total.promoPieces)}
         hint="Piezas entregadas en el periodo"
       />
+      {(total.seasonalFreePieces ?? 0) > 0 ? (
+        <StatCard
+          icon={GiftIcon}
+          label="Gratis por promoción de temporada"
+          value={formatInt(total.seasonalFreePieces ?? 0)}
+          hint="Piezas que salieron sin cobrarse (3x2, compra 5 y llévate 1, regalos)"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Piezas que salieron gratis por promociones de temporada, por promoción y producto. */
+function SeasonalFreeBlock({ branch }: { branch: CedeaBranchEarnings }) {
+  const rows = branch.seasonalFreeByProduct ?? [];
+  if (rows.length === 0) return null;
+  const c = branch.currencyCode;
+  const pos = branch.seasonalFreePieces ?? 0;
+  const online = branch.seasonalFreeOnlinePieces ?? 0;
+  const showOnline = online > 0;
+  return (
+    <div
+      className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4"
+      data-testid="cedea-seasonal-free"
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+        Piezas gratis por promociones de temporada · {formatInt(pos + online)} piezas
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Lo que salió de tu existencia sin cobrarse por una promoción (la 3.ª pieza de un 3x2, la 6.ª de un «compra 5
+        y llévate 1», un regalo por compra). No cambia tus ventas ni tu ganancia.
+      </p>
+      <div className="mt-3 overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Promoción</TableHead>
+              <TableHead>Clave</TableHead>
+              <TableHead>Producto</TableHead>
+              <TableHead className="text-right">Gratis en caja</TableHead>
+              {showOnline ? <TableHead className="text-right">Gratis en línea</TableHead> : null}
+              <TableHead className="text-right">Valor regalado en caja</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={`${r.promotionCode}-${r.code}`}>
+                <TableCell>{r.promotionName}</TableCell>
+                <TableCell className="font-mono">{r.code}</TableCell>
+                <TableCell>{r.name}</TableCell>
+                <TableCell className="text-right font-semibold">{formatInt(r.pieces)}</TableCell>
+                {showOnline ? <TableCell className="text-right">{formatInt(r.onlinePieces)}</TableCell> : null}
+                <TableCell className="text-right">{formatMoney(r.value, c)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={3} className="font-semibold">
+                Total
+              </TableCell>
+              <TableCell className="text-right font-semibold">{formatInt(pos)}</TableCell>
+              {showOnline ? <TableCell className="text-right font-semibold">{formatInt(online)}</TableCell> : null}
+              <TableCell className="text-right font-semibold">
+                {formatMoney(
+                  rows.reduce((s, r) => s + r.value, 0),
+                  c,
+                )}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        El detalle venta por venta está en Ventas por producto (columna Gratis) y en su Excel, hoja GRATIS POR
+        PROMOCIÓN.
+      </p>
     </div>
   );
 }
@@ -199,6 +279,9 @@ function BranchCard({
 }) {
   const [open, setOpen] = useState(false);
   const c = branch.currencyCode;
+  const seasonalFree = (branch.seasonalFreePieces ?? 0) + (branch.seasonalFreeOnlinePieces ?? 0);
+  // La columna "Gratis" del detalle por día solo aparece si la sucursal regaló algo en el periodo.
+  const showFreeByDay = (branch.seasonalFreePieces ?? 0) > 0;
   const corteHref = `/admin/reportes/corte-caja?branchId=${branch.branchId}&from=${period.startDate}&to=${period.endDate}`;
   return (
     <Card>
@@ -248,9 +331,17 @@ function BranchCard({
             <dt className="text-muted-foreground">Promociones entregadas</dt>
             <dd className="font-semibold text-foreground">{formatInt(branch.promoPieces)} piezas</dd>
           </div>
+          {seasonalFree > 0 ? (
+            <div>
+              <dt className="text-muted-foreground">Gratis por promoción de temporada</dt>
+              <dd className="font-semibold text-emerald-700 dark:text-emerald-300">{formatInt(seasonalFree)} piezas</dd>
+            </div>
+          ) : null}
         </dl>
 
         <InvoiceBlock invoice={branch.invoice} contract={branch.contract} currency={c} />
+
+        <SeasonalFreeBlock branch={branch} />
 
         {branch.promoByProduct.length > 0 ? (
           <p className="mt-3 text-xs text-muted-foreground">
@@ -293,12 +384,17 @@ function BranchCard({
                   <TableHead className="text-right">IVA</TableHead>
                   <TableHead className="text-right">Neto</TableHead>
                   <TableHead className="text-right">Promos</TableHead>
+                  {showFreeByDay ? (
+                    <TableHead className="text-right" title="Piezas gratis por promociones de temporada en caja">
+                      Gratis
+                    </TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {branch.daily.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={showFreeByDay ? 7 : 6} className="text-center text-muted-foreground">
                       Sin ventas en el periodo
                     </TableCell>
                   </TableRow>
@@ -311,6 +407,9 @@ function BranchCard({
                       <TableCell className="text-right">{formatMoney(d.tax, c)}</TableCell>
                       <TableCell className="text-right">{formatMoney(d.net, c)}</TableCell>
                       <TableCell className="text-right">{formatInt(d.promoPieces)}</TableCell>
+                      {showFreeByDay ? (
+                        <TableCell className="text-right">{formatInt(d.seasonalFreePieces ?? 0)}</TableCell>
+                      ) : null}
                     </TableRow>
                   ))
                 )}
@@ -324,6 +423,11 @@ function BranchCard({
                     <TableCell className="text-right font-semibold">{formatMoney(branch.tax, c)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatMoney(branch.net, c)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatInt(branch.promoPieces)}</TableCell>
+                    {showFreeByDay ? (
+                      <TableCell className="text-right font-semibold">
+                        {formatInt(branch.seasonalFreePieces ?? 0)}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 </TableFooter>
               ) : null}

@@ -18,6 +18,23 @@ export interface CedeaPromoProduct {
   pieces: number;
 }
 
+/**
+ * Piezas que salieron gratis por una promoción de temporada (la 3.ª de un 3x2, la
+ * 6.ª de un "compra 5 y llévate 1", un regalo por compra), por producto.
+ */
+export interface CedeaSeasonalFreeProduct {
+  code: string;
+  name: string;
+  promotionCode: string;
+  promotionName: string;
+  /** Piezas gratis en ventas de caja completadas */
+  pieces: number;
+  /** Piezas gratis en pedidos en línea pagados asignados a la sucursal */
+  onlinePieces: number;
+  /** Valor de lo regalado en caja, a precio de venta */
+  value: number;
+}
+
 export interface CedeaDailyRow {
   /** Día local de la sucursal (YYYY-MM-DD) */
   date: string;
@@ -26,6 +43,8 @@ export interface CedeaDailyRow {
   tax: number;
   net: number;
   promoPieces: number;
+  /** Piezas gratis por promociones de temporada en ventas de caja */
+  seasonalFreePieces?: number;
 }
 
 /** Contrato CEDEA vigente de la sucursal (Tesorería › CEDEAS). */
@@ -99,6 +118,12 @@ export interface CedeaBranchEarnings {
   promoPieces: number;
   promoByProduct: CedeaPromoProduct[];
   legacyZeroLines: number;
+  /** Piezas gratis por promociones de temporada en ventas de caja */
+  seasonalFreePieces?: number;
+  /** Piezas gratis por promociones de temporada en pedidos en línea de la sucursal */
+  seasonalFreeOnlinePieces?: number;
+  /** Lo que regaló cada promoción de temporada, por producto */
+  seasonalFreeByProduct?: CedeaSeasonalFreeProduct[];
   daily: CedeaDailyRow[];
 }
 
@@ -116,6 +141,8 @@ export interface CedeaCurrencyTotal {
   invoice: CedeaInvoice | null;
   branchesWithoutRegime: number;
   promoPieces: number;
+  /** Piezas gratis por promociones de temporada (caja + pedidos en línea) */
+  seasonalFreePieces?: number;
 }
 
 export interface CedeaEarningsResponse {
