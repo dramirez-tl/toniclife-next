@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { QueryClient, QueryObserver, focusManager } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PickupBranch } from '@/types/cart';
 import {
+  PICKUP_AVAILABILITY_STALE_MS,
   PICKUP_BRANCH_UNAVAILABLE_CODE,
+  PICKUP_LIST_STALE_MS,
   branchPlace,
   cleanBranchPhone,
   cleanBranchText,
@@ -14,6 +17,7 @@ import {
   missingItemsSummary,
   noPickupBranchAvailable,
   pickupAddressLine,
+  pickupBranchesRefreshPolicy,
   pickupCartSignature,
   pickupCityState,
   pickupMapUrl,
@@ -323,6 +327,86 @@ describe('checkout/pickup-branches · la sucursal elegida', () => {
     expect(pickupSelectionProblem([unavailable], null)).toBeNull();
     expect(pickupSelectionProblem(undefined, 'x')).toBeNull();
     expect(pickupSelectionProblem(null, 'x')).toBeNull();
+  });
+});
+
+describe('checkout/pickup-branches · cuándo se vuelve a pedir la lista', () => {
+  it('checkout (con país): vale 30 s y se vuelve a pedir al regresar a la ventana', () => {
+    expect(PICKUP_AVAILABILITY_STALE_MS).toBe(30_000);
+    expect(pickupBranchesRefreshPolicy('pais-mx')).toEqual({ staleTime: 30_000, refetchOnWindowFocus: true });
+  });
+
+  it('lista sola (sin país): vale 10 min y no se vuelve a pedir al regresar', () => {
+    expect(PICKUP_LIST_STALE_MS).toBe(600_000);
+    for (const none of [undefined, null, '']) {
+      expect(pickupBranchesRefreshPolicy(none)).toEqual({ staleTime: 600_000, refetchOnWindowFocus: false });
+    }
+  });
+
+  // Caso real (12-nov-2026): el checkout pidió la lista a las 09:06; a las 09:22 una sucursal
+  // empezó a ofrecerse y a las 09:25 seguía sin aparecer en esa pantalla. La app apaga el
+  // "volver a pedir al regresar a la ventana" para todas las consultas (QueryProvider), así
+  // que la del checkout tiene que encenderlo expresamente.
+  describe('con la configuración de la app (QueryProvider: refetchOnWindowFocus = false)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      focusManager.setFocused(undefined);
+      vi.useRealTimers();
+    });
+
+    /** Una pantalla que muestra la lista con estas opciones; `away` = irse a otra ventana y volver. */
+    async function watchList(options: { staleTime: number; refetchOnWindowFocus?: boolean }) {
+      const client = new QueryClient({
+        defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
+      });
+      client.mount();
+      const request = vi.fn(async () => [] as PickupBranch[]);
+      const observer = new QueryObserver(client, { queryKey: ['pickup-branches'], queryFn: request, ...options });
+      const unsubscribe = observer.subscribe(() => {});
+      await vi.advanceTimersByTimeAsync(1);
+      return {
+        request,
+        async away(ms: number) {
+          focusManager.setFocused(false);
+          await vi.advanceTimersByTimeAsync(ms);
+          focusManager.setFocused(true);
+          await vi.advanceTimersByTimeAsync(1);
+        },
+        close() {
+          unsubscribe();
+          client.unmount();
+          client.clear();
+        },
+      };
+    }
+
+    it('checkout: al volver pasados 30 s la lista se pide de nuevo; antes de eso, no', async () => {
+      const screen = await watchList(pickupBranchesRefreshPolicy('pais-mx'));
+      expect(screen.request).toHaveBeenCalledTimes(1);
+      await screen.away(10_000);
+      expect(screen.request).toHaveBeenCalledTimes(1);
+      await screen.away(31_000);
+      expect(screen.request).toHaveBeenCalledTimes(2);
+      await screen.away(16 * 60_000);
+      expect(screen.request).toHaveBeenCalledTimes(3);
+      screen.close();
+    });
+
+    it('lista sola: no se vuelve a pedir al regresar, ni pasados sus 10 min', async () => {
+      const screen = await watchList(pickupBranchesRefreshPolicy(undefined));
+      await screen.away(11 * 60_000);
+      expect(screen.request).toHaveBeenCalledTimes(1);
+      screen.close();
+    });
+
+    it('control: con solo los 30 s (como estaba) la lista NO se volvía a pedir al regresar', async () => {
+      const screen = await watchList({ staleTime: 30_000 });
+      await screen.away(16 * 60_000);
+      expect(screen.request).toHaveBeenCalledTimes(1);
+      screen.close();
+    });
   });
 });
 

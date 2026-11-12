@@ -290,6 +290,34 @@ export function pickupSelectionProblem(
   return isPickupBranchSelectable(chosen) ? null : { kind: 'unavailable', name: pickupPlace(chosen).name };
 }
 
+// ===== cuándo se vuelve a pedir la lista =====
+
+/** La lista del checkout trae existencias, que cambian con cada venta en caja: vale 30 s. */
+export const PICKUP_AVAILABILITY_STALE_MS = 30 * 1000;
+/** La lista sola (sin país: carrito compartido, confirmación del pedido) cambia poco: 10 min. */
+export const PICKUP_LIST_STALE_MS = 10 * 60 * 1000;
+
+/** Opciones de la consulta que deciden cuándo se vuelve a pedir la lista de sucursales. */
+export interface PickupBranchesRefreshPolicy {
+  staleTime: number;
+  refetchOnWindowFocus: boolean;
+}
+
+/**
+ * Cuándo se vuelve a pedir la lista de sucursales para recoger.
+ *  - Checkout (con el país de la tienda): vale 30 s y, pasado ese tiempo, se pide de
+ *    nuevo AL VOLVER A LA VENTANA. En el resto de la app el regreso a la ventana no
+ *    vuelve a pedir nada (QueryProvider lo apaga), así que aquí va expreso: sin esto la
+ *    lista de la pantalla se queda con la de cuando se abrió (12-nov-2026: una sucursal
+ *    que empezó a ofrecerse 16 minutos después no aparecía en un checkout ya abierto).
+ *  - Lista sola (sin país): vale 10 min y no se vuelve a pedir al regresar.
+ */
+export function pickupBranchesRefreshPolicy(countryId: string | null | undefined): PickupBranchesRefreshPolicy {
+  return countryId
+    ? { staleTime: PICKUP_AVAILABILITY_STALE_MS, refetchOnWindowFocus: true }
+    : { staleTime: PICKUP_LIST_STALE_MS, refetchOnWindowFocus: false };
+}
+
 // ===== carrito =====
 
 /**

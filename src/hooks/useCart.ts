@@ -16,6 +16,7 @@ import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/
 import { normalizePersonalization, samePersonalization } from '@/lib/storefront/personalization';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
 import { cartKeys } from '@/lib/storefront/cart-query-keys';
+import { pickupBranchesRefreshPolicy } from '@/lib/checkout/pickup-branches';
 import {
   applyCartMutation,
   cartActivity,
@@ -548,7 +549,10 @@ export interface PickupBranchesOptions {
  *  - Con el país de la tienda (checkout): las de la zona del comprador con la
  *    disponibilidad de SU carrito. Esa respuesta envejece rápido (se vende en caja): se
  *    da por buena solo 30 s y se vuelve a pedir cuando cambia el carrito (su firma va en
- *    la clave). Mientras llega la nueva se conserva la lista anterior en pantalla.
+ *    la clave) y al volver a la ventana. Mientras llega la nueva se conserva la lista
+ *    anterior en pantalla.
+ * Cuánto vale la lista y si se vuelve a pedir al regresar a la ventana lo decide
+ * `pickupBranchesRefreshPolicy` (lib/checkout/pickup-branches).
  */
 export const usePickupBranches = (options: boolean | PickupBranchesOptions = true) => {
   const { countryId, cartSignature, enabled = true }: PickupBranchesOptions =
@@ -558,7 +562,7 @@ export const usePickupBranches = (options: boolean | PickupBranchesOptions = tru
     queryKey: cartKeys.pickupBranches(countryId, cartSignature),
     queryFn: () => cartService.getPickupBranches(countryId),
     enabled,
-    staleTime: countryId ? 30 * 1000 : 10 * 60 * 1000, // 30 s con existencias; 10 min la lista sola (cambia poco)
+    ...pickupBranchesRefreshPolicy(countryId),
     placeholderData: countryId ? keepPreviousData : undefined,
   });
 };
