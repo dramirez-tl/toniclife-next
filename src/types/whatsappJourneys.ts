@@ -101,8 +101,8 @@ export interface JourneyItem {
   blockReason: string | null;
   /**
    * Solo J8: de dónde sale el mensaje, con qué frecuencia y qué promoción de
-   * Productos › Temporadas toca hoy y después. null en los demás recorridos
-   * (o con un API anterior).
+   * Productos › Temporadas toca HOY (las de días siguientes no se exponen).
+   * null en los demás recorridos (o con un API anterior).
    */
   promo: JourneyPromoInfo | null;
 }
@@ -125,12 +125,16 @@ export interface JourneyPromoSummary {
 export interface JourneyPromoInfo {
   /** 'temporadas' = automático desde Productos › Temporadas; 'manual' = solo lo capturado en Ajustes. */
   source: 'temporadas' | 'manual';
-  /** 'alterna' = cada persona un día sí y un día no; 'diaria' = todos los días. */
-  frequency: 'alterna' | 'diaria';
+  /**
+   * 'una' = una sola promoción por persona en toda la temporada (cada día sale
+   * a una parte distinta de la base); 'alterna' = un día sí y un día no;
+   * 'diaria' = todos los días.
+   */
+  frequency: 'una' | 'alterna' | 'diaria';
   /** La promoción que empieza en domingo sale ese domingo. */
   sundays: boolean;
+  /** La promoción que sale hoy. Las de días siguientes no viajan: no se anuncian ni se enseñan antes. */
   today: JourneyPromoSummary | null;
-  next: JourneyPromoSummary | null;
   /** Aviso del API antes de encender (p. ej. "la hora de hoy ya pasó: sale en unos minutos"). */
   notice: string | null;
 }
@@ -283,6 +287,6 @@ export interface JourneyTestResult {
   wamid: string | null;
   errorCode: string | null;
   error: string | null;
-  /** J8: mensajes que se mandaron ('Hoy: …', 'Sigue: …'); [] en los demás recorridos. */
+  /** J8: la promoción que se mandó ('Hoy: …'; solo la de hoy); [] en los demás recorridos. */
   messages: string[];
 }

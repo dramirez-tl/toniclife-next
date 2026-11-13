@@ -23,7 +23,6 @@ import {
   etiquetaCategoria,
   etiquetaMotivo,
   etiquetaMotivoCorrida,
-  fechaCorta,
   gateRecorrido,
   motivosOrdenados,
   olaDeCorrida,
@@ -547,10 +546,10 @@ describe('preview, corridas y prueba', () => {
       error: null,
       messages: [],
     });
-    // J8 dice qué mensajes mandó (uno por promoción a la vista).
-    expect(
-      adaptarTestResult({ success: true, wamid: 'w', messages: ['Hoy: Kit', 'Sigue: 3x2 Buen Fin sábado 14', 7] }).messages,
-    ).toEqual(['Hoy: Kit', 'Sigue: 3x2 Buen Fin sábado 14']);
+    // J8 dice qué promoción mandó (solo la de hoy).
+    expect(adaptarTestResult({ success: true, wamid: 'w', messages: ['Hoy: 3x2 Buen Fin sábado 14', 7] }).messages).toEqual([
+      'Hoy: 3x2 Buen Fin sábado 14',
+    ]);
     expect(adaptarTestResult(undefined).success).toBe(false);
   });
 });
@@ -569,7 +568,7 @@ describe('privacidad del fixture', () => {
 describe('J8: promoción del día (Productos › Temporadas)', () => {
   const promoRaw = {
     source: 'temporadas',
-    frequency: 'alterna',
+    frequency: 'una',
     sundays: true,
     today: {
       date: '2026-11-14',
@@ -580,7 +579,6 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
       imageUrl: 'https://api.example.com/promo-sabado.png',
       promoCodes: ['BUENFIN2026-3X2BUENFINSABADO'],
     },
-    next: { date: '2026-11-15', seasonName: 'Buen Fin 2026', title: '3x2 Buen Fin domingo 15', imageUrl: '' },
   };
   const j8 = (over: Record<string, unknown> = {}): JourneyItem =>
     adaptarRecorridos({
@@ -591,20 +589,24 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
     const item = j8();
     expect(item.promo).toEqual({
       source: 'temporadas',
-      frequency: 'alterna',
+      frequency: 'una',
       sundays: true,
       today: promoRaw.today,
-      next: {
-        date: '2026-11-15',
-        seasonName: 'Buen Fin 2026',
-        title: '3x2 Buen Fin domingo 15',
-        text: '',
-        validity: '',
-        imageUrl: null,
-        promoCodes: [],
-      },
       notice: null,
     });
+    // Solo la de HOY: aunque un API viejo mande la siguiente, la web no la conserva ni la enseña.
+    const conSiguiente = j8({
+      promo: { ...promoRaw, next: { date: '2026-11-15', seasonName: 'Buen Fin 2026', title: '3x2 Buen Fin domingo 15' } },
+    });
+    expect(conSiguiente.promo).not.toHaveProperty('next');
+    expect(JSON.stringify(conSiguiente.promo)).not.toMatch(/domingo 15/);
+    // Frecuencia: 'una' por defecto (también con un valor desconocido); las otras dos se respetan.
+    expect(j8({ promo: { ...promoRaw, frequency: undefined } }).promo?.frequency).toBe('una');
+    expect(j8({ promo: { ...promoRaw, frequency: 'semanal' } }).promo?.frequency).toBe('una');
+    expect(j8({ promo: { ...promoRaw, frequency: 'alterna' } }).promo?.frequency).toBe('alterna');
+    expect(j8({ promo: { ...promoRaw, frequency: 'diaria' } }).promo?.frequency).toBe('diaria');
+    // Promoción de hoy sin arte usable: imageUrl queda en null.
+    expect(j8({ promo: { ...promoRaw, today: { ...promoRaw.today, imageUrl: '' } } }).promo?.today?.imageUrl).toBeNull();
     expect(j8({ promo: { ...promoRaw, notice: 'La hora de envío de hoy ya pasó' } }).promo?.notice).toBe(
       'La hora de envío de hoy ya pasó',
     );
@@ -615,21 +617,12 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
       frequency: 'diaria',
       sundays: false,
       today: null,
-      next: null,
       notice: null,
     });
     expect(adaptarPromo('x')).toBeNull();
   });
 
-  it('fechaCorta da formato a la fecha que manda el API', () => {
-    expect(fechaCorta('2026-11-15')).toBe('dom 15 nov');
-    expect(fechaCorta('2026-11-14')).toBe('sáb 14 nov');
-    expect(fechaCorta('2026-12-01')).toBe('mar 1 dic');
-    expect(fechaCorta('mañana')).toBe('mañana');
-    expect(fechaCorta(null)).toBe('');
-  });
-
-  it('los ajustes de J8 arrancan con sus valores por defecto (Temporadas, un día sí y un día no, domingos sí)', () => {
+  it('los ajustes de J8 arrancan con sus valores por defecto (Temporadas, una sola por temporada, domingos sí)', () => {
     expect(camposParams('J8').map((c) => c.key)).toEqual([
       'temporadas',
       'frecuencia',
@@ -643,7 +636,7 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
     const a = ajustesDe(j8());
     expect(a.params).toEqual({
       temporadas: 'si',
-      frecuencia: 'alterna',
+      frecuencia: 'una',
       domingos: 'si',
       date: '',
       title: '',
@@ -660,10 +653,14 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
     const a = ajustesDe(item);
     expect(a.params).toMatchObject({ frecuencia: 'diaria', domingos: 'no', temporadas: 'si', date: '2026-11-20' });
     expect(
-      patchDeAjustes(item, { ...a, params: { ...a.params, frecuencia: 'alterna', domingos: 'si', date: '', bodyText: '' } }),
+      patchDeAjustes(item, { ...a, params: { ...a.params, frecuencia: 'una', domingos: 'si', date: '', bodyText: '' } }),
     ).toEqual({
-      params: { frecuencia: 'alterna', domingos: 'si', date: null, bodyText: null },
+      params: { frecuencia: 'una', domingos: 'si', date: null, bodyText: null },
     });
+    // Un "alterna" guardado antes se respeta (no se pisa con el valor por defecto nuevo).
+    const guardado = j8({ params: { frecuencia: 'alterna' } });
+    expect(ajustesDe(guardado).params.frecuencia).toBe('alterna');
+    expect(patchDeAjustes(guardado, ajustesDe(guardado))).toEqual({});
     expect(patchDeAjustes(j8(), { ...ajustesDe(j8()), params: { ...ajustesDe(j8()).params, frecuencia: 'diaria' } })).toEqual({
       params: { frecuencia: 'diaria' },
     });
@@ -674,12 +671,18 @@ describe('J8: promoción del día (Productos › Temporadas)', () => {
     expect(valorOpcion(temporadas, false)).toBe('no');
     expect(valorOpcion(temporadas, true)).toBe('si');
     expect(valorOpcion(temporadas, undefined)).toBe('si');
-    expect(valorOpcion(frecuencia, 'semanal')).toBe('alterna');
+    expect(valorOpcion(frecuencia, 'semanal')).toBe('una');
+    expect(valorOpcion(frecuencia, undefined)).toBe('una');
+    expect(valorOpcion(frecuencia, 'una')).toBe('una');
+    expect(valorOpcion(frecuencia, 'alterna')).toBe('alterna');
     expect(valorOpcion(frecuencia, 'diaria')).toBe('diaria');
+    expect(frecuencia.opciones?.map((o) => o.value)).toEqual(['una', 'alterna', 'diaria']);
   });
 
   it('etiquetas de los motivos nuevos', () => {
-    expect(etiquetaMotivo('otro_dia')).toMatch(/otra mitad/);
+    expect(etiquetaMotivo('otro_dia')).toMatch(/otro día de la temporada/);
+    expect(etiquetaMotivo('una_por_temporada')).toMatch(/Ya recibió su promoción/);
+    expect(etiquetaMotivoCorrida('promocion_sin_empezar')).toMatch(/todavía no empieza/);
     expect(etiquetaMotivoCorrida('sin_promocion')).toMatch(/Productos › Temporadas/);
     expect(etiquetaMotivoCorrida('plantilla_no_valida')).toMatch(/arte/);
   });

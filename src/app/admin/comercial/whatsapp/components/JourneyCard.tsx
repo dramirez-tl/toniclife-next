@@ -57,7 +57,6 @@ import {
   estadoPlantilla,
   etiquetaCategoria,
   etiquetaEstadoCorrida,
-  fechaCorta,
   gateRecorrido,
   motivosOrdenados,
   olaDeCorrida,
@@ -122,7 +121,10 @@ function PromoResumen({ etiqueta, p }: { etiqueta: string; p: JourneyPromoSummar
   );
 }
 
-/** J8: qué promoción de Productos › Temporadas sale hoy y cuál sigue. */
+/**
+ * J8: qué promoción de Productos › Temporadas sale HOY. Las de los días
+ * siguientes no se enseñan aquí: no se anuncia nada por adelantado.
+ */
 function PromoDelDia({ promo }: { promo: JourneyPromoInfo }) {
   if (promo.source === 'manual') {
     return (
@@ -132,7 +134,7 @@ function PromoDelDia({ promo }: { promo: JourneyPromoInfo }) {
       </p>
     );
   }
-  const sinArte = [promo.today, promo.next].some((p) => p && !p.imageUrl);
+  const sinArte = !!promo.today && !promo.today.imageUrl;
   return (
     <div className="grid gap-2 rounded-md border bg-muted/30 p-2">
       {promo.today ? (
@@ -142,16 +144,18 @@ function PromoDelDia({ promo }: { promo: JourneyPromoInfo }) {
           Hoy no empieza ninguna promoción en Productos › Temporadas: no sale ningún mensaje.
         </p>
       )}
-      {promo.next && <PromoResumen etiqueta={`Sigue · ${fechaCorta(promo.next.date)}`} p={promo.next} />}
       <p className="text-[11px] text-muted-foreground">
         {promo.frequency === 'diaria'
           ? 'Con una oferta por día, cada persona recibe el mensaje todos los días.'
-          : 'Con una oferta por día, cada persona lo recibe un día sí y un día no (máximo 2 promociones en 7 días).'}{' '}
-        {promo.sundays ? 'Si la promoción empieza en domingo, sale ese domingo.' : 'En domingo no se envía.'}
+          : promo.frequency === 'alterna'
+            ? 'Con una oferta por día, cada persona lo recibe un día sí y un día no (máximo 2 promociones en 7 días).'
+            : 'Cada persona recibe una sola promoción en toda la temporada: cada día sale a una parte distinta de la base.'}{' '}
+        {promo.sundays ? 'Si la promoción empieza en domingo, sale ese domingo.' : 'En domingo no se envía.'} Las
+        promociones de los días siguientes no se anuncian ni se muestran aquí antes de su día.
       </p>
       {sinArte && (
         <p className="rounded-md border border-amber-200 bg-amber-50/60 p-2 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
-          Hay una promoción sin arte en JPG o PNG: si la plantilla lleva imagen, ese día no saldrá. Súbelo en
+          La promoción de hoy no tiene arte en JPG o PNG: si la plantilla lleva imagen, hoy no saldrá. Súbelo en
           Productos › Temporadas.
         </p>
       )}

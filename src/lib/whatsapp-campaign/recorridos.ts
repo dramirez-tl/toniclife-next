@@ -145,6 +145,7 @@ export const MOTIVO_CORRIDA_LABELS: Record<string, string> = {
   sin_periodo_anterior: 'No existe el periodo anterior',
   periodo_anterior_abierto: 'El periodo anterior aún no está cerrado',
   sin_promocion: 'Hoy no empieza ninguna promoción en Productos › Temporadas y no hay una capturada con fecha',
+  promocion_sin_empezar: 'La promoción de hoy todavía no empieza: no se anuncia antes de su hora',
   plantilla_no_valida: 'La plantilla o el arte de la promoción no son válidos para este envío',
 };
 
@@ -169,7 +170,8 @@ export const MOTIVO_LABELS: Record<string, string> = {
   sin_lectura_60d: '3 promociones sin leer: 60 días sin promociones',
   utilidad_diaria: 'Ya recibió un aviso hoy',
   control: 'Grupo de control (no recibe)',
-  otro_dia: 'Hoy le toca a la otra mitad (un día sí y un día no)',
+  una_por_temporada: 'Ya recibió su promoción de esta temporada',
+  otro_dia: 'Le toca otro día de la temporada',
   rampa: 'Fuera de la rampa',
   ya_enviado: 'Ya se le había enviado',
   limite: 'Tope de la corrida (diario o por hora)',
@@ -333,31 +335,16 @@ function adaptarPromoResumen(raw: unknown): JourneyPromoSummary | null {
   };
 }
 
-/** Bloque `promo` de J8 (qué anuncia hoy y después); null en los demás recorridos o con un API anterior. */
+/** Bloque `promo` de J8 (qué anuncia HOY); null en los demás recorridos o con un API anterior. */
 export function adaptarPromo(raw: unknown): JourneyPromoInfo | null {
   if (!isObj(raw)) return null;
   return {
     source: raw.source === 'manual' ? 'manual' : 'temporadas',
-    frequency: raw.frequency === 'diaria' ? 'diaria' : 'alterna',
+    frequency: raw.frequency === 'diaria' ? 'diaria' : raw.frequency === 'alterna' ? 'alterna' : 'una',
     sundays: bool(raw.sundays, true),
     today: adaptarPromoResumen(raw.today),
-    next: adaptarPromoResumen(raw.next),
     notice: str(raw.notice) || null,
   };
-}
-
-const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
-/**
- * 'sáb 14 nov' a partir de 'YYYY-MM-DD'. Solo da formato a una fecha que ya
- * decidió el API (no calcula fechas de negocio); otra forma se devuelve igual.
- */
-export function fechaCorta(date: string | null | undefined): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? '');
-  if (!m) return date ?? '';
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return `${DIAS_CORTOS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES_CORTOS[d.getUTCMonth()]}`;
 }
 
 /** Un recorrido del API → JourneyItem; null si no trae un código J1–J12. */
@@ -754,20 +741,22 @@ export const CAMPOS_PARAMS: Partial<Record<JourneyCode, CampoParam[]>> = {
         { value: 'si', label: 'De Productos › Temporadas (automático)' },
         { value: 'no', label: 'Solo la capturada aquí (a mano)' },
       ],
-      ayuda: 'Automático: cada promoción se anuncia el día que empieza, con su nombre, condiciones y arte.',
+      ayuda:
+        'Automático: cada promoción se anuncia el día que empieza (nunca antes), con su nombre, condiciones y arte.',
     },
     {
       key: 'frecuencia',
       label: 'Con una oferta por día, cada persona recibe',
       tipo: 'opcion',
       ancho: true,
-      defecto: 'alterna',
+      defecto: 'una',
       opciones: [
-        { value: 'alterna', label: 'Un día sí y un día no (recomendado)' },
+        { value: 'una', label: 'Una sola promoción en toda la temporada' },
+        { value: 'alterna', label: 'Un día sí y un día no' },
         { value: 'diaria', label: 'Todos los días' },
       ],
       ayuda:
-        'Un día sí y un día no respeta el tope de 2 promociones en 7 días. Todos los días lo rebasa a propósito y deja a esas personas sin los avisos de cierre del periodo (tope de 4).',
+        'Una sola: cada día sale a una parte distinta de la base y nadie recibe dos. Un día sí y un día no respeta el tope de 2 promociones en 7 días. Todos los días lo rebasa a propósito y deja a esas personas sin los avisos de cierre del periodo (tope de 4).',
     },
     {
       key: 'domingos',
