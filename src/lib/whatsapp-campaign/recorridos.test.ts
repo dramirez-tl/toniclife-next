@@ -7,6 +7,7 @@ import {
   MAX_MONITORES,
   TARIFAS_SUGERIDAS,
   adaptarPreview,
+  adaptarPromo,
   adaptarRecorridos,
   adaptarRunResult,
   adaptarRuns,
@@ -21,6 +22,8 @@ import {
   estadoPlantilla,
   etiquetaCategoria,
   etiquetaMotivo,
+  etiquetaMotivoCorrida,
+  fechaCorta,
   gateRecorrido,
   motivosOrdenados,
   olaDeCorrida,
@@ -35,6 +38,7 @@ import {
   toneCategoriaRecorrido,
   validarAjustes,
   validarSettings,
+  valorOpcion,
 } from './recorridos';
 import type { JourneyItem, JourneysSettings } from '@/types/whatsappJourneys';
 
@@ -407,8 +411,9 @@ describe('ajustes de la tarjeta', () => {
     expect(patchDeAjustes(j3, a)).toEqual({});
     const b = { ...a, dailyCap: '500', sendTime: '11:30', params: { minPts: '2500' }, rampBranchIds: ['b1'] };
     expect(patchDeAjustes(j3, b)).toEqual({ dailyCap: 500, sendTime: '11:30', params: { minPts: 2500 } });
+    // Un campo vaciado viaja como null: el API borra ese parámetro.
     const c = { ...a, params: { minPts: '' }, rampBranchIds: [] };
-    expect(patchDeAjustes(j3, c)).toEqual({ rampBranchIds: [], params: {} });
+    expect(patchDeAjustes(j3, c)).toEqual({ rampBranchIds: [], params: { minPts: null } });
     expect(validarAjustes({ ...a, dailyCap: '0', rampPct: '101', sendTime: '25:00', controlPct: 0.5 })).toHaveLength(4);
   });
 
@@ -548,5 +553,124 @@ describe('privacidad del fixture', () => {
     expect(txt).not.toMatch(/wamid/i);
     expect(txt).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
     expect(txt).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  });
+});
+
+describe('J8: promoción del día (Productos › Temporadas)', () => {
+  const promoRaw = {
+    source: 'temporadas',
+    frequency: 'alterna',
+    sundays: true,
+    today: {
+      date: '2026-11-14',
+      seasonName: 'Buen Fin 2026',
+      title: '3x2 Buen Fin sábado 14',
+      text: 'Sucursales, e-commerce y Call Center. Hasta agotar existencias.',
+      validity: 'solo hoy, sábado 14 de noviembre',
+      imageUrl: 'https://api.example.com/promo-sabado.png',
+      promoCodes: ['BUENFIN2026-3X2BUENFINSABADO'],
+    },
+    next: { date: '2026-11-15', seasonName: 'Buen Fin 2026', title: '3x2 Buen Fin domingo 15', imageUrl: '' },
+  };
+  const j8 = (over: Record<string, unknown> = {}): JourneyItem =>
+    adaptarRecorridos({
+      journeys: [{ code: 'J8', name: 'Promoción del mes', category: 'MARKETING', templateName: 'promo_mes', params: {}, promo: promoRaw, ...over }],
+    }).journeys[0];
+
+  it('adapta el bloque promo y lo deja en null en los demás recorridos o con un API anterior', () => {
+    const item = j8();
+    expect(item.promo).toEqual({
+      source: 'temporadas',
+      frequency: 'alterna',
+      sundays: true,
+      today: promoRaw.today,
+      next: {
+        date: '2026-11-15',
+        seasonName: 'Buen Fin 2026',
+        title: '3x2 Buen Fin domingo 15',
+        text: '',
+        validity: '',
+        imageUrl: null,
+        promoCodes: [],
+      },
+      notice: null,
+    });
+    expect(j8({ promo: { ...promoRaw, notice: 'La hora de envío de hoy ya pasó' } }).promo?.notice).toBe(
+      'La hora de envío de hoy ya pasó',
+    );
+    expect(j8({ promo: undefined }).promo).toBeNull();
+    expect(adaptarRecorridos(overviewRaw()).journeys.every((j) => j.promo === null)).toBe(true);
+    expect(adaptarPromo({ source: 'manual', frequency: 'diaria', sundays: false, today: { title: 'sin fecha' } })).toEqual({
+      source: 'manual',
+      frequency: 'diaria',
+      sundays: false,
+      today: null,
+      next: null,
+      notice: null,
+    });
+    expect(adaptarPromo('x')).toBeNull();
+  });
+
+  it('fechaCorta da formato a la fecha que manda el API', () => {
+    expect(fechaCorta('2026-11-15')).toBe('dom 15 nov');
+    expect(fechaCorta('2026-11-14')).toBe('sáb 14 nov');
+    expect(fechaCorta('2026-12-01')).toBe('mar 1 dic');
+    expect(fechaCorta('mañana')).toBe('mañana');
+    expect(fechaCorta(null)).toBe('');
+  });
+
+  it('los ajustes de J8 arrancan con sus valores por defecto (Temporadas, un día sí y un día no, domingos sí)', () => {
+    expect(camposParams('J8').map((c) => c.key)).toEqual([
+      'temporadas',
+      'frecuencia',
+      'domingos',
+      'date',
+      'title',
+      'validity',
+      'bodyText',
+      'imageUrl',
+    ]);
+    const a = ajustesDe(j8());
+    expect(a.params).toEqual({
+      temporadas: 'si',
+      frecuencia: 'alterna',
+      domingos: 'si',
+      date: '',
+      title: '',
+      validity: '',
+      bodyText: '',
+      imageUrl: '',
+    });
+    // Sin tocar nada no se manda nada (los valores por defecto no se guardan solos).
+    expect(patchDeAjustes(j8(), a)).toEqual({});
+  });
+
+  it('una opción viaja siempre con su valor (también al volver a la de por defecto) y un texto vaciado viaja como null', () => {
+    const item = j8({ params: { frecuencia: 'diaria', domingos: 'no', date: '2026-11-20', bodyText: '2x1' } });
+    const a = ajustesDe(item);
+    expect(a.params).toMatchObject({ frecuencia: 'diaria', domingos: 'no', temporadas: 'si', date: '2026-11-20' });
+    expect(
+      patchDeAjustes(item, { ...a, params: { ...a.params, frecuencia: 'alterna', domingos: 'si', date: '', bodyText: '' } }),
+    ).toEqual({
+      params: { frecuencia: 'alterna', domingos: 'si', date: null, bodyText: null },
+    });
+    expect(patchDeAjustes(j8(), { ...ajustesDe(j8()), params: { ...ajustesDe(j8()).params, frecuencia: 'diaria' } })).toEqual({
+      params: { frecuencia: 'diaria' },
+    });
+  });
+
+  it('valorOpcion entiende true/false guardados por API y cae al valor por defecto con algo raro', () => {
+    const [temporadas, frecuencia] = camposParams('J8');
+    expect(valorOpcion(temporadas, false)).toBe('no');
+    expect(valorOpcion(temporadas, true)).toBe('si');
+    expect(valorOpcion(temporadas, undefined)).toBe('si');
+    expect(valorOpcion(frecuencia, 'semanal')).toBe('alterna');
+    expect(valorOpcion(frecuencia, 'diaria')).toBe('diaria');
+  });
+
+  it('etiquetas de los motivos nuevos', () => {
+    expect(etiquetaMotivo('otro_dia')).toMatch(/otra mitad/);
+    expect(etiquetaMotivoCorrida('sin_promocion')).toMatch(/Productos › Temporadas/);
+    expect(etiquetaMotivoCorrida('plantilla_no_valida')).toMatch(/arte/);
   });
 });

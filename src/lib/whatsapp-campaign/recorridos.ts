@@ -30,6 +30,8 @@ import {
   type JourneyPatchInput,
   type JourneyPreview,
   type JourneyPreviewSample,
+  type JourneyPromoInfo,
+  type JourneyPromoSummary,
   type JourneyRun,
   type JourneyRunCounts,
   type JourneyRunResult,
@@ -142,6 +144,8 @@ export const MOTIVO_CORRIDA_LABELS: Record<string, string> = {
   sin_periodo: 'No hay periodo vigente en la tabla de periodos',
   sin_periodo_anterior: 'No existe el periodo anterior',
   periodo_anterior_abierto: 'El periodo anterior aún no está cerrado',
+  sin_promocion: 'Hoy no empieza ninguna promoción en Productos › Temporadas y no hay una capturada con fecha',
+  plantilla_no_valida: 'La plantilla o el arte de la promoción no son válidos para este envío',
 };
 
 /** Etiqueta del motivo de la corrida; un motivo desconocido se muestra legible; null sin motivo. */
@@ -165,6 +169,7 @@ export const MOTIVO_LABELS: Record<string, string> = {
   sin_lectura_60d: '3 promociones sin leer: 60 días sin promociones',
   utilidad_diaria: 'Ya recibió un aviso hoy',
   control: 'Grupo de control (no recibe)',
+  otro_dia: 'Hoy le toca a la otra mitad (un día sí y un día no)',
   rampa: 'Fuera de la rampa',
   ya_enviado: 'Ya se le había enviado',
   limite: 'Tope de la corrida (diario o por hora)',
@@ -312,6 +317,49 @@ export function adaptarLastRun(raw: unknown): JourneyLastRun | null {
   };
 }
 
+function adaptarPromoResumen(raw: unknown): JourneyPromoSummary | null {
+  if (!isObj(raw)) return null;
+  const date = str(raw.date);
+  const title = str(raw.title);
+  if (!date || !title) return null;
+  return {
+    date,
+    seasonName: str(raw.seasonName) ?? '',
+    title,
+    text: str(raw.text) ?? '',
+    validity: str(raw.validity) ?? '',
+    imageUrl: str(raw.imageUrl) || null,
+    promoCodes: strList(raw.promoCodes),
+  };
+}
+
+/** Bloque `promo` de J8 (qué anuncia hoy y después); null en los demás recorridos o con un API anterior. */
+export function adaptarPromo(raw: unknown): JourneyPromoInfo | null {
+  if (!isObj(raw)) return null;
+  return {
+    source: raw.source === 'manual' ? 'manual' : 'temporadas',
+    frequency: raw.frequency === 'diaria' ? 'diaria' : 'alterna',
+    sundays: bool(raw.sundays, true),
+    today: adaptarPromoResumen(raw.today),
+    next: adaptarPromoResumen(raw.next),
+    notice: str(raw.notice) || null,
+  };
+}
+
+const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/**
+ * 'sáb 14 nov' a partir de 'YYYY-MM-DD'. Solo da formato a una fecha que ya
+ * decidió el API (no calcula fechas de negocio); otra forma se devuelve igual.
+ */
+export function fechaCorta(date: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? '');
+  if (!m) return date ?? '';
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return `${DIAS_CORTOS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES_CORTOS[d.getUTCMonth()]}`;
+}
+
 /** Un recorrido del API → JourneyItem; null si no trae un código J1–J12. */
 export function adaptarJourneyItem(raw: unknown): JourneyItem | null {
   if (!isObj(raw)) return null;
@@ -339,6 +387,7 @@ export function adaptarJourneyItem(raw: unknown): JourneyItem | null {
     params: obj(raw.params),
     campaignKey: str(raw.campaignKey),
     blockReason: str(raw.blockReason) || null,
+    promo: adaptarPromo(raw.promo),
   };
 }
 
@@ -681,16 +730,65 @@ export const DAILY_CAP_MAX = 100_000;
 export interface CampoParam {
   key: string;
   label: string;
-  tipo: 'texto' | 'numero' | 'fecha' | 'url';
+  tipo: 'texto' | 'numero' | 'fecha' | 'url' | 'opcion';
   ayuda?: string;
+  /** Solo 'opcion': valores posibles (se guardan como texto en params). */
+  opciones?: { value: string; label: string }[];
+  /** Solo 'opcion': el que aplica cuando el parámetro no está guardado. */
+  defecto?: string;
+  /** Ocupa todo el ancho de la cuadrícula de ajustes. */
+  ancho?: boolean;
 }
 
 export const CAMPOS_PARAMS: Partial<Record<JourneyCode, CampoParam[]>> = {
   J3: [{ key: 'minPts', label: 'Puntos mínimos para avisar', tipo: 'numero', ayuda: 'Default 2,000.' }],
   J8: [
-    { key: 'date', label: 'Fecha del envío (YYYY-MM-DD)', tipo: 'fecha', ayuda: 'La fija Marketing.' },
-    { key: 'bodyText', label: 'Texto de la promoción', tipo: 'texto' },
-    { key: 'imageUrl', label: 'Imagen (URL)', tipo: 'url' },
+    {
+      key: 'temporadas',
+      label: 'De dónde sale la promoción',
+      tipo: 'opcion',
+      ancho: true,
+      defecto: 'si',
+      opciones: [
+        { value: 'si', label: 'De Productos › Temporadas (automático)' },
+        { value: 'no', label: 'Solo la capturada aquí (a mano)' },
+      ],
+      ayuda: 'Automático: cada promoción se anuncia el día que empieza, con su nombre, condiciones y arte.',
+    },
+    {
+      key: 'frecuencia',
+      label: 'Con una oferta por día, cada persona recibe',
+      tipo: 'opcion',
+      ancho: true,
+      defecto: 'alterna',
+      opciones: [
+        { value: 'alterna', label: 'Un día sí y un día no (recomendado)' },
+        { value: 'diaria', label: 'Todos los días' },
+      ],
+      ayuda:
+        'Un día sí y un día no respeta el tope de 2 promociones en 7 días. Todos los días lo rebasa a propósito y deja a esas personas sin los avisos de cierre del periodo (tope de 4).',
+    },
+    {
+      key: 'domingos',
+      label: 'Enviar en domingo',
+      tipo: 'opcion',
+      ancho: true,
+      defecto: 'si',
+      opciones: [
+        { value: 'si', label: 'Sí, si la promoción empieza en domingo' },
+        { value: 'no', label: 'No' },
+      ],
+    },
+    {
+      key: 'date',
+      label: 'A mano: fecha del envío',
+      tipo: 'fecha',
+      ayuda: 'Para una promoción que no está en Temporadas.',
+    },
+    { key: 'title', label: 'A mano: título', tipo: 'texto', ayuda: 'Vacío: "Promoción de <mes>".' },
+    { key: 'validity', label: 'A mano: vigencia', tipo: 'texto', ayuda: 'Vacío: "hasta el <cierre del periodo>".' },
+    { key: 'bodyText', label: 'A mano: texto de la promoción (un renglón)', tipo: 'texto', ancho: true },
+    { key: 'imageUrl', label: 'A mano: imagen (URL pública en JPG o PNG)', tipo: 'url', ancho: true },
   ],
   J9: [
     {
@@ -724,11 +822,29 @@ export interface AjustesRecorrido {
   templateName: string;
 }
 
+/**
+ * Valor guardado de un campo de opciones (acepta true/false de capturas
+ * hechas por API) o, si no hay uno válido, el que aplica por defecto.
+ */
+export function valorOpcion(c: CampoParam, v: unknown): string {
+  const raw = v === true ? 'si' : v === false ? 'no' : typeof v === 'string' ? v : '';
+  return (c.opciones ?? []).some((o) => o.value === raw) ? raw : (c.defecto ?? '');
+}
+
 export function ajustesDe(item: JourneyItem): AjustesRecorrido {
   const params: Record<string, string> = {};
   for (const c of camposParams(item.code)) {
     const v = item.params[c.key];
-    params[c.key] = v == null ? '' : typeof v === 'string' ? v : isNum(v) ? String(v) : JSON.stringify(v);
+    params[c.key] =
+      c.tipo === 'opcion'
+        ? valorOpcion(c, v)
+        : v == null
+          ? ''
+          : typeof v === 'string'
+            ? v
+            : isNum(v)
+              ? String(v)
+              : JSON.stringify(v);
   }
   return {
     controlPct: item.controlPct,
@@ -767,8 +883,10 @@ const mismaLista = (a: readonly string[], b: readonly string[]): boolean =>
 /**
  * Solo las llaves que cambiaron respecto al recorrido guardado (PATCH
  * parcial). `params` se manda completo (los campos conocidos encima de los
- * que ya tenía) solo si alguno cambió. `templateName` va solo si se capturó
- * un nombre distinto del configurado (la tarjeta lo confirma aparte).
+ * que ya tenía) solo si alguno cambió; un campo vaciado viaja como null (el
+ * API borra el parámetro) y una opción viaja siempre con su valor.
+ * `templateName` va solo si se capturó un nombre distinto del configurado
+ * (la tarjeta lo confirma aparte).
  */
 export function patchDeAjustes(item: JourneyItem, a: AjustesRecorrido): JourneyPatchInput {
   const out: JourneyPatchInput = {};
@@ -785,12 +903,18 @@ export function patchDeAjustes(item: JourneyItem, a: AjustesRecorrido): JourneyP
   let paramsCambiaron = false;
   for (const c of camposParams(item.code)) {
     const texto = (a.params[c.key] ?? '').trim();
-    const nuevo: unknown = texto === '' ? undefined : c.tipo === 'numero' ? Number(texto) : texto;
     const viejo = item.params[c.key];
+    if (c.tipo === 'opcion') {
+      if (texto !== '' && texto !== valorOpcion(c, viejo)) {
+        paramsCambiaron = true;
+        params[c.key] = texto;
+      }
+      continue;
+    }
+    const nuevo: unknown = texto === '' ? undefined : c.tipo === 'numero' ? Number(texto) : texto;
     if (nuevo === undefined ? viejo != null : nuevo !== viejo) {
       paramsCambiaron = true;
-      if (nuevo === undefined) delete params[c.key];
-      else params[c.key] = nuevo;
+      params[c.key] = nuevo === undefined ? null : nuevo;
     }
   }
   if (paramsCambiaron) out.params = params;

@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { ArtZoom } from '@/components/admin/seasonal-promotions/ArtZoom';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useRunJourney, useUpdateJourney } from '@/hooks/useWhatsAppJourneys';
 import { apiErrorMessage, type ApiErrorMessages } from '@/lib/api-error';
@@ -56,6 +57,7 @@ import {
   estadoPlantilla,
   etiquetaCategoria,
   etiquetaEstadoCorrida,
+  fechaCorta,
   gateRecorrido,
   motivosOrdenados,
   olaDeCorrida,
@@ -68,7 +70,12 @@ import {
   type AjustesRecorrido,
 } from '@/lib/whatsapp-campaign/recorridos';
 import type { ChannelTemplate } from '@/types/whatsappChannel';
-import type { JourneyItem, JourneyPatchInput } from '@/types/whatsappJourneys';
+import type {
+  JourneyItem,
+  JourneyPatchInput,
+  JourneyPromoInfo,
+  JourneyPromoSummary,
+} from '@/types/whatsappJourneys';
 import { JourneyPreviewDialog } from './JourneyPreviewDialog';
 import { JourneySendsDialog } from './JourneySendsDialog';
 import { OlaCard } from './WavesPanel';
@@ -85,6 +92,75 @@ function Dato({ label, children }: { label: string; children: React.ReactNode })
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-right font-medium">{children}</dd>
     </>
+  );
+}
+
+/** Una promoción de temporada tal como viajará en el WhatsApp: arte, título, condiciones y vigencia. */
+function PromoResumen({ etiqueta, p }: { etiqueta: string; p: JourneyPromoSummary }) {
+  return (
+    <div className="flex gap-3">
+      {p.imageUrl ? (
+        <ArtZoom
+          thumbSrc={p.imageUrl}
+          fullSrc={p.imageUrl}
+          title={p.title}
+          caption="Arte que va en el encabezado del WhatsApp"
+          className="h-16 w-16 rounded-md border"
+        />
+      ) : (
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-dashed text-center text-[10px] leading-tight text-muted-foreground">
+          Sin arte
+        </div>
+      )}
+      <div className="min-w-0 text-xs">
+        <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-muted-foreground">{etiqueta}</p>
+        <p className="text-sm font-medium leading-snug text-pretty">{p.title}</p>
+        {p.text && <p className="line-clamp-3 text-muted-foreground">{p.text}</p>}
+        {p.validity && <p className="text-muted-foreground">Vigencia: {p.validity}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** J8: qué promoción de Productos › Temporadas sale hoy y cuál sigue. */
+function PromoDelDia({ promo }: { promo: JourneyPromoInfo }) {
+  if (promo.source === 'manual') {
+    return (
+      <p className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+        La lectura de Productos › Temporadas está apagada: solo sale la promoción capturada en Ajustes (fecha,
+        texto e imagen).
+      </p>
+    );
+  }
+  const sinArte = [promo.today, promo.next].some((p) => p && !p.imageUrl);
+  return (
+    <div className="grid gap-2 rounded-md border bg-muted/30 p-2">
+      {promo.today ? (
+        <PromoResumen etiqueta={`Hoy · ${promo.today.seasonName}`} p={promo.today} />
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Hoy no empieza ninguna promoción en Productos › Temporadas: no sale ningún mensaje.
+        </p>
+      )}
+      {promo.next && <PromoResumen etiqueta={`Sigue · ${fechaCorta(promo.next.date)}`} p={promo.next} />}
+      <p className="text-[11px] text-muted-foreground">
+        {promo.frequency === 'diaria'
+          ? 'Con una oferta por día, cada persona recibe el mensaje todos los días.'
+          : 'Con una oferta por día, cada persona lo recibe un día sí y un día no (máximo 2 promociones en 7 días).'}{' '}
+        {promo.sundays ? 'Si la promoción empieza en domingo, sale ese domingo.' : 'En domingo no se envía.'}
+      </p>
+      {sinArte && (
+        <p className="rounded-md border border-amber-200 bg-amber-50/60 p-2 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          Hay una promoción sin arte en JPG o PNG: si la plantilla lleva imagen, ese día no saldrá. Súbelo en
+          Productos › Temporadas.
+        </p>
+      )}
+      {promo.notice && (
+        <p className="rounded-md border border-amber-200 bg-amber-50/60 p-2 text-[11px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+          {promo.notice}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -339,6 +415,8 @@ export function JourneyCard({
         </Dato>
       </dl>
 
+      {item.promo && <PromoDelDia promo={item.promo} />}
+
       <div className="grid gap-1 text-xs">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-muted-foreground">Última corrida:</span>
@@ -412,7 +490,7 @@ export function JourneyCard({
 
       {editing && draft && (
         <div className="grid gap-3 rounded-md border bg-muted/30 p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
             <div className="grid gap-1">
               <Label className="text-xs text-muted-foreground">Grupo de control</Label>
               <Select
@@ -491,16 +569,37 @@ export function JourneyCard({
             </p>
           </div>
           {campos.length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
               {campos.map((c) => (
-                <div key={c.key} className="grid gap-1">
+                <div key={c.key} className={cn('grid content-start gap-1', c.ancho && 'sm:col-span-2')}>
                   <Label className="text-xs text-muted-foreground">{c.label}</Label>
-                  <Input
-                    type={c.tipo === 'numero' ? 'number' : c.tipo === 'fecha' ? 'date' : c.tipo === 'url' ? 'url' : 'text'}
-                    value={draft.params[c.key] ?? ''}
-                    onChange={(e) => setDraft({ ...draft, params: { ...draft.params, [c.key]: e.target.value } })}
-                    disabled={busy}
-                  />
+                  {c.tipo === 'opcion' ? (
+                    <Select
+                      value={draft.params[c.key] ?? c.defecto ?? ''}
+                      onValueChange={(v) => setDraft({ ...draft, params: { ...draft.params, [c.key]: v } })}
+                      disabled={busy}
+                    >
+                      <SelectTrigger className="w-full" aria-label={c.label}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(c.opciones ?? []).map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      type={
+                        c.tipo === 'numero' ? 'number' : c.tipo === 'fecha' ? 'date' : c.tipo === 'url' ? 'url' : 'text'
+                      }
+                      value={draft.params[c.key] ?? ''}
+                      onChange={(e) => setDraft({ ...draft, params: { ...draft.params, [c.key]: e.target.value } })}
+                      disabled={busy}
+                    />
+                  )}
                   {c.ayuda && <p className="text-[11px] text-muted-foreground">{c.ayuda}</p>}
                 </div>
               ))}

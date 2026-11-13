@@ -99,6 +99,40 @@ export interface JourneyItem {
   campaignKey: string | null;
   /** Por qué no se puede encender (null = se puede). */
   blockReason: string | null;
+  /**
+   * Solo J8: de dónde sale el mensaje, con qué frecuencia y qué promoción de
+   * Productos › Temporadas toca hoy y después. null en los demás recorridos
+   * (o con un API anterior).
+   */
+  promo: JourneyPromoInfo | null;
+}
+
+/** Promoción de temporada que J8 anuncia el día que empieza (resumen para el admin). */
+export interface JourneyPromoSummary {
+  /** 'YYYY-MM-DD' (fecha local en que empieza). */
+  date: string;
+  seasonName: string;
+  title: string;
+  /** Condiciones en un renglón (lo que viaja en el mensaje). */
+  text: string;
+  /** 'solo hoy, sábado 14 de noviembre' / 'hasta el …'. */
+  validity: string;
+  /** Arte que va en el encabezado (JPG o PNG); null = sin arte usable. */
+  imageUrl: string | null;
+  promoCodes: string[];
+}
+
+export interface JourneyPromoInfo {
+  /** 'temporadas' = automático desde Productos › Temporadas; 'manual' = solo lo capturado en Ajustes. */
+  source: 'temporadas' | 'manual';
+  /** 'alterna' = cada persona un día sí y un día no; 'diaria' = todos los días. */
+  frequency: 'alterna' | 'diaria';
+  /** La promoción que empieza en domingo sale ese domingo. */
+  sundays: boolean;
+  today: JourneyPromoSummary | null;
+  next: JourneyPromoSummary | null;
+  /** Aviso del API antes de encender (p. ej. "la hora de hoy ya pasó: sale en unos minutos"). */
+  notice: string | null;
 }
 
 export interface JourneysPeriod {
