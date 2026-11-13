@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RankMedal } from '@/components/distributor/RankMedal';
+import { SeasonHomeCards } from '@/components/distributor/SeasonHomeCard';
 import { RANK_LABELS } from '@/constants/ranks';
 import type { RankType } from '@/types/network';
 import { useDistributorPaymentData } from '@/hooks/useDistributorPayment';
@@ -1045,8 +1046,12 @@ export default function DistribuidorDashboard() {
             </Link>
           </div>
 
-          {/* Columna lateral (sin sticky): acciones → avisos → comparte */}
+          {/* Columna lateral (sin sticky): temporada vigente → acciones → avisos → comparte */}
           <div className="min-w-0 space-y-5">
+            {/* ══════════════ Temporada vigente (Buen Fin…): arte, descripción y enlace a la tienda.
+                Solo aparece mientras corre una temporada en el país de la cuenta. ══════════════ */}
+            <SeasonHomeCards />
+
             {/* ══════════════ Acciones rápidas ══════════════ */}
             <Card>
               <CardHeader className="pb-2">

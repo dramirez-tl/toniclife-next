@@ -1262,6 +1262,14 @@
         "title": "Compra a precio de distribuidor",
         "body": "Pide del almacén a tu precio. Envío a domicilio o recoge en sucursal."
       },
+      "season": {
+        "aria": "Ver {name} en la tienda",
+        "badge": "Promociones de temporada",
+        "today": "Hoy",
+        "storeOnly": "Solo en sucursales y Call Center",
+        "more": "{count, plural, =1 {y 1 promoción más} other {y # promociones más}}",
+        "cta": "Ir a la tienda"
+      },
       "actions": {
         "title": "¿Qué quieres hacer?",
         "shareCart": "Compartir carrito",

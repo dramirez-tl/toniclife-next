@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_ART_RATIO,
   EMPTY_PROMOTION_FORM,
   EMPTY_SEASON_FORM,
+  artAspectRatio,
   formFromPromotion,
   formFromSeason,
   formatLocalStamp,
@@ -9,6 +11,7 @@ import {
   normalizeInputStamp,
   nowCdmxStamp,
   promotionSummary,
+  seasonHighlights,
   toInputStamp,
   toPromotionPayload,
   toSeasonPayload,
@@ -248,5 +251,58 @@ describe('tienda: ¿la promoción vale comprando en línea?', () => {
     expect(isOnlinePromotion({ channels: [] })).toBe(true);
     expect(isOnlinePromotion({ channels: null })).toBe(true);
     expect(isOnlinePromotion({})).toBe(true);
+  });
+});
+
+describe('inicio del distribuidor: tarjeta de la temporada vigente', () => {
+  const promo = (id: string, name: string, channels: SeasonPromotion['channels'], typeLabel = '3x2'): SeasonPromotion => ({
+    ...PROMO,
+    id,
+    name,
+    channels,
+    typeLabel,
+  });
+
+  it('lista primero lo que se compra en la tienda y marca lo que solo vale en sucursal', () => {
+    const season = {
+      promotions: [
+        promo('kit', 'Kit Tonic Center Premium a $2,000', ['pos'], 'Precio especial'),
+        promo('3x2', '3x2 Buen Fin sábado 14', ['pos', 'online']),
+        promo('6x5', 'Compra 5 y llévate 1 gratis', ['pos'], '6x5'),
+      ],
+    };
+    expect(seasonHighlights(season)).toEqual({
+      items: [
+        { id: '3x2', typeLabel: '3x2', name: '3x2 Buen Fin sábado 14', storeOnly: false },
+        { id: 'kit', typeLabel: 'Precio especial', name: 'Kit Tonic Center Premium a $2,000', storeOnly: true },
+        { id: '6x5', typeLabel: '6x5', name: 'Compra 5 y llévate 1 gratis', storeOnly: true },
+      ],
+      more: 0,
+    });
+  });
+
+  it('muestra hasta el tope y dice cuántas más hay', () => {
+    const season = {
+      promotions: ['a', 'b', 'c', 'd', 'e'].map((id) => promo(id, `Promo ${id}`, ['online'])),
+    };
+    const { items, more } = seasonHighlights(season, 3);
+    expect(items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+    expect(more).toBe(2);
+    expect(seasonHighlights(season, 0)).toEqual({ items: [], more: 5 });
+  });
+
+  it('sin promociones (o sin el dato) queda vacío', () => {
+    expect(seasonHighlights({ promotions: [] })).toEqual({ items: [], more: 0 });
+    expect(seasonHighlights({})).toEqual({ items: [], more: 0 });
+  });
+
+  it('el arte se pinta con su propia proporción, acotada', () => {
+    expect(artAspectRatio(1800, 1200)).toBe(1.5); // el formato pedido a Marketing
+    expect(artAspectRatio(1080, 1080)).toBe(1); // publicación cuadrada
+    expect(artAspectRatio(1080, 1920)).toBe(0.75); // historia vertical: se acota
+    expect(artAspectRatio(3000, 600)).toBe(2); // tira muy ancha: se acota
+    for (const [w, h] of [[0, 100], [100, 0], [Number.NaN, 100], [-5, 10]]) {
+      expect(artAspectRatio(w, h)).toBe(DEFAULT_ART_RATIO);
+    }
   });
 });

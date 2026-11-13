@@ -540,3 +540,50 @@ export function promotionSummary(p: Pick<SeasonPromotion, 'typeLabel' | 'product
 export function formatMoney(n: number, currency = 'MXN'): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n);
 }
+
+// ── Inicio del panel del distribuidor: tarjeta de la temporada vigente ──────────────────────
+
+/** Lo que la tarjeta dice de una promoción que corre hoy. */
+export interface SeasonHighlight {
+  id: string;
+  typeLabel: string;
+  name: string;
+  /** true = solo vale en punto de venta (sucursales y Call Center), no en la tienda en línea. */
+  storeOnly: boolean;
+}
+
+/**
+ * Promociones que la tarjeta de temporada lista bajo "Hoy" (las que el API manda son las que
+ * corren ahora): primero las que se pueden comprar en la tienda, que es a donde lleva la
+ * tarjeta, y después las que solo valen en sucursal. Hasta `max`; `more` = cuántas no caben.
+ */
+export function seasonHighlights(
+  season: Pick<PromoSeason, 'promotions'>,
+  max = 3,
+): { items: SeasonHighlight[]; more: number } {
+  const all = (season.promotions ?? []).map<SeasonHighlight>((p) => ({
+    id: p.id,
+    typeLabel: p.typeLabel,
+    name: p.name,
+    storeOnly: !isOnlinePromotion(p),
+  }));
+  // sort estable: conserva el orden del API dentro de cada grupo.
+  const ordered = [...all].sort((a, b) => Number(a.storeOnly) - Number(b.storeOnly));
+  const limit = Math.max(0, Math.floor(max));
+  return { items: ordered.slice(0, limit), more: Math.max(0, ordered.length - limit) };
+}
+
+/** Proporción con la que se reserva el espacio del arte antes de que cargue (3:2, el formato pedido a Marketing). */
+export const DEFAULT_ART_RATIO = 3 / 2;
+const MIN_ART_RATIO = 3 / 4;
+const MAX_ART_RATIO = 2;
+
+/**
+ * Proporción (ancho / alto) con la que se pinta el arte de la temporada para que se vea COMPLETO,
+ * sin recortar: la de la imagen misma, acotada para que un archivo muy alto o muy ancho no
+ * deforme la tarjeta. Medidas inválidas ⇒ la proporción por omisión.
+ */
+export function artAspectRatio(width: number, height: number): number {
+  if (!(width > 0) || !(height > 0) || !Number.isFinite(width / height)) return DEFAULT_ART_RATIO;
+  return Math.min(MAX_ART_RATIO, Math.max(MIN_ART_RATIO, width / height));
+}

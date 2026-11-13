@@ -1262,6 +1262,14 @@
         "title": "Buy at distributor price",
         "body": "Order from the warehouse at your price. Home delivery or pick up at a branch."
       },
+      "season": {
+        "aria": "See {name} in the store",
+        "badge": "Seasonal promotions",
+        "today": "Today",
+        "storeOnly": "In stores and Call Center only",
+        "more": "{count, plural, =1 {and 1 more promotion} other {and # more promotions}}",
+        "cta": "Go to the store"
+      },
       "actions": {
         "title": "What would you like to do?",
         "shareCart": "Share cart",
