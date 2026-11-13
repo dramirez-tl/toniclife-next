@@ -1,5 +1,5 @@
 // Estado del catálogo en la URL (contrato, decisión 11). Claves estables en ambos
-// idiomas: q, categoria, tipo, min, max, agotados, orden, pagina.
+// idiomas: q, categoria, tipo, para, min, max, agotados, temporada, orden, pagina.
 // Funciones puras: parsean lo que llegue (nunca lanzan) y serializan omitiendo
 // los valores por defecto para que la URL canónica sea corta.
 
@@ -22,6 +22,11 @@ export interface CatalogState {
   max: number | null;
   /** true = incluir agotados (availability=all). */
   agotados: boolean;
+  /**
+   * true = solo los productos que HOY están en una promoción de temporada (API
+   * `seasonal=1`, mig 186). La lista cambia sola con la hora de cada promoción.
+   */
+  temporada: boolean;
   orden: CatalogSort;
   pagina: number;
 }
@@ -34,6 +39,7 @@ export const DEFAULT_CATALOG_STATE: CatalogState = {
   min: null,
   max: null,
   agotados: false,
+  temporada: false,
   orden: 'featured',
   pagina: 1,
 };
@@ -76,6 +82,7 @@ export function parseCatalogParams(params: RawSearchParams): CatalogState {
   const ordenRaw = read(params, 'orden').toLowerCase();
   const paginaRaw = Number.parseInt(read(params, 'pagina'), 10);
   const agotadosRaw = read(params, 'agotados').toLowerCase();
+  const temporadaRaw = read(params, 'temporada').toLowerCase();
 
   let min = parsePrice(read(params, 'min'));
   let max = parsePrice(read(params, 'max'));
@@ -90,6 +97,7 @@ export function parseCatalogParams(params: RawSearchParams): CatalogState {
     min,
     max,
     agotados: agotadosRaw === '1' || agotadosRaw === 'true',
+    temporada: temporadaRaw === '1' || temporadaRaw === 'true',
     orden: (CATALOG_SORTS as readonly string[]).includes(ordenRaw)
       ? (ordenRaw as CatalogSort)
       : 'featured',
@@ -108,6 +116,7 @@ export function serializeCatalogParams(state: Partial<CatalogState>): string {
   if (s.min !== null) out.set('min', String(s.min));
   if (s.max !== null) out.set('max', String(s.max));
   if (s.agotados) out.set('agotados', '1');
+  if (s.temporada) out.set('temporada', '1');
   if (s.orden !== 'featured') out.set('orden', s.orden);
   if (s.pagina > 1) out.set('pagina', String(s.pagina));
   return out.toString();
@@ -121,7 +130,7 @@ export function catalogHref(state: Partial<CatalogState> = {}): string {
 
 /**
  * Indexable solo sin filtros, o con `categoria` y/o `pagina`. Cualquier otra
- * combinación (q, tipo, min, max, agotados u orden distinto) => noindex,follow.
+ * combinación (q, tipo, min, max, agotados, temporada u orden distinto) => noindex,follow.
  */
 export function isIndexable(state: CatalogState): boolean {
   return (
@@ -131,6 +140,7 @@ export function isIndexable(state: CatalogState): boolean {
     state.min === null &&
     state.max === null &&
     !state.agotados &&
+    !state.temporada &&
     state.orden === 'featured'
   );
 }
@@ -148,7 +158,8 @@ export function activeFilterCount(state: CatalogState): number {
     (state.tipo ? 1 : 0) +
     (state.para ? 1 : 0) +
     (state.min !== null || state.max !== null ? 1 : 0) +
-    (state.agotados ? 1 : 0)
+    (state.agotados ? 1 : 0) +
+    (state.temporada ? 1 : 0)
   );
 }
 
@@ -175,6 +186,8 @@ export function toStorefrontQuery(
   if (state.para) query.gender = state.para;
   if (state.min !== null) query.minPrice = String(state.min);
   if (state.max !== null) query.maxPrice = String(state.max);
+  // Solo viaja cuando el filtro está puesto (el API rechaza parámetros que no conoce).
+  if (state.temporada) query.seasonal = '1';
   return query;
 }
 

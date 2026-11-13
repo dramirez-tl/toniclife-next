@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useStorefrontRelated } from '@/hooks/useStorefront';
 import type { LanguageCode } from '@/i18n/config';
 import type { StorefrontContext } from '@/types/storefront';
@@ -45,6 +46,8 @@ export function RelatedProducts({ ctx, slug, currencyCode, lang, showPoints }: R
 
   const { data, isLoading, isError } = useStorefrontRelated(ctx, slug, near);
   const products = data ?? [];
+  // Insignia de los que hoy están en una promoción de temporada (mismo paquete que el aviso).
+  const { badges } = useSeasonalProductBadges(ctx.country);
 
   if (near && !isLoading && (isError || products.length === 0)) return null;
 
@@ -76,6 +79,7 @@ export function RelatedProducts({ ctx, slug, currencyCode, lang, showPoints }: R
                       headingLevel="h3"
                       listName="related"
                       sizes={RELATED_SIZES}
+                      seasonal={badges.get(product.id) ?? null}
                     />
                   </li>
                 ))}

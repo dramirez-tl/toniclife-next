@@ -4,10 +4,15 @@
 // estirado SOLO sobre imagen + título + precio; el botón "Agregar" es HERMANO del
 // enlace (nunca un <button> dentro de un <a>). Con varias tallas o colores el botón no
 // agrega: lleva al producto a elegir (lib/storefront/product-card).
+//
+// `seasonal`: el producto está HOY en una promoción de temporada (Buen Fin…). Lleva la insignia
+// con la mecánica ("3x2") y, debajo del nombre, cuál es. Si la promoción solo vale en punto de
+// venta, la insignia cambia de color y el texto dice "Solo en sucursales y Call Center": el
+// carrito en línea no la aplica.
 
 import { useTranslations } from 'next-intl';
 import { track } from '@vercel/analytics';
-import { CheckIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, CheckIcon, ShoppingCartIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,6 +20,7 @@ import { formatProductName } from '@/lib/storefront/content-format';
 import { cardAction, cardBadges, cardFamily, type CardBadge } from '@/lib/storefront/product-card';
 import { productPath } from '@/lib/storefront/slug';
 import type { LanguageCode } from '@/i18n/config';
+import type { SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type { StorefrontProductCard } from '@/types/storefront';
 import { PriceBlock } from './PriceBlock';
 import { ProductImage } from './ProductImage';
@@ -43,6 +49,8 @@ interface ProductCardProps {
   listName: string;
   sizes?: string;
   className?: string;
+  /** Promoción de temporada en la que está hoy el producto (null/ausente = ninguna). */
+  seasonal?: SeasonalProductBadge | null;
 }
 
 export function ProductCard({
@@ -55,13 +63,15 @@ export function ProductCard({
   listName,
   sizes = CARD_IMAGE_SIZES,
   className,
+  seasonal = null,
 }: ProductCardProps) {
   const t = useTranslations('storefront.catalog.card');
   const { add, isPending, justAdded, announcement } = useAddToCart();
   const Heading = headingLevel;
   const name = formatProductName(product.name);
   const soldOut = product.availability === 'out_of_stock';
-  const badges = cardBadges(product);
+  // Con insignia de temporada queda lugar para UNA más (la de mayor prioridad: Agotado, Últimas…).
+  const badges = seasonal ? cardBadges(product).slice(0, 1) : cardBadges(product);
   // Tarjeta de familia (mig 178): habla por todas las variantes que pasan los filtros.
   const family = cardFamily(product);
   // Con tallas o colores que elegir, el botón lleva al producto (no agrega la primera talla).
@@ -88,8 +98,25 @@ export function ProductCard({
               soldOut && 'opacity-60',
             )}
           />
-          {badges.length > 0 && (
+          {(badges.length > 0 || seasonal) && (
             <ul className="absolute left-2 top-2 flex flex-col items-start gap-1" aria-label={t('badgesLabel')}>
+              {seasonal && (
+                <li
+                  data-testid="card-seasonal-badge"
+                  title={seasonal.name}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold leading-5 shadow-sm',
+                    seasonal.storeOnly ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'bg-rose-600 text-white',
+                  )}
+                >
+                  {seasonal.storeOnly ? (
+                    <BuildingStorefrontIcon aria-hidden="true" className="size-3.5" />
+                  ) : (
+                    <SparklesIcon aria-hidden="true" className="size-3.5" />
+                  )}
+                  {seasonal.label}
+                </li>
+              )}
               {badges.map((badge) => (
                 <li
                   key={badge}
@@ -117,6 +144,26 @@ export function ProductCard({
               {name}
             </Link>
           </Heading>
+          {seasonal && (
+            <p
+              data-testid="card-seasonal-note"
+              className={cn(
+                'text-xs font-semibold leading-snug',
+                seasonal.storeOnly ? 'text-amber-800' : 'text-rose-700',
+              )}
+            >
+              <span className="sr-only">{t('seasonal.label')}: </span>
+              {seasonal.storeOnly ? (
+                // La insignia ya dice la mecánica (6x5); aquí, lo que importa en la tienda: no vale en línea.
+                <>
+                  <span className="sr-only">{seasonal.name}. </span>
+                  {t('seasonal.storeOnly')}
+                </>
+              ) : (
+                <span className="line-clamp-2">{seasonal.name}</span>
+              )}
+            </p>
+          )}
           {family && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
               {family.genders.length > 0 && <span>{family.genders.map((g) => t(`gender.${g}`)).join(' · ')}</span>}

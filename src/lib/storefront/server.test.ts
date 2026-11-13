@@ -183,3 +183,16 @@ describe('memoria corta de fallos del detalle (L-3)', () => {
     expect(throttled).toHaveBeenCalledTimes(4);
   });
 });
+
+describe('filtro de temporada: la lista nunca se pide en el servidor', () => {
+  it('con temporada puesta no se toca el API (lo que está hoy en promoción depende de la hora y de quién pregunta)', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(shouldFetchListOnServer({ q: '', temporada: true })).toBe(false);
+    expect(shouldFetchListOnServer({ q: '', temporada: false })).toBe(true);
+    expect(shouldFetchListOnServer({ q: 'colageno', temporada: true })).toBe(false);
+    const result = await fetchStorefrontList('MX', 'es', { ...DEFAULT_CATALOG_STATE, temporada: true });
+    expect(result).toEqual({ ok: false, status: null });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

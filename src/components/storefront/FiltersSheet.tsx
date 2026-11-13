@@ -30,6 +30,8 @@ interface FiltersSheetProps {
   isFetching: boolean;
   onChange: (patch: Partial<CatalogState>) => void;
   onClear: () => void;
+  /** Nombre de la temporada en curso, para el filtro de temporada. */
+  seasonName?: string | null;
 }
 
 export function FiltersSheet({
@@ -43,6 +45,7 @@ export function FiltersSheet({
   isFetching,
   onChange,
   onClear,
+  seasonName = null,
 }: FiltersSheetProps) {
   const t = useTranslations('storefront.catalog.filters');
 
@@ -60,7 +63,13 @@ export function FiltersSheet({
           <SheetDescription className="sr-only">{t('description')}</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 py-5">
-          <CatalogFilters state={state} facets={facets} currencyCode={currencyCode} onChange={onChange} />
+          <CatalogFilters
+            state={state}
+            facets={facets}
+            currencyCode={currencyCode}
+            onChange={onChange}
+            seasonName={seasonName}
+          />
         </div>
         <SheetFooter
           className="flex-row gap-3 border-t border-gray-200 bg-white px-4 pt-3"

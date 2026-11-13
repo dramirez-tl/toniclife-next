@@ -587,3 +587,62 @@ export function artAspectRatio(width: number, height: number): number {
   if (!(width > 0) || !(height > 0) || !Number.isFinite(width / height)) return DEFAULT_ART_RATIO;
   return Math.min(MAX_ART_RATIO, Math.max(MIN_ART_RATIO, width / height));
 }
+
+// ── Catálogo de la tienda: insignia y filtro de los productos en promoción ────────────────────
+
+/** Lo que la tarjeta de un producto dice de la promoción de temporada en la que está hoy. */
+export interface SeasonalProductBadge {
+  promotionId: string;
+  /** "3x2", "6x5", "Precio especial"… (texto del API). */
+  label: string;
+  /** Nombre de la promoción ("3x2 Buen Fin sábado 14"). */
+  name: string;
+  seasonName: string;
+  /** true = solo vale en punto de venta: la tienda la anuncia, el carrito en línea no la aplica. */
+  storeOnly: boolean;
+}
+
+/**
+ * Insignia de cada producto que HOY está en una promoción de temporada (las temporadas que
+ * manda el API son las que corren ahora; cada promoción trae sus productos). Solo cuentan los
+ * productos que se COMPRAN para entrar (rol "elegible"): el regalo de una promoción no lleva
+ * insignia. Si un producto está en varias, gana la que se puede comprar en la tienda y, entre
+ * iguales, la primera (el API las manda en el orden en que el motor las aplica).
+ */
+export function seasonalProductBadges(
+  seasons: readonly Pick<PromoSeason, 'name' | 'promotions'>[] | null | undefined,
+): Map<string, SeasonalProductBadge> {
+  const badges = new Map<string, SeasonalProductBadge>();
+  for (const season of seasons ?? []) {
+    for (const promotion of season.promotions ?? []) {
+      const storeOnly = !isOnlinePromotion(promotion);
+      for (const product of promotion.products ?? []) {
+        if (product.role !== 'eligible' || !product.productId) continue;
+        const current = badges.get(product.productId);
+        if (current && !(current.storeOnly && !storeOnly)) continue;
+        badges.set(product.productId, {
+          promotionId: promotion.id,
+          label: promotion.typeLabel,
+          name: promotion.name,
+          seasonName: season.name,
+          storeOnly,
+        });
+      }
+    }
+  }
+  return badges;
+}
+
+/**
+ * Nombre con el que el catálogo ofrece el filtro de temporada: el de la temporada cuando
+ * corre una sola ("Buen Fin 2026"); con varias a la vez, `null` (texto genérico).
+ */
+export function seasonalFilterName(seasons: readonly Pick<PromoSeason, 'name'>[] | null | undefined): string | null {
+  const names = [...new Set((seasons ?? []).map((s) => s.name.trim()).filter(Boolean))];
+  return names.length === 1 ? names[0] : null;
+}
+
+/** ¿Alguna promoción de las que corren ahora se puede comprar en la tienda en línea? */
+export function hasOnlinePromotion(season: Pick<PromoSeason, 'promotions'>): boolean {
+  return (season.promotions ?? []).some((p) => isOnlinePromotion(p));
+}

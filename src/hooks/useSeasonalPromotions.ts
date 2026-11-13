@@ -1,8 +1,10 @@
 // React Query hooks para promociones de temporada (mig 186).
 
+import { useMemo } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { seasonalPromotionsService } from '@/services/seasonal-promotions.service';
 import { isMigrationMissingError } from '@/lib/membership-campaigns';
+import { seasonalFilterName, seasonalProductBadges, type SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type {
   CreatePromoSeasonDto,
   CreateSeasonPromotionDto,
@@ -147,3 +149,19 @@ export const useStorefrontSeasonalPromotions = (country: string | undefined) =>
     staleTime: 60 * 1000,
     retry: 1,
   });
+
+/**
+ * Tienda: qué productos están HOY en una promoción de temporada del país y con qué insignia,
+ * más el nombre de la temporada para el filtro del catálogo. Sale del mismo paquete que el
+ * aviso de la tienda (una sola consulta compartida). Sin temporadas: mapa vacío y `null`.
+ */
+export function useSeasonalProductBadges(country: string | undefined): {
+  badges: Map<string, SeasonalProductBadge>;
+  seasonName: string | null;
+} {
+  const { data } = useStorefrontSeasonalPromotions(country);
+  return useMemo(
+    () => ({ badges: seasonalProductBadges(data?.seasons), seasonName: seasonalFilterName(data?.seasons) }),
+    [data],
+  );
+}

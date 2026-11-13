@@ -161,6 +161,7 @@ function normalizeFacets(value: unknown): StorefrontFacets {
   const facets = isRow(value) ? value : {};
   const price = isRow(facets.price) ? facets.price : {};
   const avail = isRow(facets.availability) ? facets.availability : {};
+  const seasonal = isRow(facets.seasonal) ? facets.seasonal : {};
   return {
     categories: rows(facets.categories).flatMap((row) => {
       const slug = str(row.slug);
@@ -180,6 +181,7 @@ function normalizeFacets(value: unknown): StorefrontFacets {
       const gender = variantGender(row.gender);
       return gender ? [{ gender, label: str(row.label) ?? gender, count: Math.max(0, int(row.count, 0)) }] : [];
     }),
+    seasonal: { count: Math.max(0, int(seasonal.count, 0)) },
   };
 }
 

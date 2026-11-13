@@ -8,26 +8,29 @@
 // Toma lo mismo que el aviso de la tienda (GET /storefront/seasonal-promotions del país de la
 // cuenta): las temporadas que corren AHORA con sus promociones de hoy. Son sorpresa: el API no
 // manda nada antes de su hora, así que sin temporada en curso no se pinta nada. Toda la tarjeta
-// es un enlace a la tienda; el carrito del servidor es quien aplica las promociones.
+// es un enlace a la tienda; el carrito del servidor es quien aplica las promociones. Si alguna
+// de las promociones de hoy se puede comprar en línea, el enlace llega con el filtro de temporada
+// puesto (solo los productos en promoción) y el botón lo dice; si hoy todas son de sucursal,
+// lleva al catálogo completo.
 //
 // El arte se ve COMPLETO, sin recortar (Marketing manda tanto 3:2 como publicaciones cuadradas):
 // el espacio toma la proporción de la imagen en cuanto carga. Las promociones que solo valen en
 // sucursal llevan el mismo aviso que en la tienda.
 
-import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { BuildingStorefrontIcon, ChevronRightIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontSeasonalPromotions } from '@/hooks/useSeasonalPromotions';
-import { useImageAttempt } from '@/hooks/useImageAttempt';
-import { imageAttempts } from '@/lib/inventory/product-thumb';
-import { DEFAULT_ART_RATIO, artAspectRatio, seasonHighlights } from '@/lib/seasonal-promotions';
+import { SeasonArt } from '@/components/storefront/SeasonArt';
+import { hasOnlinePromotion, seasonHighlights } from '@/lib/seasonal-promotions';
+import { catalogHref } from '@/lib/storefront/catalog-params';
 import type { PromoSeason } from '@/types/seasonal-promotion';
 
 /** A dónde lleva la tarjeta: el catálogo de la tienda (ahí está el aviso con cada promoción). */
-const STORE_HREF = '/productos';
+const STORE_HREF = catalogHref();
+/** Lo mismo con el filtro de temporada puesto: solo los productos que hoy están en promoción. */
+const STORE_PROMO_HREF = catalogHref({ temporada: true });
 const MAX_PROMOTIONS = 3;
 
 /** Las temporadas en curso del país de la cuenta, una tarjeta por cada una. Sin temporada: nada. */
@@ -45,48 +48,30 @@ export function SeasonHomeCards() {
   );
 }
 
-function SeasonArt({ src, name }: { src: string; name: string }) {
-  const art = useImageAttempt(imageAttempts(src));
-  const [ratio, setRatio] = useState(DEFAULT_ART_RATIO);
-  if (!art.current) return null;
-  // Tope de alto (max-h-64): con un arte cuadrado la tarjeta no empuja demasiado abajo las
-  // acciones rápidas; el arte sigue completo (object-contain) sobre el fondo azul.
-  return (
-    <div
-      className="relative max-h-64 w-full shrink-0 overflow-hidden bg-[#0b3a67] sm:m-4 sm:mr-0 sm:w-52 sm:self-start sm:rounded-lg xl:m-0 xl:w-full xl:rounded-none"
-      style={{ aspectRatio: String(ratio) }}
-    >
-      <Image
-        key={`${art.current.optimized}:${art.current.src}`}
-        src={art.current.src}
-        alt={name}
-        fill
-        sizes="(min-width: 1280px) 360px, (min-width: 640px) 208px, 100vw"
-        unoptimized={!art.current.optimized}
-        className="object-contain"
-        onLoad={(event) => {
-          const img = event.currentTarget;
-          setRatio(artAspectRatio(img.naturalWidth, img.naturalHeight));
-        }}
-        onError={art.fail}
-      />
-    </div>
-  );
-}
-
 export function SeasonHomeCard({ season }: { season: PromoSeason }) {
   const t = useTranslations('distributor.dashboard.season');
   const { items, more } = seasonHighlights(season, MAX_PROMOTIONS);
+  // Con algo que comprar en línea hoy, directo a los productos en promoción.
+  const buyOnline = hasOnlinePromotion(season);
 
   return (
     <Link
-      href={STORE_HREF}
+      href={buyOnline ? STORE_PROMO_HREF : STORE_HREF}
       aria-label={t('aria', { name: season.name })}
       data-testid="season-home-card"
       className="group block overflow-hidden rounded-xl border border-[#C8DDF2] bg-white shadow-md outline-none transition-all hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-[#3E667D] focus-visible:ring-offset-2"
     >
       <div className="flex flex-col sm:flex-row xl:flex-col">
-        {season.imageUrl ? <SeasonArt src={season.imageUrl} name={season.name} /> : null}
+        {/* Tope de alto (max-h-64): con un arte cuadrado la tarjeta no empuja demasiado abajo las
+            acciones rápidas; el arte sigue completo. */}
+        {season.imageUrl ? (
+          <SeasonArt
+            src={season.imageUrl}
+            name={season.name}
+            sizes="(min-width: 1280px) 360px, (min-width: 640px) 208px, 100vw"
+            className="max-h-64 w-full sm:m-4 sm:mr-0 sm:w-52 sm:self-start sm:rounded-lg xl:m-0 xl:w-full xl:rounded-none"
+          />
+        ) : null}
 
         <div className="min-w-0 flex-1 p-5">
           <p className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">
@@ -122,7 +107,7 @@ export function SeasonHomeCard({ season }: { season: PromoSeason }) {
           ) : null}
 
           <span className="mt-4 inline-flex items-center gap-1 rounded-lg bg-[#3E667D] px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-[#2f5165]">
-            {t('cta')}
+            {buyOnline ? t('ctaPromo') : t('cta')}
             <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
           </span>
         </div>

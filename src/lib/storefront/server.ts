@@ -187,14 +187,20 @@ async function getJsonWithStatus(
  * de claves es ilimitado (no sirven al Data Cache) y cada una gastaría la cuota del
  * throttle del API que comparten TODOS los visitantes detrás de la IP de Vercel.
  * Las resuelve el navegador (`useQuery`, desde la IP del visitante).
+ *
+ * El filtro de temporada (`temporada`) tampoco: qué productos están hoy en promoción
+ * cambia con la hora y depende de quién pregunta (precio y productos de distribuidor,
+ * prueba controlada), así que esa lista nunca se guarda en el Data Cache anónimo.
  */
-export function shouldFetchListOnServer(state: Pick<CatalogState, 'q'>): boolean {
-  return !state.q;
+export function shouldFetchListOnServer(
+  state: Pick<CatalogState, 'q'> & Partial<Pick<CatalogState, 'temporada'>>,
+): boolean {
+  return !state.q && !state.temporada;
 }
 
 /**
- * Página del catálogo, ANÓNIMA (precio público). Con `q` responde `{ ok:false,
- * status:null }` sin tocar el API (ver `shouldFetchListOnServer`).
+ * Página del catálogo, ANÓNIMA (precio público). Con `q` o con el filtro de temporada
+ * responde `{ ok:false, status:null }` sin tocar el API (ver `shouldFetchListOnServer`).
  */
 export async function fetchStorefrontList(
   country: CountryCode,

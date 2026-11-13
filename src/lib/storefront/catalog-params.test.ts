@@ -22,7 +22,7 @@ describe('parseCatalogParams', () => {
   it('lee todas las claves estables', () => {
     const state = parseCatalogParams(
       new URLSearchParams(
-        'q=crema%20%20spectra&categoria=Cremas&tipo=pack&min=100&max=900.555&agotados=1&orden=price_asc&pagina=3',
+        'q=crema%20%20spectra&categoria=Cremas&tipo=pack&min=100&max=900.555&agotados=1&temporada=1&orden=price_asc&pagina=3',
       ),
     );
     expect(state).toEqual({
@@ -33,6 +33,7 @@ describe('parseCatalogParams', () => {
       min: 100,
       max: 900.56,
       agotados: true,
+      temporada: true,
       orden: 'price_asc',
       pagina: 3,
     });
@@ -197,5 +198,42 @@ describe('filtro para (género de la ropa)', () => {
     expect(toStorefrontQuery(DEFAULT_CATALOG_STATE, { country: 'mx', lang: 'es' })).not.toHaveProperty('gender');
     expect(activeFilterCount(state)).toBe(1);
     expect(isIndexable(state)).toBe(false);
+  });
+});
+
+describe('filtro temporada (productos en promoción de temporada)', () => {
+  it('lee temporada=1|true, ignora otros valores y por defecto está apagado', () => {
+    expect(DEFAULT_CATALOG_STATE.temporada).toBe(false);
+    expect(parseCatalogParams(new URLSearchParams('temporada=1')).temporada).toBe(true);
+    expect(parseCatalogParams(new URLSearchParams('temporada=TRUE')).temporada).toBe(true);
+    expect(parseCatalogParams({ temporada: ['1', '0'] }).temporada).toBe(true);
+    for (const raw of ['', 'temporada=', 'temporada=0', 'temporada=si', 'temporada=buenfin2026']) {
+      expect(parseCatalogParams(new URLSearchParams(raw)).temporada).toBe(false);
+    }
+  });
+
+  it('va en la URL solo cuando está puesto, antes del orden y la página, con ida y vuelta estable', () => {
+    const state = { ...DEFAULT_CATALOG_STATE, temporada: true };
+    expect(serializeCatalogParams(state)).toBe('temporada=1');
+    expect(catalogHref({ temporada: true })).toBe('/productos?temporada=1');
+    expect(serializeCatalogParams(DEFAULT_CATALOG_STATE)).toBe('');
+    const full = { ...state, categoria: 'capsulas', agotados: true, orden: 'price_asc' as const, pagina: 2 };
+    const qs = serializeCatalogParams(full);
+    expect(qs).toBe('categoria=capsulas&agotados=1&temporada=1&orden=price_asc&pagina=2');
+    expect(parseCatalogParams(new URLSearchParams(qs))).toEqual(full);
+  });
+
+  it('viaja al API como seasonal=1 SOLO con el filtro puesto (el API rechaza parámetros que no espera)', () => {
+    const on = toStorefrontQuery({ ...DEFAULT_CATALOG_STATE, temporada: true }, { country: 'mx', lang: 'es' });
+    expect(on.seasonal).toBe('1');
+    expect(toStorefrontQuery(DEFAULT_CATALOG_STATE, { country: 'mx', lang: 'es' })).not.toHaveProperty('seasonal');
+  });
+
+  it('cuenta como filtro activo y la vista filtrada no se indexa', () => {
+    const state = { ...DEFAULT_CATALOG_STATE, temporada: true };
+    expect(activeFilterCount(state)).toBe(1);
+    expect(activeFilterCount({ ...state, categoria: 'capsulas' })).toBe(2);
+    expect(isIndexable(state)).toBe(false);
+    expect(isIndexable(DEFAULT_CATALOG_STATE)).toBe(true);
   });
 });

@@ -16,6 +16,8 @@ interface ActiveFilterChipsProps {
   lang: LanguageCode;
   onChange: (patch: Partial<CatalogState>) => void;
   onClear: () => void;
+  /** Nombre de la temporada en curso, para la ficha del filtro de temporada. */
+  seasonName?: string | null;
 }
 
 interface Chip {
@@ -24,11 +26,22 @@ interface Chip {
   patch: Partial<CatalogState>;
 }
 
-export function ActiveFilterChips({ state, facets, currencyCode, lang, onChange, onClear }: ActiveFilterChipsProps) {
+export function ActiveFilterChips({
+  state,
+  facets,
+  currencyCode,
+  lang,
+  onChange,
+  onClear,
+  seasonName = null,
+}: ActiveFilterChipsProps) {
   const t = useTranslations('storefront.catalog.chips');
   const chips: Chip[] = [];
 
   if (state.q) chips.push({ key: 'q', label: t('search', { q: state.q }), patch: { q: '' } });
+  if (state.temporada) {
+    chips.push({ key: 'temporada', label: seasonName ?? t('seasonal'), patch: { temporada: false } });
+  }
   if (state.categoria) {
     const name = facets.categories.find((c) => c.slug === state.categoria)?.name ?? state.categoria;
     chips.push({ key: 'categoria', label: name, patch: { categoria: null } });

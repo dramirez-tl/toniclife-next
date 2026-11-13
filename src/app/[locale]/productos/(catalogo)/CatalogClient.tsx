@@ -1,7 +1,7 @@
 'use client';
 
 // Catálogo interactivo. El ESTADO ES LA URL (q, categoria, tipo, min, max,
-// agotados, orden, pagina): compartir el enlace reproduce la vista. Arranca con
+// agotados, temporada, orden, pagina): compartir el enlace reproduce la vista. Arranca con
 // los datos del SSR (`initial`), y al cambiar un filtro conserva la cuadrícula
 // anterior atenuada (`placeholderData`) en vez de parpadear.
 //
@@ -12,6 +12,10 @@
 // La URL se actualiza con la History API nativa (Next la sincroniza con
 // `useSearchParams`): `router.replace` re-renderizaría la página en el servidor
 // y dispararía `loading.tsx` en cada filtro.
+//
+// TEMPORADA (Buen Fin…, 12-nov-2026): los productos que hoy están en una promoción llevan
+// insignia (del mismo paquete que el aviso) y hay un filtro `temporada` que deja solo esos.
+// El filtro se ofrece cuando el API dice que ESTE visitante ve alguno (`facets.seasonal`).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -20,6 +24,7 @@ import { ArrowPathIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@he
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { COUNTRIES, DEFAULT_COUNTRY, buildLocale, parseLocale, type CountryCode, type LanguageCode } from '@/i18n/config';
+import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useStorefrontProducts, useStorefrontViewer, type InitialStorefrontList } from '@/hooks/useStorefront';
 import {
   DEFAULT_CATALOG_STATE,
@@ -61,6 +66,7 @@ const EMPTY_FACETS: StorefrontFacets = {
   price: { min: null, max: null },
   availability: { inStock: 0, outOfStock: 0 },
   genders: [],
+  seasonal: { count: 0 },
 };
 
 export function CatalogClient({ initial, sessionHint = false }: CatalogClientProps) {
@@ -108,6 +114,14 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
   );
 
   const facets = data?.facets ?? initial?.data.facets ?? EMPTY_FACETS;
+  // Promociones de temporada: insignia por producto y nombre de la temporada para el filtro.
+  const { badges: seasonalBadges, seasonName } = useSeasonalProductBadges(country);
+  const seasonalCount = facets.seasonal.count;
+  const showSeasonalProducts = useCallback(() => {
+    patchState({ temporada: true });
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    resultsRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }, [patchState]);
   const currencyCode = data?.currencyCode ?? initial?.data.currencyCode ?? currencyForCountry(country);
   const categoryName = state.categoria
     ? (facets.categories.find((c) => c.slug === state.categoria)?.name ?? null)
@@ -156,8 +170,15 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
         <SessionExpiredNotice className="mt-3" />
       </header>
 
-      {/* Promociones de temporada (mig 186), compacto: tipo, nombre y fechas. */}
-      <SeasonalPromotionsBanner compact className="mt-4 !px-0" />
+      {/* Promociones de temporada (mig 186), compacto: tipo, nombre y fechas. El margen de
+          abajo lo separa del buscador (solo existe cuando el aviso se pinta). */}
+      <SeasonalPromotionsBanner
+        compact
+        className="mb-6 mt-4 !px-0"
+        productsAction={
+          seasonalCount > 0 && !state.temporada ? { count: seasonalCount, onClick: showSeasonalProducts } : undefined
+        }
+      />
 
       {/* Barra pegajosa: buscador + filtros (móvil). Debajo del header fijo del sitio. */}
       <div
@@ -183,6 +204,7 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
             isFetching={isFetching}
             onChange={patchState}
             onClear={clearFilters}
+            seasonName={seasonName}
           />
         </div>
       </div>
@@ -191,7 +213,13 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
         <aside className="hidden lg:block" aria-label={t('filters.title')}>
           <div className="sticky top-36 max-h-[calc(100dvh-10rem)] overflow-y-auto pb-4 pr-2">
             <h2 className="mb-5 text-base font-semibold text-gray-900">{t('filters.title')}</h2>
-            <CatalogFilters state={state} facets={facets} currencyCode={currencyCode} onChange={patchState} />
+            <CatalogFilters
+              state={state}
+              facets={facets}
+              currencyCode={currencyCode}
+              onChange={patchState}
+              seasonName={seasonName}
+            />
           </div>
         </aside>
 
@@ -205,6 +233,7 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
               lang={lang}
               onChange={patchState}
               onClear={clearFilters}
+              seasonName={seasonName}
             />
           </div>
 
@@ -255,6 +284,7 @@ export function CatalogClient({ initial, sessionHint = false }: CatalogClientPro
                       showPoints={showPoints}
                       priority={index < 4}
                       listName="catalog"
+                      seasonal={seasonalBadges.get(product.id) ?? null}
                     />
                   </li>
                 ))}

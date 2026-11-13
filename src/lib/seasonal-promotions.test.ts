@@ -7,11 +7,14 @@ import {
   formFromPromotion,
   formFromSeason,
   formatLocalStamp,
+  hasOnlinePromotion,
   isOnlinePromotion,
   normalizeInputStamp,
   nowCdmxStamp,
   promotionSummary,
   seasonHighlights,
+  seasonalFilterName,
+  seasonalProductBadges,
   toInputStamp,
   toPromotionPayload,
   toSeasonPayload,
@@ -304,5 +307,95 @@ describe('inicio del distribuidor: tarjeta de la temporada vigente', () => {
     for (const [w, h] of [[0, 100], [100, 0], [Number.NaN, 100], [-5, 10]]) {
       expect(artAspectRatio(w, h)).toBe(DEFAULT_ART_RATIO);
     }
+  });
+});
+
+describe('catálogo de la tienda: insignia y filtro de los productos en promoción', () => {
+  const product = (productId: string, role: 'eligible' | 'gift' = 'eligible') => ({
+    productId,
+    sku: productId,
+    name: productId,
+    role,
+    quantity: 1,
+    sortOrder: 0,
+  });
+  const promo = (
+    id: string,
+    name: string,
+    channels: SeasonPromotion['channels'],
+    typeLabel: string,
+    products: SeasonPromotion['products'],
+  ): SeasonPromotion => ({ ...PROMO, id, name, channels, typeLabel, products });
+
+  // El sábado del Buen Fin: 3x2 en tienda y caja, y "compra 5 y llévate 1" solo en caja.
+  const SATURDAY = {
+    name: 'Buen Fin 2026',
+    promotions: [
+      promo('3x2', '3x2 Buen Fin sábado 14', ['pos', 'online'], '3x2', [product('aby'), product('oximagic')]),
+      promo('6x5', 'Compra 5 y llévate 1 gratis', ['pos'], '6x5', [product('shake'), product('oximagic')]),
+    ],
+  };
+
+  it('cada producto elegible lleva la insignia de su promoción; las de solo sucursal van marcadas', () => {
+    const badges = seasonalProductBadges([SATURDAY]);
+    expect([...badges.keys()].sort()).toEqual(['aby', 'oximagic', 'shake']);
+    expect(badges.get('aby')).toEqual({
+      promotionId: '3x2',
+      label: '3x2',
+      name: '3x2 Buen Fin sábado 14',
+      seasonName: 'Buen Fin 2026',
+      storeOnly: false,
+    });
+    expect(badges.get('shake')).toMatchObject({ label: '6x5', storeOnly: true });
+  });
+
+  it('si un producto está en dos promociones gana la que se puede comprar en la tienda, sin importar el orden', () => {
+    expect(seasonalProductBadges([SATURDAY]).get('oximagic')).toMatchObject({ label: '3x2', storeOnly: false });
+    const reversed = { ...SATURDAY, promotions: [...SATURDAY.promotions].reverse() };
+    expect(seasonalProductBadges([reversed]).get('oximagic')).toMatchObject({ label: '3x2', storeOnly: false });
+  });
+
+  it('entre dos promociones iguales en canal se queda la primera (el orden en que el motor las aplica)', () => {
+    const season = {
+      name: 'Buen Fin 2026 · PRUEBA',
+      promotions: [
+        promo('sab', '3x2 Buen Fin sábado 14', ['pos', 'online'], '3x2', [product('aby')]),
+        promo('dom', '3x2 Buen Fin domingo 15', ['pos', 'online'], '3x2', [product('aby')]),
+      ],
+    };
+    expect(seasonalProductBadges([season]).get('aby')).toMatchObject({ promotionId: 'sab' });
+  });
+
+  it('el regalo de una promoción no lleva insignia', () => {
+    const season = {
+      name: 'Navidad',
+      promotions: [promo('regalo', 'Taza de regalo', ['online'], 'Regalo por compra', [product('cafe'), product('taza', 'gift')])],
+    };
+    const badges = seasonalProductBadges([season]);
+    expect(badges.has('cafe')).toBe(true);
+    expect(badges.has('taza')).toBe(false);
+  });
+
+  it('sin temporadas (o sin el dato) no hay insignias', () => {
+    expect(seasonalProductBadges(undefined).size).toBe(0);
+    expect(seasonalProductBadges(null).size).toBe(0);
+    expect(seasonalProductBadges([]).size).toBe(0);
+    expect(seasonalProductBadges([{ name: 'Vacía' }]).size).toBe(0);
+  });
+
+  it('el filtro se llama como la temporada cuando corre una sola; con varias, texto genérico', () => {
+    expect(seasonalFilterName([{ name: 'Buen Fin 2026 · PRUEBA' }])).toBe('Buen Fin 2026 · PRUEBA');
+    expect(seasonalFilterName([{ name: ' Buen Fin 2026 ' }, { name: 'Buen Fin 2026' }])).toBe('Buen Fin 2026');
+    expect(seasonalFilterName([{ name: 'Buen Fin 2026' }, { name: 'Navidad' }])).toBeNull();
+    expect(seasonalFilterName([])).toBeNull();
+    expect(seasonalFilterName(undefined)).toBeNull();
+  });
+
+  it('hay algo que comprar en línea si alguna promoción de hoy vale en la tienda', () => {
+    expect(hasOnlinePromotion(SATURDAY)).toBe(true);
+    // Viernes del Buen Fin: solo el kit, que es de sucursal.
+    expect(hasOnlinePromotion({ promotions: [promo('kit', 'Kit a $2,000', ['pos'], 'Precio especial', [product('kit')])] })).toBe(false);
+    expect(hasOnlinePromotion({ promotions: [] })).toBe(false);
+    expect(hasOnlinePromotion({})).toBe(false);
   });
 });

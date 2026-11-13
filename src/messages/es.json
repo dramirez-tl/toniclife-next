@@ -23,7 +23,8 @@
       "more": "+{count} más",
       "gift": "Regalo: {name}",
       "viewArt": "Ver la imagen de {name} en grande",
-      "storeOnly": "Solo en sucursales y Call Center"
+      "storeOnly": "Solo en sucursales y Call Center",
+      "viewProducts": "{count, plural, one {Ver el producto en promoción} other {Ver los # productos en promoción}}"
     },
     "playVideo": "Reproducir video",
     "pauseVideo": "Pausar video",
@@ -129,6 +130,10 @@
       "loading": "Cargando productos",
       "card": {
         "badgesLabel": "Etiquetas del producto",
+        "seasonal": {
+          "label": "Promoción de temporada",
+          "storeOnly": "Solo en sucursales y Call Center"
+        },
         "badge": {
           "outOfStock": "Agotado",
           "lowStock": "{count, plural, one {Última pieza} other {Últimas #}}",
@@ -178,6 +183,8 @@
         "allGenders": "Todos",
         "genderLabel": { "mujer": "Mujer", "hombre": "Hombre", "unisex": "Unisex" },
         "includeSoldOut": "Incluir agotados",
+        "seasonal": "Promociones de temporada",
+        "seasonalHint": "{count, plural, =0 {Sin productos en promoción ahora} one {# producto en promoción hoy} other {# productos en promoción hoy}}",
         "clear": "Limpiar",
         "viewResults": "{count, plural, =0 {Sin productos} one {Ver # producto} other {Ver # productos}}"
       },
@@ -190,6 +197,7 @@
         "priceFrom": "Desde {min}",
         "priceTo": "Hasta {max}",
         "includeSoldOut": "Incluye agotados",
+        "seasonal": "Promociones de temporada",
         "gender": "Para: {label}",
         "genderLabel": { "mujer": "Mujer", "hombre": "Hombre", "unisex": "Unisex" },
         "remove": "Quitar filtro: {label}",
@@ -1268,7 +1276,8 @@
         "today": "Hoy",
         "storeOnly": "Solo en sucursales y Call Center",
         "more": "{count, plural, =1 {y 1 promoción más} other {y # promociones más}}",
-        "cta": "Ir a la tienda"
+        "cta": "Ir a la tienda",
+        "ctaPromo": "Ver productos en promoción"
       },
       "actions": {
         "title": "¿Qué quieres hacer?",

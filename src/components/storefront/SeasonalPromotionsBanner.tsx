@@ -8,32 +8,54 @@
 // participan. El carrito del servidor es quien aplica la promoción; aquí solo se
 // anuncia. Sin temporadas no pinta nada.
 //
+// El arte de la temporada se ve COMPLETO, sin recortar (SeasonArt): a la izquierda
+// en pantallas anchas, arriba en celular. Antes llenaba toda la altura del aviso y,
+// con varias promociones, solo se veía una franja del centro (12-nov-2026).
+//
 // Las promociones que NO valen en línea (solo punto de venta: sucursales y Call
 // Center) también se anuncian, con el aviso "Solo en sucursales y Call Center" y sin
 // enlaces a sus productos: en el carrito en línea no se aplicarían.
+//
+// Los productos solo se enlazan para quien tiene sesión de cliente: los de las
+// promociones son productos de distribuidor y a un visitante sin sesión su página le
+// responde "no encontrado".
+//
+// `productsAction` (catálogo): botón "Ver los N productos en promoción", que pone el
+// filtro de temporada. Solo llega cuando ese visitante ve alguno.
 
 import { useTranslations } from 'next-intl';
-import { BuildingStorefrontIcon, ClockIcon, GiftIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, ClockIcon, GiftIcon, SparklesIcon, TagIcon } from '@heroicons/react/24/outline';
 import { Link } from '@/i18n/routing';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontSeasonalPromotions } from '@/hooks/useSeasonalPromotions';
+import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { productPath } from '@/lib/storefront/slug';
 import { formatLocalStamp, isOnlinePromotion } from '@/lib/seasonal-promotions';
 import { cn } from '@/lib/utils';
 import { PromoArt } from './PromoArt';
+import { SeasonArt } from './SeasonArt';
 
 const MAX_CHIPS = 12;
+
+export interface SeasonalProductsAction {
+  /** Productos en promoción que ve este visitante en el catálogo. */
+  count: number;
+  onClick: () => void;
+}
 
 export function SeasonalPromotionsBanner({
   className,
   compact = false,
+  productsAction,
 }: {
   className?: string;
   compact?: boolean;
+  productsAction?: SeasonalProductsAction;
 }) {
   const t = useTranslations('home.seasonal');
   const { countryCode } = useStoreCountry();
   const { data } = useStorefrontSeasonalPromotions(countryCode);
+  const { hasCustomerSession } = useStorefrontViewer();
   const seasons = data?.seasons ?? [];
   if (seasons.length === 0) return null;
 
@@ -49,19 +71,25 @@ export function SeasonalPromotionsBanner({
             key={s.id}
             className="overflow-hidden rounded-2xl border border-[#C8DDF2] bg-white shadow-sm"
           >
-            <div className={cn('grid gap-0', s.imageUrl ? 'md:grid-cols-[minmax(240px,340px)_1fr]' : '')}>
+            <div className="flex flex-col md:flex-row">
               {s.imageUrl && (
-                <div className="relative min-h-[180px] bg-gray-100">
-                  {/* URL libre (host del API): next/image exige dominios registrados. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={s.imageUrl}
-                    alt={s.name}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                </div>
+                <SeasonArt
+                  src={s.imageUrl}
+                  name={s.name}
+                  sizes={
+                    compact
+                      ? '(min-width: 1024px) 240px, (min-width: 768px) 208px, 100vw'
+                      : '(min-width: 1024px) 320px, (min-width: 768px) 256px, 100vw'
+                  }
+                  className={cn(
+                    'w-full md:max-h-none md:self-start md:rounded-xl',
+                    compact
+                      ? 'max-h-56 md:m-4 md:mr-0 md:w-52 lg:w-60'
+                      : 'max-h-72 md:m-5 md:mr-0 md:w-64 lg:w-80',
+                  )}
+                />
               )}
-              <div className="p-5 sm:p-6">
+              <div className="min-w-0 flex-1 p-5 sm:p-6">
                 <p
                   className={cn(
                     'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold',
@@ -75,6 +103,18 @@ export function SeasonalPromotionsBanner({
                 </p>
                 <h2 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl">{s.name}</h2>
                 {s.description && <p className="mt-1 text-sm text-gray-600">{s.description}</p>}
+
+                {productsAction && productsAction.count > 0 && (
+                  <button
+                    type="button"
+                    onClick={productsAction.onClick}
+                    data-testid="seasonal-view-products"
+                    className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-[#3E667D] px-4 text-sm font-semibold text-white hover:bg-[#2f5165] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]"
+                  >
+                    <TagIcon className="h-4 w-4" aria-hidden="true" />
+                    {t('viewProducts', { count: productsAction.count })}
+                  </button>
+                )}
 
                 <ul className="mt-4 space-y-3">
                   {(s.promotions ?? []).map((p) => {
@@ -122,7 +162,7 @@ export function SeasonalPromotionsBanner({
                         {!compact && (eligible.length > 0 || gifts.length > 0) && (
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {eligible.slice(0, MAX_CHIPS).map((x) =>
-                              online && x.slug ? (
+                              online && x.slug && hasCustomerSession ? (
                                 <Link
                                   key={x.productId}
                                   href={productPath(x.slug)}

@@ -198,6 +198,12 @@ export interface StorefrontFacets {
   availability: { inStock: number; outOfStock: number };
   /** Familias por género (API mig 178); vacío sin la migración o sin ropa. */
   genders: { gender: StorefrontVariantGender; label: string; count: number }[];
+  /**
+   * Cuántos productos del resultado están HOY en una promoción de temporada para este
+   * visitante (API mig 186; ignora su propio filtro). 0 = no se ofrece el filtro (también
+   * con un API anterior, que no manda el campo).
+   */
+  seasonal: { count: number };
 }
 
 /**

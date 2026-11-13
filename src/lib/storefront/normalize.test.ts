@@ -422,3 +422,20 @@ describe('listado agrupado por familia (API mig 178)', () => {
     expect(sinPrecio!.data[0].family).toBeNull();
   });
 });
+
+describe('faceta de temporada (facets.seasonal)', () => {
+  const base = { data: [], total: 0, page: 1, pageSize: 24, totalPages: 0 };
+
+  it('toma el conteo que manda el API', () => {
+    const res = normalizeListResponse({ ...base, facets: { seasonal: { count: 27 } } }, 'MXN');
+    expect(res!.facets.seasonal).toEqual({ count: 27 });
+  });
+
+  it('un API anterior (sin el campo) o un valor raro quedan en 0: el filtro no se ofrece', () => {
+    expect(normalizeListResponse({ ...base, facets: {} }, 'MXN')!.facets.seasonal).toEqual({ count: 0 });
+    expect(normalizeListResponse({ ...base }, 'MXN')!.facets.seasonal).toEqual({ count: 0 });
+    for (const seasonal of [null, 5, 'x', { count: -3 }, { count: 'abc' }, []]) {
+      expect(normalizeListResponse({ ...base, facets: { seasonal } }, 'MXN')!.facets.seasonal).toEqual({ count: 0 });
+    }
+  });
+});

@@ -3,9 +3,13 @@
 // Filtros del catálogo (columna de escritorio y contenido del Sheet móvil).
 // Cada faceta llega del API con su conteo REAL. Precio: dos campos + "Aplicar"
 // (sin slider). Todo cambio se refleja en la URL a través de `onChange`.
+//
+// Hasta arriba, cuando corre una temporada (Buen Fin…) y este visitante ve productos en
+// promoción: el interruptor que deja solo esos productos (`facets.seasonal.count` del API).
 
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { SparklesIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +24,8 @@ interface CatalogFiltersProps {
   facets: StorefrontFacets;
   currencyCode: string;
   onChange: (patch: Partial<CatalogState>) => void;
+  /** Nombre de la temporada en curso ("Buen Fin 2026"); sin él, el filtro lleva el texto genérico. */
+  seasonName?: string | null;
 }
 
 function priceInput(value: number | null): string {
@@ -33,7 +39,7 @@ function parsePriceInput(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 }
 
-export function CatalogFilters({ state, facets, currencyCode, onChange }: CatalogFiltersProps) {
+export function CatalogFilters({ state, facets, currencyCode, onChange, seasonName = null }: CatalogFiltersProps) {
   const t = useTranslations('storefront.catalog.filters');
   const uid = useId();
   const [minText, setMinText] = useState(priceInput(state.min));
@@ -75,8 +81,34 @@ export function CatalogFilters({ state, facets, currencyCode, onChange }: Catalo
 
   const priceDirty = parsePriceInput(minText) !== state.min || parsePriceInput(maxText) !== state.max;
 
+  // Se ofrece cuando hay productos en promoción para este visitante; puesto, siempre (para quitarlo).
+  const seasonalCount = facets.seasonal.count;
+  const showSeasonal = seasonalCount > 0 || state.temporada;
+
   return (
     <div className="flex flex-col gap-7">
+      {showSeasonal && (
+        <div
+          data-testid="filter-seasonal"
+          className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5"
+        >
+          <Label htmlFor={`${uid}-seasonal`} className="flex cursor-pointer items-start gap-2 text-sm text-rose-900">
+            <SparklesIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0">
+              <span className="block font-semibold leading-snug">{seasonName ?? t('seasonal')}</span>
+              <span className="block text-xs font-normal leading-snug text-rose-800">
+                {t('seasonalHint', { count: seasonalCount })}
+              </span>
+            </span>
+          </Label>
+          <Switch
+            id={`${uid}-seasonal`}
+            checked={state.temporada}
+            onCheckedChange={(checked) => onChange({ temporada: checked })}
+          />
+        </div>
+      )}
+
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-gray-900">{t('category')}</legend>
         <RadioGroup
