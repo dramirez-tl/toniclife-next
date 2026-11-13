@@ -7,10 +7,12 @@ import {
   formFromPromotion,
   formFromSeason,
   formatLocalStamp,
+  formatSalesAmount,
   hasOnlinePromotion,
   isOnlinePromotion,
   normalizeInputStamp,
   nowCdmxStamp,
+  promotionSalesSummary,
   promotionSummary,
   seasonHighlights,
   seasonalFilterName,
@@ -397,5 +399,72 @@ describe('catálogo de la tienda: insignia y filtro de los productos en promoci�
     expect(hasOnlinePromotion({ promotions: [promo('kit', 'Kit a $2,000', ['pos'], 'Precio especial', [product('kit')])] })).toBe(false);
     expect(hasOnlinePromotion({ promotions: [] })).toBe(false);
     expect(hasOnlinePromotion({})).toBe(false);
+  });
+});
+
+describe('admin: insignia de ventas de cada promoción', () => {
+  /** Intl separa algunos símbolos con un espacio duro; para comparar da igual. */
+  const plain = (s: string) => s.replace(/ /g, ' ');
+
+  it('el kit del Buen Fin: 64 ventas y lo cobrado por los kits, en pesos', () => {
+    const s = promotionSalesSummary({ usageCount: 64, salesAmounts: [{ currency: 'MXN', amount: 130000 }] });
+    expect(s.hasSales).toBe(true);
+    expect(s.label).toBe('64 ventas · $130,000.00 MXN');
+    expect(s.hint).toContain('ya cobrados');
+    expect(s.hint).toContain('No cuenta lo demás del ticket');
+  });
+
+  it('una sola venta va en singular y con centavos', () => {
+    expect(promotionSalesSummary({ usageCount: 1, salesAmounts: [{ currency: 'MXN', amount: 1899.5 }] }).label).toBe(
+      '1 venta · $1,899.50 MXN',
+    );
+  });
+
+  it('la promoción que todavía no vende lo dice, en gris', () => {
+    const s = promotionSalesSummary({ usageCount: 0, salesAmounts: [] });
+    expect(s).toEqual({
+      hasSales: false,
+      label: 'Sin ventas',
+      hint: 'Todavía ninguna venta cobrada usó esta promoción.',
+    });
+    // Aunque llegara un monto sin ventas, sin ventas no hay nada que presumir.
+    expect(promotionSalesSummary({ usageCount: 0, salesAmounts: [{ currency: 'MXN', amount: 50 }] }).label).toBe(
+      'Sin ventas',
+    );
+  });
+
+  it('miles de ventas llevan separador', () => {
+    expect(
+      promotionSalesSummary({ usageCount: 1234, salesAmounts: [{ currency: 'MXN', amount: 2468000 }] }).label,
+    ).toBe('1,234 ventas · $2,468,000.00 MXN');
+  });
+
+  it('vendida en dos monedas: cada monto aparte, no se suman pesos con dólares', () => {
+    const s = promotionSalesSummary({
+      usageCount: 12,
+      salesAmounts: [
+        { currency: 'MXN', amount: 8450.5 },
+        { currency: 'USD', amount: 1200 },
+      ],
+    });
+    expect(plain(s.label)).toBe('12 ventas · $8,450.50 MXN + $1,200.00 USD');
+  });
+
+  it('sin el monto (API anterior) o con monto en cero queda solo el conteo', () => {
+    expect(promotionSalesSummary({ usageCount: 64 }).label).toBe('64 ventas');
+    expect(promotionSalesSummary({ usageCount: 64, salesAmounts: [] }).label).toBe('64 ventas');
+    expect(promotionSalesSummary({ usageCount: 3, salesAmounts: [{ currency: 'MXN', amount: 0 }] }).label).toBe(
+      '3 ventas',
+    );
+  });
+
+  it('el monto siempre lleva el código de su moneda, sin repetirlo', () => {
+    expect(formatSalesAmount(130000, 'MXN')).toBe('$130,000.00 MXN');
+    expect(formatSalesAmount(1200, ' usd ')).toBe('$1,200.00 USD');
+    // Monedas sin símbolo corto: el formato ya trae el código.
+    expect(plain(formatSalesAmount(500, 'PAB'))).toBe('PAB 500.00');
+    // Sin moneda se asume la de la casa; un código que no es moneda no rompe la pantalla.
+    expect(formatSalesAmount(2000, '')).toBe('$2,000.00 MXN');
+    expect(formatSalesAmount(2000, 'XX')).toBe('2,000.00 XX');
   });
 });

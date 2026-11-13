@@ -541,6 +541,69 @@ export function formatMoney(n: number, currency = 'MXN'): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency, maximumFractionDigits: 2 }).format(n);
 }
 
+// ── Admin: resumen de ventas de cada promoción ────────────────────────────────────────────────
+
+/**
+ * Monto con su moneda siempre a la vista: "$130,000.00 MXN", "$1,200.00 USD". El símbolo solo
+ * no basta ("$" es peso y también dólar), así que se agrega el código salvo que el formato ya
+ * lo traiga ("PAB 500.00"). Siempre con centavos.
+ */
+export function formatSalesAmount(amount: number, currency: string): string {
+  const code = (currency || 'MXN').trim().toUpperCase();
+  const digits = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  try {
+    const money = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+      ...digits,
+    }).format(amount);
+    return money.includes(code) ? money : `${money} ${code}`;
+  } catch {
+    // Código que no es una moneda (o navegador sin símbolo corto): el número con el código tal cual.
+    return `${new Intl.NumberFormat('es-MX', digits).format(amount)} ${code}`.trim();
+  }
+}
+
+/** Lo que dice la insignia de ventas de una promoción en el detalle de la temporada. */
+export interface PromotionSalesSummary {
+  /** false = todavía ninguna venta cobrada la usó. */
+  hasSales: boolean;
+  /** "64 ventas · $130,000.00 MXN" · "1 venta · $2,000.00 MXN" · "Sin ventas". */
+  label: string;
+  /** Qué cuenta y qué no (texto de ayuda al pasar el cursor). */
+  hint: string;
+}
+
+/**
+ * Resumen de una promoción: cuántas ventas y pedidos ya cobrados la usaron y cuánto se cobró
+ * por sus productos (no el ticket completo). Si se vendió en más de una moneda, cada monto va
+ * aparte: no se suman pesos con dólares. Sin el monto (API anterior) queda solo el conteo.
+ */
+export function promotionSalesSummary(
+  p: Pick<SeasonPromotion, 'usageCount' | 'salesAmounts'>,
+): PromotionSalesSummary {
+  const sales = Math.max(0, Math.floor(Number(p.usageCount) || 0));
+  if (sales === 0) {
+    return {
+      hasSales: false,
+      label: 'Sin ventas',
+      hint: 'Todavía ninguna venta cobrada usó esta promoción.',
+    };
+  }
+  const count = `${sales.toLocaleString('es-MX')} venta${sales === 1 ? '' : 's'}`;
+  const amounts = (p.salesAmounts ?? [])
+    .filter((a) => a.amount > 0)
+    .map((a) => formatSalesAmount(a.amount, a.currency));
+  return {
+    hasSales: true,
+    label: amounts.length > 0 ? `${count} · ${amounts.join(' + ')}` : count,
+    hint:
+      'Ventas y pedidos ya cobrados que usaron la promoción, y lo cobrado por sus productos (con IVA). ' +
+      'No cuenta lo demás del ticket ni las ventas sin cobrar o canceladas.',
+  };
+}
+
 // ── Inicio del panel del distribuidor: tarjeta de la temporada vigente ──────────────────────
 
 /** Lo que la tarjeta dice de una promoción que corre hoy. */

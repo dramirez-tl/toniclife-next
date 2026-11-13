@@ -3,7 +3,8 @@
 // Detalle/edición de una temporada de promociones (mig 186). Ver con
 // products:read; guardar y agregar promociones con products:seasonal_promos
 // (sin él, todo es de solo lectura). Abajo: sus promociones (con el diálogo
-// de alta/edición) y las ventas que las usaron.
+// de alta/edición y, en cada una, la insignia de ventas y monto cobrado) y las
+// ventas que las usaron.
 
 import { use, useState } from 'react';
 import Link from 'next/link';
@@ -27,6 +28,7 @@ import { useProductPermissions } from '@/components/admin/products/lib/permissio
 import { SeasonForm } from '@/components/admin/seasonal-promotions/SeasonForm';
 import { ArtZoom } from '@/components/admin/seasonal-promotions/ArtZoom';
 import { PromotionDialog } from '@/components/admin/seasonal-promotions/PromotionDialog';
+import { PromotionSalesBadge } from '@/components/admin/seasonal-promotions/PromotionSalesBadge';
 import { SeasonUsagesSection } from '@/components/admin/seasonal-promotions/SeasonUsagesSection';
 import { CountryChips } from '@/app/admin/productos/_tabs/TemporadasTab';
 import { useDeletePromoSeason, usePromoSeason, useUpdatePromoSeason } from '@/hooks/useSeasonalPromotions';
@@ -252,6 +254,8 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
                               Sin bono
                             </span>
                           )}
+                          {/* En pantallas angostas la insignia de ventas va con las demás. */}
+                          <PromotionSalesBadge promotion={p} placement="inline" />
                         </div>
                         <p className="mt-0.5 text-xs text-gray-600">{promotionSummary(p)}</p>
                         <p className="mt-0.5 text-xs text-gray-500">
@@ -260,12 +264,13 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
                             : 'Toda la temporada'}
                           {' · '}
                           {channelsLabel(p.channels)}
-                          {p.usageCount > 0 ? ` · ${p.usageCount} venta${p.usageCount === 1 ? '' : 's'}` : ''}
                         </p>
                         <div className="mt-1">
                           <CountryChips countries={p.countries} />
                         </div>
                       </div>
+                      {/* En escritorio, alineada a la derecha: se comparan de un vistazo. */}
+                      <PromotionSalesBadge promotion={p} placement="side" />
                       <button
                         type="button"
                         onClick={() => openDialog(p)}
