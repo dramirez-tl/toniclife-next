@@ -87,7 +87,8 @@ export function JourneyTestDialog({
           <DialogDescription>
             Se enviará un WhatsApp real con la plantilla del recorrido y las variables del periodo en
             curso (o de ejemplo) a un número de monitoreo guardado. Sale como mensaje manual: no
-            cuenta en las métricas y se puede repetir (máximo 5 por minuto).
+            cuenta en las métricas y se puede repetir (máximo 5 por minuto). En J8 llega un mensaje
+            por cada promoción de Temporadas a la vista: la de hoy y la que sigue.
           </DialogDescription>
         </DialogHeader>
 
@@ -148,6 +149,13 @@ export function JourneyTestDialog({
                     No salió{result.errorCode ? ` (${result.errorCode})` : ''}
                     {result.error ? `: ${result.error}` : '.'}
                   </>
+                )}
+                {result.messages.length > 0 && (
+                  <ul className="mt-1.5 list-disc pl-5 text-xs">
+                    {result.messages.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
                 )}
               </div>
             )}

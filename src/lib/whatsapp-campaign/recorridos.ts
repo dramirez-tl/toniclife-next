@@ -543,6 +543,7 @@ export function adaptarTestResult(raw: unknown): JourneyTestResult {
     wamid: str(r.wamid),
     errorCode: str(r.errorCode),
     error: str(r.error),
+    messages: strList(r.messages),
   };
 }
 

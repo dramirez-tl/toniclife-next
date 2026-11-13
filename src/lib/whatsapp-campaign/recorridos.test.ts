@@ -540,7 +540,17 @@ describe('preview, corridas y prueba', () => {
   });
 
   it('resultado de la prueba', () => {
-    expect(adaptarTestResult({ success: true, wamid: 'w' })).toEqual({ success: true, wamid: 'w', errorCode: null, error: null });
+    expect(adaptarTestResult({ success: true, wamid: 'w' })).toEqual({
+      success: true,
+      wamid: 'w',
+      errorCode: null,
+      error: null,
+      messages: [],
+    });
+    // J8 dice qué mensajes mandó (uno por promoción a la vista).
+    expect(
+      adaptarTestResult({ success: true, wamid: 'w', messages: ['Hoy: Kit', 'Sigue: 3x2 Buen Fin sábado 14', 7] }).messages,
+    ).toEqual(['Hoy: Kit', 'Sigue: 3x2 Buen Fin sábado 14']);
     expect(adaptarTestResult(undefined).success).toBe(false);
   });
 });

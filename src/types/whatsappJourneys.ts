@@ -283,4 +283,6 @@ export interface JourneyTestResult {
   wamid: string | null;
   errorCode: string | null;
   error: string | null;
+  /** J8: mensajes que se mandaron ('Hoy: …', 'Sigue: …'); [] en los demás recorridos. */
+  messages: string[];
 }
