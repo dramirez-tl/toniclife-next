@@ -11,6 +11,7 @@ import {
   MovementType,
   LotStatus,
   ApplyTransferPayload,
+  ResolveTransferDiscrepanciesPayload,
   SetProductBranchBlockDto,
   ProductBranchBlockDto,
 } from '@/types/inventory';
@@ -513,6 +514,21 @@ class InventoryService {
     const response = await api.post<TransferDto>(
       `/inventory/transfers/${id}/apply`,
       payload ?? {},
+    );
+    return response.data;
+  }
+
+  /**
+   * Aclara diferencias de un traspaso ya recibido: lo que llegó después entra
+   * al destino, lo devuelto regresa al origen y lo extraviado se da de baja.
+   */
+  async resolveTransferDiscrepancies(
+    id: string,
+    payload: ResolveTransferDiscrepanciesPayload,
+  ): Promise<TransferDto> {
+    const response = await api.post<TransferDto>(
+      `/inventory/transfers/${id}/discrepancies/resolve`,
+      payload,
     );
     return response.data;
   }

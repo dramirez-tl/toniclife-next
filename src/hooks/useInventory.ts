@@ -22,6 +22,7 @@ import type {
   MovementQueryDto,
   CreateMovementDto,
   ApplyTransferPayload,
+  ResolveTransferDiscrepanciesPayload,
   EnableBranchCatalogDto,
   SetProductBranchBlockDto,
 } from '@/types/inventory';
@@ -270,6 +271,30 @@ export function useApplyTransfer() {
       });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+    },
+  });
+}
+
+/**
+ * Aclarar diferencias de un traspaso ya recibido (mueve existencias del
+ * destino o del origen): refresca el traspaso, la lista, existencias y kardex.
+ */
+export function useResolveTransferDiscrepancies() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: ResolveTransferDiscrepanciesPayload;
+    }) => inventoryService.resolveTransferDiscrepancies(id, payload),
+    onSuccess: (transfer, { id }) => {
+      queryClient.setQueryData(inventoryKeys.transferDetail(id), transfer);
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.kardex() });
     },
   });
 }

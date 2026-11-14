@@ -345,6 +345,25 @@ export interface TransferItemDto {
   notes?: string;
 }
 
+/**
+ * Qué pasó con las piezas que faltaron al recibir un traspaso:
+ * arrived = sí llegaron (entran al destino) · returned = se devolvieron (entran
+ * al origen) · lost = se extraviaron (no entran a ningún inventario).
+ */
+export type TransferDiscrepancyResolutionKind = 'arrived' | 'returned' | 'lost';
+
+export interface TransferDiscrepancyResolutionDto {
+  id: string;
+  resolution: TransferDiscrepancyResolutionKind | string;
+  quantity: number;
+  notes?: string;
+  /** Movimiento de entrada que acreditó las piezas (lo extraviado no tiene). */
+  movementId?: string;
+  movementNumber?: string;
+  resolvedBy?: { id: string; name: string };
+  createdAt: string;
+}
+
 export interface TransferDiscrepancyDto {
   id: string;
   productId: string;
@@ -352,10 +371,32 @@ export interface TransferDiscrepancyDto {
   productName: string;
   discrepancyType: 'missing' | 'damaged' | 'excess' | 'wrong_product' | string;
   quantityExpected: number;
+  /** Lo que se contó al recibir; no cambia al aclarar. */
   quantityActual: number;
   status: 'reported' | 'investigating' | 'resolved' | 'written_off' | string;
   notes?: string;
   createdAt: string;
+  /** Piezas del faltante que siguen sin aclarar (ausente con un API anterior). */
+  pendingQuantity?: number;
+  arrivedQuantity?: number;
+  returnedQuantity?: number;
+  lostQuantity?: number;
+  resolutions?: TransferDiscrepancyResolutionDto[];
+  resolvedAt?: string;
+}
+
+export interface ResolveTransferDiscrepancyItem {
+  discrepancyId: string;
+  resolution: TransferDiscrepancyResolutionKind;
+  quantity: number;
+  /** Lo pendiente que mostraba la pantalla: el API rechaza si ya cambió. */
+  pendingQuantity: number;
+  notes?: string;
+}
+
+export interface ResolveTransferDiscrepanciesPayload {
+  items: ResolveTransferDiscrepancyItem[];
+  notes?: string;
 }
 
 /** Recepcion parcial: cantidad recibida por linea (las omitidas se reciben completas). */
@@ -374,6 +415,8 @@ export interface ApplyTransferPayload {
 export interface TransferDto {
   id: string;
   discrepancies?: TransferDiscrepancyDto[];
+  /** true cuando el API puede aclarar las diferencias (solo viene si las hay). */
+  discrepancyResolutionEnabled?: boolean;
   movementNumber: string;
   branch: BranchInfo;           // source branch
   destinationBranch: BranchInfo;

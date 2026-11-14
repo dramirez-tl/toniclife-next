@@ -46,6 +46,7 @@ import { inventoryService } from '@/services/inventory.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import type { TransferDto } from '@/types/inventory';
 import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
+import { TransferDiscrepanciesCard } from '@/components/admin/inventory/TransferDiscrepanciesCard';
 
 // ================================
 // Status Timeline
@@ -540,7 +541,7 @@ export default function TransferDetailPage() {
                 {transfer.notes && (
                   <div>
                     <span className="text-sm text-gray-500">Notas:</span>
-                    <p className="text-gray-700 mt-0.5">{transfer.notes}</p>
+                    <p className="text-gray-700 mt-0.5 whitespace-pre-line">{transfer.notes}</p>
                   </div>
                 )}
               </div>
@@ -648,6 +649,15 @@ export default function TransferDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Diferencias al recibir: qué faltó y qué se aclaró después (llegó,
+            se devolvió o se extravió). Aclararlas pide el mismo permiso que
+            recibir el traspaso. */}
+        <TransferDiscrepanciesCard
+          transfer={transfer}
+          canResolve={canApprove}
+          timeZone={destTz}
+        />
       </div>
 
       {/* Action Modals (reject/cancel: piden motivo) */}
@@ -737,43 +747,6 @@ export default function TransferDetailPage() {
       )}
 
       {/* Approve / Apply Confirmation Modal (ambos mueven stock) */}
-      {transfer.discrepancies && transfer.discrepancies.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mt-6">
-          <h2 className="text-lg font-bold text-amber-800 mb-3 flex items-center gap-2">
-            <ExclamationTriangleIcon className="h-5 w-5" />
-            Diferencias al recibir ({transfer.discrepancies.length})
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-amber-50 text-xs text-amber-900">
-                <tr>
-                  <th className="px-3 py-2 text-left">Producto</th>
-                  <th className="px-3 py-2 text-left">Tipo</th>
-                  <th className="px-3 py-2 text-right">Enviado</th>
-                  <th className="px-3 py-2 text-right">Recibido</th>
-                  <th className="px-3 py-2 text-right">Diferencia</th>
-                  <th className="px-3 py-2 text-left">Estado</th>
-                  <th className="px-3 py-2 text-left">Notas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transfer.discrepancies.map((dsc) => (
-                  <tr key={dsc.id} className="border-t border-amber-100">
-                    <td className="px-3 py-2"><div className="text-gray-900">{dsc.productName}</div><div className="font-mono text-[11px] text-gray-400">{dsc.productCode}</div></td>
-                    <td className="px-3 py-2">{{ missing: 'Faltante', damaged: 'Dañado', excess: 'Excedente', wrong_product: 'Producto equivocado' }[dsc.discrepancyType] ?? dsc.discrepancyType}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{dsc.quantityExpected}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{dsc.quantityActual}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums font-semibold ${dsc.quantityActual < dsc.quantityExpected ? 'text-red-600' : 'text-amber-700'}`}>{dsc.quantityActual - dsc.quantityExpected > 0 ? '+' : ''}{dsc.quantityActual - dsc.quantityExpected}</td>
-                    <td className="px-3 py-2">{{ reported: 'Reportada', investigating: 'En investigación', resolved: 'Resuelta', written_off: 'Dada de baja' }[dsc.status] ?? dsc.status}</td>
-                    <td className="px-3 py-2 text-gray-500">{dsc.notes ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {(actionModal === 'apply' || actionModal === 'approve') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
