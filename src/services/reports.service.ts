@@ -23,6 +23,7 @@ import type {
   AttendanceReportQuery,
   AttendanceReportResponse,
   DashboardKPIs,
+  PanelPace,
   AnalyticsQuery,
   AnalyticsResponse,
   ProductByPeriodQuery,
@@ -276,6 +277,17 @@ class ReportsService {
 
   async getDashboardKPIs(periodId?: string): Promise<DashboardKPIs> {
     const response = await api.get<DashboardKPIs>('/reports/dashboard', {
+      params: periodId ? { periodId } : undefined,
+    });
+    return response.data;
+  }
+
+  /**
+   * Ritmo del periodo (consolidado) para la gráfica del Panel Principal: el
+   * periodo actual o el que se esté viendo. Backend: GET /reports/dashboard/pace.
+   */
+  async getDashboardPace(periodId?: string): Promise<PanelPace> {
+    const response = await api.get<PanelPace>('/reports/dashboard/pace', {
       params: periodId ? { periodId } : undefined,
     });
     return response.data;

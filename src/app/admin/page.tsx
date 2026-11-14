@@ -11,6 +11,7 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { isBranchScopedUser } from '@/lib/branch-scope';
 import { ScopedReportsLanding } from '@/components/admin/reports/ScopedReportsLanding';
+import { PeriodPaceCard } from '@/components/admin/dashboard/PeriodPaceCard';
 import {
   UserGroupIcon,
   UserPlusIcon,
@@ -469,6 +470,15 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Ritmo del periodo (14-nov-2026): la gráfica del Inicio de la app, con la
+          venta consolidada del periodo que se esté viendo contra el periodo
+          anterior y el mismo del año pasado. "Hasta hoy" usa el consolidado de
+          la tarjeta de arriba para que sea el mismo número en pantalla. */}
+      <PeriodPaceCard
+        periodId={periodId}
+        consolidated={{ periodId: kpis?.period?.id, totalMxn: kpis?.fx?.totalMxn }}
+      />
 
       {/* Pedidos recientes, productos más vendidos y actividad reciente se
           quitaron del panel (23-oct-2026): el negocio quiere solo los KPIs del

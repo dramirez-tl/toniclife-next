@@ -416,6 +416,73 @@ export interface DashboardFx {
   growthYoy?: number | null;
 }
 
+// ================================
+// RITMO DEL PERIODO (Panel Principal)
+// Espejo de PanelPaceDto del API (GET /reports/dashboard/pace): la misma
+// comparación del Inicio de la app, del periodo que se esté viendo.
+// ================================
+
+/** current = en curso; closed = ya terminó; upcoming = todavía no empieza. */
+export type PacePhase = 'upcoming' | 'current' | 'closed';
+export type PaceSignal = 'starting' | 'ahead' | 'close' | 'behind';
+
+/** Importes en pesos (consolidado, con la tasa congelada del periodo). */
+export interface PaceAmounts {
+  currency: string;
+  /** Vendido hasta este momento (incluye el día en curso). */
+  currentToDate: number;
+  /** Vendido al cierre del último día completo. */
+  currentClosed: number;
+  /** Lo que la referencia llevaba al cierre de ese mismo día. */
+  referenceAtClosedDay: number;
+  /** Con cuánto cerró la referencia. */
+  referenceTotal: number;
+}
+
+export interface PanelPaceComparison {
+  /** Periodo de referencia ("OCTUBRE 2026"). */
+  name: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  /** Lo acumulado como % del total de la referencia. */
+  progressPct: number;
+  referenceAtSameDayPct: number;
+  /** Ritmo a los mismos días completos (100 = igual); null los primeros días. */
+  pacePct: number | null;
+  signal: PaceSignal;
+  /** Curvas en % del total de la referencia (las que usa la app). */
+  current: number[];
+  reference: number[];
+  amounts?: PaceAmounts;
+  /** Acumulado por día en pesos: el periodo que se ve (hasta hoy) y la referencia completa. */
+  series: { current: number[]; reference: number[] };
+}
+
+export interface PanelPacePeriod {
+  id: string;
+  number: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  /** Día de hoy dentro del periodo; en uno terminado, su último día; sin empezar, 0. */
+  dayNumber: number;
+  /** Días completos: hasta ayer en el periodo en curso; todos en uno terminado. */
+  closedDay: number;
+}
+
+export interface PanelPace {
+  period: PanelPacePeriod | null;
+  phase: PacePhase | null;
+  /** Desde qué día del periodo se da veredicto de ritmo. */
+  minSignalDay: number;
+  /** Contra el periodo anterior. */
+  previous: PanelPaceComparison | null;
+  /** Contra el mismo periodo del año pasado. */
+  lastYear: PanelPaceComparison | null;
+}
+
 export interface DashboardKPIs {
   totalUsers: number;
   usersGrowth: number;

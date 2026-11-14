@@ -36,6 +36,22 @@ export function useDashboardKPIs(periodId?: string, options?: { enabled?: boolea
   });
 }
 
+/**
+ * Ritmo del periodo para la gráfica del Panel Principal. Mismo plazo de
+ * frescura que los KPIs del panel para que se pidan en los mismos momentos y
+ * no cuenten cosas distintas.
+ */
+export function useDashboardPace(periodId?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['dashboard', 'pace', periodId ?? 'current'],
+    queryFn: () => reportsService.getDashboardPace(periodId),
+    enabled: options?.enabled ?? true,
+    staleTime: 1000 * 60 * 5, // 5 minutes, igual que useDashboardKPIs
+    placeholderData: (prev) => prev, // mantiene la gráfica al cambiar de periodo
+    retry: 1,
+  });
+}
+
 // ================================
 // SALES REPORTS
 // ================================
