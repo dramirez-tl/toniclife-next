@@ -40,6 +40,12 @@ export const inventoryKeys = {
     [...inventoryKeys.stock(), 'branch', branchId, query] as const,
   productStock: (productId: string) =>
     [...inventoryKeys.stock(), 'product', productId] as const,
+  // Todas las sucursales (sumado por producto). Cuelgan de stock() para que
+  // cualquier movimiento que invalide las existencias las refresque también.
+  consolidatedStock: (query?: BranchStockQueryDto) =>
+    [...inventoryKeys.stock(), 'consolidated', query] as const,
+  consolidatedStockStats: (query?: BranchStockQueryDto) =>
+    [...inventoryKeys.stock(), 'consolidated-stats', query] as const,
   // Kardex
   kardex: () => [...inventoryKeys.all, 'kardex'] as const,
   productKardex: (productId: string, query?: KardexQueryDto) =>
@@ -118,6 +124,26 @@ export function useAllBranchStock(branchId: string | null) {
     enabled: !!branchId,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+  });
+}
+
+/** Existencias de todas las sucursales, un renglón por producto. */
+export function useConsolidatedStock(query: BranchStockQueryDto = {}, enabled = true) {
+  return useQuery({
+    queryKey: inventoryKeys.consolidatedStock(query),
+    queryFn: () => inventoryService.getConsolidatedStock(query),
+    enabled,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
+/** Tarjetas de la vista de todas las sucursales. */
+export function useConsolidatedStockStats(query: BranchStockQueryDto = {}, enabled = true) {
+  return useQuery({
+    queryKey: inventoryKeys.consolidatedStockStats(query),
+    queryFn: () => inventoryService.getConsolidatedStockStats(query),
+    enabled,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -632,6 +658,18 @@ export function useExportBranchStock() {
       query?: BranchStockQueryDto;
       filename?: string;
     }) => inventoryService.exportBranchStock(branchId, query, filename),
+  });
+}
+
+export function useExportConsolidatedStock() {
+  return useMutation({
+    mutationFn: ({
+      query,
+      filename,
+    }: {
+      query?: BranchStockQueryDto;
+      filename?: string;
+    } = {}) => inventoryService.exportConsolidatedStock(query, filename),
   });
 }
 

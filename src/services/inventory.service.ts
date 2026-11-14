@@ -45,6 +45,8 @@ import type {
   ProductLotDto,
   InventoryStats,
   BranchStockStats,
+  ConsolidatedStockResponseDto,
+  ConsolidatedStockStats,
   BranchCatalogCoverageResponse,
   BranchCatalogEnableResult,
   EnableBranchCatalogDto,
@@ -397,6 +399,61 @@ class InventoryService {
     if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
     const response = await api.get(
       `/inventory/branches/${branchId}/export?${params.toString()}`,
+      { responseType: 'blob' },
+    );
+    downloadCsv(response.data, filename);
+  }
+
+  // ================================
+  // TODAS LAS SUCURSALES (existencias sumadas por producto)
+  // ================================
+
+  /** Un renglón por producto con lo que hay en todas las sucursales. */
+  async getConsolidatedStock(
+    query: BranchStockQueryDto = {},
+  ): Promise<ConsolidatedStockResponseDto> {
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
+    if (query.categoryId) params.append('categoryId', query.categoryId);
+    if (query.lowStock !== undefined) params.append('lowStock', String(query.lowStock));
+    if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
+    if (query.page) params.append('page', String(query.page));
+    if (query.limit) params.append('limit', String(query.limit));
+    if (query.sortBy) params.append('sortBy', query.sortBy);
+    if (query.sortOrder) params.append('sortOrder', query.sortOrder);
+    const response = await api.get<ConsolidatedStockResponseDto>(
+      `/inventory/consolidated?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  async getConsolidatedStockStats(
+    query: BranchStockQueryDto = {},
+  ): Promise<ConsolidatedStockStats> {
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
+    if (query.categoryId) params.append('categoryId', query.categoryId);
+    const response = await api.get<ConsolidatedStockStats>(
+      `/inventory/consolidated/stats?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  /** CSV: totales por producto + una columna por sucursal. */
+  async exportConsolidatedStock(
+    query: BranchStockQueryDto = {},
+    filename = 'inventario_todas_las_sucursales.csv',
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
+    if (query.categoryId) params.append('categoryId', query.categoryId);
+    if (query.lowStock !== undefined) params.append('lowStock', String(query.lowStock));
+    if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
+    const response = await api.get(
+      `/inventory/consolidated/export?${params.toString()}`,
       { responseType: 'blob' },
     );
     downloadCsv(response.data, filename);

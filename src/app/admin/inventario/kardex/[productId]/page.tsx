@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useKardex, useProductStock } from '@/hooks/useInventory';
+import { ALL_BRANCHES } from '@/lib/inventory/all-branches';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import {
@@ -612,7 +613,8 @@ function KardexContent() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href={`/admin/inventario${branchFilter ? `?branch=${branchFilter}` : ''}`}
+                // Sin sucursal elegida el kardex es de todas: se regresa a "Todas las sucursales".
+                href={`/admin/inventario?branch=${branchFilter || ALL_BRANCHES}`}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-5 w-5" />

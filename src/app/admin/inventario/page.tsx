@@ -26,15 +26,31 @@ import { toast } from 'sonner';
 import {
   useBranchStock,
   useBranchStockStats,
+  useConsolidatedStock,
+  useConsolidatedStockStats,
   useExportBranchStock,
+  useExportConsolidatedStock,
 } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ProductThumb } from '@/components/admin/inventory/ProductThumb';
-import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
+import { ProductBranchesDialog } from '@/components/admin/inventory/ProductBranchesDialog';
+import type { BranchStockQueryDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE, resolveTimeZone } from '@/lib/timezone-utils';
+import { todayInCdmx } from '@/lib/network/format';
+import {
+  ALL_BRANCHES,
+  ALL_BRANCHES_LABEL,
+  branchStockRows,
+  branchesWithStockLabel,
+  canSeeAllBranches,
+  consolidatedStockRows,
+  stockCards,
+  stockExportFilename,
+  type StockTableRow,
+} from '@/lib/inventory/all-branches';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
@@ -117,14 +133,19 @@ function InventarioContent() {
 
   // Fetch branches for the selector
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
-  const branchTimezone = branches?.find((b) => b.id === selectedBranch)?.timezone || DEFAULT_TIMEZONE;
+  // "Todas las sucursales": las existencias sumadas por producto (14-nov-2026).
+  const isAll = selectedBranch === ALL_BRANCHES;
+  const canSeeAll = canSeeAllBranches(branches?.length);
+  // Producto cuyo desglose por sucursal está abierto.
+  const [branchesOf, setBranchesOf] = useState<StockTableRow | null>(null);
 
-  // Set initial branch when branches load
+  // Sin sucursal en la URL se abre la primera; también si pide "todas" quien solo ve una.
   useEffect(() => {
-    if (branches && branches.length > 0 && !selectedBranch) {
+    if (!branches || branches.length === 0) return;
+    if (!selectedBranch || (isAll && !canSeeAll)) {
       setParams({ branch: branches[0].id, page: '1' });
     }
-  }, [branches, selectedBranch, setParams]);
+  }, [branches, selectedBranch, isAll, canSeeAll, setParams]);
 
   const query: BranchStockQueryDto = useMemo(() => ({
     search: searchQuery || undefined,
@@ -141,13 +162,32 @@ function InventarioContent() {
     code: skuQuery || undefined,
   }), [searchQuery, skuQuery]);
 
-  const { data: stockData, isLoading, isFetching, error, refetch } = useBranchStock(selectedBranch, query);
-  const { data: statsData, isLoading: statsLoading } = useBranchStockStats(selectedBranch, statsParams);
+  // Una sucursal o todas: solo se consulta lo que se está viendo. "Todas" no espera a la
+  // lista de sucursales; solo se detiene si ya se sabe que la persona ve una sola.
+  const allEnabled = isAll && (branches === undefined || canSeeAll);
+  const branchStock = useBranchStock(isAll ? null : selectedBranch, query);
+  const branchStats = useBranchStockStats(isAll ? null : selectedBranch, statsParams);
+  const allStock = useConsolidatedStock(query, allEnabled);
+  const allStats = useConsolidatedStockStats(statsParams, allEnabled);
   const exportStock = useExportBranchStock();
+  const exportAllStock = useExportConsolidatedStock();
+  const exporting = exportStock.isPending || exportAllStock.isPending;
 
-  const stockItems = stockData?.data ?? [];
+  const { isLoading, isFetching, error, refetch } = isAll ? allStock : branchStock;
+  const stockData = isAll ? allStock.data : branchStock.data;
+  const statsData = isAll ? allStats.data : branchStats.data;
+  const statsLoading = isAll ? allStats.isLoading : branchStats.isLoading;
+  const refetchStats = isAll ? allStats.refetch : branchStats.refetch;
+
+  const stockItems = useMemo(
+    () => (isAll ? consolidatedStockRows(allStock.data?.data) : branchStockRows(branchStock.data?.data)),
+    [isAll, allStock.data, branchStock.data],
+  );
   const totalItems = stockData?.total ?? 0;
   const backendTotalPages = stockData?.totalPages;
+  const tableScopeName = isAll ? ALL_BRANCHES_LABEL : branchStock.data?.branch?.name;
+  // Sucursales que se están sumando (el API confirma el número; mientras, las del selector).
+  const allBranchesCount = allStats.data?.branches ?? allStock.data?.branches ?? branches?.length ?? 0;
 
   // Handlers
   const handleSearch = () => {
@@ -171,7 +211,8 @@ function InventarioContent() {
   };
 
   const handleRefresh = async () => {
-    await refetch();
+    // La lista y las tarjetas juntas, para que no queden contando cosas distintas.
+    await Promise.all([refetch(), refetchStats()]);
   };
 
   const resetFilters = () => {
@@ -193,48 +234,51 @@ function InventarioContent() {
       toast.error('Selecciona una sucursal primero');
       return;
     }
-    const branchName =
-      branches?.find((b) => b.id === selectedBranch)?.name?.replace(/\s+/g, '_') ||
-      'sucursal';
+    const exportQuery: BranchStockQueryDto = {
+      search: searchQuery || undefined,
+      code: skuQuery || undefined,
+      lowStock: filterStock === 'low' || undefined,
+      outOfStock: filterStock === 'out' || undefined,
+    };
+    // Fecha de hoy en hora Centro (la de UTC ya dice "mañana" desde las 18:00).
+    const today = todayInCdmx();
     try {
-      await exportStock.mutateAsync({
-        branchId: selectedBranch,
-        query: {
-          search: searchQuery || undefined,
-          code: skuQuery || undefined,
-          lowStock: filterStock === 'low' || undefined,
-          outOfStock: filterStock === 'out' || undefined,
-        },
-        filename: `inventario_${branchName}_${new Date().toISOString().slice(0, 10)}.csv`,
-      });
+      if (isAll) {
+        // Totales por producto + una columna por sucursal.
+        await exportAllStock.mutateAsync({
+          query: exportQuery,
+          filename: stockExportFilename(ALL_BRANCHES_LABEL, today),
+        });
+      } else {
+        await exportStock.mutateAsync({
+          branchId: selectedBranch,
+          query: exportQuery,
+          filename: stockExportFilename(
+            branches?.find((b) => b.id === selectedBranch)?.name || 'sucursal',
+            today,
+          ),
+        });
+      }
       toast.success('Inventario exportado');
     } catch {
       toast.error('Error al exportar inventario');
     }
-  }, [selectedBranch, searchQuery, skuQuery, filterStock, branches, exportStock]);
+  }, [selectedBranch, isAll, searchQuery, skuQuery, filterStock, branches, exportStock, exportAllStock]);
 
   // Stats from the aggregated endpoint (independent of stock filter/pagination)
-  const stats = useMemo(() => {
-    const total = statsData?.totalProducts ?? 0;
-    const low = statsData?.lowStock ?? 0;
-    const out = statsData?.outOfStock ?? 0;
-    return {
-      totalProducts: total,
-      lowStock: low,
-      outOfStock: out,
-      normalStock: Math.max(0, total - low - out),
-    };
-  }, [statsData]);
+  const stats = useMemo(() => stockCards(statsData), [statsData]);
 
-  const formatDateTime = (date: string | undefined) => {
+  // Con una sucursal, la hora es la de esa sucursal; con todas, hora Centro.
+  const formatDateTime = (date: string | undefined, branchId?: string) => {
     if (!date) return '-';
+    const timezone = branchId ? branches?.find((b) => b.id === branchId)?.timezone : DEFAULT_TIMEZONE;
     return new Date(date).toLocaleString('es-MX', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: resolveTimeZone(branchTimezone),
+      timeZone: resolveTimeZone(timezone),
     });
   };
 
@@ -272,10 +316,11 @@ function InventarioContent() {
   }
 
   // Table columns
-  const columns: DataTableColumn<ProductStockDto>[] = [
+  const columns: DataTableColumn<StockTableRow>[] = [
     {
       key: 'product',
       header: 'Producto',
+      cellClassName: isAll ? 'min-w-[250px]' : undefined,
       sortable: true,
       sortValue: (item) => item.productName,
       render: (item) => (
@@ -303,7 +348,7 @@ function InventarioContent() {
       sortable: true,
       sortValue: (item) => item.quantityOnHand,
       render: (item) => (
-        <span className="font-semibold text-gray-900">{item.quantityOnHand}</span>
+        <span className="font-semibold text-gray-900">{formatNumber(item.quantityOnHand)}</span>
       ),
     },
     {
@@ -312,7 +357,7 @@ function InventarioContent() {
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (item) => (
-        <span className="text-gray-600">{item.quantityReserved}</span>
+        <span className="text-gray-600">{formatNumber(item.quantityReserved)}</span>
       ),
     },
     {
@@ -325,34 +370,60 @@ function InventarioContent() {
       render: (item) => (
         <span
           className={`font-bold ${
-            item.quantityAvailable === 0
+            item.state === 'out'
               ? 'text-red-600'
-              : item.isLowStock
+              : item.state === 'low'
                 ? 'text-yellow-600'
                 : 'text-green-600'
           }`}
         >
-          {item.quantityAvailable}
+          {formatNumber(item.quantityAvailable)}
         </span>
       ),
     },
+    // Solo con todas las sucursales: en cuántas hay piezas; al pulsarlo se ve en cuáles.
+    ...(isAll
+      ? ([
+          {
+            key: 'branches',
+            header: 'Sucursales con existencia',
+            headerClassName: 'text-center whitespace-normal leading-tight min-w-[130px]',
+            cellClassName: 'text-center',
+            sortable: true,
+            sortValue: (item) => item.branchesWithStock ?? 0,
+            render: (item) => (
+              <button
+                type="button"
+                onClick={() => setBranchesOf(item)}
+                title="Ver en qué sucursales está"
+                className="whitespace-nowrap rounded-full bg-[#3E667D]/10 px-3 py-1 text-sm font-medium text-[#3E667D] transition-colors hover:bg-[#3E667D]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
+              >
+                {branchesWithStockLabel(item.branchesWithStock, item.branchesCount)}
+              </button>
+            ),
+          },
+        ] satisfies DataTableColumn<StockTableRow>[])
+      : []),
     {
       key: 'status',
       header: 'Estado',
       sortable: true,
-      sortValue: (item) => item.quantityAvailable === 0 ? 0 : item.isLowStock ? 1 : 2,
+      sortValue: (item) => item.state === 'out' ? 0 : item.state === 'low' ? 1 : 2,
       render: (item) => {
-        if (item.quantityAvailable === 0) {
+        if (item.state === 'out') {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+            <span
+              className="inline-flex items-center gap-1 whitespace-nowrap px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium"
+              title={isAll ? 'Sin piezas en ninguna sucursal' : undefined}
+            >
               <XCircleIcon className="h-3 w-3" />
               Sin Existencias
             </span>
           );
         }
-        if (item.isLowStock) {
+        if (item.state === 'low') {
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
               <ExclamationTriangleIcon className="h-3 w-3" />
               Existencias Bajas
             </span>
@@ -371,16 +442,14 @@ function InventarioContent() {
       header: 'Última Actualización',
       sortable: true,
       sortValue: (item) => item.lastMovementAt || '',
-      render: (item) => {
-        const tz = resolveTimeZone(branches?.find(b => b.name === item.branchName)?.timezone);
-        return (
-          <span className="text-sm text-gray-600">
-            {item.lastMovementAt
-              ? new Date(item.lastMovementAt).toLocaleString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: tz })
-              : '-'}
-          </span>
-        );
-      },
+      render: (item) => (
+        <span
+          className="whitespace-nowrap text-sm text-gray-600"
+          title={isAll && item.lastMovementAt ? 'Último movimiento en cualquier sucursal (hora del centro de México)' : undefined}
+        >
+          {formatDateTime(item.lastMovementAt, item.branchId)}
+        </span>
+      ),
     },
     {
       key: 'actions',
@@ -389,10 +458,22 @@ function InventarioContent() {
       cellClassName: 'text-right',
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
-          <Link href={`/admin/inventario/kardex/${item.productId}${selectedBranch ? `?branch=${selectedBranch}` : ''}`}>
+          {isAll && (
+            <button
+              type="button"
+              onClick={() => setBranchesOf(item)}
+              className="rounded-lg p-2 transition-colors hover:bg-[#3E667D]/10"
+              title="Ver por sucursal"
+              aria-label={`Ver ${item.productName} por sucursal`}
+            >
+              <BuildingStorefrontIcon className="h-4 w-4 text-[#3E667D]" />
+            </button>
+          )}
+          {/* Con todas las sucursales el kardex se abre sin filtro: movimientos de todas. */}
+          <Link href={`/admin/inventario/kardex/${item.productId}${!isAll && selectedBranch ? `?branch=${selectedBranch}` : ''}`}>
             <button
               className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-              title="Ver Kardex"
+              title={isAll ? 'Ver Kardex (todas las sucursales)' : 'Ver Kardex'}
             >
               <ChartBarIcon className="h-4 w-4 text-blue-600" />
             </button>
@@ -515,9 +596,26 @@ function InventarioContent() {
                         value={selectedBranch}
                         onChange={handleBranchChange}
                         placeholder="Buscar sucursal..."
-                        showAllOption={false}
+                        showAllOption={canSeeAll}
+                        allLabel={ALL_BRANCHES_LABEL}
+                        allValue={ALL_BRANCHES}
                         className="max-w-sm"
                       />
+                    )}
+                    {isAll && (
+                      <p className="mt-2 text-sm text-gray-600" data-testid="all-branches-summary">
+                        Se suman las existencias de {allBranchesCount} sucursales
+                        {allStats.data && (
+                          <>
+                            {' · '}
+                            <span className="font-semibold text-gray-900">
+                              {formatNumber(allStats.data.totalAvailable)}
+                            </span>{' '}
+                            piezas disponibles{searchQuery || skuQuery ? ' de los productos encontrados' : ''}
+                          </>
+                        )}
+                        .
+                      </p>
                     )}
                   </div>
                 </div>
@@ -525,14 +623,15 @@ function InventarioContent() {
                   <Button
                     variant="outline"
                     onClick={handleExport}
-                    disabled={exportStock.isPending || !selectedBranch}
+                    disabled={exporting || !selectedBranch}
+                    title={isAll ? 'Totales por producto y una columna por sucursal' : undefined}
                   >
-                    {exportStock.isPending ? (
+                    {exporting ? (
                       <ArrowPathIcon className="h-5 w-5 animate-spin" />
                     ) : (
                       <ArrowDownTrayIcon className="h-5 w-5" />
                     )}
-                    {exportStock.isPending ? 'Exportando...' : 'Exportar'}
+                    {exporting ? 'Exportando...' : 'Exportar'}
                   </Button>
                 </div>
               </div>
@@ -670,7 +769,7 @@ function InventarioContent() {
             <CardContent className="p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-base font-semibold text-gray-900">
-                  Inventario {stockData?.branch ? `- ${stockData.branch.name}` : ''}
+                  Inventario {tableScopeName ? `- ${tableScopeName}` : ''}
                 </h2>
                 <p className="text-sm text-gray-600">
                   Mostrando {stockItems.length} de {totalItems.toLocaleString()}
@@ -693,9 +792,9 @@ function InventarioContent() {
                   <DataTable
                     columns={columns}
                     data={stockItems}
-                    isLoading={isLoading && !stockData}
-                    getRowKey={(item) => item.id}
-                    minWidthClassName="min-w-[920px]"
+                    isLoading={(isLoading || branchesLoading) && !stockData}
+                    getRowKey={(item) => item.key}
+                    minWidthClassName={isAll ? 'min-w-[1080px]' : 'min-w-[920px]'}
                     emptyState={
                       <div className="py-2 text-center">
                         <CubeIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
@@ -731,6 +830,14 @@ function InventarioContent() {
             </CardContent>
           </Card>
         </div>
+
+        {branchesOf && (
+          <ProductBranchesDialog
+            product={branchesOf}
+            branches={branches ?? []}
+            onClose={() => setBranchesOf(null)}
+          />
+        )}
       </div>
     </PermissionGuard>
   );

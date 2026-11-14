@@ -751,9 +751,61 @@ export interface InventoryStats {
 
 export interface BranchStockStats {
   totalProducts: number;
+  /** Con piezas, pero en o por debajo de la alerta mínima (no cuenta las agotadas). */
   lowStock: number;
   outOfStock: number;
   totalAvailable: number;
+}
+
+// ================================
+// TODAS LAS SUCURSALES (existencias sumadas por producto)
+// Espejo de ConsolidatedProductStockDto / ConsolidatedStockResponseDto /
+// ConsolidatedStockStatsDto del API (GET /inventory/consolidated…).
+// ================================
+
+/** Un producto con lo que hay de él en todas las sucursales. */
+export interface ConsolidatedProductStockDto {
+  productId: string;
+  productCode: string;
+  productName: string;
+  /** Foto principal (null = sin foto). */
+  imageUrl?: string | null;
+  thumbnailUrl?: string | null;
+  quantityOnHand: number;
+  quantityReserved: number;
+  quantityInTransit: number;
+  quantityAvailable: number;
+  /** Suma de las alertas mínimas de sus sucursales. */
+  minStockAlert: number;
+  /** Hay piezas, pero no pasan de la suma de las alertas mínimas. */
+  isLowStock: boolean;
+  /** Sucursales donde el producto está dado de alta. */
+  branchesCount: number;
+  /** Sucursales donde tiene piezas disponibles. */
+  branchesWithStock: number;
+  lastMovementAt?: string;
+}
+
+export interface ConsolidatedStockResponseDto {
+  data: ConsolidatedProductStockDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  /** Sucursales que se están sumando. */
+  branches: number;
+}
+
+export interface ConsolidatedStockStats {
+  totalProducts: number;
+  lowStock: number;
+  /** Productos sin piezas en ninguna sucursal. */
+  outOfStock: number;
+  totalOnHand: number;
+  totalReserved: number;
+  totalAvailable: number;
+  /** Sucursales que se están sumando. */
+  branches: number;
 }
 
 // ================================
