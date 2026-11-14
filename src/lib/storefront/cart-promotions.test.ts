@@ -165,3 +165,65 @@ describe('cartPromoNudges: a quién avisarle que le falta poco', () => {
     expect(cartPromoNudges({ items: [line('l1', 'oximagic', 2)], badges: new Map() }).size).toBe(0);
   });
 });
+
+describe('sabores que se combinan: el aviso cuenta el GRUPO (14-nov-2026)', () => {
+  const X6 = { buy: 6, pay: 5, free: 1, sameProductOnly: true };
+  const GROUP = { name: '24 Shake', productIds: ['van', 'choc', 'fresa'] };
+  const inGroup = badge({ promotionId: 'c5', label: '6x5', name: 'Compra 5 y llévate 1', nxm: X6, group: GROUP });
+  const badges = new Map<string, SeasonalProductBadge>([
+    ['van', inGroup],
+    ['choc', inGroup],
+    ['fresa', inGroup],
+    ['mix', badge({ promotionId: 'c5', label: '6x5', name: 'Compra 5 y llévate 1', nxm: X6 })],
+  ]);
+  const shake = (id: string, productId: string, quantity: number, price = '363.00') => line(id, productId, quantity, { unitPrice: price });
+
+  it('3 de vainilla + 1 de chocolate: faltan 2 del grupo, una sola vez y con el nombre del grupo', () => {
+    const nudges = cartPromoNudges({ items: [shake('l1', 'van', 3), shake('l2', 'choc', 1)], badges });
+    expect([...nudges.keys()]).toEqual(['l2']);
+    expect(nudges.get('l2')).toEqual({
+      promotionId: 'c5',
+      label: '6x5',
+      name: 'Compra 5 y llévate 1',
+      missing: 2,
+      free: 1,
+      targetQuantity: 3,
+      allFree: false,
+      mixed: true,
+      groupName: '24 Shake',
+    });
+  });
+
+  it('con 5 del grupo falta 1 y sale gratis; con 6 ya no hay aviso', () => {
+    const five = cartPromoNudges({ items: [shake('l1', 'van', 3), shake('l2', 'choc', 2)], badges });
+    expect(five.get('l2')).toMatchObject({ missing: 1, allFree: true, targetQuantity: 3, groupName: '24 Shake' });
+    expect(cartPromoNudges({ items: [shake('l1', 'van', 3), shake('l2', 'choc', 3)], badges }).size).toBe(0);
+  });
+
+  it('precios distintos: el aviso va en la línea MÁS BARATA (agregando de esa, lo agregado sí sale gratis)', () => {
+    const nudges = cartPromoNudges({
+      items: [shake('l1', 'van', 4, '300.00'), shake('l2', 'choc', 1, '400.00')],
+      badges,
+    });
+    expect([...nudges.keys()]).toEqual(['l1']);
+    expect(nudges.get('l1')).toMatchObject({ missing: 1, targetQuantity: 5, allFree: true });
+  });
+
+  it('lo que está fuera del grupo se sigue contando solo, con su propio aviso', () => {
+    const nudges = cartPromoNudges({ items: [shake('l1', 'van', 3), shake('l2', 'mix', 4, '471.00')], badges });
+    expect(nudges.get('l1')).toMatchObject({ missing: 3, mixed: true, groupName: '24 Shake' });
+    expect(nudges.get('l2')).toMatchObject({ missing: 2, mixed: false });
+    expect(nudges.get('l2')).not.toHaveProperty('groupName');
+  });
+
+  it('si a ninguna línea del grupo le caben las piezas que faltan, no avisa', () => {
+    const nudges = cartPromoNudges({
+      items: [shake('l1', 'van', 3), shake('l2', 'choc', 2)],
+      badges,
+      maxFor: () => 3,
+    });
+    // Vainilla ya está en su tope (3) y a chocolate (2) sí le cabe una más.
+    expect([...nudges.keys()]).toEqual(['l2']);
+    expect(cartPromoNudges({ items: [shake('l1', 'van', 3), shake('l2', 'choc', 2)], badges, maxFor: () => 2 }).size).toBe(0);
+  });
+});

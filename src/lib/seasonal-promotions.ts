@@ -4,6 +4,7 @@
 import type {
   CreatePromoSeasonDto,
   CreateSeasonPromotionDto,
+  NxmGroup,
   PromoSeason,
   SeasonPromotion,
   SeasonStatus,
@@ -263,6 +264,32 @@ export interface PromotionProductRow {
   quantity: string;
 }
 
+/**
+ * Cómo cuentan las piezas de un "lleva N, paga M":
+ *  - same: solo piezas idénticas (cada producto por separado);
+ *  - groups: además, los productos de un mismo grupo cuentan juntos (sabores del mismo producto);
+ *  - all: se combina cualquier producto de la lista (la gratis es la más barata).
+ */
+export type NxmCombineMode = 'same' | 'groups' | 'all';
+
+export const NXM_COMBINE_OPTIONS: { value: NxmCombineMode; label: string; hint: string }[] = [
+  { value: 'same', label: 'Solo piezas idénticas', hint: 'Cada producto cuenta por separado.' },
+  {
+    value: 'groups',
+    label: 'Combinar por grupo',
+    hint: 'Los productos de un mismo grupo cuentan juntos: sabores o presentaciones de lo mismo.',
+  },
+  { value: 'all', label: 'Combinar todo', hint: 'Cuenta cualquier producto de la lista.' },
+];
+
+/** Un grupo de productos que se combinan, en el formulario. */
+export interface PromotionGroupRow {
+  /** Llave local de la fila (no viaja al API). */
+  key: string;
+  name: string;
+  productIds: string[];
+}
+
 export interface PromotionFormValues {
   code: string;
   name: string;
@@ -272,7 +299,9 @@ export interface PromotionFormValues {
   // nxm
   buy: string;
   pay: string;
-  sameProductOnly: boolean;
+  combineMode: NxmCombineMode;
+  /** Solo cuentan con `combineMode = 'groups'`. */
+  groups: PromotionGroupRow[];
   // percent_off
   percent: string;
   // fixed_price: por código de país
@@ -304,7 +333,8 @@ export const EMPTY_PROMOTION_FORM: PromotionFormValues = {
   type: 'nxm',
   buy: '3',
   pay: '2',
-  sameProductOnly: true,
+  combineMode: 'same',
+  groups: [],
   percent: '',
   prices: {},
   minQuantity: '',
@@ -332,6 +362,12 @@ export function formFromPromotion(p: SeasonPromotion): PromotionFormValues {
     unknown
   >;
   for (const [k, val] of Object.entries(rawPrices)) prices[k] = val == null ? '' : String(val);
+  // Grupos guardados: solo con productos que siguen en la promoción.
+  const eligibleIds = new Set(p.products.filter((x) => x.role === 'eligible').map((x) => x.productId));
+  const groups: PromotionGroupRow[] = nxmGroupsOf(p)
+    .map((g) => ({ name: g.name, productIds: g.productIds.filter((id) => eligibleIds.has(id)) }))
+    .filter((g) => g.productIds.length > 1)
+    .map((g, i) => ({ key: `g${i + 1}`, ...g }));
   return {
     code: p.code,
     name: p.name,
@@ -340,7 +376,8 @@ export function formFromPromotion(p: SeasonPromotion): PromotionFormValues {
     type: p.type,
     buy: cfg.buy != null ? String(cfg.buy) : '3',
     pay: cfg.pay != null ? String(cfg.pay) : '2',
-    sameProductOnly: cfg.sameProductOnly !== false,
+    combineMode: cfg.sameProductOnly === false ? 'all' : groups.length > 0 ? 'groups' : 'same',
+    groups,
     percent: cfg.percent != null ? String(cfg.percent) : '',
     prices,
     minQuantity: cfg.minQuantity != null ? String(cfg.minQuantity) : '',
@@ -411,6 +448,7 @@ export function validatePromotionForm(
         errors.push('"Paga" debe ser un entero de 1 o más.');
       if (buy != null && pay != null && pay >= buy)
         errors.push('"Paga" debe ser menor que "Lleva" (3x2: lleva 3, paga 2).');
+      if (v.combineMode === 'groups') errors.push(...validatePromotionGroups(v));
       break;
     }
     case 'percent_off': {
@@ -480,9 +518,17 @@ export function toPromotionPayload(
 } {
   let config: Record<string, unknown>;
   switch (v.type) {
-    case 'nxm':
-      config = { buy: parseDecimal(v.buy), pay: parseDecimal(v.pay), sameProductOnly: v.sameProductOnly };
+    case 'nxm': {
+      const groups = v.combineMode === 'groups' ? usableGroups(v) : [];
+      config = {
+        buy: parseDecimal(v.buy),
+        pay: parseDecimal(v.pay),
+        sameProductOnly: v.combineMode !== 'all',
+        // Sin grupos la config viaja igual que siempre.
+        ...(groups.length > 0 ? { groups } : {}),
+      };
       break;
+    }
     case 'percent_off':
       config = { percent: parseDecimal(v.percent) };
       break;
@@ -527,11 +573,219 @@ export function toPromotionPayload(
   return mode === 'edit' ? { ...base, imageUrl: v.imageUrl.trim() || null } : base;
 }
 
+// ── Grupos de productos que se combinan en un "lleva N, paga M" ─────────────────────────────
+
+/**
+ * Grupos que el motor respeta en una promoción "lleva N, paga M" (misma lectura que el motor del
+ * API, `nxmGroups`): solo con piezas idénticas, de 2 o más productos, y cada producto en el
+ * PRIMER grupo que lo nombra. Vacío = sin grupos. Tolera configuración vieja o sucia.
+ */
+export function nxmGroupsOf(promotion: { type?: SeasonalPromoType; config?: unknown }): NxmGroup[] {
+  if (promotion.type !== undefined && promotion.type !== 'nxm') return [];
+  const cfg = (promotion.config && typeof promotion.config === 'object' ? promotion.config : {}) as Record<string, unknown>;
+  if (!cfg.sameProductOnly || !Array.isArray(cfg.groups)) return [];
+  const taken = new Set<string>();
+  const out: NxmGroup[] = [];
+  for (const item of cfg.groups as unknown[]) {
+    const g = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+    const ids: string[] = [];
+    for (const raw of Array.isArray(g.productIds) ? g.productIds : []) {
+      const id = typeof raw === 'string' ? raw.trim() : '';
+      if (id && !taken.has(id) && !ids.includes(id)) ids.push(id);
+    }
+    if (ids.length < 2) continue;
+    ids.forEach((id) => taken.add(id));
+    out.push({ name: typeof g.name === 'string' ? g.name.trim() : '', productIds: ids });
+  }
+  return out;
+}
+
+/** Grupos del formulario que sí se guardan: con nombre, y con 2 o más productos que siguen en la promoción. */
+function usableGroups(v: Pick<PromotionFormValues, 'groups' | 'eligible'>): NxmGroup[] {
+  const eligible = new Set(v.eligible.map((e) => e.productId));
+  return v.groups
+    .map((g) => ({
+      name: g.name.replace(/\s+/g, ' ').trim(),
+      productIds: [...new Set(g.productIds)].filter((id) => eligible.has(id)),
+    }))
+    .filter((g) => g.productIds.length > 1);
+}
+
+/** Problemas de los grupos capturados (modo "combinar por grupo"). */
+export function validatePromotionGroups(v: Pick<PromotionFormValues, 'groups' | 'eligible'>): string[] {
+  const errors: string[] = [];
+  const eligible = new Set(v.eligible.map((e) => e.productId));
+  const names = new Set<string>();
+  const seen = new Map<string, string>();
+  let usable = 0;
+  v.groups.forEach((g, i) => {
+    const name = g.name.replace(/\s+/g, ' ').trim();
+    const label = name ? `«${name}»` : `${i + 1}`;
+    const ids = [...new Set(g.productIds)].filter((id) => eligible.has(id));
+    // Un grupo vacío y sin nombre es una fila sin usar: no estorba.
+    if (ids.length === 0 && !name) return;
+    if (ids.length < 2) {
+      errors.push(`El grupo ${label} necesita al menos 2 productos (o quítalo): uno solo no combina nada.`);
+      return;
+    }
+    usable += 1;
+    if (!name) errors.push(`Ponle nombre al grupo ${label} (lo ven el cajero y el comprador).`);
+    else if (names.has(name.toLowerCase())) errors.push(`Hay dos grupos con el nombre «${name}».`);
+    else names.add(name.toLowerCase());
+    for (const id of ids) {
+      const other = seen.get(id);
+      if (other) {
+        const sku = v.eligible.find((e) => e.productId === id)?.sku ?? id;
+        errors.push(`El producto ${sku} está en dos grupos (${other} y ${label}): déjalo en uno solo.`);
+      } else seen.set(id, label);
+    }
+  });
+  if (usable === 0) {
+    errors.push('Arma al menos un grupo con 2 o más productos, o elige «Solo piezas idénticas».');
+  }
+  return errors;
+}
+
+// Medidas con las que termina el nombre de un producto ("625 g", "250 ml", "60 pzas").
+const SIZE_UNITS = new Set([
+  'g', 'gr', 'grs', 'kg', 'mg', 'ml', 'l', 'lt', 'lts', 'oz', 'pz', 'pza', 'pzas', 'pieza', 'piezas',
+  'cap', 'caps', 'capsulas', 'tab', 'tabs', 'tabletas', 'sobre', 'sobres', 'un', 'uds',
+]);
+
+/** Palabra sin acentos, sin signos y en minúsculas ("625 g." → "625", "g"). */
+const plainWord = (word: string): string =>
+  word
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+
+/** Nombre partido en palabras + cuántas del final son la presentación ("625 g", "500ml"). */
+function splitProductName(name: string): { words: string[]; plain: string[]; size: string } {
+  const words = name.trim().split(/\s+/).filter((w) => plainWord(w) !== '');
+  const plain = words.map(plainWord);
+  let sizeWords = 0;
+  const last = plain[plain.length - 1] ?? '';
+  const prev = plain[plain.length - 2] ?? '';
+  if (/^\d+[a-z]+$/.test(last) && SIZE_UNITS.has(last.replace(/^\d+/, ''))) sizeWords = 1;
+  else if (SIZE_UNITS.has(last) && /^\d+$/.test(prev)) sizeWords = 2;
+  return {
+    words: words.slice(0, words.length - sizeWords),
+    plain: plain.slice(0, plain.length - sizeWords),
+    size: plain.slice(plain.length - sizeWords).join(''),
+  };
+}
+
+const commonPrefix = (a: readonly string[], b: readonly string[]): number => {
+  let n = 0;
+  while (n < a.length && n < b.length && a[n] === b[n]) n += 1;
+  return n;
+};
+
+/**
+ * Propone grupos a partir de los NOMBRES: productos que empiezan con las mismas 2 o más palabras
+ * y tienen la misma presentación son sabores de lo mismo ("24 Shake Vainilla 625 g." y "24 Shake
+ * Chocolate 625 g" → grupo "24 Shake"). Es una sugerencia para revisar, no una regla: lo que no
+ * se parece a nada queda sin grupo. Conserva el orden de la lista.
+ */
+export function suggestNxmGroups(products: readonly Pick<PromotionProductRow, 'productId' | 'name'>[]): NxmGroup[] {
+  const parsed = products.map((p) => ({ id: p.productId, ...splitProductName(p.name) }));
+  // Une cada producto con los que comparten presentación y el arranque del nombre.
+  const parent = parsed.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < parsed.length; i += 1) {
+    for (let j = i + 1; j < parsed.length; j += 1) {
+      const a = parsed[i];
+      const b = parsed[j];
+      if (a.size !== b.size) continue;
+      const shared = commonPrefix(a.plain, b.plain);
+      // 2 palabras en común, y que a cada uno le quede algo propio (el sabor).
+      if (shared >= 2 && shared < a.plain.length && shared < b.plain.length) parent[find(j)] = find(i);
+    }
+  }
+  const clusters = new Map<number, number[]>();
+  parsed.forEach((_, i) => {
+    const root = find(i);
+    clusters.set(root, [...(clusters.get(root) ?? []), i]);
+  });
+  const groups: NxmGroup[] = [];
+  for (const members of clusters.values()) {
+    if (members.length < 2) continue;
+    const first = parsed[members[0]];
+    const shared = members.reduce((n, i) => Math.min(n, commonPrefix(first.plain, parsed[i].plain)), first.plain.length);
+    groups.push({
+      // El nombre del grupo = lo que comparten, tal como está escrito en el primer producto.
+      name: first.words.slice(0, shared).join(' ').replace(/[.,;:]+$/, ''),
+      productIds: members.map((i) => parsed[i].id),
+    });
+  }
+  return groups;
+}
+
+/** Grupos sugeridos como filas del formulario (llaves nuevas). */
+export function suggestedGroupRows(products: readonly Pick<PromotionProductRow, 'productId' | 'name'>[]): PromotionGroupRow[] {
+  return suggestNxmGroups(products).map((g, i) => ({ key: `s${i + 1}`, ...g }));
+}
+
+/** Llave para una fila nueva que no choque con las que ya hay. */
+export function nextGroupKey(groups: readonly PromotionGroupRow[]): string {
+  let n = groups.length + 1;
+  while (groups.some((g) => g.key === `n${n}`)) n += 1;
+  return `n${n}`;
+}
+
+/** Pone el producto en ese grupo (y lo saca de cualquier otro: un producto va en un solo grupo). */
+export function assignProductToGroup(
+  groups: readonly PromotionGroupRow[],
+  groupKey: string,
+  productId: string,
+): PromotionGroupRow[] {
+  return groups.map((g) => {
+    const without = g.productIds.filter((id) => id !== productId);
+    return g.key === groupKey ? { ...g, productIds: [...without, productId] } : { ...g, productIds: without };
+  });
+}
+
+/** Saca el producto de todos los grupos (queda contando por separado). */
+export function removeProductFromGroups(groups: readonly PromotionGroupRow[], productId: string): PromotionGroupRow[] {
+  return groups.map((g) => ({ ...g, productIds: g.productIds.filter((id) => id !== productId) }));
+}
+
+/** Productos de la promoción que no están en ningún grupo (cuentan por separado). */
+export function ungroupedProducts<T extends { productId: string }>(
+  eligible: readonly T[],
+  groups: readonly Pick<PromotionGroupRow, 'productIds'>[],
+): T[] {
+  const grouped = new Set(groups.flatMap((g) => g.productIds));
+  return eligible.filter((e) => !grouped.has(e.productId));
+}
+
+/** Ejemplo en palabras de cómo cuenta el modo elegido, con el "lleva / paga" capturado. */
+export function nxmCombineExample(mode: NxmCombineMode, buyRaw: string, payRaw: string): string {
+  const buy = parseDecimal(buyRaw);
+  const pay = parseDecimal(payRaw);
+  const ok = buy != null && pay != null && Number.isInteger(buy) && Number.isInteger(pay) && buy >= 2 && pay >= 1 && pay < buy;
+  const n = ok ? buy : 3;
+  const free = ok ? buy - pay : 1;
+  const gratis = free === 1 ? '1 gratis' : `${free} gratis`;
+  if (mode === 'same') {
+    return `Cada producto cuenta por separado: ${n} piezas del mismo producto = ${gratis}; piezas de productos distintos no se suman.`;
+  }
+  if (mode === 'all') {
+    return `Se suman las piezas de cualquier producto de la lista: cada ${n} piezas = ${gratis}, y las gratis son las más baratas.`;
+  }
+  return `Las piezas de un mismo grupo se suman aunque sean de distinto sabor: cada ${n} piezas del grupo = ${gratis} (la más barata). Lo que no está en un grupo cuenta por separado.`;
+}
+
 /** Resumen de una promoción para la tabla: "3x2 · 19 productos · POS · Tienda". */
-export function promotionSummary(p: Pick<SeasonPromotion, 'typeLabel' | 'products' | 'channels'>): string {
+export function promotionSummary(
+  p: Pick<SeasonPromotion, 'typeLabel' | 'products' | 'channels'> & Partial<Pick<SeasonPromotion, 'type' | 'config'>>,
+): string {
   const eligible = p.products.filter((x) => x.role === 'eligible').length;
   const gifts = p.products.filter((x) => x.role === 'gift').length;
   const parts = [p.typeLabel, `${eligible} producto${eligible === 1 ? '' : 's'}`];
+  const groups = nxmGroupsOf(p).length;
+  if (groups > 0) parts.push(`${groups} grupo${groups === 1 ? '' : 's'} que se combina${groups === 1 ? '' : 'n'}`);
   if (gifts > 0) parts.push(`${gifts} regalo${gifts === 1 ? '' : 's'}`);
   parts.push(channelsLabel(p.channels));
   return parts.join(' · ');
@@ -721,6 +975,18 @@ export interface SeasonalProductBadge {
   maxPerSale: number | null;
   /** Condiciones de la promoción tal como las capturó Marketing (vigencia, letra chica). */
   description: string | null;
+  /**
+   * Grupo de productos con los que ESTE se combina en la promoción (sabores del mismo producto):
+   * sus piezas cuentan juntas. Sin grupo, el producto cuenta solo: no viene la llave.
+   */
+  group?: SeasonalProductGroup;
+}
+
+/** Grupo de un producto dentro de un "lleva N, paga M", con los nombres para explicarlo. */
+export interface SeasonalProductGroup {
+  name: string;
+  /** Productos del grupo que hoy están en la promoción (incluye al propio producto). */
+  productIds: string[];
 }
 
 /**
@@ -737,10 +1003,18 @@ export function seasonalProductBadges(
   for (const season of seasons ?? []) {
     for (const promotion of season.promotions ?? []) {
       const storeOnly = !isOnlinePromotion(promotion);
+      // Grupos de la promoción, solo con los productos que hoy participan.
+      const eligibleIds = new Set(
+        (promotion.products ?? []).filter((x) => x.role === 'eligible' && x.productId).map((x) => x.productId),
+      );
+      const groups = nxmGroupsOf(promotion)
+        .map((g) => ({ name: g.name, productIds: g.productIds.filter((id) => eligibleIds.has(id)) }))
+        .filter((g) => g.productIds.length > 1);
       for (const product of promotion.products ?? []) {
         if (product.role !== 'eligible' || !product.productId) continue;
         const current = badges.get(product.productId);
         if (current && !(current.storeOnly && !storeOnly)) continue;
+        const group = groups.find((g) => g.productIds.includes(product.productId));
         badges.set(product.productId, {
           promotionId: promotion.id,
           label: promotion.typeLabel,
@@ -751,6 +1025,7 @@ export function seasonalProductBadges(
           maxPerSale:
             typeof promotion.maxPerSale === 'number' && promotion.maxPerSale > 0 ? Math.floor(promotion.maxPerSale) : null,
           description: promotion.description?.trim() || null,
+          ...(group ? { group } : {}),
         });
       }
     }

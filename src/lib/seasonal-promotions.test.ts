@@ -4,25 +4,34 @@ import {
   EMPTY_PROMOTION_FORM,
   EMPTY_SEASON_FORM,
   artAspectRatio,
+  assignProductToGroup,
   formFromPromotion,
   formFromSeason,
   formatLocalStamp,
   formatSalesAmount,
   hasOnlinePromotion,
   isOnlinePromotion,
+  nextGroupKey,
   normalizeInputStamp,
   nowCdmxStamp,
+  nxmCombineExample,
+  nxmGroupsOf,
   nxmOffer,
   nxmProgress,
   promotionSalesSummary,
   promotionSummary,
+  removeProductFromGroups,
   seasonHighlights,
   seasonalFilterName,
   seasonalProductBadges,
+  suggestNxmGroups,
+  suggestedGroupRows,
   toInputStamp,
   toPromotionPayload,
   toSeasonPayload,
+  ungroupedProducts,
   validatePromotionForm,
+  validatePromotionGroups,
   validateSeasonForm,
   windowLabel,
 } from './seasonal-promotions';
@@ -536,5 +545,231 @@ describe('admin: insignia de ventas de cada promoción', () => {
     // Sin moneda se asume la de la casa; un código que no es moneda no rompe la pantalla.
     expect(formatSalesAmount(2000, '')).toBe('$2,000.00 MXN');
     expect(formatSalesAmount(2000, 'XX')).toBe('2,000.00 XX');
+  });
+});
+
+describe('promoción "lleva N, paga M": sabores que se combinan por grupo (14-nov-2026)', () => {
+  // Los productos del "Compra 5 y llévate 1" del sábado 14, con sus nombres reales.
+  const row = (productId: string, sku: string, name: string) => ({ productId, sku, name, quantity: '1' });
+  const SHAKES = [
+    row('s-gal', '9408', '24 Shake Galleta 625 g.'),
+    row('s-cap', '9422', '24 Shake Capuchino 625 g.'),
+    row('s-cho', '8234', '24 Shake Chocolate 625 g'),
+    row('s-fre', '9712', '24 Shake Fresa 625 g'),
+    row('s-van', '9705', '24 Shake Vainilla 625 g.'),
+    row('s-pin', '9415', '24 Shake Piña Colada 625 g.'),
+  ];
+  const GUBI = [
+    row('g-fre', '9781', 'Gubi Shake Sport Fresa 625 g'),
+    row('g-van', '8883', 'Gubi Shake Sport Vainilla 625 g'),
+  ];
+  const MIX = row('mix', '8289', '12 Mix 500 g');
+  const ELIGIBLE = [...GUBI, ...SHAKES, MIX];
+  const ids = (rows: { productId: string }[]) => rows.map((r) => r.productId);
+
+  const groupedPromo: SeasonPromotion = {
+    ...PROMO,
+    typeLabel: '6x5',
+    config: {
+      buy: 6,
+      pay: 5,
+      sameProductOnly: true,
+      groups: [
+        { name: '24 Shake', productIds: [...ids(SHAKES), 'ya-no-esta'] },
+        { name: 'Gubi Shake Sport', productIds: ids(GUBI) },
+      ],
+    },
+    channels: ['pos'],
+    products: ELIGIBLE.map((e, i) => ({
+      productId: e.productId,
+      sku: e.sku,
+      name: e.name,
+      role: 'eligible' as const,
+      quantity: 1,
+      sortOrder: i,
+    })),
+  };
+
+  it('sugiere los grupos por el nombre: mismo arranque y misma presentación', () => {
+    expect(suggestNxmGroups(ELIGIBLE)).toEqual([
+      { name: 'Gubi Shake Sport', productIds: ids(GUBI) },
+      { name: '24 Shake', productIds: ids(SHAKES) },
+    ]);
+  });
+
+  it('la sugerencia no junta lo que solo se parece: otra presentación, una sola palabra en común o un nombre contenido en otro', () => {
+    const none = (names: string[]) => suggestNxmGroups(names.map((name, i) => ({ productId: `p${i}`, name })));
+    expect(none(['24 Shake Vainilla 625 g', '24 Shake Vainilla 1 kg'])).toEqual([]);
+    expect(none(['Tonic Life Cápsulas 60 pzas', 'Tonic Bron Té 200 g'])).toEqual([]);
+    expect(none(['Té Verde 200 g', 'Té Negro 200 g'])).toEqual([]);
+    expect(none(['Jimmy Coffee 270 g', 'Jimmy Coffee Moka 270 g'])).toEqual([]);
+    expect(none(['12 Mix 500 g'])).toEqual([]);
+    expect(none([])).toEqual([]);
+    // Sin presentación en el nombre también agrupa por el arranque.
+    expect(none(['Legline Té Limón', 'Legline Té Menta'])).toEqual([{ name: 'Legline Té', productIds: ['p0', 'p1'] }]);
+    // "625g" pegado y "625 g." con punto son la misma presentación.
+    expect(none(['24 Shake Vainilla 625g', '24 Shake Fresa 625 g.'])).toEqual([
+      { name: '24 Shake', productIds: ['p0', 'p1'] },
+    ]);
+  });
+
+  it('al abrir una promoción con grupos el formulario queda en "por grupo", solo con productos que siguen en la lista', () => {
+    const form = formFromPromotion(groupedPromo);
+    expect(form.combineMode).toBe('groups');
+    expect(form.groups.map((g) => [g.name, g.productIds])).toEqual([
+      ['24 Shake', ids(SHAKES)],
+      ['Gubi Shake Sport', ids(GUBI)],
+    ]);
+    expect(new Set(form.groups.map((g) => g.key)).size).toBe(2);
+    expect(validatePromotionForm(form, SEASON_CTX)).toEqual([]);
+    // Sin grupos: idénticas; con sameProductOnly false: todo.
+    expect(formFromPromotion(PROMO)).toMatchObject({ combineMode: 'same', groups: [] });
+    expect(
+      formFromPromotion({ ...PROMO, config: { buy: 3, pay: 2, sameProductOnly: false } }),
+    ).toMatchObject({ combineMode: 'all', groups: [] });
+  });
+
+  it('el payload lleva los grupos dentro de la config; sin grupos viaja igual que siempre', () => {
+    const form = formFromPromotion(groupedPromo);
+    expect(toPromotionPayload(form, 'edit').config).toEqual({
+      buy: 6,
+      pay: 5,
+      sameProductOnly: true,
+      groups: [
+        { name: '24 Shake', productIds: ids(SHAKES) },
+        { name: 'Gubi Shake Sport', productIds: ids(GUBI) },
+      ],
+    });
+    expect(toPromotionPayload({ ...form, combineMode: 'same' }, 'edit').config).toEqual({
+      buy: 6,
+      pay: 5,
+      sameProductOnly: true,
+    });
+    expect(toPromotionPayload({ ...form, combineMode: 'all' }, 'edit').config).toEqual({
+      buy: 6,
+      pay: 5,
+      sameProductOnly: false,
+    });
+    expect(toPromotionPayload(formFromPromotion(PROMO), 'edit').config).toEqual({
+      buy: 3,
+      pay: 2,
+      sameProductOnly: true,
+    });
+  });
+
+  it('al guardar, un grupo solo lleva productos de la promoción, con el nombre limpio', () => {
+    const form = {
+      ...formFromPromotion(groupedPromo),
+      eligible: [...SHAKES.slice(0, 2), MIX],
+      groups: [
+        { key: 'a', name: '  24   Shake ', productIds: [...ids(SHAKES), 's-gal'] },
+        { key: 'b', name: 'Gubi Shake Sport', productIds: ids(GUBI) },
+        { key: 'c', name: '', productIds: [] },
+      ],
+    };
+    expect(toPromotionPayload(form, 'edit').config).toEqual({
+      buy: 6,
+      pay: 5,
+      sameProductOnly: true,
+      groups: [{ name: '24 Shake', productIds: ['s-gal', 's-cap'] }],
+    });
+  });
+
+  it('valida los grupos: al menos uno, de 2 o más productos, con nombre, sin repetir nombre ni producto', () => {
+    const base = { ...formFromPromotion(groupedPromo), eligible: ELIGIBLE };
+    const problems = (groups: typeof base.groups) => validatePromotionForm({ ...base, groups }, SEASON_CTX).join(' | ');
+    expect(problems([])).toContain('Arma al menos un grupo');
+    expect(problems([{ key: 'a', name: '24 Shake', productIds: ['s-gal'] }])).toContain('necesita al menos 2 productos');
+    expect(problems([{ key: 'a', name: '  ', productIds: ['s-gal', 's-cap'] }])).toContain('Ponle nombre al grupo');
+    expect(
+      problems([
+        { key: 'a', name: 'Shake', productIds: ['s-gal', 's-cap'] },
+        { key: 'b', name: 'shake', productIds: ['s-cho', 's-fre'] },
+      ]),
+    ).toContain('dos grupos con el nombre');
+    expect(
+      problems([
+        { key: 'a', name: 'A', productIds: ['s-gal', 's-cap'] },
+        { key: 'b', name: 'B', productIds: ['s-cap', 's-cho'] },
+      ]),
+    ).toContain('El producto 9422 está en dos grupos');
+    // Una fila vacía y sin nombre no estorba; en otro modo los grupos no se validan.
+    expect(
+      problems([
+        { key: 'a', name: '24 Shake', productIds: ['s-gal', 's-cap'] },
+        { key: 'b', name: '', productIds: [] },
+      ]),
+    ).toBe('');
+    expect(validatePromotionForm({ ...base, combineMode: 'same', groups: [] }, SEASON_CTX)).toEqual([]);
+    expect(validatePromotionGroups({ eligible: ELIGIBLE, groups: base.groups })).toEqual([]);
+  });
+
+  it('mover productos entre grupos: un producto va en un solo grupo', () => {
+    const groups = [
+      { key: 'a', name: '24 Shake', productIds: ['s-gal', 's-cap'] },
+      { key: 'b', name: 'Gubi', productIds: ['g-fre'] },
+    ];
+    expect(assignProductToGroup(groups, 'b', 's-cap').map((g) => g.productIds)).toEqual([['s-gal'], ['g-fre', 's-cap']]);
+    expect(assignProductToGroup(groups, 'a', 's-cap').map((g) => g.productIds)).toEqual([['s-gal', 's-cap'], ['g-fre']]);
+    expect(removeProductFromGroups(groups, 's-gal').map((g) => g.productIds)).toEqual([['s-cap'], ['g-fre']]);
+    expect(ids(ungroupedProducts(ELIGIBLE, groups))).toEqual(['g-van', 's-cho', 's-fre', 's-van', 's-pin', 'mix']);
+    expect(nextGroupKey(groups)).toBe('n3');
+    expect(nextGroupKey([...groups, { key: 'n3', name: '', productIds: [] }])).toBe('n4');
+    expect(suggestedGroupRows(ELIGIBLE).map((g) => [g.key, g.name])).toEqual([
+      ['s1', 'Gubi Shake Sport'],
+      ['s2', '24 Shake'],
+    ]);
+  });
+
+  it('nxmGroupsOf lee los grupos como el motor: solo con piezas idénticas, 2+ productos, cada uno en su primer grupo', () => {
+    expect(nxmGroupsOf(groupedPromo).map((g) => g.name)).toEqual(['24 Shake', 'Gubi Shake Sport']);
+    expect(nxmGroupsOf(PROMO)).toEqual([]);
+    expect(nxmGroupsOf({ type: 'percent_off', config: { percent: 10 } })).toEqual([]);
+    expect(
+      nxmGroupsOf({
+        type: 'nxm',
+        config: {
+          buy: 3,
+          pay: 2,
+          sameProductOnly: true,
+          groups: [{ name: ' A ', productIds: ['x', 'y', 'x', 7] }, { name: 'B', productIds: ['y', 'z'] }, null, { name: 'C', productIds: ['z', 'w'] }],
+        },
+      }),
+    ).toEqual([
+      { name: 'A', productIds: ['x', 'y'] },
+      { name: 'C', productIds: ['z', 'w'] },
+    ]);
+    expect(
+      nxmGroupsOf({
+        type: 'nxm',
+        config: { buy: 3, pay: 2, sameProductOnly: false, groups: [{ name: 'A', productIds: ['x', 'y'] }] },
+      }),
+    ).toEqual([]);
+  });
+
+  it('el resumen de la tabla dice cuántos grupos se combinan', () => {
+    expect(promotionSummary(groupedPromo)).toBe('6x5 · 9 productos · 2 grupos que se combinan · POS');
+    expect(promotionSummary(PROMO)).toBe('3x2 · 2 productos · POS · Tienda');
+  });
+
+  it('el ejemplo en palabras sigue al "lleva / paga" capturado', () => {
+    expect(nxmCombineExample('groups', '6', '5')).toContain('cada 6 piezas del grupo = 1 gratis');
+    expect(nxmCombineExample('same', '3', '2')).toContain('3 piezas del mismo producto = 1 gratis');
+    expect(nxmCombineExample('all', '4', '2')).toContain('cada 4 piezas = 2 gratis');
+    // Con datos a medias no truena: usa un 3x2 de ejemplo.
+    expect(nxmCombineExample('same', '', 'x')).toContain('3 piezas del mismo producto = 1 gratis');
+  });
+
+  it('la tienda sabe con qué productos se combina cada uno (insignia con su grupo)', () => {
+    const online = { ...groupedPromo, channels: ['pos', 'online'] as SeasonPromotion['channels'] };
+    const badges = seasonalProductBadges([{ name: 'Buen Fin 2026', promotions: [online] }]);
+    expect(badges.get('s-van')?.group).toEqual({ name: '24 Shake', productIds: ids(SHAKES) });
+    expect(badges.get('g-fre')?.group).toEqual({ name: 'Gubi Shake Sport', productIds: ids(GUBI) });
+    // El 12 Mix cuenta solo: sin la llave.
+    expect(badges.get('mix')).toBeDefined();
+    expect(badges.get('mix')).not.toHaveProperty('group');
+    // Sin grupos la insignia queda igual que siempre.
+    const plain = seasonalProductBadges([{ name: 'Buen Fin 2026', promotions: [PROMO] }]);
+    expect(plain.get('a')).not.toHaveProperty('group');
   });
 });

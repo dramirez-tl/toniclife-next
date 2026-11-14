@@ -261,6 +261,7 @@
         "label": "Promoción de temporada",
         "nxmSame": "Lleva {buy} piezas de este producto y paga {pay}.",
         "nxmMixed": "Lleva {buy} productos de la promoción y paga {pay}.",
+        "nxmGroup": "Lleva {buy} piezas de {group}, combinadas como quieras, y paga {pay}.",
         "auto": "La pieza gratis se agrega sola a tu carrito.",
         "storeOnly": "Solo en sucursales y Call Center. En la tienda en línea no se aplica.",
         "ready": "{quantity, plural, one {Con # pieza} other {Con # piezas}}, {free, plural, one {# te sale gratis} other {# te salen gratis}}.",
@@ -404,6 +405,8 @@
         "promoNudgeFree": "{missing, plural, one {Agrega # más y te sale gratis} other {Agrega # más y te salen gratis}}",
         "promoNudge": "Agrega {missing} más y llévate {free} gratis",
         "promoNudgeMixed": "Agrega {missing} más de la promoción y llévate {free} gratis",
+        "promoNudgeGroup": "Agrega {missing} más de {group} y llévate {free} gratis",
+        "promoNudgeGroupFree": "{missing, plural, one {Agrega # más de {group} y te sale gratis} other {Agrega # más de {group} y te salen gratis}}",
         "promoNudgeAdd": "Agregar {missing}",
         "promoNudgeAddLabel": "{missing, plural, one {Agregar # pieza} other {Agregar # piezas}} de {name} para completar el {label}",
         "promoQuantitySet": "{name}: ahora llevas {count}"

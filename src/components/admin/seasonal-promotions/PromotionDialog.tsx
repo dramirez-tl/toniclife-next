@@ -5,6 +5,10 @@
 // productos elegibles (y regalos), canales, países (subconjunto de la
 // temporada), ventana propia opcional, prioridad, tope por venta, regla de
 // puntos y "sin bono" para el kit. El arte se sube en edición.
+//
+// En un "lleva N, paga M" se elige cómo cuentan las piezas: solo idénticas,
+// por GRUPO (sabores del mismo producto que se combinan entre sí; los grupos
+// se arman aquí mismo, con una sugerencia por nombre) o todo junto.
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -47,14 +51,22 @@ import {
   CHANNEL_OPTIONS,
   EMPTY_PROMOTION_FORM,
   FLAGS,
+  NXM_COMBINE_OPTIONS,
   POINTS_MODE_OPTIONS,
   PROMO_TYPE_OPTIONS,
+  type NxmCombineMode,
   type PromotionFormValues,
   type PromotionProductRow,
   apiErrorMessage,
+  assignProductToGroup,
   formFromPromotion,
+  nextGroupKey,
+  nxmCombineExample,
+  removeProductFromGroups,
+  suggestedGroupRows,
   toInputStamp,
   toPromotionPayload,
+  ungroupedProducts,
   validatePromotionForm,
   windowLabel,
 } from '@/lib/seasonal-promotions';
@@ -142,7 +154,48 @@ export function PromotionDialog({
     else set({ eligible: [...form.eligible, row] });
     setProductSearch('');
   };
-  const removeEligible = (id: string) => set({ eligible: form.eligible.filter((x) => x.productId !== id) });
+  // Al quitar un producto de la promoción también sale de su grupo.
+  const removeEligible = (id: string) =>
+    set({
+      eligible: form.eligible.filter((x) => x.productId !== id),
+      groups: removeProductFromGroups(form.groups, id),
+    });
+
+  // -------- grupos de productos que se combinan ("lleva N, paga M") --------
+  const setCombineMode = (mode: NxmCombineMode) => {
+    // Al entrar a "por grupo" sin grupos se proponen por el nombre de los productos.
+    if (mode === 'groups' && form.groups.length === 0) {
+      const suggested = suggestedGroupRows(form.eligible);
+      set({ combineMode: mode, groups: suggested });
+      if (suggested.length > 0) {
+        toast.info(
+          `Se ${suggested.length === 1 ? 'propuso 1 grupo' : `propusieron ${suggested.length} grupos`} por el nombre de los productos. Revísalos antes de guardar.`,
+        );
+      }
+      return;
+    }
+    set({ combineMode: mode });
+  };
+  const suggestGroups = () => {
+    const suggested = suggestedGroupRows(form.eligible);
+    if (suggested.length === 0) {
+      toast.warning('No encontré productos con el mismo nombre y presentación. Arma los grupos a mano.');
+      return;
+    }
+    set({ groups: suggested });
+    toast.success(
+      `${suggested.length === 1 ? '1 grupo armado' : `${suggested.length} grupos armados`} por nombre. Revísalos antes de guardar.`,
+    );
+  };
+  const addGroup = () => set({ groups: [...form.groups, { key: nextGroupKey(form.groups), name: '', productIds: [] }] });
+  const removeGroup = (key: string) => set({ groups: form.groups.filter((g) => g.key !== key) });
+  const renameGroup = (key: string, name: string) =>
+    set({ groups: form.groups.map((g) => (g.key === key ? { ...g, name } : g)) });
+  const addToGroup = (key: string, productId: string) =>
+    set({ groups: assignProductToGroup(form.groups, key, productId) });
+  const takeOutOfGroup = (productId: string) => set({ groups: removeProductFromGroups(form.groups, productId) });
+  const loose = ungroupedProducts(form.eligible, form.groups);
+  const productById = new Map(form.eligible.map((e) => [e.productId, e]));
   const removeGift = (id: string) => set({ gifts: form.gifts.filter((x) => x.productId !== id) });
   const setGiftQty = (id: string, quantity: string) =>
     set({ gifts: form.gifts.map((g) => (g.productId === id ? { ...g, quantity } : g)) });
@@ -285,22 +338,33 @@ export function PromotionDialog({
                     disabled={readOnly}
                   />
                 </div>
-                <div className="flex items-center gap-3 pt-5">
-                  <Switch
-                    id={inputId('same')}
-                    checked={form.sameProductOnly}
-                    onCheckedChange={(v) => set({ sameProductOnly: v })}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor={inputId('same')} className="text-sm">
-                    Solo piezas idénticas
-                  </Label>
+                <div className="grid gap-1.5 md:col-span-3">
+                  <p id={inputId('combine')} className="text-sm font-medium text-gray-900">
+                    ¿Cómo cuentan las piezas?
+                  </p>
+                  <div role="radiogroup" aria-labelledby={inputId('combine')} className="flex flex-wrap gap-1.5">
+                    {NXM_COMBINE_OPTIONS.map((o) => {
+                      const active = form.combineMode === o.value;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          title={o.hint}
+                          disabled={readOnly}
+                          onClick={() => setCombineMode(o.value)}
+                          className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                            active ? 'bg-[#3E667D] text-white' : 'bg-white text-gray-700 ring-1 ring-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-600">{nxmCombineExample(form.combineMode, form.buy, form.pay)}</p>
                 </div>
-                <p className="text-xs text-gray-500 md:col-span-3">
-                  {form.sameProductOnly
-                    ? 'Cada producto cuenta por separado: 3 Legline Té = 1 gratis; 2 Legline + 1 Pp Té no forman grupo.'
-                    : 'Se pueden mezclar productos de la lista; las piezas gratis son las más baratas del grupo.'}
-                </p>
               </div>
             )}
             {form.type === 'percent_off' && (
@@ -484,6 +548,150 @@ export function PromotionDialog({
                       )}
                     </Badge>
                   ))}
+                </div>
+              )}
+
+              {form.type === 'nxm' && form.combineMode === 'groups' && (
+                <div className="space-y-3 border-t border-gray-100 pt-3" data-testid="promo-groups">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">
+                        Grupos que se combinan{' '}
+                        <span className="font-normal text-gray-500">({form.groups.length})</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Las piezas de un mismo grupo cuentan juntas (sabores o presentaciones del mismo
+                        producto). Un producto va en un solo grupo.
+                      </p>
+                    </div>
+                    {!readOnly && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={suggestGroups}
+                          disabled={form.eligible.length < 2}
+                          title="Arma los grupos con los productos que tienen el mismo nombre y presentación"
+                        >
+                          Sugerir por nombre
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={addGroup}>
+                          <PlusIcon className="mr-1.5 h-4 w-4" />
+                          Agregar grupo
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {form.groups.length === 0 ? (
+                    <p className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-3 text-center text-xs text-gray-500">
+                      Todavía no hay grupos: usa «Sugerir por nombre» o «Agregar grupo».
+                    </p>
+                  ) : (
+                    <ol className="space-y-2.5">
+                      {form.groups.map((g, i) => (
+                        <li key={g.key} className="space-y-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3">
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="grid min-w-48 flex-1 gap-1">
+                              <Label htmlFor={inputId(`group-${g.key}`)} className="text-xs text-gray-700">
+                                Nombre del grupo {i + 1}
+                              </Label>
+                              <Input
+                                id={inputId(`group-${g.key}`)}
+                                value={g.name}
+                                onChange={(e) => renameGroup(g.key, e.target.value)}
+                                placeholder="24 Shake"
+                                maxLength={60}
+                                className="h-9 bg-white"
+                                disabled={readOnly}
+                              />
+                            </div>
+                            {!readOnly && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 text-red-700"
+                                onClick={() => removeGroup(g.key)}
+                                aria-label={`Quitar el grupo ${g.name || i + 1} (sus productos quedan contando por separado)`}
+                              >
+                                <TrashIcon className="mr-1.5 h-4 w-4" />
+                                Quitar grupo
+                              </Button>
+                            )}
+                          </div>
+                          {g.productIds.length === 0 ? (
+                            <p className="text-xs text-gray-500">Sin productos: agrega al menos 2.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {g.productIds.map((id) => {
+                                const product = productById.get(id);
+                                if (!product) return null;
+                                return (
+                                  <Badge
+                                    key={id}
+                                    variant="outline"
+                                    className="gap-1 border-sky-300 bg-white text-gray-800"
+                                    title={product.sku}
+                                  >
+                                    <span className="font-mono text-[11px] text-gray-500">{product.sku}</span>{' '}
+                                    {product.name}
+                                    {!readOnly && (
+                                      <button
+                                        type="button"
+                                        className="ml-0.5 text-gray-400 hover:text-red-600"
+                                        onClick={() => takeOutOfGroup(id)}
+                                        aria-label={`Sacar ${product.name} del grupo (sigue en la promoción)`}
+                                      >
+                                        ×
+                                      </button>
+                                    )}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {!readOnly && loose.length > 0 && (
+                            <div className="max-w-md">
+                              <Label htmlFor={inputId(`group-add-${g.key}`)} className="sr-only">
+                                Agregar un producto al grupo {g.name || i + 1}
+                              </Label>
+                              <SearchableSelect
+                                id={inputId(`group-add-${g.key}`)}
+                                options={loose.map((p) => ({ value: p.productId, label: `${p.sku} · ${p.name}` }))}
+                                value=""
+                                onChange={(v) => {
+                                  if (v) addToGroup(g.key, v);
+                                }}
+                                placeholder="Agregar un producto a este grupo…"
+                                showAllOption={false}
+                              />
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+
+                  {loose.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-gray-700">
+                        Sin grupo: cuentan por separado, solo en piezas idénticas ({loose.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {loose.map((e) => (
+                          <Badge key={e.productId} variant="outline" className="border-gray-300 bg-white text-gray-700">
+                            <span className="font-mono text-[11px] text-gray-500">{e.sku}</span> {e.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Las cajas con una versión del POS anterior a la 2.3.0 aplican esta promoción como «solo
+                    piezas idénticas» hasta que se actualicen.
+                  </p>
                 </div>
               )}
 

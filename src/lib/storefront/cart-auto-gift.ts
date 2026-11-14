@@ -10,12 +10,19 @@
 // MISMA regla que la caja (`toniclife-electron/src/lib/seasonalAutoGift.ts`, `autoGiftTarget`):
 // si cambia una, cambia la otra. Aquí la promoción la aplica el SERVIDOR al carrito; esto solo
 // decide la CANTIDAD que se le pide. Candado: la pieza que entró sola solo se queda si el
-// servidor confirma que la línea NO cuesta más que antes; si costara más, se deshace. Nunca se
-// le cobra al comprador una pieza que él no pidió.
+// servidor confirma que NO se paga más que antes; si costara más, se deshace. Nunca se le cobra
+// al comprador una pieza que él no pidió.
 //
-// Alcance: promociones "lleva N, paga M" de piezas IDÉNTICAS que valen en la tienda en línea.
-// En un surtido (cualquiera de la promoción) la gratis es la más barata del conjunto: ahí no se
-// adivina; el carrito solo avisa (`cart-promotions`). Puro: sin React; la red llega inyectada.
+// GRUPOS que se combinan (14-nov-2026, sabores del mismo producto): si el producto está en un
+// grupo de la promoción, lo que cuenta es el TOTAL del grupo en el carrito (3 de vainilla + 2 de
+// chocolate ya son las 5 de un 6x5). La gratis entra en la línea que se movió; si los precios del
+// grupo son distintos y ahí costaría más (la gratis es la más barata), en la más barata. Al
+// bajar, si la línea que se movió no puede dar una pieza más, se queda como se pidió y el
+// carrito avisa que falta una (`cart-promotions`).
+//
+// Alcance: promociones "lleva N, paga M" de piezas IDÉNTICAS (con o sin grupos) que valen en la
+// tienda en línea. En un surtido (cualquiera de la promoción) la gratis es la más barata del
+// conjunto: ahí no se adivina; el carrito solo avisa. Puro: sin React; la red llega inyectada.
 
 import type { SeasonalNxm, SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type { Cart, CartItem } from '@/types/cart';
@@ -82,6 +89,36 @@ export function planAutoGift(args: { wanted: number; previous: number; offer: Of
   return { ...same, quantity: target, added: target - wanted };
 }
 
+/**
+ * Lo mismo para una línea que se COMBINA con otras (grupo de sabores): cuenta el total del grupo.
+ * `others` = piezas del grupo en las DEMÁS líneas del carrito. Con `others = 0` da lo mismo que
+ * `planAutoGift`, salvo que nunca deja la línea en cero: si al bajar no puede dar una pieza más,
+ * se queda como se pidió (el carrito avisa que falta una para la gratis).
+ */
+export function planGroupAutoGift(args: {
+  wanted: number;
+  previous: number;
+  others: number;
+  offer: Offer | null;
+  max?: number | null;
+}): AutoGiftPlan {
+  const wanted = whole(args.wanted);
+  const same: AutoGiftPlan = { quantity: wanted, added: 0, removed: 0, missing: 0 };
+  if (!args.offer || !(wanted > 0)) return same;
+  const others = Math.max(0, whole(args.others));
+  const total = others + wanted;
+  const rem = total % args.offer.buy;
+  if (rem < args.offer.pay) return same;
+  const max = args.max !== null && args.max !== undefined && Number.isFinite(args.max) ? args.max : null;
+  // Piezas gratis que le faltan al grupo para completarse.
+  const gift = args.offer.buy - rem;
+  if (max !== null && wanted + gift > max) return { ...same, missing: gift };
+  if (total >= others + whole(args.previous)) return { ...same, quantity: wanted + gift, added: gift };
+  const extra = rem - (args.offer.pay - 1);
+  if (wanted - extra < 1) return same;
+  return { ...same, quantity: wanted - extra, removed: extra };
+}
+
 /** Lo que hay que decirle al comprador (el texto lo pone la interfaz). */
 export interface AutoGiftNotice {
   kind: 'added' | 'removed' | 'missing';
@@ -108,17 +145,38 @@ const findLine = (cart: Cart, itemId: string | undefined): CartItem | undefined 
   itemId ? cart.items.find((item) => item.id === itemId) : undefined;
 
 /**
- * Sube la línea a `target` y comprueba que el servidor NO cobra más por ella que con `paid`
- * (lo que costaba con la cantidad pedida). Si cobra más, o la línea no quedó, deshace el cambio.
- * Un fallo de red al subir deja el carrito como estaba (`fallback`).
+ * Líneas del carrito que cuentan JUNTO con esa: las de su grupo de productos que se combinan,
+ * dentro de la misma promoción. Sin grupo, solo ella.
+ */
+function poolOf(cart: Cart, line: CartItem, badge: SeasonalProductBadge, badges: Badges): CartItem[] {
+  if (!badge.group) return [line];
+  const ids = new Set(badge.group.productIds);
+  return cart.items.filter(
+    (item) =>
+      ids.has(item.productId) &&
+      whole(item.quantity) > 0 &&
+      badges.get(item.productId)?.promotionId === badge.promotionId,
+  );
+}
+const piecesOf = (lines: readonly CartItem[]): number => lines.reduce((sum, l) => sum + whole(l.quantity), 0);
+/** Lo que se paga por esas líneas (ya con la promoción que aplicó el servidor). */
+const costOf = (cart: Cart, lineIds: ReadonlySet<string>): number =>
+  cart.items.reduce((sum, item) => (lineIds.has(item.id) ? sum + money(item.lineTotal) : sum), 0);
+
+/**
+ * Sube la línea a `target` y comprueba que el servidor NO cobra más que antes por ella y por las
+ * que cuentan con ella (`poolIds`; sin grupo, solo la línea). Si cobra más, o la línea no quedó,
+ * deshace el cambio. Un fallo de red al subir deja el carrito como estaba (`fallback`).
  */
 async function bumpIfFree(args: {
   fallback: Cart;
   line: CartItem;
   target: number;
   updateItem: UpdateItem;
+  poolIds?: ReadonlySet<string>;
 }): Promise<{ cart: Cart; kept: boolean }> {
   const { fallback, line, target, updateItem } = args;
+  const poolIds = args.poolIds ?? new Set([line.id]);
   let bumped: Cart;
   try {
     bumped = await updateItem(line.id, target);
@@ -126,7 +184,7 @@ async function bumpIfFree(args: {
     return { cart: fallback, kept: false };
   }
   const after = findLine(bumped, line.id);
-  const costsMore = !after || money(after.lineTotal) > money(line.lineTotal) + 0.005;
+  const costsMore = !after || costOf(bumped, poolIds) > costOf(fallback, poolIds) + 0.005;
   if (!costsMore && whole(after.quantity) === target) return { cart: bumped, kept: true };
   if (after && whole(after.quantity) === whole(line.quantity)) return { cart: bumped, kept: false };
   try {
@@ -137,8 +195,44 @@ async function bumpIfFree(args: {
 }
 
 /**
- * Después de AGREGAR al carrito: si la línea llegó a las piezas que se pagan, entra la gratis.
- * `cart` = respuesta del alta; `lineId` = la línea del alta; `addedQuantity` = piezas pedidas.
+ * Entra la pieza gratis: en la línea que se movió y, si ahí el servidor cobra más (grupo con
+ * precios distintos: la gratis es la más barata), en la línea más barata del grupo.
+ */
+async function addGift(args: {
+  cart: Cart;
+  line: CartItem;
+  pool: readonly CartItem[];
+  added: number;
+  target: number;
+  updateItem: UpdateItem;
+}): Promise<{ cart: Cart; host: CartItem | null }> {
+  const { cart, line, pool, added, target, updateItem } = args;
+  const poolIds = new Set(pool.map((l) => l.id));
+  const first = await bumpIfFree({ fallback: cart, line, target, updateItem, poolIds });
+  if (first.kept) return { cart: first.cart, host: line };
+  const price = money(line.unitPrice);
+  // La más barata del grupo, tal como quedó el carrito después de deshacer.
+  const cheaper = pool
+    .map((l) => findLine(first.cart, l.id))
+    .filter((l): l is CartItem => !!l && l.id !== line.id && money(l.unitPrice) < price)
+    .sort((a, b) => money(a.unitPrice) - money(b.unitPrice))[0];
+  if (!cheaper) return { cart: first.cart, host: null };
+  const max = knownMax(cheaper);
+  if (max !== null && whole(cheaper.quantity) + added > max) return { cart: first.cart, host: null };
+  const second = await bumpIfFree({
+    fallback: first.cart,
+    line: cheaper,
+    target: whole(cheaper.quantity) + added,
+    updateItem,
+    poolIds,
+  });
+  return { cart: second.cart, host: second.kept ? cheaper : null };
+}
+
+/**
+ * Después de AGREGAR al carrito: si la línea (o su grupo) llegó a las piezas que se pagan, entra
+ * la gratis. `cart` = respuesta del alta; `lineId` = la línea del alta; `addedQuantity` = piezas
+ * pedidas.
  */
 export async function autoGiftAfterAdd(args: {
   cart: Cart;
@@ -153,22 +247,21 @@ export async function autoGiftAfterAdd(args: {
   const offer = autoGiftOffer(badge);
   if (!line || !badge || !offer) return { cart, notice: null };
   const wanted = whole(line.quantity);
-  const plan = planAutoGift({
-    wanted,
-    previous: Math.max(0, wanted - Math.max(0, whole(args.addedQuantity))),
-    offer,
-    max: knownMax(line),
-  });
-  const notice = (kind: AutoGiftNotice['kind'], count: number): AutoGiftNotice => ({
+  const previous = Math.max(0, wanted - Math.max(0, whole(args.addedQuantity)));
+  const pool = poolOf(cart, line, badge, badges);
+  const plan = badge.group
+    ? planGroupAutoGift({ wanted, previous, others: piecesOf(pool) - wanted, offer, max: knownMax(line) })
+    : planAutoGift({ wanted, previous, offer, max: knownMax(line) });
+  const notice = (kind: AutoGiftNotice['kind'], count: number, productName = line.productName): AutoGiftNotice => ({
     kind,
     label: badge.label,
-    productName: line.productName,
+    productName,
     count,
   });
   if (plan.missing > 0) return { cart, notice: notice('missing', plan.missing) };
   if (plan.added <= 0) return { cart, notice: null };
-  const { cart: next, kept } = await bumpIfFree({ fallback: cart, line, target: plan.quantity, updateItem });
-  return { cart: next, notice: kept ? notice('added', plan.added) : null };
+  const { cart: next, host } = await addGift({ cart, line, pool, added: plan.added, target: plan.quantity, updateItem });
+  return { cart: next, notice: host ? notice('added', plan.added, host.productName) : null };
 }
 
 /**
@@ -188,12 +281,21 @@ export async function autoGiftOnUpdate(args: {
   const current = cached ? findLine(cached, itemId) : undefined;
   const badge = current ? badges.get(current.productId) : undefined;
   const offer = autoGiftOffer(badge);
-  if (!current || !badge || !offer) return { cart: await updateItem(itemId, wanted), notice: null };
-  const plan = planAutoGift({ wanted, previous: whole(current.quantity), offer, max: knownMax(current) });
-  const notice = (kind: AutoGiftNotice['kind'], count: number): AutoGiftNotice => ({
+  if (!cached || !current || !badge || !offer) return { cart: await updateItem(itemId, wanted), notice: null };
+  const previous = whole(current.quantity);
+  const plan = badge.group
+    ? planGroupAutoGift({
+        wanted,
+        previous,
+        others: piecesOf(poolOf(cached, current, badge, badges)) - previous,
+        offer,
+        max: knownMax(current),
+      })
+    : planAutoGift({ wanted, previous, offer, max: knownMax(current) });
+  const notice = (kind: AutoGiftNotice['kind'], count: number, productName = current.productName): AutoGiftNotice => ({
     kind,
     label: badge.label,
-    productName: current.productName,
+    productName,
     count,
   });
   // Baja: la gratis se va con la pieza que la ganaba (un solo cambio).
@@ -204,6 +306,13 @@ export async function autoGiftOnUpdate(args: {
   const line = findLine(cart, itemId);
   // El servidor pudo ajustar la cantidad (existencias): solo se sigue si quedó lo pedido.
   if (!line || whole(line.quantity) !== wanted) return { cart, notice: null };
-  const { cart: next, kept } = await bumpIfFree({ fallback: cart, line, target: plan.quantity, updateItem });
-  return { cart: next, notice: kept ? notice('added', plan.added) : null };
+  const { cart: next, host } = await addGift({
+    cart,
+    line,
+    pool: poolOf(cart, line, badge, badges),
+    added: plan.added,
+    target: plan.quantity,
+    updateItem,
+  });
+  return { cart: next, notice: host ? notice('added', plan.added, host.productName) : null };
 }

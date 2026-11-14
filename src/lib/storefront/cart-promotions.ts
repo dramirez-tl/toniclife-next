@@ -6,8 +6,9 @@
 //  - "Te falta poco": la línea está en un "lleva N, paga M" que vale en la tienda y le faltan
 //    piezas para la siguiente gratis ("Agrega 1 más y te sale gratis"). Es un AVISO: quien aplica
 //    la promoción es el servidor cuando la cantidad llega. Por eso la cuenta es la misma del motor
-//    (`applySeasonalPromotions`): grupos completos de N piezas, por producto o entre todos los de
-//    la promoción, con el tope de veces por compra.
+//    (`applySeasonalPromotions`): grupos completos de N piezas, por producto, por GRUPO de
+//    productos que se combinan (sabores de lo mismo, 14-nov-2026) o entre todos los de la
+//    promoción, con el tope de veces por compra.
 
 import { nxmProgress, type SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type { CartItem, CartSeasonalPromotion } from '@/types/cart';
@@ -68,6 +69,11 @@ export interface CartLinePromoNudge {
   allFree: boolean;
   /** true = el grupo se arma con cualquier producto de la promoción (no solo con este). */
   mixed: boolean;
+  /**
+   * Nombre del grupo de productos que se combinan ("24 Shake"): las piezas que faltan pueden ser
+   * de cualquiera de ellos. Solo viene cuando el producto está en un grupo.
+   */
+  groupName?: string;
 }
 
 type NudgeLine = Pick<CartItem, 'id' | 'productId' | 'quantity' | 'unitPrice' | 'seasonPromotionId'>;
@@ -97,8 +103,9 @@ export function cartPromoNudges<T extends NudgeLine>(input: CartPromoNudgesInput
     const max = maxFor ? maxFor(item) : null;
     return max === null || !Number.isFinite(max) || target <= max;
   };
-  // "Lleva N de cualquiera de la promoción": se cuenta el conjunto, no cada línea.
-  const pools = new Map<string, { badge: SeasonalProductBadge; lines: T[] }>();
+  // "Lleva N de cualquiera de la promoción" o de un mismo grupo: se cuenta el conjunto, no cada
+  // línea.
+  const pools = new Map<string, { badge: SeasonalProductBadge; lines: T[]; groupName?: string }>();
 
   for (const item of items) {
     const badge = badges.get(item.productId);
@@ -115,6 +122,14 @@ export function cartPromoNudges<T extends NudgeLine>(input: CartPromoNudgesInput
       pools.set(badge.promotionId, pool);
       continue;
     }
+    if (badge.group) {
+      // Sabores que se combinan: cuenta el grupo, no la línea.
+      const key = `${badge.promotionId}|${badge.group.name}`;
+      const pool = pools.get(key) ?? { badge, lines: [], groupName: badge.group.name };
+      pool.lines.push(item);
+      pools.set(key, pool);
+      continue;
+    }
     const progress = nxmProgress(quantity, badge.nxm);
     if (progress.missing === 0 || !fits(item, progress.targetQuantity)) continue;
     nudges.set(item.id, {
@@ -129,13 +144,18 @@ export function cartPromoNudges<T extends NudgeLine>(input: CartPromoNudgesInput
     });
   }
 
-  for (const { badge, lines } of pools.values()) {
+  for (const { badge, lines, groupName } of pools.values()) {
     if (!badge.nxm) continue;
     const total = lines.reduce((sum, line) => sum + units(line.quantity), 0);
     const progress = nxmProgress(total, badge.nxm);
     if (progress.missing === 0) continue;
-    // El aviso va UNA vez: en la última línea del grupo a la que le quepan las piezas que faltan.
-    const host = [...lines].reverse().find((line) => fits(line, units(line.quantity) + progress.missing));
+    // El aviso va UNA vez: en la línea MÁS BARATA a la que le quepan las piezas que faltan (la
+    // gratis es la más barata del conjunto: agregando de esa, lo agregado sí sale gratis); a igual
+    // precio, la última.
+    const host = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => fits(line, units(line.quantity) + progress.missing))
+      .sort((a, b) => money(a.line.unitPrice) - money(b.line.unitPrice) || b.index - a.index)[0]?.line;
     if (!host) continue;
     nudges.set(host.id, {
       promotionId: badge.promotionId,
@@ -146,6 +166,7 @@ export function cartPromoNudges<T extends NudgeLine>(input: CartPromoNudgesInput
       targetQuantity: units(host.quantity) + progress.missing,
       allFree: progress.missing <= progress.freeNext,
       mixed: true,
+      ...(groupName ? { groupName } : {}),
     });
   }
   return nudges;

@@ -40,11 +40,18 @@ export function CartLinePromo({ applied, nudge, productName, money, busy, onAdd,
       : t('promoAppliedDiscount', { name: applied.name || t('promoFallbackName'), amount: money(applied.savings) })
     : null;
   const nudgeText = nudge
-    ? nudge.mixed
-      ? t('promoNudgeMixed', { missing: nudge.missing, free: nudge.free })
-      : nudge.allFree
-        ? t('promoNudgeFree', { missing: nudge.missing })
-        : t('promoNudge', { missing: nudge.missing, free: nudge.free })
+    ? nudge.groupName
+      ? // Sabores que se combinan: lo que falta puede ser de cualquier producto del grupo.
+        t(nudge.allFree ? 'promoNudgeGroupFree' : 'promoNudgeGroup', {
+          missing: nudge.missing,
+          free: nudge.free,
+          group: nudge.groupName,
+        })
+      : nudge.mixed
+        ? t('promoNudgeMixed', { missing: nudge.missing, free: nudge.free })
+        : nudge.allFree
+          ? t('promoNudgeFree', { missing: nudge.missing })
+          : t('promoNudge', { missing: nudge.missing, free: nudge.free })
     : null;
 
   return (

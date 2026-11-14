@@ -15,10 +15,19 @@ export type SeasonStatus = 'upcoming' | 'active' | 'ended' | 'inactive';
 export type SeasonStatusFilter = 'all' | 'active' | 'upcoming' | 'ended' | 'inactive';
 export type SeasonUsageStatus = 'pending' | 'applied' | 'reverted';
 
+/** Productos que se combinan entre sí en un "lleva N, paga M" (sabores o presentaciones de lo mismo). */
+export interface NxmGroup {
+  /** Nombre que ven el cajero y el comprador ("24 Shake"). */
+  name: string;
+  productIds: string[];
+}
 export interface NxmConfig {
   buy: number;
   pay: number;
+  /** true = solo piezas idénticas (más los grupos); false = se combina cualquier producto. */
   sameProductOnly: boolean;
+  /** Solo con `sameProductOnly`: los productos de un mismo grupo cuentan juntos. */
+  groups?: NxmGroup[];
 }
 export interface PercentOffConfig {
   percent: number;

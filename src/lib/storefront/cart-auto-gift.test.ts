@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type { Cart, CartItem } from '@/types/cart';
-import { autoGiftAfterAdd, autoGiftOffer, autoGiftOnUpdate, autoGiftTarget, planAutoGift } from './cart-auto-gift';
+import {
+  autoGiftAfterAdd,
+  autoGiftOffer,
+  autoGiftOnUpdate,
+  autoGiftTarget,
+  planAutoGift,
+  planGroupAutoGift,
+} from './cart-auto-gift';
 
 const X3 = { buy: 3, pay: 2 };
 const X6 = { buy: 6, pay: 5 };
@@ -257,5 +264,166 @@ describe('autoGiftOnUpdate: al cambiar la cantidad', () => {
     const s2 = server();
     await autoGiftOnUpdate({ cached: cartWith(1, { productId: 'colageno' }), itemId: 'l1', wanted: 2, badges: BADGES, updateItem: s2.updateItem });
     expect(s2.calls).toEqual([2]);
+  });
+});
+
+describe('sabores que se combinan: la gratis entra sola contando el GRUPO (14-nov-2026)', () => {
+  const GROUP = { name: '24 Shake', productIds: ['van', 'choc', 'fresa'] };
+  const shakeBadge = badge({
+    promotionId: 'c5',
+    label: '6x5',
+    name: 'Compra 5 y llévate 1',
+    nxm: { buy: 6, pay: 5, free: 1, sameProductOnly: true },
+    group: GROUP,
+  });
+  const GROUP_BADGES = new Map<string, SeasonalProductBadge>([
+    ['van', shakeBadge],
+    ['choc', shakeBadge],
+    ['fresa', shakeBadge],
+    // El 12 Mix está en la misma promoción, pero cuenta solo.
+    ['mix', badge({ promotionId: 'c5', label: '6x5', name: 'Compra 5 y llévate 1', nxm: { buy: 6, pay: 5, free: 1, sameProductOnly: true } })],
+  ]);
+  const PRICES: Record<string, number> = { van: 363, choc: 363, fresa: 363, mix: 471 };
+
+  /**
+   * Servidor de mentira con varias líneas: aplica el 6x5 como el motor real (cada grupo cuenta
+   * junto, lo demás por línea; la gratis es la más barata) y registra lo que se le pidió.
+   */
+  function shop(initial: Record<string, number>, opts: { prices?: Record<string, number>; max?: Record<string, number> } = {}) {
+    const prices = { ...PRICES, ...opts.prices };
+    const qty = new Map(Object.entries(initial));
+    const calls: [string, number][] = [];
+    const build = (): Cart => {
+      const lines = [...qty.entries()].filter(([, q]) => q > 0).map(([productId, quantity]) => ({ productId, quantity, free: 0 }));
+      const pools = [lines.filter((l) => GROUP.productIds.includes(l.productId)), ...lines.filter((l) => !GROUP.productIds.includes(l.productId)).map((l) => [l])];
+      for (const pool of pools) {
+        let toFree = Math.floor(pool.reduce((s, l) => s + l.quantity, 0) / 6);
+        for (const l of [...pool].sort((a, b) => prices[a.productId] - prices[b.productId] || a.productId.localeCompare(b.productId))) {
+          const f = Math.min(toFree, l.quantity);
+          l.free = f;
+          toFree -= f;
+        }
+      }
+      return {
+        items: lines.map((l) => ({
+          id: `l-${l.productId}`,
+          productId: l.productId,
+          quantity: l.quantity,
+          unitPrice: prices[l.productId].toFixed(2),
+          lineTotal: (prices[l.productId] * (l.quantity - l.free)).toFixed(2),
+          points: 0,
+          businessValue: '0',
+          productName: `24 Shake ${l.productId}`,
+          productCode: l.productId,
+          ...(opts.max?.[l.productId] !== undefined ? { maxQuantity: opts.max[l.productId] } : {}),
+          ...(l.free > 0 ? { seasonPromotionId: 'c5', promoFreeQuantity: l.free } : {}),
+          createdAt: '',
+          updatedAt: '',
+        })),
+      } as unknown as Cart;
+    };
+    const updateItem = async (itemId: string, quantity: number): Promise<Cart> => {
+      calls.push([itemId, quantity]);
+      qty.set(itemId.replace(/^l-/, ''), quantity);
+      return build();
+    };
+    const pieces = (cart: Cart) => Object.fromEntries(cart.items.map((i) => [i.productId, i.quantity]));
+    const total = (cart: Cart) => cart.items.reduce((s, i) => s + Number(i.lineTotal), 0);
+    return { build, updateItem, calls, pieces, total };
+  }
+
+  it('planGroupAutoGift: cuenta lo que hay en las otras líneas del grupo', () => {
+    // 3 en otra línea + 2 en esta = 5 → entra la sexta en esta.
+    expect(planGroupAutoGift({ wanted: 2, previous: 1, others: 3, offer: X6 })).toEqual({ quantity: 3, added: 1, removed: 0, missing: 0 });
+    // 3 + 1 = 4: nada. 3 + 3 = 6: nada.
+    expect(planGroupAutoGift({ wanted: 1, previous: 0, others: 3, offer: X6 }).quantity).toBe(1);
+    expect(planGroupAutoGift({ wanted: 3, previous: 2, others: 3, offer: X6 }).quantity).toBe(3);
+    // Baja de 6 (3 + 3) a 5: se va una más de esta línea.
+    expect(planGroupAutoGift({ wanted: 2, previous: 3, others: 3, offer: X6 })).toEqual({ quantity: 1, added: 0, removed: 1, missing: 0 });
+    // La línea no puede dar una más (quedaría en 0): se queda como se pidió.
+    expect(planGroupAutoGift({ wanted: 1, previous: 2, others: 4, offer: X6 })).toEqual({ quantity: 1, added: 0, removed: 0, missing: 0 });
+    // Sin existencias para la gratis en esta línea: se avisa.
+    expect(planGroupAutoGift({ wanted: 2, previous: 1, others: 3, offer: X6, max: 2 })).toEqual({ quantity: 2, added: 0, removed: 0, missing: 1 });
+    // Sola en el grupo se comporta como una línea normal.
+    expect(planGroupAutoGift({ wanted: 5, previous: 4, others: 0, offer: X6 }).quantity).toBe(6);
+    expect(planGroupAutoGift({ wanted: 0, previous: 1, others: 5, offer: X6 }).quantity).toBe(0);
+  });
+
+  it('al agregar: 3 de vainilla en el carrito + 2 de chocolate → entra la sexta, de chocolate, y se paga lo mismo', async () => {
+    const s = shop({ van: 3, choc: 2 });
+    const cart = s.build();
+    const before = s.total(cart);
+    const r = await autoGiftAfterAdd({ cart, lineId: 'l-choc', addedQuantity: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([['l-choc', 3]]);
+    expect(s.pieces(r.cart)).toEqual({ van: 3, choc: 3 });
+    expect(s.total(r.cart)).toBe(before);
+    expect(r.notice).toEqual({ kind: 'added', label: '6x5', productName: '24 Shake choc', count: 1 });
+  });
+
+  it('con 4 en el grupo, o con las 6 ya puestas, no pide nada', async () => {
+    for (const lines of [{ van: 3, choc: 1 }, { van: 3, choc: 3 }]) {
+      const s = shop(lines);
+      const r = await autoGiftAfterAdd({ cart: s.build(), lineId: 'l-choc', addedQuantity: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+      expect(s.calls).toEqual([]);
+      expect(r.notice).toBeNull();
+    }
+  });
+
+  it('lo que está fuera del grupo no completa: 4 del grupo + 1 del 12 Mix', async () => {
+    const s = shop({ van: 4, mix: 1 });
+    const r = await autoGiftAfterAdd({ cart: s.build(), lineId: 'l-mix', addedQuantity: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([]);
+    expect(r.notice).toBeNull();
+  });
+
+  it('precios distintos: en la línea que se agregó costaría más → se deshace y entra de la más barata', async () => {
+    const s = shop({ van: 4, choc: 1 }, { prices: { van: 300, choc: 400 } });
+    const cart = s.build();
+    const before = s.total(cart);
+    const r = await autoGiftAfterAdd({ cart, lineId: 'l-choc', addedQuantity: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+    // Prueba en chocolate (cuesta $100 más), lo regresa, y prueba en vainilla.
+    expect(s.calls).toEqual([
+      ['l-choc', 2],
+      ['l-choc', 1],
+      ['l-van', 5],
+    ]);
+    expect(s.pieces(r.cart)).toEqual({ van: 5, choc: 1 });
+    expect(s.total(r.cart)).toBe(before);
+    expect(r.notice).toMatchObject({ kind: 'added', productName: '24 Shake van' });
+  });
+
+  it('sin existencias para la gratis en la línea que se agregó: avisa y no pide nada', async () => {
+    const s = shop({ van: 3, choc: 2 }, { max: { choc: 2 } });
+    const r = await autoGiftAfterAdd({ cart: s.build(), lineId: 'l-choc', addedQuantity: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([]);
+    expect(r.notice).toMatchObject({ kind: 'missing', count: 1 });
+  });
+
+  it('con el botón +: de 1 a 2 de chocolate (con 3 de vainilla) → pide 2 y luego la gratis', async () => {
+    const s = shop({ van: 3, choc: 1 });
+    const cached = s.build();
+    const r = await autoGiftOnUpdate({ cached, itemId: 'l-choc', wanted: 2, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([
+      ['l-choc', 2],
+      ['l-choc', 3],
+    ]);
+    expect(s.pieces(r.cart)).toEqual({ van: 3, choc: 3 });
+    expect(r.notice).toMatchObject({ kind: 'added', count: 1 });
+  });
+
+  it('con el botón −: de 3 a 2 de chocolate (grupo en 6) → queda en 1, en un solo cambio', async () => {
+    const s = shop({ van: 3, choc: 3 });
+    const r = await autoGiftOnUpdate({ cached: s.build(), itemId: 'l-choc', wanted: 2, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([['l-choc', 1]]);
+    expect(s.pieces(r.cart)).toEqual({ van: 3, choc: 1 });
+    expect(r.notice).toMatchObject({ kind: 'removed', count: 1 });
+  });
+
+  it('con el botón − en una línea que no puede dar otra pieza: queda como se pidió (el carrito avisa que falta una)', async () => {
+    const s = shop({ van: 4, choc: 2 });
+    const r = await autoGiftOnUpdate({ cached: s.build(), itemId: 'l-choc', wanted: 1, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([['l-choc', 1]]);
+    expect(s.pieces(r.cart)).toEqual({ van: 4, choc: 1 });
+    expect(r.notice).toBeNull();
   });
 });

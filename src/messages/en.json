@@ -261,6 +261,7 @@
         "label": "Seasonal promotion",
         "nxmSame": "Buy {buy} of this product and pay for {pay}.",
         "nxmMixed": "Buy {buy} products from the promotion and pay for {pay}.",
+        "nxmGroup": "Buy {buy} {group} items, mixed any way you like, and pay for {pay}.",
         "auto": "The free item is added to your cart automatically.",
         "storeOnly": "In stores and Call Center only. It does not apply in the online store.",
         "ready": "{quantity, plural, one {With # unit} other {With # units}}, {free, plural, one {# is free} other {# are free}}.",
@@ -404,6 +405,8 @@
         "promoNudgeFree": "{missing, plural, one {Add # more and it's free} other {Add # more and they're free}}",
         "promoNudge": "Add {missing} more and get {free} free",
         "promoNudgeMixed": "Add {missing} more from the promotion and get {free} free",
+        "promoNudgeGroup": "Add {missing} more from {group} and get {free} free",
+        "promoNudgeGroupFree": "{missing, plural, one {Add # more from {group} and it is free} other {Add # more from {group} and they are free}}",
         "promoNudgeAdd": "Add {missing}",
         "promoNudgeAddLabel": "{missing, plural, one {Add # unit} other {Add # units}} of {name} to complete the {label}",
         "promoQuantitySet": "{name}: you now have {count}"

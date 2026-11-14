@@ -58,9 +58,11 @@ export function SeasonalPromoNotice({
   className,
 }: SeasonalPromoNoticeProps) {
   const t = useTranslations('storefront.product.seasonal');
-  const { nxm, storeOnly } = seasonal;
+  const { nxm, storeOnly, group } = seasonal;
   // Solo se le hace la cuenta a quien puede aprovecharla aquí y con piezas de este mismo producto.
-  const progress = nxm && !storeOnly && nxm.sameProductOnly ? nxmProgress(quantity, nxm) : null;
+  // Si el producto se combina con otros (grupo de sabores), cuántas "faltan" depende de lo que ya
+  // haya en el carrito: aquí solo se explica la regla; el carrito hace la cuenta y avisa.
+  const progress = nxm && !storeOnly && nxm.sameProductOnly && !group ? nxmProgress(quantity, nxm) : null;
   // ¿Caben las piezas que faltan para el grupo completo (existencias o tope por pedido)?
   const fits = !!progress && progress.targetQuantity <= maxQuantity;
   // Con las piezas que se PAGAN ya elegidas (2 en un 3x2), las que faltan son las gratis: el
@@ -87,8 +89,10 @@ export function SeasonalPromoNotice({
 
       {nxm && (
         <p className="text-sm text-gray-900">
-          {t(nxm.sameProductOnly ? 'nxmSame' : 'nxmMixed', { buy: nxm.buy, pay: nxm.pay })}
-          {!storeOnly && <span> {t('auto')}</span>}
+          {group && nxm.sameProductOnly
+            ? t('nxmGroup', { buy: nxm.buy, pay: nxm.pay, group: group.name })
+            : t(nxm.sameProductOnly ? 'nxmSame' : 'nxmMixed', { buy: nxm.buy, pay: nxm.pay })}
+          {!storeOnly && nxm.sameProductOnly && <span> {t('auto')}</span>}
         </p>
       )}
       {storeOnly && <p className="text-sm font-semibold text-amber-900">{t('storeOnly')}</p>}
