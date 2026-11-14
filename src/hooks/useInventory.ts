@@ -673,6 +673,14 @@ export function useExportConsolidatedStock() {
   });
 }
 
+/** Descarga el Excel de un producto sucursal por sucursal. */
+export function useDownloadProductBranchesXlsx() {
+  return useMutation({
+    mutationFn: ({ productId, filename }: { productId: string; filename: string }) =>
+      inventoryService.downloadProductBranchesXlsx(productId, filename),
+  });
+}
+
 export function useExportMovements() {
   return useMutation({
     mutationFn: ({

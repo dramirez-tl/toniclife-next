@@ -7,7 +7,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,14 +19,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useProductStock } from '@/hooks/useInventory';
+import { useDownloadProductBranchesXlsx, useProductStock } from '@/hooks/useInventory';
 import {
   branchBreakdown,
   breakdownTotals,
   filterBranchBreakdown,
+  productBranchesExcelFilename,
   type BreakdownBranch,
   type BreakdownFilter,
 } from '@/lib/inventory/all-branches';
+import { todayInCdmx } from '@/lib/network/format';
 import { resolveTimeZone } from '@/lib/timezone-utils';
 
 interface ProductBranchesDialogProps {
@@ -53,6 +56,21 @@ export function ProductBranchesDialog({ product, branches, onClose }: ProductBra
   const { data, isLoading, isError, isFetching, refetch } = useProductStock(product.productId);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<BreakdownFilter>('all');
+  const download = useDownloadProductBranchesXlsx();
+
+  // El Excel trae TODAS las sucursales del producto (el API lo arma; no depende de la
+  // búsqueda ni del filtro de esta ventana) y lleva su propio filtro de Excel.
+  const handleDownload = async () => {
+    try {
+      await download.mutateAsync({
+        productId: product.productId,
+        filename: productBranchesExcelFilename(product.productCode, todayInCdmx()),
+      });
+      toast.success('Excel descargado');
+    } catch {
+      toast.error('No se pudo descargar el Excel. Intenta de nuevo.');
+    }
+  };
 
   const rows = useMemo(() => branchBreakdown(data, branches), [data, branches]);
   const totals = useMemo(() => breakdownTotals(rows), [rows]);
@@ -221,7 +239,21 @@ export function ProductBranchesDialog({ product, branches, onClose }: ProductBra
           </>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDownload}
+            disabled={download.isPending || isLoading || isError}
+            title="Todas las sucursales de este producto, en un archivo de Excel"
+          >
+            {download.isPending ? (
+              <ArrowPathIcon className="h-5 w-5 animate-spin" />
+            ) : (
+              <ArrowDownTrayIcon className="h-5 w-5" />
+            )}
+            {download.isPending ? 'Generando Excel…' : 'Descargar Excel'}
+          </Button>
           <Button type="button" variant="outline" onClick={onClose}>
             Cerrar
           </Button>

@@ -2,6 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 
 import api from '@/lib/api';
+import { saveBlob } from '@/lib/download';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import {
   MovementStatus,
@@ -457,6 +458,22 @@ class InventoryService {
       { responseType: 'blob' },
     );
     downloadCsv(response.data, filename);
+  }
+
+  /**
+   * Excel de UN producto sucursal por sucursal (la ventana del desglose).
+   * Backend: GET /inventory/products/:id/stock/xlsx. El nombre se arma aquí:
+   * Content-Disposition no se expone por CORS.
+   */
+  async downloadProductBranchesXlsx(productId: string, filename: string): Promise<void> {
+    const response = await api.get(`/inventory/products/${productId}/stock/xlsx`, {
+      responseType: 'blob',
+    });
+    saveBlob(
+      response.data as BlobPart,
+      filename,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
   }
 
   async getMovementStats(query: MovementQueryDto = {}): Promise<InventoryStats> {

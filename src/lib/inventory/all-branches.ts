@@ -215,6 +215,15 @@ export function breakdownTotals(rows: BranchBreakdownRow[]): BreakdownTotals {
   );
 }
 
+/**
+ * Nombre del Excel de un producto por sucursal: `EXISTENCIAS_8289_2026-11-14.xlsx` (el mismo
+ * que arma el API; aquí se repite porque el navegador no puede leer el que manda el servidor).
+ */
+export function productBranchesExcelFilename(productCode: string, date: string): string {
+  const code = (productCode ?? '').replace(/[^A-Za-z0-9_-]+/g, '_') || 'producto';
+  return `EXISTENCIAS_${code}_${date}.xlsx`;
+}
+
 /** Nombre del archivo que se descarga: `inventario_Irapuato_2026-11-14.csv`. */
 export function stockExportFilename(scope: string, date: string): string {
   const safe =

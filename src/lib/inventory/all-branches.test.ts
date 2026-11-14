@@ -9,6 +9,7 @@ import {
   canSeeAllBranches,
   consolidatedStockRows,
   filterBranchBreakdown,
+  productBranchesExcelFilename,
   stockCards,
   stockExportFilename,
   stockState,
@@ -244,5 +245,14 @@ describe('stockExportFilename', () => {
       'inventario_Leon_Centro_Bodega_136_2026-11-14.csv',
     );
     expect(stockExportFilename('', '2026-11-14')).toBe('inventario_sucursal_2026-11-14.csv');
+  });
+});
+
+describe('productBranchesExcelFilename', () => {
+  it('mismo nombre que arma el API: EXISTENCIAS_<clave>_<fecha>.xlsx', () => {
+    expect(productBranchesExcelFilename('8289', '2026-11-14')).toBe('EXISTENCIAS_8289_2026-11-14.xlsx');
+    expect(productBranchesExcelFilename('F9019-3', '2026-11-14')).toBe('EXISTENCIAS_F9019-3_2026-11-14.xlsx');
+    expect(productBranchesExcelFilename('TL/A 25"', '2026-11-14')).toBe('EXISTENCIAS_TL_A_25__2026-11-14.xlsx');
+    expect(productBranchesExcelFilename('', '2026-11-14')).toBe('EXISTENCIAS_producto_2026-11-14.xlsx');
   });
 });
