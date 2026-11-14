@@ -51,6 +51,7 @@ import { OrderStatus, type OrderDeliverySummary } from '@/types/order';
 import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
 import { deliveryStatusClasses } from '@/lib/deliveries/actions';
 import { personalizationLine } from '@/lib/product-personalization';
+import { parseBusinessDate } from '@/lib/orders/order-date';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 
@@ -87,6 +88,17 @@ const formatDate = (dateString: string | Date) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+/**
+ * Fecha de negocio del pedido (el día en que se hizo), sin hora. No pasa por formatDate: es
+ * una fecha, y leída como instante salía a las 18:00 del día anterior.
+ */
+const formatBusinessDate = (value: string) => {
+  const date = parseBusinessDate(value);
+  return date
+    ? date.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+    : '—';
 };
 
 // ================================
@@ -537,7 +549,7 @@ export default function OrderDetailAdminPage() {
                 {order.orderDate && (
                   <div>
                     <span className="text-gray-500">Fecha de orden:</span>{' '}
-                    <span className="font-medium text-gray-900">{formatDate(order.orderDate)}</span>
+                    <span className="font-medium text-gray-900">{formatBusinessDate(order.orderDate)}</span>
                   </div>
                 )}
                 <div>
