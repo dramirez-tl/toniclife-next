@@ -3,7 +3,8 @@
 // Promoción de temporada en el DETALLE del producto (Buen Fin 2026). El catálogo ya la anuncia
 // en la tarjeta (insignia "3x2" y el nombre de la promoción); aquí se dice lo mismo, con más
 // espacio: qué promoción es, cómo funciona ("Lleva 3 piezas de este producto y paga 2") y, según
-// la cantidad elegida, cuánto falta para la pieza gratis, con un botón que deja esa cantidad.
+// la cantidad elegida, cuánto falta para la pieza gratis (con un botón que deja esa cantidad) o
+// que la gratis entra sola al carrito cuando ya se eligieron las que se pagan.
 // Si la promoción solo vale en punto de venta lo dice claro: el carrito en línea no la aplica.
 //
 // La promoción la aplica el SERVIDOR al carrito; esto solo informa (`lib/seasonal-promotions`).
@@ -60,7 +61,12 @@ export function SeasonalPromoNotice({
   const { nxm, storeOnly } = seasonal;
   // Solo se le hace la cuenta a quien puede aprovecharla aquí y con piezas de este mismo producto.
   const progress = nxm && !storeOnly && nxm.sameProductOnly ? nxmProgress(quantity, nxm) : null;
-  const canTake = !!progress && progress.missing > 0 && progress.targetQuantity <= maxQuantity;
+  // ¿Caben las piezas que faltan para el grupo completo (existencias o tope por pedido)?
+  const fits = !!progress && progress.targetQuantity <= maxQuantity;
+  // Con las piezas que se PAGAN ya elegidas (2 en un 3x2), las que faltan son las gratis: el
+  // carrito las agrega solo (`lib/storefront/cart-auto-gift`).
+  const giftIsAutomatic = !!progress && progress.missing > 0 && progress.missing <= progress.freeNext;
+  const canTake = !!progress && progress.missing > 0 && fits;
 
   return (
     <section
@@ -92,13 +98,15 @@ export function SeasonalPromoNotice({
           {t('ready', { quantity, free: progress.freeNow })}
         </p>
       )}
-      {progress && progress.missing > 0 && (
+      {/* Ya eligió las piezas que se pagan: la gratis entra sola al carrito (si hay existencias). */}
+      {progress && giftIsAutomatic && fits && (
+        <p data-testid="seasonal-promo-auto" role="status" className="text-sm font-semibold text-emerald-800">
+          {t('giftAuto', { quantity, missing: progress.missing })}
+        </p>
+      )}
+      {progress && progress.missing > 0 && !giftIsAutomatic && (
         <p data-testid="seasonal-promo-missing" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-semibold text-rose-800">
-          <span>
-            {progress.missing <= progress.freeNext
-              ? t('missingFree', { missing: progress.missing })
-              : t('missing', { missing: progress.missing, free: progress.freeNext })}
-          </span>
+          <span>{t('missing', { missing: progress.missing, free: progress.freeNext })}</span>
           {canTake && (
             <button
               type="button"

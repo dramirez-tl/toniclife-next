@@ -7,8 +7,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import { keepPreviousData, useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
+import { seasonalPromotionsService } from '@/services/seasonal-promotions.service';
+import { seasonalPromotionKeys } from '@/hooks/useSeasonalPromotions';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { localeLanguage } from '@/i18n/config';
+import { seasonalProductBadges, type SeasonalProductBadge } from '@/lib/seasonal-promotions';
+import { autoGiftAfterAdd, autoGiftOnUpdate, type AutoGiftNotice } from '@/lib/storefront/cart-auto-gift';
+import { formatProductName } from '@/lib/storefront/content-format';
 import { catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
 import { conflictItemCount, countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
 import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-store';
@@ -192,6 +197,55 @@ function useStockAdjust() {
   );
 }
 
+/**
+ * La pieza GRATIS de un "lleva N, paga M" entra sola al carrito, igual que en la caja
+ * (`lib/storefront/cart-auto-gift`). Aquí solo van las dos cosas que necesitan React:
+ *  - `badgesFor`: qué productos están HOY en promoción en el país del carrito. Usa el mismo
+ *    paquete (y la misma caché) que las insignias del catálogo; si no se puede leer, nadie
+ *    recibe nada automático y el carrito se comporta como siempre.
+ *  - `announce`: el aviso al comprador ("3x2: agregamos 1 pieza gratis de…").
+ */
+function useAutoGift() {
+  const t = useTranslations('storefront.cart.autoGift');
+  const queryClient = useQueryClient();
+  const { countryCode: storeCountry } = useStoreCountry();
+
+  const badgesFor = useCallback(
+    async (cart: Cart | undefined): Promise<ReadonlyMap<string, SeasonalProductBadge>> => {
+      // País DEL CARRITO: es con el que el servidor aplica las promociones.
+      const country = (normalizeCountryCode(cart?.countryCode) ?? storeCountry).toUpperCase();
+      try {
+        const bundle = await queryClient.ensureQueryData({
+          queryKey: seasonalPromotionKeys.storefront(country),
+          queryFn: () => seasonalPromotionsService.storefrontBundle(country),
+          staleTime: 60 * 1000,
+        });
+        return seasonalProductBadges(bundle?.seasons);
+      } catch {
+        return new Map();
+      }
+    },
+    [queryClient, storeCountry],
+  );
+
+  const announce = useCallback(
+    (notice: AutoGiftNotice | null) => {
+      if (!notice) return;
+      const text = t(notice.kind, {
+        label: notice.label,
+        name: formatProductName(notice.productName),
+        count: notice.count,
+      });
+      // Un solo aviso a la vez: el siguiente cambio sustituye al anterior.
+      if (notice.kind === 'added') toast.success(text, { id: 'cart-auto-gift', duration: 7000 });
+      else toast.info(text, { id: 'cart-auto-gift', duration: 7000 });
+    },
+    [t],
+  );
+
+  return { badgesFor, announce };
+}
+
 // ================================
 // QUERY KEYS
 // ================================
@@ -252,6 +306,7 @@ export const useAddCartItem = () => {
   const toastCartError = useCartErrorToast();
   const notifyElsewhere = useCartElsewhereNotice();
   const adjustToStock = useStockAdjust();
+  const autoGift = useAutoGift();
   const { countryCode } = useStoreCountry();
 
   return useMutation({
@@ -266,10 +321,27 @@ export const useAddCartItem = () => {
         country: input.country ?? countryCode,
         ...(personalization ? { personalization } : {}),
       };
+      let cart: Cart;
       try {
-        return await cartService.addItem(data);
+        cart = await cartService.addItem(data);
       } catch (err) {
-        return adjustToStock(err, locateAddedLine(data), data);
+        cart = await adjustToStock(err, locateAddedLine(data), data);
+      }
+      // "Lleva N, paga M": si la línea llegó a las piezas que se pagan, la gratis entra sola
+      // (y solo se queda si el servidor confirma que no cuesta más). El alta ya quedó hecha:
+      // pase lo que pase con lo automático, nunca la tumba.
+      try {
+        const gift = await autoGiftAfterAdd({
+          cart,
+          lineId: locateAddedLine(data)(cart)?.id,
+          addedQuantity: data.quantity,
+          badges: await autoGift.badgesFor(cart),
+          updateItem: (itemId, quantity) => cartService.updateItem(itemId, { quantity }),
+        });
+        autoGift.announce(gift.notice);
+        return gift.cart;
+      } catch {
+        return cart;
       }
     },
     onSuccess: (data, input) => {
@@ -302,12 +374,24 @@ export const useUpdateCartItem = () => {
   const toastCartError = useCartErrorToast();
   const notifyElsewhere = useCartElsewhereNotice();
   const adjustToStock = useStockAdjust();
+  const autoGift = useAutoGift();
 
   return useMutation({
     onMutate: () => cartActivity.mutationStarted(),
     mutationFn: async ({ itemId, data }: { itemId: string; data: UpdateCartItemInput }) => {
       try {
-        return await cartService.updateItem(itemId, data);
+        // "Lleva N, paga M": al llegar a las piezas que se pagan entra la gratis; al bajar, se
+        // va con la pieza que la ganaba (misma regla que la caja).
+        const cached = queryClient.getQueryData<Cart>(cartKeys.cart());
+        const gift = await autoGiftOnUpdate({
+          cached,
+          itemId,
+          wanted: data.quantity,
+          badges: await autoGift.badgesFor(cached),
+          updateItem: (id, quantity) => cartService.updateItem(id, { quantity }),
+        });
+        autoGift.announce(gift.notice);
+        return gift.cart;
       } catch (err) {
         return adjustToStock(err, (cart) => cart.items.find((i) => i.id === itemId));
       }

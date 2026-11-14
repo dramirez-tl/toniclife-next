@@ -261,10 +261,10 @@
         "label": "Promoción de temporada",
         "nxmSame": "Lleva {buy} piezas de este producto y paga {pay}.",
         "nxmMixed": "Lleva {buy} productos de la promoción y paga {pay}.",
-        "auto": "El descuento se aplica solo en tu carrito.",
+        "auto": "La pieza gratis se agrega sola a tu carrito.",
         "storeOnly": "Solo en sucursales y Call Center. En la tienda en línea no se aplica.",
         "ready": "{quantity, plural, one {Con # pieza} other {Con # piezas}}, {free, plural, one {# te sale gratis} other {# te salen gratis}}.",
-        "missingFree": "{missing, plural, one {Agrega # más y te sale gratis.} other {Agrega # más y te salen gratis.}}",
+        "giftAuto": "{quantity, plural, one {Con # pieza} other {Con # piezas}} te regalamos {missing, plural, one {# más: se agrega sola} other {# más: se agregan solas}} al carrito.",
         "missing": "Agrega {missing} más y llévate {free} gratis.",
         "take": "Llevar {quantity}",
         "takeLabel": "Cambiar la cantidad a {quantity} para aprovechar la promoción {name}"
@@ -407,6 +407,11 @@
         "promoNudgeAdd": "Agregar {missing}",
         "promoNudgeAddLabel": "{missing, plural, one {Agregar # pieza} other {Agregar # piezas}} de {name} para completar el {label}",
         "promoQuantitySet": "{name}: ahora llevas {count}"
+      },
+      "autoGift": {
+        "added": "{label}: agregamos {count, plural, one {# pieza gratis} other {# piezas gratis}} de {name}",
+        "removed": "{label}: también quitamos {count, plural, one {la pieza gratis} other {las # piezas gratis}} de {name}",
+        "missing": "{label}: no hay existencias para {count, plural, one {la pieza gratis} other {las # piezas gratis}} de {name}; se cobra sin promoción"
       },
       "quantity": {
         "label": "Cantidad de {name}",

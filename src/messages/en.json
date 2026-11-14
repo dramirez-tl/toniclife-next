@@ -261,10 +261,10 @@
         "label": "Seasonal promotion",
         "nxmSame": "Buy {buy} of this product and pay for {pay}.",
         "nxmMixed": "Buy {buy} products from the promotion and pay for {pay}.",
-        "auto": "The discount is applied automatically in your cart.",
+        "auto": "The free item is added to your cart automatically.",
         "storeOnly": "In stores and Call Center only. It does not apply in the online store.",
         "ready": "{quantity, plural, one {With # unit} other {With # units}}, {free, plural, one {# is free} other {# are free}}.",
-        "missingFree": "{missing, plural, one {Add # more and it's free.} other {Add # more and they're free.}}",
+        "giftAuto": "{quantity, plural, one {With # unit} other {With # units}} you get {missing, plural, one {# more free: it is added} other {# more free: they are added}} to your cart automatically.",
         "missing": "Add {missing} more and get {free} free.",
         "take": "Get {quantity}",
         "takeLabel": "Set the quantity to {quantity} to use the {name} promotion"
@@ -407,6 +407,11 @@
         "promoNudgeAdd": "Add {missing}",
         "promoNudgeAddLabel": "{missing, plural, one {Add # unit} other {Add # units}} of {name} to complete the {label}",
         "promoQuantitySet": "{name}: you now have {count}"
+      },
+      "autoGift": {
+        "added": "{label}: we added {count, plural, one {# free item} other {# free items}} of {name}",
+        "removed": "{label}: we also removed {count, plural, one {the free item} other {the # free items}} of {name}",
+        "missing": "{label}: there is no stock for {count, plural, one {the free item} other {the # free items}} of {name}; it is charged without the promotion"
       },
       "quantity": {
         "label": "Quantity of {name}",
