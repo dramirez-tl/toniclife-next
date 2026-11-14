@@ -653,6 +653,58 @@ export function artAspectRatio(width: number, height: number): number {
 
 // ── Catálogo de la tienda: insignia y filtro de los productos en promoción ────────────────────
 
+/** Mecánica "lleva N, paga M" de una promoción (3x2 = lleva 3, paga 2, 1 gratis). */
+export interface SeasonalNxm {
+  buy: number;
+  pay: number;
+  /** Piezas gratis por cada grupo completo (`buy - pay`). */
+  free: number;
+  /** true = el grupo se arma con piezas del MISMO producto; false = con cualquiera de la promoción. */
+  sameProductOnly: boolean;
+}
+
+/**
+ * La mecánica "lleva N, paga M" de una promoción, con las mismas guardas que el motor del
+ * servidor (N ≥ 2, 1 ≤ M < N). `null` si la promoción es de otro tipo o su configuración no sirve.
+ */
+export function nxmOffer(promotion: { type?: SeasonalPromoType; config?: unknown }): SeasonalNxm | null {
+  if (promotion.type !== 'nxm') return null;
+  const cfg = (promotion.config && typeof promotion.config === 'object' ? promotion.config : {}) as Record<string, unknown>;
+  const buy = Math.floor(Number(cfg.buy));
+  const pay = Math.floor(Number(cfg.pay));
+  if (!Number.isFinite(buy) || !Number.isFinite(pay) || buy <= 1 || pay < 1 || pay >= buy) return null;
+  return { buy, pay, free: buy - pay, sameProductOnly: !!cfg.sameProductOnly };
+}
+
+/** Cómo va una cantidad de piezas frente a un "lleva N, paga M". */
+export interface NxmProgress {
+  /** Piezas que esa cantidad ya se lleva gratis. */
+  freeNow: number;
+  /** Piezas que faltan para cerrar el siguiente grupo (0 = la cantidad cierra grupos exactos). */
+  missing: number;
+  /** Piezas gratis que da cerrar ese grupo. */
+  freeNext: number;
+  /** Cantidad con la que se cierra el siguiente grupo. */
+  targetQuantity: number;
+}
+
+/**
+ * Con `quantity` piezas: cuántas salen gratis y cuántas faltan para la siguiente gratis. Misma
+ * cuenta que el motor del servidor: cada `buy` piezas completas dan `free` gratis.
+ * 3x2 → 1 pieza: faltan 2 · 2 piezas: falta 1 · 3 piezas: 1 gratis y no falta nada.
+ */
+export function nxmProgress(quantity: number, offer: SeasonalNxm): NxmProgress {
+  const units = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0;
+  const leftover = units % offer.buy;
+  const missing = leftover === 0 ? 0 : offer.buy - leftover;
+  return {
+    freeNow: Math.floor(units / offer.buy) * offer.free,
+    missing,
+    freeNext: offer.free,
+    targetQuantity: units + missing,
+  };
+}
+
 /** Lo que la tarjeta de un producto dice de la promoción de temporada en la que está hoy. */
 export interface SeasonalProductBadge {
   promotionId: string;
@@ -663,6 +715,12 @@ export interface SeasonalProductBadge {
   seasonName: string;
   /** true = solo vale en punto de venta: la tienda la anuncia, el carrito en línea no la aplica. */
   storeOnly: boolean;
+  /** Mecánica "lleva N, paga M" si la promoción es de ese tipo; `null` en las demás. */
+  nxm: SeasonalNxm | null;
+  /** Tope de veces por compra (en un NxM, grupos); `null` = sin tope. */
+  maxPerSale: number | null;
+  /** Condiciones de la promoción tal como las capturó Marketing (vigencia, letra chica). */
+  description: string | null;
 }
 
 /**
@@ -689,6 +747,10 @@ export function seasonalProductBadges(
           name: promotion.name,
           seasonName: season.name,
           storeOnly,
+          nxm: nxmOffer(promotion),
+          maxPerSale:
+            typeof promotion.maxPerSale === 'number' && promotion.maxPerSale > 0 ? Math.floor(promotion.maxPerSale) : null,
+          description: promotion.description?.trim() || null,
         });
       }
     }

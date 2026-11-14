@@ -257,6 +257,18 @@
         "noteDays": "Se elabora bajo pedido: lo preparamos en cuanto recibimos tu compra (aprox. {days, plural, one {# día} other {# días}}) y después lo enviamos."
       },
       "addQuantityLabel": "{count, plural, one {Agregar # pieza de {name} al carrito} other {Agregar # piezas de {name} al carrito}}",
+      "seasonal": {
+        "label": "Promoción de temporada",
+        "nxmSame": "Lleva {buy} piezas de este producto y paga {pay}.",
+        "nxmMixed": "Lleva {buy} productos de la promoción y paga {pay}.",
+        "auto": "El descuento se aplica solo en tu carrito.",
+        "storeOnly": "Solo en sucursales y Call Center. En la tienda en línea no se aplica.",
+        "ready": "{quantity, plural, one {Con # pieza} other {Con # piezas}}, {free, plural, one {# te sale gratis} other {# te salen gratis}}.",
+        "missingFree": "{missing, plural, one {Agrega # más y te sale gratis.} other {Agrega # más y te salen gratis.}}",
+        "missing": "Agrega {missing} más y llévate {free} gratis.",
+        "take": "Llevar {quantity}",
+        "takeLabel": "Cambiar la cantidad a {quantity} para aprovechar la promoción {name}"
+      },
       "shipping": {
         "freeFrom": "Envío gratis desde {amount}",
         "flat": "Envío a domicilio: {amount}"
@@ -366,6 +378,7 @@
         "emptyBody": "Agrega productos del catálogo y aparecerán aquí.",
         "emptyCta": "Ver productos",
         "listLabel": "Productos en tu carrito",
+        "seasonalSavings": "Ahorro por promociones (ya aplicado)",
         "subtotal": "Subtotal",
         "shippingNote": "El envío y los impuestos se calculan al pagar.",
         "viewCart": "Ver carrito",
@@ -383,7 +396,17 @@
         "adjust": "Ajustar a {count}",
         "adjusted": "Cantidad ajustada a lo disponible",
         "pointsPerUnit": "+{points} puntos por unidad",
-        "personalization": "Personalización: {text}"
+        "personalization": "Personalización: {text}",
+        "promoApplied": "{name}: {free, plural, one {# pieza gratis} other {# piezas gratis}}",
+        "promoAppliedDiscount": "{name}: ahorras {amount}",
+        "promoFallbackName": "Promoción",
+        "promoWas": "Antes:",
+        "promoNudgeFree": "{missing, plural, one {Agrega # más y te sale gratis} other {Agrega # más y te salen gratis}}",
+        "promoNudge": "Agrega {missing} más y llévate {free} gratis",
+        "promoNudgeMixed": "Agrega {missing} más de la promoción y llévate {free} gratis",
+        "promoNudgeAdd": "Agregar {missing}",
+        "promoNudgeAddLabel": "{missing, plural, one {Agregar # pieza} other {Agregar # piezas}} de {name} para completar el {label}",
+        "promoQuantitySet": "{name}: ahora llevas {count}"
       },
       "quantity": {
         "label": "Cantidad de {name}",

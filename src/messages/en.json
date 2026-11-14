@@ -257,6 +257,18 @@
         "noteDays": "Made to order: we prepare it as soon as we receive your purchase (about {days, plural, one {# day} other {# days}}) and then ship it."
       },
       "addQuantityLabel": "{count, plural, one {Add # unit of {name} to cart} other {Add # units of {name} to cart}}",
+      "seasonal": {
+        "label": "Seasonal promotion",
+        "nxmSame": "Buy {buy} of this product and pay for {pay}.",
+        "nxmMixed": "Buy {buy} products from the promotion and pay for {pay}.",
+        "auto": "The discount is applied automatically in your cart.",
+        "storeOnly": "In stores and Call Center only. It does not apply in the online store.",
+        "ready": "{quantity, plural, one {With # unit} other {With # units}}, {free, plural, one {# is free} other {# are free}}.",
+        "missingFree": "{missing, plural, one {Add # more and it's free.} other {Add # more and they're free.}}",
+        "missing": "Add {missing} more and get {free} free.",
+        "take": "Get {quantity}",
+        "takeLabel": "Set the quantity to {quantity} to use the {name} promotion"
+      },
       "shipping": {
         "freeFrom": "Free shipping from {amount}",
         "flat": "Home delivery: {amount}"
@@ -366,6 +378,7 @@
         "emptyBody": "Add products from the catalog and they will show up here.",
         "emptyCta": "Browse products",
         "listLabel": "Products in your cart",
+        "seasonalSavings": "Promotion savings (already applied)",
         "subtotal": "Subtotal",
         "shippingNote": "Shipping and taxes are calculated at checkout.",
         "viewCart": "View cart",
@@ -383,7 +396,17 @@
         "adjust": "Set to {count}",
         "adjusted": "Quantity adjusted to what is available",
         "pointsPerUnit": "+{points} points per unit",
-        "personalization": "Personalization: {text}"
+        "personalization": "Personalization: {text}",
+        "promoApplied": "{name}: {free, plural, one {# free item} other {# free items}}",
+        "promoAppliedDiscount": "{name}: you save {amount}",
+        "promoFallbackName": "Promotion",
+        "promoWas": "Was:",
+        "promoNudgeFree": "{missing, plural, one {Add # more and it's free} other {Add # more and they're free}}",
+        "promoNudge": "Add {missing} more and get {free} free",
+        "promoNudgeMixed": "Add {missing} more from the promotion and get {free} free",
+        "promoNudgeAdd": "Add {missing}",
+        "promoNudgeAddLabel": "{missing, plural, one {Add # unit} other {Add # units}} of {name} to complete the {label}",
+        "promoQuantitySet": "{name}: you now have {count}"
       },
       "quantity": {
         "label": "Quantity of {name}",

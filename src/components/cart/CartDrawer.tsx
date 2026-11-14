@@ -25,6 +25,7 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTi
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { ProductImage } from '@/components/storefront/ProductImage';
 import { useCart, useRemoveCartItem, useUpdateCartItem } from '@/hooks/useCart';
+import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { Link, usePathname } from '@/i18n/routing';
@@ -53,11 +54,13 @@ import {
   lineSlug,
   resolveShowPoints,
 } from '@/lib/storefront/cart-logic';
+import { cartPromoNudges, linePromoApplied } from '@/lib/storefront/cart-promotions';
 import { formatProductName } from '@/lib/storefront/content-format';
 import { formatCurrency } from '@/lib/currency';
 import { productPath } from '@/lib/storefront/slug';
 import type { CartItem } from '@/types/cart';
 import { CartCountryNotice } from './CartCountryNotice';
+import { CartLinePromo } from './CartLinePromo';
 import { CartLineQuantity } from './CartLineQuantity';
 import { FreeShippingBar } from './FreeShippingBar';
 
@@ -140,6 +143,20 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const checkoutLocale = mismatchCheckoutLocale(lang, countryMismatch, accountStoreCountry);
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
+  // Promociones de temporada (Buen Fin): las aplica el servidor al carrito; aquí se dice cuál
+  // quedó aplicada y a qué línea le falta poco para la siguiente pieza gratis. Se pregunta por
+  // el país DEL CARRITO, que es con el que el servidor las aplica.
+  const { badges: seasonalBadges } = useSeasonalProductBadges((cart?.countryCode || countryCode).toUpperCase());
+  const promoNudges = cartPromoNudges({
+    items,
+    badges: seasonalBadges,
+    applied: cart?.seasonalPromotions,
+    maxFor: (item) => {
+      const limit = lineLimit(item);
+      return limit.known ? limit.max : null;
+    },
+  });
+  const seasonalSavings = Number.parseFloat(cart?.seasonalDiscountAmount ?? '0') || 0;
 
   // Con una petición en vuelo los controles ignoran el clic (`aria-disabled`, no
   // `disabled`: el botón con foco no lo pierde).
@@ -215,6 +232,9 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
               const issue = lineIssue(item);
               const limit = lineLimit(item);
               const perUnit = linePointsPerUnit(item, showPoints);
+              const promoApplied = linePromoApplied(item);
+              // Una línea agotada no se puede subir: sin aviso de "agrega más".
+              const promoNudge = issue === 'sold_out' ? null : (promoNudges.get(item.id) ?? null);
               return (
                 <li key={item.id} className="flex gap-3 py-4">
                   <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-gray-50">
@@ -233,11 +253,29 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                       ) : (
                         <span className="line-clamp-2 text-sm font-semibold text-[#2f5165]">{name}</span>
                       )}
-                      <span className="shrink-0 text-sm font-bold tabular-nums text-gray-900">{money(item.lineTotal)}</span>
+                      <span className="flex shrink-0 flex-col items-end">
+                        {promoApplied && promoApplied.savings > 0 && (
+                          <s className="text-xs tabular-nums text-gray-500">
+                            <span className="sr-only">{tLine('promoWas')} </span>
+                            {money(promoApplied.originalTotal)}
+                          </s>
+                        )}
+                        <span className="text-sm font-bold tabular-nums text-gray-900">{money(item.lineTotal)}</span>
+                      </span>
                     </div>
                     <LinePersonalization text={item.personalization} />
                     <p className="text-xs text-gray-700">{tLine('unitPrice', { price: money(item.unitPrice) })}</p>
                     {perUnit !== null && <p className="text-xs text-[#2f5165]">{tLine('pointsPerUnit', { points: perUnit })}</p>}
+                    <CartLinePromo
+                      applied={promoApplied}
+                      nudge={promoNudge}
+                      productName={name}
+                      money={money}
+                      busy={busy}
+                      onAdd={(target) =>
+                        setQuantity(item, target, tLine('promoQuantitySet', { name, count: target }))
+                      }
+                    />
 
                     {issue === 'sold_out' && (
                       <p className="text-xs font-medium text-amber-900">
@@ -302,6 +340,12 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
               cartCountryCode={pinnedCountry}
               slugs={slugs}
             />
+            {seasonalSavings > 0 && (
+              <div data-testid="cart-seasonal-savings" className="flex items-baseline justify-between gap-2 text-sm text-emerald-800">
+                <span className="font-medium">{t('seasonalSavings')}</span>
+                <span className="font-semibold tabular-nums">{money(seasonalSavings)}</span>
+              </div>
+            )}
             <div className="flex items-baseline justify-between">
               <span className="text-base font-semibold text-gray-900">{t('subtotal')}</span>
               <span className="text-xl font-bold tabular-nums text-[#2f5165]" aria-live="polite">

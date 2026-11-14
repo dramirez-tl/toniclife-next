@@ -14,10 +14,12 @@ import { Link } from '@/i18n/routing';
 import { catalogHref } from '@/lib/storefront/catalog-params';
 import { formatStorePrice } from '@/lib/storefront/price';
 import type { LanguageCode } from '@/i18n/config';
+import type { SeasonalProductBadge } from '@/lib/seasonal-promotions';
 import type { StorefrontProductDetail } from '@/types/storefront';
 import { AvailabilityBadge } from './AvailabilityBadge';
 import { PriceBlock } from './PriceBlock';
 import { QuantityStepper } from './QuantityStepper';
+import { SeasonalPromoNotice } from './SeasonalPromoNotice';
 import { ShareButton } from './ShareButton';
 
 interface BuyBoxProps {
@@ -30,6 +32,8 @@ interface BuyBoxProps {
   variantPicker?: ReactNode;
   /** Campo de personalización (playeras, mig 179): después de las variantes y antes de la cantidad. */
   personalizationField?: ReactNode;
+  /** Promoción de temporada en la que está hoy el producto (null/ausente = ninguna): va bajo el precio. */
+  seasonal?: SeasonalProductBadge | null;
   lang: LanguageCode;
   showPoints: boolean;
   quantity: number;
@@ -49,6 +53,7 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
     heading,
     variantPicker,
     personalizationField,
+    seasonal = null,
     lang,
     showPoints,
     quantity,
@@ -100,6 +105,16 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
         lang={lang}
         showPoints={showPoints}
       />
+
+      {seasonal && (
+        <SeasonalPromoNotice
+          seasonal={seasonal}
+          quantity={quantity}
+          maxQuantity={soldOut ? 0 : product.maxQuantity}
+          onQuantityChange={onQuantityChange}
+          disabled={isPending}
+        />
+      )}
 
       {variantPicker}
 

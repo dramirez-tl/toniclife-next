@@ -12,6 +12,8 @@ import {
   isOnlinePromotion,
   normalizeInputStamp,
   nowCdmxStamp,
+  nxmOffer,
+  nxmProgress,
   promotionSalesSummary,
   promotionSummary,
   seasonHighlights,
@@ -347,8 +349,76 @@ describe('catálogo de la tienda: insignia y filtro de los productos en promoci�
       name: '3x2 Buen Fin sábado 14',
       seasonName: 'Buen Fin 2026',
       storeOnly: false,
+      nxm: { buy: 3, pay: 2, free: 1, sameProductOnly: true },
+      maxPerSale: null,
+      description: null,
     });
     expect(badges.get('shake')).toMatchObject({ label: '6x5', storeOnly: true });
+  });
+
+  it('la insignia trae la mecánica, el tope por compra y las condiciones de la promoción', () => {
+    const season = {
+      name: 'Buen Fin 2026',
+      promotions: [
+        {
+          ...promo('sab', '3x2 Buen Fin sábado 14', ['pos', 'online'], '3x2', [product('aby')]),
+          maxPerSale: 2,
+          description: '  Válido solo el 14 de noviembre de 2026.  ',
+        },
+        {
+          ...promo('kit', 'Kit a $2,000', ['online'], 'Precio especial', [product('kit')]),
+          type: 'fixed_price' as const,
+          config: { prices: { MX: 2000 } },
+        },
+      ],
+    };
+    const badges = seasonalProductBadges([season]);
+    expect(badges.get('aby')).toMatchObject({
+      nxm: { buy: 3, pay: 2, free: 1, sameProductOnly: true },
+      maxPerSale: 2,
+      description: 'Válido solo el 14 de noviembre de 2026.',
+    });
+    // Otro tipo de promoción: sin mecánica "lleva N, paga M".
+    expect(badges.get('kit')).toMatchObject({ nxm: null, maxPerSale: null, description: null });
+  });
+
+  it('nxmOffer: solo "lleva N, paga M" bien configurado (mismas guardas que el motor)', () => {
+    expect(nxmOffer({ type: 'nxm', config: { buy: 3, pay: 2, sameProductOnly: true } })).toEqual({
+      buy: 3,
+      pay: 2,
+      free: 1,
+      sameProductOnly: true,
+    });
+    expect(nxmOffer({ type: 'nxm', config: { buy: 6, pay: 5, sameProductOnly: false } })).toEqual({
+      buy: 6,
+      pay: 5,
+      free: 1,
+      sameProductOnly: false,
+    });
+    expect(nxmOffer({ type: 'nxm', config: { buy: '4', pay: '2' } })).toMatchObject({ buy: 4, pay: 2, free: 2, sameProductOnly: false });
+    for (const config of [{ buy: 1, pay: 1 }, { buy: 3, pay: 3 }, { buy: 3, pay: 0 }, { buy: 3 }, {}, null, undefined]) {
+      expect(nxmOffer({ type: 'nxm', config })).toBeNull();
+    }
+    expect(nxmOffer({ type: 'percent_off', config: { percent: 20 } })).toBeNull();
+    expect(nxmOffer({})).toBeNull();
+  });
+
+  it('nxmProgress: cuántas salen gratis y cuántas faltan para la siguiente', () => {
+    const offer = { buy: 3, pay: 2, free: 1, sameProductOnly: true };
+    expect(nxmProgress(1, offer)).toEqual({ freeNow: 0, missing: 2, freeNext: 1, targetQuantity: 3 });
+    expect(nxmProgress(2, offer)).toEqual({ freeNow: 0, missing: 1, freeNext: 1, targetQuantity: 3 });
+    expect(nxmProgress(3, offer)).toEqual({ freeNow: 1, missing: 0, freeNext: 1, targetQuantity: 3 });
+    expect(nxmProgress(5, offer)).toEqual({ freeNow: 1, missing: 1, freeNext: 1, targetQuantity: 6 });
+    expect(nxmProgress(6, offer)).toEqual({ freeNow: 2, missing: 0, freeNext: 1, targetQuantity: 6 });
+    // 6x5 ("compra 5 y llévate 1"): con 5 falta 1, que es la gratis.
+    const sixFive = { buy: 6, pay: 5, free: 1, sameProductOnly: true };
+    expect(nxmProgress(5, sixFive)).toMatchObject({ missing: 1, freeNow: 0 });
+    // 4x2: cada grupo da 2 gratis.
+    expect(nxmProgress(8, { buy: 4, pay: 2, free: 2, sameProductOnly: true })).toMatchObject({ freeNow: 4, missing: 0 });
+    // Cantidades que no sirven: como cero.
+    expect(nxmProgress(Number.NaN, offer)).toEqual({ freeNow: 0, missing: 0, freeNext: 1, targetQuantity: 0 });
+    expect(nxmProgress(-2, offer)).toMatchObject({ freeNow: 0, missing: 0 });
+    expect(nxmProgress(2.9, offer)).toMatchObject({ missing: 1, targetQuantity: 3 });
   });
 
   it('si un producto está en dos promociones gana la que se puede comprar en la tienda, sin importar el orden', () => {

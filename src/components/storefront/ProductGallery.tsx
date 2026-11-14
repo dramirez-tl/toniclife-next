@@ -5,7 +5,7 @@
 // imagen es el LCP (`priority`); el resto carga diferido. Teclado: ← → en el
 // carrusel y en la ampliación; Esc cierra. Zoom = CSS en un Dialog (sin librerías).
 
-import { useCallback, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassPlusIcon } from '@heroicons/react/24/outline';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -21,6 +21,8 @@ interface ProductGalleryProps {
   images: StorefrontProductImage[];
   /** Nombre ya en formato título: alt de respaldo y monograma. */
   name: string;
+  /** Insignia sobre la imagen (promoción de temporada), en la misma esquina que en la tarjeta del catálogo. */
+  badge?: ReactNode;
   className?: string;
 }
 
@@ -28,7 +30,7 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function ProductGallery({ images, name, className }: ProductGalleryProps) {
+export function ProductGallery({ images, name, badge, className }: ProductGalleryProps) {
   const t = useTranslations('storefront.product.gallery');
   const trackRef = useRef<HTMLDivElement>(null);
   const frame = useRef<number | null>(null);
@@ -130,6 +132,8 @@ export function ProductGallery({ images, name, className }: ProductGalleryProps)
             </div>
           ))}
         </div>
+
+        {badge && <div className="pointer-events-none absolute left-3 top-3 z-10 sm:left-4 sm:top-4">{badge}</div>}
 
         {canZoom && (
           <button

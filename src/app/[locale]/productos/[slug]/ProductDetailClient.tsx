@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/routing';
 import { parseLocale } from '@/i18n/config';
 import { usePilotPublicState } from '@/hooks/usePilot';
+import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useStorefrontProduct, useStorefrontViewer } from '@/hooks/useStorefront';
 import { cartKeys } from '@/hooks/useCart';
 import { buyNowDestination } from '@/lib/storefront/cart-logic';
@@ -37,6 +38,7 @@ import { PriceZoneNotice } from '@/components/storefront/PriceZoneNotice';
 import { ProductContentSections } from '@/components/storefront/ProductContentSections';
 import { ProductGallery } from '@/components/storefront/ProductGallery';
 import { RelatedProducts } from '@/components/storefront/RelatedProducts';
+import { SeasonalBadge } from '@/components/storefront/SeasonalPromoNotice';
 import { SessionExpiredNotice } from '@/components/storefront/SessionExpiredNotice';
 import { StickyBuyBar } from '@/components/storefront/StickyBuyBar';
 import { useAddToCart } from '@/components/storefront/useAddToCart';
@@ -74,6 +76,10 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   // (El nombre completo sigue en las migas, la galería, el carrito y la barra fija.)
   const variants = product.variants ?? null;
   const heading = (variants && formatProductName(variants.family.name)) || name;
+  // Promoción de temporada en la que está HOY este producto (mismo paquete que pinta la insignia
+  // del catálogo y el aviso de la tienda): aquí se anuncia igual, sobre la foto y bajo el precio.
+  const { badges: seasonalBadges } = useSeasonalProductBadges(country);
+  const seasonal = seasonalBadges.get(product.id) ?? null;
 
   const [rawQuantity, setQuantity] = useState(1);
   const quantity = Math.min(Math.max(1, rawQuantity), Math.max(1, product.maxQuantity));
@@ -140,7 +146,13 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
 
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
         {/* Otra variante = otra galería: arranca en su primera imagen. */}
-        <ProductGallery key={product.id} images={product.images} name={name} className="lg:sticky lg:top-36 lg:self-start" />
+        <ProductGallery
+          key={product.id}
+          images={product.images}
+          name={name}
+          badge={seasonal ? <SeasonalBadge seasonal={seasonal} /> : undefined}
+          className="lg:sticky lg:top-36 lg:self-start"
+        />
         <div className="px-4 sm:px-6 lg:px-0">
           <PriceZoneNotice zone={priceZone} className="mb-4" />
           <SessionExpiredNotice className="mb-4" />
@@ -165,6 +177,7 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
                 />
               ) : undefined
             }
+            seasonal={seasonal}
             lang={lang}
             showPoints={showPoints}
             quantity={quantity}

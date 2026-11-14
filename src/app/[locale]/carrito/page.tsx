@@ -42,7 +42,9 @@ import { Link } from '@/i18n/routing';
 import { formatCurrency } from '@/lib/currency';
 import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
+import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { CartCountryNotice } from '@/components/cart/CartCountryNotice';
+import { CartLinePromo } from '@/components/cart/CartLinePromo';
 import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { FreeShippingBar } from '@/components/cart/FreeShippingBar';
@@ -67,6 +69,7 @@ import {
   lineSlug,
   resolveShowPoints,
 } from '@/lib/storefront/cart-logic';
+import { cartPromoNudges, linePromoApplied } from '@/lib/storefront/cart-promotions';
 import type { CartItem } from '@/types/cart';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]';
@@ -191,6 +194,18 @@ export default function CartPage() {
   const soldOutItems = items.filter((item) => lineIssue(item) === 'sold_out');
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
+  // Promociones de temporada (Buen Fin): a qué línea le falta poco para la siguiente pieza
+  // gratis. Se pregunta por el país DEL CARRITO, que es con el que el servidor las aplica.
+  const { badges: seasonalBadges } = useSeasonalProductBadges((cart?.countryCode || countryCode).toUpperCase());
+  const promoNudges = cartPromoNudges({
+    items,
+    badges: seasonalBadges,
+    applied: cart?.seasonalPromotions,
+    maxFor: (item) => {
+      const limit = lineLimit(item);
+      return limit.known ? limit.max : null;
+    },
+  });
 
   // Los errores los avisa el hook (`useCart`): aquí solo el camino feliz.
   // Con una petición en vuelo se ignora la acción (`aria-disabled`, sin perder el foco).
@@ -355,6 +370,9 @@ export default function CartPage() {
                     const perUnit = linePointsPerUnit(item, showPoints);
                     const lowStock =
                       issue === null && item.availableStock != null && item.availableStock > 0 && item.availableStock <= 5;
+                    const promoApplied = linePromoApplied(item);
+                    // Una línea agotada no se puede subir: sin aviso de "agrega más".
+                    const promoNudge = issue === 'sold_out' ? null : (promoNudges.get(item.id) ?? null);
                     return (
                       <li key={item.id}>
                         <Card className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
@@ -436,6 +454,17 @@ export default function CartPage() {
                                   {perUnit !== null && (
                                     <p className="text-xs text-[#2f5165] mt-1">{t('pointsUnit', { points: perUnit })}</p>
                                   )}
+
+                                  {/* Promoción de temporada: le falta poco para la siguiente pieza gratis */}
+                                  <CartLinePromo
+                                    className="mt-2"
+                                    applied={null}
+                                    nudge={promoNudge}
+                                    productName={name}
+                                    money={fmt}
+                                    busy={busy}
+                                    onAdd={(target) => setQuantity(item, target)}
+                                  />
                                 </div>
 
                                 {/* Remove Button */}
@@ -468,6 +497,12 @@ export default function CartPage() {
 
                                 {/* Line Total (+ promoción de temporada aplicada a la línea) */}
                                 <div className="flex flex-col items-end gap-1">
+                                  {promoApplied && promoApplied.savings > 0 && (
+                                    <s className="text-sm tabular-nums text-gray-500">
+                                      <span className="sr-only">{tLine('promoWas')} </span>
+                                      {fmt(promoApplied.originalTotal)}
+                                    </s>
+                                  )}
                                   <span className="text-xl font-bold tabular-nums text-[#2f5165]">{fmt(item.lineTotal)}</span>
                                   {item.promoName && (
                                     <span className="inline-flex max-w-[220px] rounded-full bg-emerald-50 px-2 py-0.5 text-right text-[11px] font-semibold text-emerald-900">
