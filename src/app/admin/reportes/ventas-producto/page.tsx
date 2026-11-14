@@ -10,7 +10,9 @@
 // Piezas GRATIS de promociones de temporada (12-nov-2026): la 3.ª de un 3x2, la
 // 6.ª de un "compra 5 y llévate 1" o un regalo por compra cuentan en Piezas
 // (salieron de la existencia) y se distinguen con la columna Gratis, la etiqueta
-// del renglón y el resumen por promoción.
+// del renglón y el resumen por promoción. Al hacer clic en un renglón de ese
+// resumen se abre una ventana con sus ventas, folio por folio, para aclaraciones
+// (14-nov-2026).
 
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -29,25 +31,13 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import type { ProductSalesSummary, SalesByProductDetailQuery } from '@/types/reports';
+import type { FreeByPromotionRow, ProductSalesSummary, SalesByProductDetailQuery } from '@/types/reports';
+import { FreePiecesDetailDialog } from './FreePiecesDetailDialog';
+import { PAYMENT_LABELS, formatAmount, formatDateDisplay, formatUnits } from './format';
 
 /** Mismo tope que el API. */
 const MAX_RANGE_DAYS = 366;
 const ALL_BRANCHES = '';
-
-const PAYMENT_LABELS: Record<string, string> = {
-  cash: 'Efectivo',
-  card: 'Tarjeta',
-  credit: 'Tarjeta de crédito',
-  transfer: 'Transferencia',
-  deposit: 'Depósito',
-  mixed: 'Mixto',
-  usd_cash: 'Efectivo USD',
-  mercado_pago: 'Mercado Pago',
-  promotion: 'Promoción',
-  cashback: 'Cashback',
-  undefined: 'Por definir',
-};
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toInputDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -56,20 +46,6 @@ function daysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return toInputDate(d);
-}
-
-function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return '—';
-  const [y, m, d] = dateStr.slice(0, 10).split('-');
-  return `${d}/${m}/${y}`;
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatUnits(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString('es-MX', { maximumFractionDigits: 2 });
 }
 
 export default function VentasProductoPage() {
@@ -85,6 +61,8 @@ export default function VentasProductoPage() {
   }));
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  // Renglón de "Piezas gratis por promociones" abierto en la ventana del detalle.
+  const [freeDetail, setFreeDetail] = useState<FreeByPromotionRow | null>(null);
 
   const branchOptions = useMemo(
     () => [
@@ -117,6 +95,7 @@ export default function VentasProductoPage() {
       setDateFrom(from);
       setDateTo(to);
       setExpanded(new Set());
+      setFreeDetail(null);
       setApplied({
         startDate: from,
         endDate: to,
@@ -308,7 +287,8 @@ export default function VentasProductoPage() {
             </h2>
             <p className="mt-1 text-xs text-emerald-900/80">
               Lo que salió sin cobrarse por una promoción (la 3.ª pieza de un 3x2, la 6.ª de un «compra 5 y llévate 1»,
-              un regalo por compra). Ya está contado en Piezas; aquí se ve por promoción y producto.
+              un regalo por compra). Ya está contado en Piezas; aquí se ve por promoción y producto. Haz clic en un
+              renglón para ver sus ventas, folio por folio.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
@@ -319,18 +299,33 @@ export default function VentasProductoPage() {
                     <th className="py-1.5 pr-4">Producto</th>
                     <th className="py-1.5 pr-4 text-right">Ventas</th>
                     <th className="py-1.5 pr-4 text-right">Piezas gratis</th>
-                    <th className="py-1.5 text-right">Valor regalado</th>
+                    <th className="py-1.5 pr-4 text-right">Valor regalado</th>
+                    <th className="py-1.5" />
                   </tr>
                 </thead>
                 <tbody className="text-gray-800">
                   {freeByPromotion.map((f) => (
-                    <tr key={`${f.promotionCode}-${f.productId}`} className="border-t border-emerald-200/70">
+                    <tr
+                      key={`${f.promotionCode}-${f.productId}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Ver las ventas de ${f.productSku} ${f.productName} con piezas gratis por ${f.promotionName}`}
+                      onClick={() => setFreeDetail(f)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setFreeDetail(f);
+                        }
+                      }}
+                      className="cursor-pointer border-t border-emerald-200/70 hover:bg-emerald-100/70 focus-visible:bg-emerald-100/70 focus-visible:outline-none"
+                    >
                       <td className="py-1.5 pr-4">{f.promotionName}</td>
                       <td className="py-1.5 pr-4 font-mono text-gray-900 whitespace-nowrap">{f.productSku}</td>
                       <td className="py-1.5 pr-4">{f.productName}</td>
                       <td className="py-1.5 pr-4 text-right tabular-nums">{f.salesCount}</td>
                       <td className="py-1.5 pr-4 text-right font-semibold tabular-nums">{formatUnits(f.units)}</td>
-                      <td className="py-1.5 text-right tabular-nums">{formatAmount(f.giftedValue)}</td>
+                      <td className="py-1.5 pr-4 text-right tabular-nums">{formatAmount(f.giftedValue)}</td>
+                      <td className="py-1.5 text-right text-xs text-[#3E667D] whitespace-nowrap">Ver ventas</td>
                     </tr>
                   ))}
                 </tbody>
@@ -492,6 +487,17 @@ export default function VentasProductoPage() {
             </div>
           )}
         </div>
+
+        {freeDetail && data && (
+          <FreePiecesDetailDialog
+            key={`${freeDetail.promotionCode}-${freeDetail.productId}`}
+            row={freeDetail}
+            product={products.find((p) => p.productId === freeDetail.productId)}
+            scopeLabel={`${data.branchLabel} · ${rangeLabel}`}
+            showBranch={allBranches}
+            onClose={() => setFreeDetail(null)}
+          />
+        )}
       </div>
     </PermissionGuard>
   );
