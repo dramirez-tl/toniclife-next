@@ -117,8 +117,10 @@ class ReportsService {
   /**
    * Descarga el Excel "REPORTE DE VENTAS POR SUCURSAL" con la estructura del
    * sistema anterior (una fila por sucursal: SUCURSAL | TOTAL NETO | IVA |
-   * TOTAL MX | TOTAL DLL | PERIÓDO) para un día o rango de días locales de
-   * cada sucursal. El API arma el archivo; aquí solo se dispara el save-as.
+   * TOTAL MX | TOTAL DLL | PERIÓDO y, a la derecha, VENTA EN CAJA | PEDIDOS EN
+   * LÍNEA | NÚM. PEDIDOS EN LÍNEA; más una hoja con el folio de cada pedido en
+   * línea) para un día o rango de días locales de cada sucursal. El API arma
+   * el archivo; aquí solo se dispara el save-as.
    * Backend: GET /reports/sales/by-branch/legacy-xlsx
    */
   async downloadSalesByBranchLegacyXlsx(query: DateRangeQuery): Promise<void> {

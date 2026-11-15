@@ -81,7 +81,17 @@ export interface BranchSales {
   totalUsd: number;
   totalCop: number;
   totalGtq: number;
-  /** Parte de los totales que viene de pedidos en línea (moneda de la sucursal). */
+  /**
+   * Parte de los totales cobrada en la caja de la sucursal (ventas del POS), en su
+   * moneda. posTotal + onlineTotal = totalSales. Opcional: API anterior no la manda.
+   */
+  posTotal?: number;
+  /** Ventas del POS incluidas en orderCount. */
+  posCount?: number;
+  /**
+   * Parte de los totales que viene de pedidos en línea (moneda de la sucursal).
+   * Se cobran en la tienda en línea, no en la caja de la sucursal.
+   */
   onlineTotal?: number;
   /** Pedidos en línea incluidos en orderCount. */
   onlineCount?: number;
@@ -1154,6 +1164,13 @@ export interface CashCutRow {
   paymentMethod: string;
   /** ISO 8601 UTC */
   saleDateTime: string;
+  /**
+   * true = pedido de la tienda en línea asignado a la sucursal: se cobró en línea,
+   * no pasó por su caja (su forma de pago es siempre "Pedido en linea").
+   */
+  isOnline?: boolean;
+  /** Solo pedidos en línea: con qué se pagó en la tienda ("Tarjeta de Credito", "OXXO"). */
+  onlinePaymentLabel?: string | null;
 }
 
 export interface CashCutSummaryRow {
@@ -1169,6 +1186,11 @@ export interface CashCutResponse {
   currencyCode: string;
   salesCount: number;
   total: number;
+  /** Parte del total cobrada en la caja. Opcional: API anterior no la manda. */
+  registerTotal?: number;
+  /** Parte del total que son pedidos en línea (no pasaron por la caja). */
+  onlineTotal?: number;
+  onlineCount?: number;
   summary: CashCutSummaryRow[];
   rows: CashCutRow[];
 }

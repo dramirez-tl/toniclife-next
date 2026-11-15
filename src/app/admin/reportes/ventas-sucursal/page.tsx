@@ -6,6 +6,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { reportsService } from '@/services/reports.service';
+import { branchChannelSplit, channelSplitByCurrency } from '@/lib/sales-channel-split';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -193,6 +194,9 @@ export default function VentasSucursalPage() {
     GTQ: totals.totalGtq,
   };
 
+  // Venta en caja y pedidos en línea del pie, por moneda (no se suman pesos con dólares).
+  const channelTotals = useMemo(() => channelSplitByCurrency(data?.branches ?? []), [data]);
+
   const handleExportCSV = () => {
     if (!data?.branches?.length) {
       toast.error('No hay datos para exportar');
@@ -203,7 +207,8 @@ export default function VentasSucursalPage() {
     const headers = [
       'Sucursal',
       ...CURRENCY_CONFIG.map((c) => `Total ${c.key}`),
-      'Incluye tienda en línea (moneda de la sucursal)',
+      'Venta en caja (moneda de la sucursal)',
+      'Pedidos en línea, incluidos en el total (moneda de la sucursal)',
       'Pedidos en línea',
       'Ventas/Documentos',
       'Período',
@@ -211,6 +216,7 @@ export default function VentasSucursalPage() {
     const rows = data.branches.map((b) => [
       b.branchName,
       ...CURRENCY_CONFIG.map((c) => getCurrencyTotal(b as unknown as Record<string, unknown>, c.key).toFixed(2)),
+      branchChannelSplit(b).register.toFixed(2),
       (b.onlineTotal ?? 0).toFixed(2),
       (b.onlineCount ?? 0).toString(),
       b.orderCount.toString(),
@@ -219,6 +225,7 @@ export default function VentasSucursalPage() {
     rows.push([
       'TOTAL',
       ...CURRENCY_CONFIG.map((c) => totalsByKey[c.key].toFixed(2)),
+      '',
       '',
       totals.onlineCount.toString(),
       totals.orderCount.toString(),
@@ -262,7 +269,7 @@ export default function VentasSucursalPage() {
             <button
               onClick={handleDownloadLegacyXlsx}
               disabled={!appliedStart || !appliedEnd || isFetching || downloadingXlsx}
-              title="Una fila por sucursal: SUCURSAL | TOTAL NETO | IVA | TOTAL MX | TOTAL DLL | PERIÓDO (estructura del sistema anterior)"
+              title="Una fila por sucursal: SUCURSAL | TOTAL NETO | IVA | TOTAL MX | TOTAL DLL | PERIÓDO (estructura del sistema anterior) y, a la derecha, VENTA EN CAJA | PEDIDOS EN LÍNEA. Trae una hoja con el folio de cada pedido en línea."
               className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {downloadingXlsx ? (
@@ -505,30 +512,44 @@ export default function VentasSucursalPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
+            {/* Por qué el total puede ser mayor que el corte de la sucursal (Contabilidad, 14-nov-2026). */}
+            <p className="border-b border-gray-100 bg-secondary/30 px-4 py-3 text-xs leading-relaxed text-gray-600">
+              <span className="font-semibold text-gray-700">Cómo leer el total:</span> el total de cada sucursal es
+              lo que cobró en su caja <span className="font-semibold text-gray-700">más</span> los pedidos de la
+              tienda en línea que surte o entrega. Esos pedidos se pagan en la tienda (tarjeta u OXXO), no en la
+              caja: por eso el total puede ser mayor que el corte de la sucursal. En «Ver corte» cada pedido aparece
+              con su folio.
+            </p>
             <Table className="min-w-full">
               <TableHeader>
                 <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
-                  <TableHead className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Sucursal
                   </TableHead>
                   {CURRENCY_CONFIG.map((c) => (
-                    <TableHead key={c.key} className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <TableHead key={c.key} className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       {c.flag} {c.key}
                     </TableHead>
                   ))}
                   <TableHead
-                    className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    title="Parte del total que viene de pedidos de la tienda en línea pagados (ya incluida en las columnas de moneda)"
+                    className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    title="Lo que la sucursal cobró en su caja (ventas del POS): el total menos los pedidos en línea"
                   >
-                    Incluye en línea
+                    Venta en caja
                   </TableHead>
-                  <TableHead className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <TableHead
+                    className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    title="Pedidos de la tienda en línea pagados que la sucursal surte o entrega. Ya están incluidos en el total; se cobraron en línea, no en la caja"
+                  >
+                    Pedidos en línea
+                  </TableHead>
+                  <TableHead className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Ventas/Documentos
                   </TableHead>
-                  <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <TableHead className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Período
                   </TableHead>
-                  <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <TableHead className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Corte
                   </TableHead>
                 </TableRow>
@@ -539,15 +560,18 @@ export default function VentasSucursalPage() {
                     key={branch.branchId}
                     className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                   >
-                    <TableCell className="px-6 py-3.5 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <TableCell className="px-4 py-3.5 text-sm font-medium text-gray-900 whitespace-nowrap">
                       {branch.branchName}
                     </TableCell>
                     {CURRENCY_CONFIG.map((c) => (
-                      <TableCell key={c.key} className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
+                      <TableCell key={c.key} className="px-4 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                         {formatCurrency(getCurrencyTotal(branch as unknown as Record<string, unknown>, c.key), c.key)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-6 py-3.5 text-sm text-right text-gray-500 whitespace-nowrap tabular-nums">
+                    <TableCell className="px-4 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
+                      {formatCurrency(branchChannelSplit(branch).register, branchCurrency(branch.currencyCode))}
+                    </TableCell>
+                    <TableCell className="px-4 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                       {branch.onlineCount ? (
                         <>
                           {formatCurrency(branch.onlineTotal ?? 0, branchCurrency(branch.currencyCode))}
@@ -559,14 +583,14 @@ export default function VentasSucursalPage() {
                         <span className="text-gray-300">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
+                    <TableCell className="px-4 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                       {branch.orderCount.toLocaleString()}
                     </TableCell>
-                    <TableCell className="px-6 py-3.5 text-xs text-center text-gray-400 whitespace-nowrap">
+                    <TableCell className="px-4 py-3.5 text-xs text-center text-gray-400 whitespace-nowrap">
                       {periodLabel}
                     </TableCell>
                     {/* Corte de caja de esa sucursal con el mismo rango (Contabilidad, 20-oct-2026). */}
-                    <TableCell className="px-6 py-3.5 text-center whitespace-nowrap">
+                    <TableCell className="px-4 py-3.5 text-center whitespace-nowrap">
                       <Link
                         href={`/admin/reportes/corte-caja?branchId=${encodeURIComponent(branch.branchId)}&from=${appliedStart}&to=${appliedEnd}`}
                         className="text-xs font-medium text-[#3E667D] underline-offset-2 hover:underline"
@@ -580,22 +604,43 @@ export default function VentasSucursalPage() {
               </TableBody>
               <TableFooter className="bg-transparent">
                 <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
-                  <TableCell className="px-6 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
+                  <TableCell className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
                   {CURRENCY_CONFIG.map((c) => (
-                    <TableCell key={c.key} className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                    <TableCell key={c.key} className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                       {formatCurrency(totalsByKey[c.key], c.key)}
                     </TableCell>
                   ))}
-                  <TableCell className="px-6 py-4 text-xs text-right font-semibold text-[#3E667D] tabular-nums whitespace-nowrap">
-                    {totals.onlineCount
-                      ? `${totals.onlineCount.toLocaleString()} ${totals.onlineCount === 1 ? 'pedido' : 'pedidos'}`
-                      : '—'}
+                  {/* Caja y en línea por moneda: una línea por cada moneda con movimiento. */}
+                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums whitespace-nowrap">
+                    {channelTotals.map((t) => (
+                      <div key={t.currency}>
+                        {formatCurrency(t.register, branchCurrency(t.currency))}
+                        {channelTotals.length > 1 && <span className="ml-1 text-xs font-medium">{t.currency}</span>}
+                      </div>
+                    ))}
                   </TableCell>
-                  <TableCell className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums whitespace-nowrap">
+                    {totals.onlineCount ? (
+                      channelTotals
+                        .filter((t) => t.onlineCount > 0)
+                        .map((t) => (
+                          <div key={t.currency}>
+                            {formatCurrency(t.online, branchCurrency(t.currency))}
+                            {channelTotals.length > 1 && <span className="ml-1 text-xs font-medium">{t.currency}</span>}
+                            <span className="ml-1.5 text-xs font-medium">
+                              ({t.onlineCount.toLocaleString()} {t.onlineCount === 1 ? 'pedido' : 'pedidos'})
+                            </span>
+                          </div>
+                        ))
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {totals.orderCount.toLocaleString()}
                   </TableCell>
-                  <TableCell className="px-6 py-4" />
-                  <TableCell className="px-6 py-4" />
+                  <TableCell className="px-4 py-4" />
+                  <TableCell className="px-4 py-4" />
                 </TableRow>
               </TableFooter>
             </Table>

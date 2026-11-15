@@ -4,6 +4,12 @@
 // POR SUCURSAL): ventas POS completadas de un día o rango (día local de la
 // sucursal), una fila por venta con su forma de pago (los pagos mixtos se
 // abren por parte) y totales por forma de pago. El Excel lo arma el API.
+//
+// También trae los pedidos de la tienda en línea que la sucursal surte o
+// entrega (como el corte del sistema anterior). Esos NO pasaron por su caja:
+// salen con la forma de pago "Pedido en linea" y el total se muestra partido en
+// "en caja" y "en línea", para que la sucursal y Contabilidad vean por qué el
+// corte es mayor que lo cobrado en caja (14-nov-2026).
 
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -11,6 +17,7 @@ import { toast } from 'sonner';
 import { useCashCutByBranch } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { reportsService } from '@/services/reports.service';
+import { cashCutChannelSplit } from '@/lib/sales-channel-split';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/input';
@@ -161,6 +168,8 @@ function CorteCajaContent() {
   const rows = data?.rows ?? [];
   const hasData = rows.length > 0;
   const currency = data?.currencyCode ?? 'MXN';
+  // Cuánto del corte pasó por la caja y cuánto son pedidos en línea.
+  const split = useMemo(() => (data ? cashCutChannelSplit(data) : null), [data]);
   const rangeLabel = applied.startDate
     ? applied.startDate === applied.endDate
       ? formatDateDisplay(applied.startDate)
@@ -178,8 +187,8 @@ function CorteCajaContent() {
             <div>
               <h1 className="text-2xl font-bold text-white">Corte de Caja por Sucursal</h1>
               <p className="text-sm text-white/70 mt-1">
-                Ventas del POS de una sucursal en un día o rango, con forma de pago y totales por forma de pago
-                (como el sistema anterior)
+                Ventas del POS de una sucursal en un día o rango, más los pedidos de la tienda en línea que surte o
+                entrega, con forma de pago y totales por forma de pago (como el sistema anterior)
               </p>
             </div>
             <button
@@ -286,6 +295,21 @@ function CorteCajaContent() {
                 {data.branchName} · {rangeLabel} · {data.salesCount.toLocaleString()}{' '}
                 {data.salesCount === 1 ? 'venta' : 'ventas'}
               </p>
+              {/* Solo cuando hay pedidos en línea: el corte NO es todo dinero de la caja. */}
+              {split && split.onlineCount > 0 && (
+                <dl className="mt-3 space-y-1 border-t border-white/20 pt-3 text-sm text-white">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-white/80">Cobrado en caja</dt>
+                    <dd className="font-semibold tabular-nums">{formatMoney(split.register, currency)}</dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-white/80">
+                      Pedidos en línea ({split.onlineCount.toLocaleString()})
+                    </dt>
+                    <dd className="font-semibold tabular-nums">{formatMoney(split.online, currency)}</dd>
+                  </div>
+                </dl>
+              )}
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:col-span-2">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Totales por forma de pago</p>
@@ -300,6 +324,13 @@ function CorteCajaContent() {
                     </div>
                   ))}
                 </div>
+              )}
+              {split && split.onlineCount > 0 && (
+                <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                  <span className="font-semibold text-gray-700">Pedido en linea</span> son pedidos de la tienda en
+                  línea que esta sucursal surte o entrega: se cobraron en la tienda (tarjeta u OXXO), no en la caja
+                  ni en la terminal de la sucursal. Las demás formas de pago son lo que sí pasó por la caja.
+                </p>
               )}
             </div>
           </div>
@@ -325,7 +356,9 @@ function CorteCajaContent() {
             </div>
           ) : !hasData ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <p className="text-sm text-gray-400">No hay ventas POS completadas en el rango seleccionado</p>
+              <p className="text-sm text-gray-400">
+                No hay ventas POS completadas ni pedidos en línea en el rango seleccionado
+              </p>
               <p className="text-xs text-gray-300">Intenta con otra fecha o sucursal</p>
             </div>
           ) : (
@@ -351,7 +384,13 @@ function CorteCajaContent() {
                       <TableCell className="px-6 py-3.5 text-sm text-gray-700">{r.customerName}</TableCell>
                       <TableCell className="px-6 py-3.5 text-sm text-right text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(r.total, r.currencyCode)}</TableCell>
                       <TableCell className="px-6 py-3.5 text-sm text-center text-gray-500 whitespace-nowrap">{r.currencyCode}</TableCell>
-                      <TableCell className="px-6 py-3.5 text-sm text-gray-700 whitespace-nowrap">{r.paymentLabel}</TableCell>
+                      <TableCell className="px-6 py-3.5 text-sm text-gray-700 whitespace-nowrap">
+                        {r.paymentLabel}
+                        {/* Pedido en línea: con qué se pagó en la tienda, si se sabe. */}
+                        {r.isOnline && r.onlinePaymentLabel && (
+                          <span className="ml-1.5 text-xs text-gray-400">· {r.onlinePaymentLabel}</span>
+                        )}
+                      </TableCell>
                       <TableCell className="px-6 py-3.5 text-xs text-gray-400 whitespace-nowrap">{formatDateTime(r.saleDateTime)}</TableCell>
                     </TableRow>
                   ))}
