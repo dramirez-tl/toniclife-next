@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useMyOrders } from '@/hooks/useMyOrders';
+import { beneficiaryLabel } from '@/lib/checkout/buy-for-other';
 import { useMyOrder } from '@/hooks/useOrders';
 import { localeLanguage, type LanguageCode } from '@/i18n/config';
 import {
@@ -288,6 +289,28 @@ function OrderCard({ order, t, lang }: { order: MyOrder; t: OrdersT; lang: Langu
                 {home ? t('kindCallCenter') : t('kindOnline')}
               </span>
             </div>
+            {/* Comprado para otro distribuidor: quien pagó ve para quién fue; el titular,
+                quién se lo compró. Los puntos siempre son del titular del pedido. */}
+            {order.purchase && (
+              <div className="mt-2 rounded-md border border-[#a7c1e2]/60 bg-[#C8DDF2]/15 px-3 py-2 text-sm">
+                <p className="break-words font-medium text-gray-900">
+                  {t(order.purchase.role === 'purchaser' ? 'purchase.boughtFor' : 'purchase.boughtBy', {
+                    name: beneficiaryLabel({
+                      customerNumber: order.purchase.otherNumber,
+                      name: order.purchase.otherName,
+                    }),
+                  })}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {t(order.purchase.role === 'purchaser' ? 'purchase.boughtForNote' : 'purchase.boughtByNote')}
+                </p>
+                {order.purchase.pickupRecipientName && (
+                  <p className="text-xs text-gray-600">
+                    {t('purchase.pickupBy', { name: order.purchase.pickupRecipientName })}
+                  </p>
+                )}
+              </div>
+            )}
             <p className="mt-1 text-sm text-gray-500">
               {formatDate(order.orderDate ?? order.createdAt)}
               {order.itemsCount > 0 && (
@@ -368,7 +391,8 @@ function OrderCard({ order, t, lang }: { order: MyOrder; t: OrdersT; lang: Langu
               </p>
               {order.totalPoints > 0 && (
                 <p className="text-xs font-medium text-[#3E667D]">
-                  {t('points', {
+                  {/* Lo pagué para otro distribuidor: esos puntos no son míos. */}
+                  {t(order.purchase?.role === 'purchaser' ? 'purchase.pointsForOther' : 'points', {
                     points: order.totalPoints.toLocaleString('es-MX'),
                   })}
                 </p>

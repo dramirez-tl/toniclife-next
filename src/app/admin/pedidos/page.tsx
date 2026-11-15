@@ -51,6 +51,7 @@ import {
   useExportOrders,
 } from '@/hooks/useOrders';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { beneficiaryLabel } from '@/lib/checkout/buy-for-other';
 import { OrderStatus } from '@/types/order';
 import type { Order, OrderQueryParams } from '@/types/order';
 import { PermissionGuard } from '@/components/auth';
@@ -375,6 +376,12 @@ function PedidosContent() {
                 {order.customer.firstName} {order.customer.lastName}
               </p>
               <p className="text-xs text-gray-500">{order.customer.email}</p>
+              {/* Comprado para este distribuidor por otro (mig 203): quién lo pagó. */}
+              {order.purchase && (
+                <p className="mt-0.5 text-xs font-medium text-[#3E667D]">
+                  Pagó: {beneficiaryLabel(order.purchase.purchaser) || 'otro distribuidor'}
+                </p>
+              )}
             </div>
           ) : (
             <span className="text-xs text-gray-400">Sin cliente</span>

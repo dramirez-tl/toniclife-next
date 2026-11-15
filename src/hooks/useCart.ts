@@ -627,6 +627,16 @@ export const useAuthenticatedCheckout = () => {
   });
 };
 
+/**
+ * Comprar para otro distribuidor: busca a quién corresponde un número (GET
+ * /checkout/beneficiary/:number). No guarda nada; el error del API trae el motivo.
+ */
+export const useLookupBeneficiary = () =>
+  useMutation({
+    mutationFn: (input: { customerNumber: string; countryId?: string }) =>
+      cartService.lookupBeneficiary(input.customerNumber, input.countryId),
+  });
+
 export interface PickupBranchesOptions {
   /**
    * País de la tienda (checkout). Con él el API ofrece solo las sucursales de la zona de

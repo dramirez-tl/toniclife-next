@@ -158,6 +158,18 @@ export interface MyOrder {
    * Ausente o `null` si el pedido se paga de otra forma (o el API es anterior).
    */
   oxxo?: OrderOxxo | null;
+  /**
+   * Solo si el pedido se compró para otro distribuidor. `purchaser`: lo pagó la cuenta en
+   * sesión y quedó a nombre de `other*` (los puntos son de esa persona). `beneficiary`:
+   * `other*` lo pagó y quedó a nombre de la cuenta en sesión (los puntos son suyos; no ve
+   * el domicilio, la guía ni la ficha de pago). Un API anterior no lo manda.
+   */
+  purchase?: {
+    role: 'purchaser' | 'beneficiary';
+    otherNumber: string | null;
+    otherName: string | null;
+    pickupRecipientName: string | null;
+  } | null;
 }
 
 /** Sucursal donde se recoge un pedido (GET /distributor/orders). Los datos pueden venir vacíos o con ".". */

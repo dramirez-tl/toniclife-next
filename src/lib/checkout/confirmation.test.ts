@@ -423,3 +423,37 @@ describe('confirmation · addressLinesFromSnapshot', () => {
     ]);
   });
 });
+
+describe('confirmation · pedido comprado para otro distribuidor', () => {
+  const purchase = {
+    purchaser: { customerNumber: '1759927', name: 'JUAN LOPEZ RUIZ' },
+    beneficiary: { customerNumber: '1771306', name: 'ANA PEREZ LOPEZ' },
+  };
+  const holder = { id: 'c-ana', customerNumber: '1771306', firstName: 'ANA', lastName: 'PEREZ', email: '' };
+
+  it('con sesión, quien PAGÓ: se le saluda a él y se dice para quién fue', () => {
+    const v = fromMyOrder(order({ customer: holder, purchase: { ...purchase, role: 'purchaser' } }));
+    expect(v.buyerFirstName).toBe('JUAN');
+    expect(v.purchasedFor).toBe('#1771306 ANA PEREZ LOPEZ');
+  });
+
+  it('con sesión, el titular: es su pedido, sin "compra para"', () => {
+    const v = fromMyOrder(order({ customer: holder, purchase: { ...purchase, role: 'beneficiary' } }));
+    expect(v.buyerFirstName).toBe('ANA');
+    expect(v.purchasedFor).toBeUndefined();
+  });
+
+  it('por la sesión de Stripe (quien pagó): el API ya manda a nombre de quién quedó', () => {
+    const v = fromGuestConfirmation(
+      guest({ buyer: { firstName: 'JUAN' }, purchasedFor: { customerNumber: '1771306', name: 'ANA PEREZ LOPEZ' } }),
+    );
+    expect(v.buyerFirstName).toBe('JUAN');
+    expect(v.purchasedFor).toBe('#1771306 ANA PEREZ LOPEZ');
+  });
+
+  it('compra normal: la vista no trae el dato', () => {
+    expect('purchasedFor' in fromMyOrder(order())).toBe(false);
+    expect('purchasedFor' in fromGuestConfirmation(guest())).toBe(false);
+    expect('purchasedFor' in fromGuestConfirmation(guest({ purchasedFor: null }))).toBe(false);
+  });
+});

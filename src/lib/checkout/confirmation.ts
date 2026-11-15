@@ -10,6 +10,7 @@
 
 import type { Order, OrderDeliverySummary, OrderOxxo, TrackingInfo } from '@/types/order';
 import type { CheckoutConfirmation } from '@/types/checkout-confirmation';
+import { beneficiaryLabel } from '@/lib/checkout/buy-for-other';
 import { oxxoOrderState, readOrderOxxo, type OxxoOrderState } from '@/lib/checkout/payment-options';
 import { personalizationOf } from '@/lib/storefront/personalization';
 
@@ -65,6 +66,11 @@ export interface ConfirmationView {
   currencyCode: string;
   createdAt: string | null;
   buyerFirstName: string | null;
+  /**
+   * Comprado para otro distribuidor: a nombre de quién quedó el pedido ("#1771306 ANA
+   * PEREZ"), visto por quien lo pagó. Ausente en una compra normal.
+   */
+  purchasedFor?: string;
   totals: { subtotal: number; shipping: number; tax: number; discount: number; total: number };
   items: ConfirmationItem[];
   delivery: {
@@ -187,6 +193,9 @@ export function fromMyOrder(
   extra: { pickupBranchName?: string | null; currencyCode?: string | null; now?: Date } = {},
 ): ConfirmationView {
   const status = order.status || 'pending';
+  // Comprado para otro distribuidor, visto por quien lo pagó (mig 203).
+  const paidForOther = order.purchase?.role === 'purchaser';
+  const purchasedFor = beneficiaryLabel(order.purchase?.beneficiary);
   const raw = order.paymentStatus;
   const paymentStatus: ConfirmationPaymentStatus =
     raw === 'paid'
@@ -225,7 +234,12 @@ export function fromMyOrder(
     // que OrderDto no traía la moneda (28-oct-2026).
     currencyCode: text(order.currencyCode) || text(extra.currencyCode) || 'MXN',
     createdAt: order.createdAt || null,
-    buyerFirstName: text(order.customer?.firstName) || text(order.shippingAddressSnapshot?.fullName)?.split(' ')[0] || null,
+    // Comprado para otro distribuidor y visto por quien lo PAGÓ: `customer` es el titular
+    // (la otra persona), así que el saludo sale de quien pagó y se dice para quién fue.
+    buyerFirstName: paidForOther
+      ? text(order.purchase?.purchaser?.name)?.split(' ')[0] || null
+      : text(order.customer?.firstName) || text(order.shippingAddressSnapshot?.fullName)?.split(' ')[0] || null,
+    ...(paidForOther && purchasedFor ? { purchasedFor } : {}),
     totals: {
       subtotal: num(order.subtotal),
       shipping: num(order.shippingAmount),
@@ -269,6 +283,7 @@ export function fromGuestConfirmation(dto: CheckoutConfirmation, now: Date = new
     currencyCode: dto.currencyCode || 'MXN',
     createdAt: dto.createdAt || null,
     buyerFirstName: text(dto.buyer?.firstName) || null,
+    ...(beneficiaryLabel(dto.purchasedFor) ? { purchasedFor: beneficiaryLabel(dto.purchasedFor) } : {}),
     totals: {
       subtotal: num(dto.subtotal),
       shipping: num(dto.shippingAmount),

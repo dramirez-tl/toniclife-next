@@ -59,6 +59,21 @@ export const useSetPilotOxxo = () => {
   });
 };
 
+/**
+ * "Comprar para otro distribuidor" en la tienda: encender o apagar. Invalida el estado del
+ * admin y el público (la tienda vuelve a pedir su resumen con el interruptor nuevo).
+ */
+export const useSetPilotBuyForOther = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => pilotService.setBuyForOther(enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: pilotKeys.publicState() });
+      return qc.invalidateQueries({ queryKey: pilotKeys.checkout() });
+    },
+  });
+};
+
 export const useSetPilotFeature = () => {
   const qc = useQueryClient();
   return useMutation({

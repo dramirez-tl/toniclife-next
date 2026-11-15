@@ -289,6 +289,18 @@ export interface AuthenticatedCheckoutInput {
   notes?: string;
   saveShippingAddress?: boolean;
   saveBillingAddress?: boolean;
+  /**
+   * COMPRAR PARA OTRO DISTRIBUIDOR: número del distribuidor a cuyo nombre se registra el
+   * pedido, con sus puntos. Sin él, la compra es para la cuenta en sesión. En un pedido para
+   * recoger, `recipientName` / `recipientPhone` dicen quién pasa por él.
+   */
+  forCustomerNumber?: string;
+}
+
+/** A quién corresponde un número de distribuidor (GET /checkout/beneficiary/:number). */
+export interface CheckoutBeneficiary {
+  customerNumber: string;
+  name: string;
 }
 
 /** Sucursal disponible para recolección (GET /checkout/pickup-branches). */
@@ -372,4 +384,9 @@ export interface CheckoutSummary {
   delivery?: { shippingAvailable?: boolean };
   /** Quién compra (opcional: un API anterior no lo manda y entonces no se muestra nada). */
   buyer?: CheckoutBuyer | null;
+  /**
+   * COMPRAR PARA OTRO DISTRIBUIDOR (solo a distribuidores; un API anterior no lo manda).
+   * `available`: la tienda puede ofrecer registrar la compra a nombre de otro distribuidor.
+   */
+  buyForOther?: { available?: boolean; reason?: string } | null;
 }

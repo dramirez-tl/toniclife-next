@@ -52,6 +52,8 @@ export interface CheckoutConfirmation {
   discountAmount: string;
   total: string;
   buyer: { firstName: string };
+  /** Solo si el pedido se compró para otro distribuidor: a nombre de quién quedó. */
+  purchasedFor?: { customerNumber: string | null; name: string | null } | null;
   items: CheckoutConfirmationItem[];
   delivery: {
     mode: 'shipping' | 'pickup';

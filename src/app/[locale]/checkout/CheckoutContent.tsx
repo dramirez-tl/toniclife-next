@@ -27,6 +27,7 @@ import { LinePersonalization } from '@/components/storefront/LinePersonalization
 import { PickupBranchPicker } from '@/components/storefront/PickupBranchPicker';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { BuyForOtherBox } from '@/components/checkout/BuyForOtherBox';
 import { CheckoutSignInGate } from '@/components/checkout/CheckoutSignInGate';
 import { PaymentMethodPicker } from '@/components/checkout/PaymentMethodPicker';
 import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/checkout/SavedAddressPicker';
@@ -48,6 +49,13 @@ import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { useStates } from '@/hooks/useStates';
 import { buyerDistributorNumber, fillContactFromBuyer } from '@/lib/checkout/buyer';
+import {
+  beneficiaryErrorKey,
+  beneficiaryLabel,
+  beneficiaryPayload,
+  canBuyForOther,
+  isBeneficiaryRejection,
+} from '@/lib/checkout/buy-for-other';
 import { standardShippingInfo } from '@/lib/checkout/shipping-method';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
 import { oxxoOption, readOxxoConfig } from '@/lib/checkout/payment-options';
@@ -100,6 +108,7 @@ import {
   type InvoiceData,
   type GuestCheckoutInput,
   type AuthenticatedCheckoutInput,
+  type CheckoutBeneficiary,
   type CheckoutResponse,
   type SavedAddress,
 } from '@/types/cart';
@@ -166,6 +175,8 @@ export default function CheckoutContent() {
     total: string;
     /** Sucursal donde se recoge (solo en "recoger"); se guarda aquí porque la lista deja de consultarse. */
     pickupBranchName?: string;
+    /** Comprado para otro distribuidor: a nombre de quién quedó ("#1771306 ANA PEREZ"). */
+    purchasedFor?: string;
   } | null>(null);
 
   // Form data states
@@ -384,6 +395,26 @@ export default function CheckoutContent() {
     setDistributorNumber(summaryDistributorNumber);
   }
 
+  // COMPRAR PARA OTRO DISTRIBUIDOR (lib/checkout/buy-for-other): si el servidor lo ofrece,
+  // en "Datos" se puede escribir el número de otro distribuidor; la compra y sus puntos se
+  // registran a esa persona y quien está en sesión la paga. `beneficiary` vacío = compra
+  // normal, y entonces nada de esto viaja ni se pinta distinto.
+  const buyForOtherAvailable = canBuyForOther(checkoutSummary);
+  const [beneficiary, setBeneficiary] = useState<CheckoutBeneficiary | null>(null);
+  const [beneficiaryPending, setBeneficiaryPending] = useState(false);
+  const [beneficiaryNotice, setBeneficiaryNotice] = useState<{ text: string } | null>(null);
+  // Con el beneficiario ya elegido el resumen dice que dejó de ofrecerse (se apagó, o el
+  // carrito ahora trae un kit de inscripción): la compra vuelve a ser para la cuenta en
+  // sesión, se avisa y se regresa a "Datos". Con el pedido en camino decide el API.
+  if (beneficiary && checkoutSummary && !buyForOtherAvailable && !orderResult && !authenticatedCheckout.isPending) {
+    setBeneficiary(null);
+    setBeneficiaryNotice({ text: t('buyForOther.removed') });
+    if (currentStep !== 'info') setCurrentStep('info');
+  }
+  useEffect(() => {
+    if (beneficiaryNotice) toast.warning(beneficiaryNotice.text, { id: 'checkout-beneficiary', duration: 9000 });
+  }, [beneficiaryNotice]);
+
   // Pre-llenar datos de contacto del usuario autenticado (no los reescribe). Se
   // ajusta al renderizar cuando cambia el usuario en sesión, no en un efecto.
   const [contactUser, setContactUser] = useState<typeof currentUser>(null);
@@ -444,6 +475,13 @@ export default function CheckoutContent() {
 
     if (!customerInfo.email || !customerInfo.name || !customerInfo.phone) {
       toast.error(t('toasts.fillRequired'));
+      return;
+    }
+
+    // Hay un número de distribuidor escrito que aún no se busca: no se sigue a medias (la
+    // persona creería que la compra ya es para el otro distribuidor).
+    if (beneficiaryPending) {
+      toast.error(t('buyForOther.pendingSearch'));
       return;
     }
 
@@ -586,6 +624,9 @@ export default function CheckoutContent() {
                 country: shippingCountry,
                 saveAddress: shipping.saveAddress,
               })),
+          // Comprar para otro distribuidor: su número y, si es para recoger, quién pasa
+          // por el pedido. Sin beneficiario no agrega nada.
+          ...beneficiaryPayload(beneficiary, { isPickup, name: recipient.name, phone: recipient.phone }),
           paymentMethod: selectedPaymentMethod,
           shippingMethod: selectedShippingMethod,
           requiresInvoice,
@@ -618,6 +659,7 @@ export default function CheckoutContent() {
           orderNumber: result.orderNumber,
           total: result.total,
           pickupBranchName: isPickup ? selectedPickupPlace?.name : undefined,
+          purchasedFor: isAuthenticated && beneficiary ? beneficiaryLabel(beneficiary) : undefined,
         });
         setCurrentStep('confirmation');
         toast.success(t('toasts.orderCreated'));
@@ -638,6 +680,16 @@ export default function CheckoutContent() {
         const rejectedId = addressChoice.id;
         setShipping((state) => rejectSavedAddress(state, rejectedId));
         setCurrentStep('shipping');
+      }
+      // 422 por el distribuidor beneficiario (ya no puede recibir la compra, la función se
+      // apagó o el carrito ahora trae un kit). No se creó el pedido ni se cobró: la compra
+      // vuelve a ser para la cuenta en sesión, se regresa a "Datos" y se dice por qué.
+      if (isBeneficiaryRejection(error)) {
+        setBeneficiary(null);
+        setCurrentStep('info');
+        void queryClient.invalidateQueries({ queryKey: cartKeys.checkout() });
+        toast.error(t(`buyForOther.errors.${beneficiaryErrorKey(error)}`), { duration: 9000 });
+        return;
       }
       // 422 CHK_PAYMENT_METHOD_UNAVAILABLE: OXXO se apagó, no aplica a este pedido o el
       // monto quedó fuera del rango. No se creó el pedido: se queda en "Pago" con tarjeta
@@ -808,17 +860,18 @@ export default function CheckoutContent() {
                     {/* Distribuidor: su número, solo lectura. La compra y sus puntos se
                         registran a su cuenta; al público en general no se le muestra nada
                         (ya no se pide código de referido). */}
+                    {/* Si el servidor lo ofrece, la misma tarjeta trae "Comprar para otro
+                        distribuidor": se escribe su número y la compra y sus puntos se
+                        registran a esa persona (components/checkout/BuyForOtherBox). */}
                     {distributorNumber && (
-                      <div className="pt-4 border-t border-gray-200">
-                        <div className="flex items-start gap-3 rounded-lg border border-[#a7c1e2]/30 bg-[#C8DDF2]/10 p-4">
-                          <IdentificationIcon className="h-6 w-6 flex-shrink-0 text-[#3E667D]" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-700">{t('distributor.label')}</p>
-                            <p className="font-mono text-lg font-semibold text-[#3E667D]">{distributorNumber}</p>
-                            <p className="mt-1 text-xs text-gray-500">{t('distributor.note')}</p>
-                          </div>
-                        </div>
-                      </div>
+                      <BuyForOtherBox
+                        ownNumber={distributorNumber}
+                        available={buyForOtherAvailable}
+                        beneficiary={beneficiary}
+                        onChange={setBeneficiary}
+                        onPendingChange={setBeneficiaryPending}
+                        countryId={countryId}
+                      />
                     )}
 
                     <Button type="submit" size="lg" className="w-full">
@@ -903,6 +956,37 @@ export default function CheckoutContent() {
                               }
                         }
                       />
+                    )}
+
+                    {/* Comprado para otro distribuidor y para RECOGER: quién pasa por el
+                        pedido. Por omisión quien paga (sus datos de "Datos"); se puede poner
+                        a otra persona. La sucursal ve ese nombre y ese teléfono. */}
+                    {deliveryMode === 'pickup' && beneficiary && (
+                      <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{t('buyForOther.pickupWho')}</p>
+                          <p className="text-xs text-gray-500">{t('buyForOther.pickupWhoHint')}</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="checkout-pickup-recipient-name">{t('buyForOther.pickupName')}</Label>
+                            <Input
+                              id="checkout-pickup-recipient-name"
+                              type="text"
+                              value={recipient.name}
+                              onChange={(e) => setRecipient({ ...recipient, name: e.target.value })}
+                              maxLength={200}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>{t('buyForOther.pickupPhone')}</Label>
+                            <PhoneInput
+                              value={recipient.phone}
+                              onChange={(v) => setRecipient((current) => ({ ...current, phone: v }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
 
                     {deliveryMode === 'delivery' && !homeDeliveryUnavailable && (
@@ -1087,6 +1171,27 @@ export default function CheckoutContent() {
                       </div>
                     )}
 
+                    {/* Comprado para otro distribuidor: antes de pagar se repite PARA QUIÉN es. */}
+                    {beneficiary && (
+                      <div className="flex items-start gap-3 rounded-lg border border-[#a7c1e2] bg-[#C8DDF2]/15 p-4">
+                        <IdentificationIcon aria-hidden="true" className="h-6 w-6 flex-shrink-0 text-[#3E667D]" />
+                        <div className="min-w-0 flex-1 text-sm">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-[#2f5165]">
+                            {t('buyForOther.payingFor')}
+                          </p>
+                          <p className="break-words font-semibold text-gray-900">{beneficiaryLabel(beneficiary)}</p>
+                          <p className="text-gray-600">{t('buyForOther.payingForNote')}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep('info')}
+                          className="inline-flex min-h-11 flex-shrink-0 cursor-pointer items-center rounded-sm text-sm font-medium text-[#3E667D] underline underline-offset-2 hover:text-[#2f5165]"
+                        >
+                          {t('buyForOther.change')}
+                        </button>
+                      </div>
+                    )}
+
                     <div className="bg-[#C8DDF2]/10 border border-[#a7c1e2]/30 rounded-lg p-4 flex items-start gap-3">
                       <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
                       <div className="text-sm">
@@ -1205,6 +1310,14 @@ export default function CheckoutContent() {
 
                   <div className="border-t border-gray-200 pt-6 mb-6">
                     <div className="text-left space-y-3">
+                      {orderResult.purchasedFor && (
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">{t('buyForOther.confirmedFor')}</span>
+                          <span className="font-medium text-gray-900 text-right max-w-xs break-words">
+                            {orderResult.purchasedFor}
+                          </span>
+                        </div>
+                      )}
                       {deliveryMode === 'pickup' ? (
                         <div className="flex justify-between">
                           <span className="text-gray-600">{t('pickupAt')}</span>
@@ -1403,7 +1516,13 @@ export default function CheckoutContent() {
                   {/* Points */}
                   {checkoutSummary && checkoutSummary.totalPoints > 0 && (
                     <p className="text-sm text-[#3E667D] mt-2 text-center">
-                      {t('earnPoints', { points: checkoutSummary.totalPoints })}
+                      {/* Comprado para otro distribuidor: los puntos son de esa persona. */}
+                      {beneficiary
+                        ? t('buyForOther.pointsFor', {
+                            points: checkoutSummary.totalPoints,
+                            name: beneficiaryLabel(beneficiary),
+                          })
+                        : t('earnPoints', { points: checkoutSummary.totalPoints })}
                     </p>
                   )}
                 </div>

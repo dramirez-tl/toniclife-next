@@ -134,6 +134,28 @@ export interface Order {
     lastName: string;
     email: string;
   };
+  /** Cliente que PAGÓ el pedido cuando no es su titular (solo en administración). */
+  placedByCustomerId?: string;
+  /**
+   * Solo si el pedido se compró para otro distribuidor (mig 203): quién lo pagó y a nombre
+   * de quién quedó (el titular, `customer`: a esa cuenta van la compra y los puntos).
+   * `role` viene en "Mis pedidos": qué es la cuenta en sesión en este pedido.
+   */
+  purchase?: OrderPurchase | null;
+}
+
+export interface OrderPurchaseParty {
+  customerNumber?: string | null;
+  name?: string | null;
+}
+
+export interface OrderPurchase {
+  purchaser: OrderPurchaseParty;
+  beneficiary: OrderPurchaseParty;
+  role?: 'purchaser' | 'beneficiary';
+  /** Pedido para recoger: quién pasa por él a la sucursal. */
+  pickupRecipientName?: string | null;
+  pickupRecipientPhone?: string | null;
 }
 
 export type PaymentStatus = 'paid' | 'partial' | 'pending' | 'refunded' | 'failed';

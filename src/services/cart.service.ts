@@ -15,6 +15,7 @@ import type {
   GuestCheckoutInput,
   AuthenticatedCheckoutInput,
   CheckoutResponse,
+  CheckoutBeneficiary,
   CheckoutSummary,
   SavedAddress,
   ShippingMethod,
@@ -208,6 +209,19 @@ class CartService {
 
   async authenticatedCheckout(data: AuthenticatedCheckoutInput): Promise<CheckoutResponse> {
     const response = await api.post<CheckoutResponse>('/checkout/authenticated', data);
+    return response.data;
+  }
+
+  /**
+   * Comprar para otro distribuidor: a quién corresponde ese número y si se le puede
+   * registrar esta compra. Solo devuelve número y nombre; si no se puede, el API responde
+   * 422 con el motivo (CHK_BENEFICIARY_NOT_ELIGIBLE / CHK_BUY_FOR_OTHER_UNAVAILABLE).
+   */
+  async lookupBeneficiary(customerNumber: string, countryId?: string): Promise<CheckoutBeneficiary> {
+    const response = await api.get<CheckoutBeneficiary>(
+      `/checkout/beneficiary/${encodeURIComponent(customerNumber)}`,
+      countryId ? { params: { countryId } } : undefined,
+    );
     return response.data;
   }
 

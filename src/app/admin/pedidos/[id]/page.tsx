@@ -47,6 +47,7 @@ import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceB
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { beneficiaryLabel } from '@/lib/checkout/buy-for-other';
 import { OrderStatus, type OrderDeliverySummary } from '@/types/order';
 import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
 import { deliveryStatusClasses } from '@/lib/deliveries/actions';
@@ -662,6 +663,36 @@ export default function OrderDetailAdminPage() {
                 </div>
               ) : (
                 <p className="text-sm text-gray-400">Sin información de cliente</p>
+              )}
+              {/* Comprado para otro distribuidor (mig 203): el cliente de arriba es el
+                  TITULAR (a su cuenta van la compra y los puntos); aquí, quién lo pagó. */}
+              {order.purchase && (
+                <div className="mt-4 rounded-md border border-[#a7c1e2]/60 bg-[#C8DDF2]/15 p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#2f5165]">
+                    Lo pagó otro distribuidor
+                  </p>
+                  <p className="font-medium text-gray-900 break-words">
+                    {beneficiaryLabel(order.purchase.purchaser) || 'Otro distribuidor'}
+                  </p>
+                  {order.placedByCustomerId && (
+                    <Link
+                      href={`/admin/distribuidores/${order.placedByCustomerId}`}
+                      className="text-sm text-[#3E667D] hover:underline"
+                    >
+                      Ver perfil →
+                    </Link>
+                  )}
+                  <p className="mt-1 text-xs text-gray-600">
+                    El pedido y sus puntos están a nombre del cliente de arriba. Los avisos del pedido le
+                    llegan a quien lo pagó.
+                  </p>
+                  {order.purchase.pickupRecipientName && (
+                    <p className="mt-1 text-xs text-gray-600">
+                      Recoge: {order.purchase.pickupRecipientName}
+                      {order.purchase.pickupRecipientPhone ? ` · ${order.purchase.pickupRecipientPhone}` : ''}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 

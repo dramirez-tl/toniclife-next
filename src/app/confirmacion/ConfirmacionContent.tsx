@@ -489,6 +489,10 @@ function ConfirmedOrder({
           <p className="text-xl text-white/90 mb-2">
             {view.buyerFirstName ? t('thanksName', { name: view.buyerFirstName }) : t('thanks')}
           </p>
+          {/* Comprado para otro distribuidor: a nombre de quién quedó el pedido. */}
+          {view.purchasedFor && (
+            <p className="text-white/90 mb-2 font-medium break-words">{t('purchasedFor', { name: view.purchasedFor })}</p>
+          )}
           <p className="text-white/80 mb-8">{t('received')}</p>
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-6 py-3">
             <span className="text-sm">{t('orderNumber')}:</span>

@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BuyForOtherGateCard } from './BuyForOtherGateCard';
 import {
   BanknotesIcon,
   MagnifyingGlassIcon,
@@ -101,6 +102,7 @@ export function PilotGatingTab() {
       </p>
       <CheckoutGateCard />
       <OxxoGateCard />
+      <BuyForOtherGateCard />
       <DistributorSearchCard />
       <ReleasedDistributorsList />
     </div>

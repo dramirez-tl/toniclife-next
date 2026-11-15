@@ -41,6 +41,11 @@ export interface PilotCheckoutState {
   checkoutEnabled: boolean;
   /** Ausente = el API aún no conoce OXXO: no se ofrece. */
   oxxo?: PilotOxxoState;
+  /**
+   * Comprar para otro distribuidor (15-nov-2026): un distribuidor paga un pedido que se
+   * registra, con sus puntos, a nombre de otro. Ausente = el API aún no lo conoce.
+   */
+  buyForOther?: { enabled: boolean };
 }
 
 /** Lo que se puede cambiar de OXXO desde el admin (PATCH /admin/pilot/oxxo). */
@@ -98,6 +103,15 @@ class PilotService {
     const { data } = await api.patch<PilotCheckoutState>(
       '/admin/pilot/oxxo',
       patch,
+    );
+    return data;
+  }
+
+  /** Enciende o apaga "comprar para otro distribuidor" en la tienda. Responde el estado completo. */
+  async setBuyForOther(enabled: boolean): Promise<PilotCheckoutState> {
+    const { data } = await api.patch<PilotCheckoutState>(
+      '/admin/pilot/buy-for-other',
+      { enabled },
     );
     return data;
   }
