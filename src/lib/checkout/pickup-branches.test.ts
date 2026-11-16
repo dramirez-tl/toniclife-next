@@ -484,7 +484,8 @@ describe('zonas de precios al recoger', () => {
   const FN = '00000000-0000-4000-8000-0000000000f1';
   const own = { id: 'b254', priceZone: { countryId: MX, code: 'MX', name: 'Mexico' }, ownPriceZone: true };
   const other = { id: 'b155', priceZone: { countryId: FN, code: 'FN', name: 'Frontera MX-USA' }, ownPriceZone: false };
-  const legacy = { id: 'b001' }; // API anterior: sin zona
+  // API anterior: sin zona.
+  const legacy: Pick<PickupBranch, 'id' | 'priceZone' | 'ownPriceZone'> = { id: 'b001' };
 
   it('otra zona = la sucursal trae su zona y NO es la de la lista del comprador', () => {
     expect(isOtherPriceZone(other)).toBe(true);

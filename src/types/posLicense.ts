@@ -34,6 +34,10 @@ export interface PosLicense {
    *  registros de la terminal hasta que Sistemas lo prenda (rollout terminal
    *  por terminal). No depende de que la terminal esté liberada. */
   attendanceEnabled?: boolean;
+  /** Tipo de dispositivo: caja del punto de venta o checador de asistencia. Ausente = API anterior (caja). */
+  kind?: 'pos' | 'checador';
+  /** Última versión de la app que reportó el dispositivo (la del checador empieza con "checador-"). */
+  appVersion?: string;
   hardwareFingerprint?: string;
   hardwareInfo?: PosLicenseHardwareInfo;
   activatedAt?: string;

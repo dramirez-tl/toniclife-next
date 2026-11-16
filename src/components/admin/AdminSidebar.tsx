@@ -27,6 +27,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ArrowRightOnRectangleIcon,
   ComputerDesktopIcon,
+  CpuChipIcon,
   BuildingStorefrontIcon,
   GlobeAltIcon,
   BellIcon,
@@ -105,17 +106,24 @@ const navigation: NavItem[] = [
     permissions: ['viaticos', 'viaticos:request', 'viaticos:approve', 'viaticos:read'],
   },
   {
-    name: 'Activos TI',
+    // Sistemas (16-nov-2026): lo que administra el departamento de Sistemas. Reúne los
+    // activos de TI (que antes eran su propio apartado, "Activos TI") y las licencias de
+    // los checadores de asistencia. Cada hijo trae su permiso: quien solo administra
+    // activos no ve Checadores y al revés. No confundir con "Sistema" (abajo, solo super
+    // administrador): ese es el mantenimiento técnico de la plataforma. La ruta de
+    // Checadores NO empieza con /admin/sistema para que ese otro apartado no se marque.
+    name: 'Sistemas',
     href: '/admin/activos',
-    icon: ComputerDesktopIcon,
-    permissions: ['assets', 'assets:read'],
+    icon: CpuChipIcon,
+    permissions: ['assets', 'assets:read', 'checker_licenses:manage'],
     children: [
-      { name: 'Inventario', href: '/admin/activos' },
-      { name: 'Insumos', href: '/admin/activos/insumos' },
-      { name: 'Categorías', href: '/admin/activos/categorias' },
-      { name: 'Ubicaciones', href: '/admin/activos/ubicaciones' },
-      { name: 'Facturas de compra', href: '/admin/activos/facturas' },
-      { name: 'Etiquetas', href: '/admin/activos/etiquetas' },
+      { name: 'Activos TI', href: '/admin/activos', permissions: ['assets', 'assets:read'] },
+      { name: 'Insumos de TI', href: '/admin/activos/insumos', permissions: ['assets', 'assets:read'] },
+      { name: 'Categorías de activos', href: '/admin/activos/categorias', permissions: ['assets', 'assets:read'] },
+      { name: 'Ubicaciones de activos', href: '/admin/activos/ubicaciones', permissions: ['assets', 'assets:read'] },
+      { name: 'Facturas de compra', href: '/admin/activos/facturas', permissions: ['assets', 'assets:read'] },
+      { name: 'Etiquetas de activos', href: '/admin/activos/etiquetas', permissions: ['assets', 'assets:read'] },
+      { name: 'Checadores', href: '/admin/checadores', permissions: ['checker_licenses:manage'] },
     ],
   },
   {
