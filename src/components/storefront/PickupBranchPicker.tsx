@@ -27,9 +27,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   filterPickupBranches,
   findPickupBranch,
+  isOtherPriceZone,
   isPickupBranchSelectable,
   missingItemsSummary,
   noPickupBranchAvailable,
+  otherPriceZones,
   pickupAddressLine,
   pickupCityState,
   pickupMapUrl,
@@ -38,9 +40,15 @@ import {
   sortPickupBranches,
 } from '@/lib/checkout/pickup-branches';
 import { cn } from '@/lib/utils';
-import type { PickupBranch } from '@/types/cart';
+import type { PickupBranch, PickupPriceZone } from '@/types/cart';
 
 type CheckoutT = ReturnType<typeof useTranslations<'checkout'>>;
+
+/** Nombre corto de una zona de precios ("Frontera", "México"); si no se conoce, el del API. */
+export function priceZoneLabel(zone: Pick<PickupPriceZone, 'code' | 'name'>, t: CheckoutT): string {
+  const code = zone.code?.trim().toUpperCase();
+  return code === 'FN' || code === 'MX' ? t(`pickup.zoneNames.${code}`) : zone.name;
+}
 
 /** Con pocas sucursales se ven todas de un vistazo: el buscador solo estorbaría. */
 const SEARCH_FROM = 6;
@@ -93,6 +101,9 @@ export function PickupBranchPicker({
   const searching = showSearch && query.trim().length > 0;
   const visible = searching ? filterPickupBranches(sorted, query) : sorted;
   const selected = findPickupBranch(branches, value);
+  // Sucursales de OTRA zona de precios (cuenta de México que puede recoger en Frontera, o al
+  // revés): se avisa arriba de la lista que ahí el pedido se cotiza con otro catálogo.
+  const otherZones = otherPriceZones(sorted);
 
   return (
     <fieldset className="min-w-0 space-y-3">
@@ -136,6 +147,12 @@ export function PickupBranchPicker({
                 </Button>
               </div>
             </div>
+          )}
+
+          {otherZones.length > 0 && (
+            <p role="note" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {t('pickup.zoneListNotice', { zones: otherZones.map((zone) => priceZoneLabel(zone, t)).join(', ') })}
+            </p>
           )}
 
           {showSearch && (
@@ -255,6 +272,10 @@ function BranchCard({
   const cityState = pickupCityState(place);
   const street = [place.street, place.zip ? t('pickup.zip', { code: place.zip }) : ''].filter(Boolean).join(' · ');
   const missing = selectable ? null : missingItemsSummary(branch.missingItems);
+  // Otra zona de precios: lleva su etiqueta; y si no se puede elegir porque un producto no se
+  // vende con esa lista, lo dice así (no es falta de existencias).
+  const otherZone = isOtherPriceZone(branch) ? priceZoneLabel(branch.priceZone, t) : null;
+  const noZonePrice = !selectable && branch.unavailableReason === 'no_zone_price' && !!otherZone;
 
   return (
     <label className={cn(CARD, !selectable ? CARD_DISABLED : checked ? CARD_ON : CARD_OFF)}>
@@ -269,8 +290,18 @@ function BranchCard({
       />
       {/* En celular: nombre, etiqueta y datos, uno bajo otro. Desde `sm` la etiqueta va a la derecha. */}
       <span className="grid min-w-0 flex-1 gap-x-3 gap-y-1 sm:grid-cols-[minmax(0,1fr)_auto]">
-        <span className={cn('break-words font-medium sm:col-start-1', selectable ? 'text-gray-900' : 'text-gray-600')}>
-          {place.name}
+        <span
+          className={cn(
+            'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium sm:col-start-1',
+            selectable ? 'text-gray-900' : 'text-gray-600',
+          )}
+        >
+          <span className="min-w-0 break-words">{place.name}</span>
+          {otherZone && (
+            <span className="inline-flex w-fit items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900 ring-1 ring-inset ring-amber-200">
+              {t('pickup.zoneBadge', { zone: otherZone })}
+            </span>
+          )}
         </span>
         {branch.availability && (
           <span className="flex min-w-0 flex-col gap-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:max-w-[15rem] sm:items-end sm:text-right">
@@ -284,13 +315,25 @@ function BranchCard({
                 aria-hidden="true"
                 className={cn('size-1.5 rounded-full', selectable ? 'bg-emerald-600' : 'bg-gray-500')}
               />
-              {selectable ? t('pickup.available') : t('pickup.unavailable')}
+              {selectable
+                ? t('pickup.available')
+                : noZonePrice
+                  ? t('pickup.unavailableInZone')
+                  : t('pickup.unavailable')}
             </span>
             {missing && (
               <span className="break-words text-xs text-gray-600">
-                {missing.more > 0
-                  ? t('pickup.missingMore', { items: missing.names.join(', '), count: missing.more })
-                  : t('pickup.missing', { items: missing.names.join(', ') })}
+                {noZonePrice
+                  ? missing.more > 0
+                    ? t('pickup.notSoldInZoneMore', {
+                        zone: otherZone ?? '',
+                        items: missing.names.join(', '),
+                        count: missing.more,
+                      })
+                    : t('pickup.notSoldInZone', { zone: otherZone ?? '', items: missing.names.join(', ') })
+                  : missing.more > 0
+                    ? t('pickup.missingMore', { items: missing.names.join(', '), count: missing.more })
+                    : t('pickup.missing', { items: missing.names.join(', ') })}
               </span>
             )}
           </span>

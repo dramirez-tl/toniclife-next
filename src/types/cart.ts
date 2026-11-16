@@ -136,6 +136,12 @@ export interface Cart {
   countryCode?: string | null;
   /** UUID del país FIJADO en el carrito (C2). Ausente = carrito sin país fijado: comportamiento previo. */
   countryId?: string | null;
+  /**
+   * Zona de recolección: presente cuando el carrito está cotizado con la lista de OTRA zona
+   * de precios porque el comprador va a recoger ahí (cuenta de México que recoge en
+   * Frontera, o al revés). Ausente = su lista de siempre.
+   */
+  pickupZone?: PickupPriceZone | null;
   createdAt: string;
   updatedAt: string;
   items: CartItem[];
@@ -323,8 +329,49 @@ export interface PickupBranch {
    * lo revisó (o es un API anterior): la sucursal se puede elegir y no lleva etiqueta.
    */
   availability?: 'available' | 'unavailable';
-  /** Nombres de los productos del carrito que no alcanzan en esa sucursal. */
+  /**
+   * Nombres de los productos del carrito que no alcanzan en esa sucursal o, con
+   * `unavailableReason: 'no_zone_price'`, que no se venden con la lista de su zona.
+   */
   missingItems?: string[];
+  /** Por qué no se puede elegir: sin existencias o sin precio en su zona de precios. */
+  unavailableReason?: 'stock' | 'no_zone_price';
+  /**
+   * Zona de precios de la sucursal (México o Frontera). Solo viene con sesión y cuando el
+   * servidor ya ofrece recoger en otra zona; ausente = todo como antes.
+   */
+  priceZone?: PickupPriceZone;
+  /**
+   * `false` = la sucursal es de OTRA zona de precios que la lista de siempre del comprador:
+   * recoger ahí cotiza el pedido con la lista de `priceZone`, igual que en su caja.
+   */
+  ownPriceZone?: boolean;
+}
+
+/** Zona de precios (país o zona de la tienda: México, Frontera). */
+export interface PickupPriceZone {
+  countryId: string;
+  /** ISO2 (MX, FN). */
+  code: string;
+  name: string;
+}
+
+/** Importes del carrito antes o después de re-cotizarlo (PUT /checkout/pickup-zone). */
+export interface PickupZoneTotals {
+  subtotal: string;
+  total: string;
+  totalPoints: number;
+  itemCount: number;
+}
+
+/** Respuesta de PUT /checkout/pickup-zone. */
+export interface PickupZoneResult {
+  /** ¿Se re-cotizó el carrito con otra lista? */
+  changed: boolean;
+  /** Zona con la que quedó cotizado cuando NO es la lista de siempre; null = lista de siempre. */
+  pickupZone: PickupPriceZone | null;
+  previous: PickupZoneTotals | null;
+  current: PickupZoneTotals | null;
 }
 
 export interface CheckoutResponse {

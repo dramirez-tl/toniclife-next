@@ -11,11 +11,13 @@ import {
   filterPickupBranches,
   findPickupBranch,
   foldSearchText,
+  isOtherPriceZone,
   isPickupBranchSelectable,
   isPickupCheckoutRejection,
   matchesPickupSearch,
   missingItemsSummary,
   noPickupBranchAvailable,
+  otherPriceZones,
   pickupAddressLine,
   pickupBranchesRefreshPolicy,
   pickupCartSignature,
@@ -24,6 +26,7 @@ import {
   pickupPhoneHref,
   pickupPlace,
   pickupSelectionProblem,
+  pickupZoneSyncFor,
   sortPickupBranches,
 } from './pickup-branches';
 
@@ -471,5 +474,63 @@ describe('checkout/pickup-branches · rechazo del API al pagar', () => {
     expect(isPickupCheckoutRejection({ status: 400, code: null, message: 'El cupón no es válido' }, true)).toBe(false);
     expect(isPickupCheckoutRejection({ status: 400, code: null, message: undefined }, true)).toBe(false);
     expect(isPickupCheckoutRejection({ status: null, code: null, message: null }, true)).toBe(false);
+  });
+});
+
+// ===== zonas de precios: recoger en una sucursal de otra zona (16-nov-2026) =====
+
+describe('zonas de precios al recoger', () => {
+  const MX = 'b47b4f94-011d-4071-adf9-5c5285606af7';
+  const FN = '00000000-0000-4000-8000-0000000000f1';
+  const own = { id: 'b254', priceZone: { countryId: MX, code: 'MX', name: 'Mexico' }, ownPriceZone: true };
+  const other = { id: 'b155', priceZone: { countryId: FN, code: 'FN', name: 'Frontera MX-USA' }, ownPriceZone: false };
+  const legacy = { id: 'b001' }; // API anterior: sin zona
+
+  it('otra zona = la sucursal trae su zona y NO es la de la lista del comprador', () => {
+    expect(isOtherPriceZone(other)).toBe(true);
+    expect(isOtherPriceZone(own)).toBe(false);
+    expect(isOtherPriceZone(legacy)).toBe(false);
+    expect(isOtherPriceZone({ ownPriceZone: false })).toBe(false);
+    expect(isOtherPriceZone(null)).toBe(false);
+  });
+
+  it('las otras zonas de la lista, sin repetir', () => {
+    expect(otherPriceZones([own, other, { ...other, id: 'b125' }, legacy])).toEqual([other.priceZone]);
+    expect(otherPriceZones([own, legacy])).toEqual([]);
+    expect(otherPriceZones(undefined)).toEqual([]);
+  });
+
+  it('recoger en otra zona con el carrito en su lista de siempre: hay que re-cotizar con esa zona', () => {
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: other, quotedZoneId: null })).toEqual({
+      pickupBranchId: 'b155',
+      zoneId: FN,
+    });
+  });
+
+  it('ya está cotizado con la zona de la sucursal: nada que pedir (sin distinguir mayúsculas)', () => {
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: other, quotedZoneId: FN })).toBeNull();
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: other, quotedZoneId: FN.toUpperCase() })).toBeNull();
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: own, quotedZoneId: null })).toBeNull();
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: legacy, quotedZoneId: undefined })).toBeNull();
+  });
+
+  it('vuelve a una sucursal de su zona con el carrito cotizado en otra: regresa a su lista', () => {
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: own, quotedZoneId: FN })).toEqual({
+      pickupBranchId: 'b254',
+      zoneId: null,
+    });
+  });
+
+  it('envío a domicilio: siempre la lista de siempre', () => {
+    expect(pickupZoneSyncFor({ deliveryMode: 'delivery', selectedBranch: other, quotedZoneId: FN })).toEqual({
+      pickupBranchId: null,
+      zoneId: null,
+    });
+    expect(pickupZoneSyncFor({ deliveryMode: 'delivery', selectedBranch: undefined, quotedZoneId: null })).toBeNull();
+  });
+
+  it('recoger sin sucursal elegida todavía: no se toca el carrito', () => {
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: undefined, quotedZoneId: FN })).toBeNull();
+    expect(pickupZoneSyncFor({ deliveryMode: 'pickup', selectedBranch: null, quotedZoneId: null })).toBeNull();
   });
 });

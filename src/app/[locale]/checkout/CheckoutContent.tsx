@@ -25,6 +25,8 @@ import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { PickupBranchPicker } from '@/components/storefront/PickupBranchPicker';
+import { PickupZoneNotice } from '@/components/storefront/PickupZoneNotice';
+import { usePickupZoneSync } from '@/hooks/usePickupZoneSync';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { BuyForOtherBox } from '@/components/checkout/BuyForOtherBox';
@@ -348,6 +350,33 @@ export default function CheckoutContent() {
   const selectedPickupAddress = selectedPickupPlace
     ? pickupAddressLine(selectedPickupPlace, (code) => t('pickup.zip', { code }))
     : '';
+  // Zonas de precios (16-nov-2026): "para recoger pagas la lista de la zona donde recoges,
+  // igual que en su caja". Al elegir una sucursal de OTRA zona (cuenta de México que recoge en
+  // Frontera, o al revés) el API re-cotiza el carrito con esa lista; al volver a su zona o a
+  // envío a domicilio, con la de siempre. Mientras se re-cotiza no se continúa ni se paga. Si
+  // no se pudo (p. ej. un producto no se vende en esa zona) se quita la sucursal y se avisa.
+  const zoneSync = usePickupZoneSync({
+    enabled: isAuthenticated && !orderResult && !authenticatedCheckout.isPending,
+    countryId,
+    cart,
+    deliveryMode,
+    selectedBranch: selectedPickupBranch,
+    onError: (error) => {
+      setPickupBranchId('');
+      setCurrentStep((step) => (step === 'payment' ? 'shipping' : step));
+      toast.error(catalogErrorMessage(error, t('pickup.zoneError'), { useApiMessage: lang === 'es' }), {
+        id: 'checkout-pickup-zone',
+        duration: 9000,
+      });
+    },
+  });
+  const zoneChange = zoneSync.lastChange;
+  useEffect(() => {
+    // Volvió a su lista de siempre (cambió a envío a domicilio o a una sucursal de su zona).
+    if (zoneChange && !zoneChange.pickupZone) {
+      toast.info(t('pickup.zoneBackToOwn'), { id: 'checkout-pickup-zone' });
+    }
+  }, [zoneChange, t]);
   // Lo que se le dice entonces: que elija una; o, si no hay sucursales en su zona o ninguna
   // tiene todo su pedido, eso mismo (no hay nada que elegir).
   const pickupMissingText =
@@ -513,6 +542,11 @@ export default function CheckoutContent() {
         toast.error(pickupMissingText);
         return;
       }
+      // Los precios se están poniendo al día con la zona de la sucursal elegida.
+      if (zoneSync.syncing) {
+        toast.info(t('pickup.zoneWait'), { id: 'checkout-pickup-zone' });
+        return;
+      }
       setCurrentStep('payment');
       toast.success(t('toasts.pickupSelected'));
       return;
@@ -568,6 +602,12 @@ export default function CheckoutContent() {
     // Sin almacén que envíe a este país no se paga con envío a domicilio.
     if (deliveryBlocked) {
       toast.error(homeDeliveryUnavailableText);
+      return;
+    }
+
+    // El pedido se está re-cotizando con la lista de donde se recibe: aún no hay total que cobrar.
+    if (zoneSync.syncing) {
+      toast.info(t('pickup.zoneWait'), { id: 'checkout-pickup-zone' });
       return;
     }
     // El país de la tienda aún está cargando: el botón ya espera; esto cubre el Enter.
@@ -713,6 +753,14 @@ export default function CheckoutContent() {
         setPickupBranchId('');
         setCurrentStep('shipping');
         void queryClient.invalidateQueries({ queryKey: cartKeys.pickupBranches() });
+      }
+      // 409 CHK_PICKUP_ZONE_MISMATCH: el carrito está cotizado con la lista de una zona y el
+      // pedido se entrega en otra. No se creó el pedido: se vuelve a pedir el carrito (con él
+      // se re-cotiza solo) y se regresa a "Envío" para que vea el total antes de pagar.
+      if (catalogErrorCode(error) === 'CHK_PICKUP_ZONE_MISMATCH') {
+        setCurrentStep('shipping');
+        void queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+        void queryClient.invalidateQueries({ queryKey: cartKeys.checkoutSummary() });
       }
       toast.error(apiMessage || t('toasts.orderError'));
     }
@@ -958,6 +1006,17 @@ export default function CheckoutContent() {
                       />
                     )}
 
+                    {/* Otra zona de precios: se avisa que el pedido se cotizó con ese catálogo, con el
+                        total de antes y el de ahora; mientras se re-cotiza, que está en eso. */}
+                    {deliveryMode === 'pickup' && zoneSync.syncing && (
+                      <p role="status" className="text-sm text-gray-600">
+                        {t('pickup.zoneSyncing')}
+                      </p>
+                    )}
+                    {deliveryMode === 'pickup' && cart?.pickupZone && !zoneSync.syncing && (
+                      <PickupZoneNotice zone={cart.pickupZone} change={zoneChange} formatAmount={fmt} />
+                    )}
+
                     {/* Comprado para otro distribuidor y para RECOGER: quién pasa por el
                         pedido. Por omisión quien paga (sus datos de "Datos"); se puede poner
                         a otra persona. La sucursal ve ese nombre y ese teléfono. */}
@@ -1169,6 +1228,10 @@ export default function CheckoutContent() {
                           {t('pickup.change')}
                         </button>
                       </div>
+                    )}
+                    {/* Y, si esa sucursal es de otra zona de precios, con qué catálogo se cotizó. */}
+                    {deliveryMode === 'pickup' && cart?.pickupZone && (
+                      <PickupZoneNotice zone={cart.pickupZone} change={zoneChange} formatAmount={fmt} />
                     )}
 
                     {/* Comprado para otro distribuidor: antes de pagar se repite PARA QUIÉN es. */}

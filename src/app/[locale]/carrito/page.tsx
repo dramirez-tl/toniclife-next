@@ -44,6 +44,7 @@ import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { CartCountryNotice } from '@/components/cart/CartCountryNotice';
+import { PickupZoneNotice } from '@/components/storefront/PickupZoneNotice';
 import { CartLinePromo } from '@/components/cart/CartLinePromo';
 import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
@@ -342,6 +343,11 @@ export default function CartPage() {
               <div className="lg:col-span-2 space-y-4">
                 {/* Carrito de la tienda de OTRO país (C2): aviso no bloqueante */}
                 <CartCountryNotice mismatch={countryMismatch} lang={lang} className="rounded-xl p-4" />
+                {/* El carrito quedó cotizado con la lista de otra zona de precios (se va a recoger
+                    ahí): se avisa, porque estos precios no son los del catálogo que ve en la tienda. */}
+                {cart?.pickupZone && (
+                  <PickupZoneNotice zone={cart.pickupZone} formatAmount={fmt} className="rounded-xl" />
+                )}
 
                 {/* Aviso de productos agotados (con opción de continuar con el resto) */}
                 {soldOutItems.length > 0 && (

@@ -60,6 +60,7 @@ import { formatCurrency } from '@/lib/currency';
 import { productPath } from '@/lib/storefront/slug';
 import type { CartItem } from '@/types/cart';
 import { CartCountryNotice } from './CartCountryNotice';
+import { PickupZoneNotice } from '@/components/storefront/PickupZoneNotice';
 import { CartLinePromo } from './CartLinePromo';
 import { CartLineQuantity } from './CartLineQuantity';
 import { FreeShippingBar } from './FreeShippingBar';
@@ -334,6 +335,10 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
 
           <div className="flex flex-col gap-3 border-t border-gray-200 bg-white px-4 py-4">
             <CartCountryNotice mismatch={countryMismatch} lang={lang} onNavigate={closeCartDrawer} />
+            {/* Cotizado con la lista de otra zona de precios porque se va a recoger ahí. */}
+            {cart?.pickupZone && (
+              <PickupZoneNotice zone={cart.pickupZone} formatAmount={money} className="p-3 text-xs" />
+            )}
             <FreeShippingBar
               subtotal={Number.parseFloat(cart?.subtotal ?? '0')}
               cartCurrencyCode={cart?.currencyCode}

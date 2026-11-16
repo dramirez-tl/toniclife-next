@@ -20,6 +20,7 @@ import type {
   SavedAddress,
   ShippingMethod,
   PickupBranch,
+  PickupZoneResult,
 } from '@/types/cart';
 
 // Helper to get/create session ID for guest carts
@@ -247,6 +248,17 @@ class CartService {
       '/checkout/pickup-branches',
       countryId ? { params: { countryId } } : undefined,
     );
+    return response.data;
+  }
+
+  /**
+   * Cotiza el carrito según dónde se recibe el pedido: "para recoger pagas la lista de la
+   * zona donde recoges, igual que en su caja". Con una sucursal de OTRA zona de precios el
+   * carrito se re-cotiza con esa lista; con `null` (envío a domicilio) o una sucursal de la
+   * zona propia, vuelve a su lista de siempre. Regresa el total de antes y el de ahora.
+   */
+  async setPickupZone(countryId: string | undefined, pickupBranchId: string | null): Promise<PickupZoneResult> {
+    const response = await api.put<PickupZoneResult>('/checkout/pickup-zone', { countryId, pickupBranchId });
     return response.data;
   }
 

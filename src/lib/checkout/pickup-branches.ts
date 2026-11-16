@@ -19,7 +19,7 @@
 // llene todo para enterarse hasta ese momento. Mis pedidos (lib/orders/pickup-progress)
 // reutiliza la limpieza y la presentación para la sucursal del pedido.
 
-import type { PickupBranch } from '@/types/cart';
+import type { PickupBranch, PickupPriceZone } from '@/types/cart';
 
 // ===== limpieza de lo capturado =====
 
@@ -364,4 +364,66 @@ export function isPickupCheckoutRejection(failure: CheckoutFailure, isPickup: bo
   if (failure.code === PICKUP_BRANCH_UNAVAILABLE_CODE) return true;
   const message = Array.isArray(failure.message) ? failure.message.join(', ') : (failure.message ?? '');
   return isPickup && /^stock insuficiente/i.test(message.trim());
+}
+
+// ===== zonas de precios: recoger en una sucursal de otra zona (16-nov-2026) =====
+//
+// "Para recoger pagas la lista de la zona de la sucursal donde recoges, igual que en su
+// caja." México y Frontera son zonas de precios de la misma tienda: una cuenta con lista de
+// México puede recoger en Ensenada o Tijuana, y el pedido se cotiza con la lista de Frontera
+// (y al revés). El API marca cada sucursal con su zona (`priceZone`, `ownPriceZone`) y
+// re-cotiza el carrito (PUT /checkout/pickup-zone); aquí se decide CUÁNDO hay que pedírselo.
+
+/** ¿La sucursal es de otra zona de precios que la lista de siempre del comprador? */
+export function isOtherPriceZone(
+  branch: Pick<PickupBranch, 'priceZone' | 'ownPriceZone'> | null | undefined,
+): branch is Pick<PickupBranch, 'priceZone' | 'ownPriceZone'> & { priceZone: PickupPriceZone } {
+  return !!branch && branch.ownPriceZone === false && !!branch.priceZone?.countryId;
+}
+
+/** Las otras zonas de precios que aparecen en la lista (sin repetir), para el aviso. */
+export function otherPriceZones(
+  branches: ReadonlyArray<Pick<PickupBranch, 'priceZone' | 'ownPriceZone'>> | null | undefined,
+): PickupPriceZone[] {
+  const zones = new Map<string, PickupPriceZone>();
+  for (const branch of branches ?? []) {
+    if (isOtherPriceZone(branch)) zones.set(branch.priceZone.countryId.toLowerCase(), branch.priceZone);
+  }
+  return [...zones.values()];
+}
+
+const sameZone = (a: string | null | undefined, b: string | null | undefined): boolean =>
+  (a ?? '').toLowerCase() === (b ?? '').toLowerCase();
+
+/** Lo que hay que pedirle al API para que el carrito quede cotizado como toca. */
+export interface PickupZoneSync {
+  /** Sucursal que se manda (su zona decide la lista); null = lista de siempre. */
+  pickupBranchId: string | null;
+  /** Zona con la que debe quedar cotizado; null = lista de siempre. */
+  zoneId: string | null;
+}
+
+/**
+ * ¿Hay que re-cotizar el carrito? Compara la zona con la que ESTÁ cotizado
+ * (`quotedZoneId`, de `cart.pickupZone`) con la que pide la entrega elegida:
+ *  - envío a domicilio: su lista de siempre;
+ *  - recoger en una sucursal de otra zona: la lista de esa zona;
+ *  - recoger en una sucursal de su zona: su lista de siempre;
+ *  - recoger sin sucursal elegida todavía: no se toca nada (aún no hay qué cotizar).
+ * `null` = el carrito ya está cotizado como toca.
+ */
+export function pickupZoneSyncFor(o: {
+  deliveryMode: 'delivery' | 'pickup';
+  selectedBranch: Pick<PickupBranch, 'id' | 'priceZone' | 'ownPriceZone'> | null | undefined;
+  quotedZoneId: string | null | undefined;
+}): PickupZoneSync | null {
+  const quoted = o.quotedZoneId ?? null;
+  if (o.deliveryMode === 'delivery') {
+    return quoted ? { pickupBranchId: null, zoneId: null } : null;
+  }
+  const branch = o.selectedBranch;
+  if (!branch) return null;
+  const required = isOtherPriceZone(branch) ? branch.priceZone.countryId : null;
+  if (sameZone(quoted, required)) return null;
+  return { pickupBranchId: branch.id, zoneId: required };
 }
