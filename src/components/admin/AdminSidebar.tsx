@@ -187,6 +187,9 @@ const navigation: NavItem[] = [
       { name: 'Complemento de Pago', href: '/admin/facturacion/complemento-pago' },
       // Contabilidad (22-oct-2026): tickets pendientes facturados a mano (PPD).
       { name: 'Facturación libre', href: '/admin/facturacion/libre', permissions: ['billing:manual'] },
+      // Botnatura (17-nov-2026): lo que Tonic Life le vende y factura a Botnatura, con su
+      // catálogo propio (migs 207 y 208). Mismo permiso que Facturación libre.
+      { name: 'Botnatura', href: '/admin/facturacion/botnatura', permissions: ['billing:manual'] },
     ],
   },
   // Mi CEDEA (mig 180, 31-oct-2026): dueños de CEDEA (y CEDEAS Supervisor) ven
