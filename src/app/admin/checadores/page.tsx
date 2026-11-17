@@ -351,13 +351,21 @@ export default function CheckerLicensesPage() {
             {form?.mode === 'create' && (
               <div className="grid gap-2">
                 <Label htmlFor="checker-branch">Sucursal</Label>
+                {/* Sin la opción "Todos" del selector: una licencia es de UNA sucursal, la del lugar
+                    donde está la tableta. No limita quién checa: cualquier colaborador puede hacerlo. */}
                 <SearchableSelect
                   id="checker-branch"
                   options={branchOptions}
                   value={values.branchId}
                   onChange={(branchId) => setValues((v) => ({ ...v, branchId }))}
                   placeholder="Elige la sucursal"
+                  showAllOption={false}
+                  aria-describedby="checker-branch-help"
                 />
+                <p id="checker-branch-help" className="text-xs text-muted-foreground">
+                  Es el lugar donde está la tableta: de ahí sale su nombre y su horario. Ahí puede checar cualquier
+                  colaborador, sea de la sucursal que sea.
+                </p>
               </div>
             )}
             <div className="grid gap-2">
