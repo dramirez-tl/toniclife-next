@@ -9,6 +9,12 @@
 // PEDIDO WEB nunca se cancela desde la bandeja (ver canCancelDelivery). La
 // autoridad sigue siendo el API; esto solo decide qué botones ofrecer y cómo
 // nombrar las cosas.
+//
+// ENVÍO con folio de Call Center (API mig 211, 17-nov-2026): varias ventas (una
+// por distribuidor) que viajan a un solo domicilio. Mientras está "en captura"
+// Call Center le sigue sumando ventas: Almacén lo ve, pero no lo marca listo ni
+// enviado hasta que se termine (lo termina Call Center, el propio Almacén desde
+// aquí, o el sistema si lleva media hora sin movimiento).
 
 import { DELIVERY_STATUS_LABELS, type Delivery, type DeliveryMode, type DeliveryStatus } from '@/types/deliveries';
 
@@ -67,9 +73,12 @@ export function deliveryCancelNotice(d: Partial<Pick<Delivery, 'kind'>> & Pick<D
  * Recoger: pendiente → listo para recoger o entregar en mostrador (si está pagado);
  * listo → entregar en mostrador (si está pagado) o regresar a pendiente.
  * Pedido web (kind 'order'): igual, pero sin "cancelar" (ver canCancelDelivery).
+ * Envío en captura (mig 211): solo cancelar la entrega de una venta; listo y enviado
+ * aparecen cuando la captura se termina.
  */
 export function availableDeliveryActions(
-  d: Pick<Delivery, 'status' | 'saleStatus'> & Partial<Pick<Delivery, 'kind' | 'deliveryMode'>>,
+  d: Pick<Delivery, 'status' | 'saleStatus'> &
+    Partial<Pick<Delivery, 'kind' | 'deliveryMode' | 'shipmentStatus'>>,
   canAct: boolean,
 ): DeliveryAction[] {
   if (!canAct) return [];
@@ -94,6 +103,10 @@ export function availableDeliveryActions(
     }
     return out;
   }
+  if (isShipmentInCapture(d)) {
+    if (d.status === 'pending' && cancellable) out.push('cancelled');
+    return out;
+  }
   switch (d.status) {
     case 'pending':
       if (paid) out.push('ready', 'shipped');
@@ -111,6 +124,49 @@ export function availableDeliveryActions(
       break;
   }
   return out;
+}
+
+// ============================================================
+// ENVÍO con folio de Call Center (API mig 211)
+// ============================================================
+
+/**
+ * ¿El envío sigue EN CAPTURA? Call Center todavía le está sumando ventas: Almacén lo ve en
+ * la bandeja, pero aún no lo surte. Solo ventas del POS (un pedido web nunca va en un envío).
+ */
+export function isShipmentInCapture(d: Partial<Pick<Delivery, 'kind' | 'shipmentStatus'>>): boolean {
+  return d.kind !== 'order' && d.shipmentStatus === 'open';
+}
+
+export const SHIPMENT_IN_CAPTURE_LABEL = 'En captura';
+
+export const SHIPMENT_IN_CAPTURE_NOTICE =
+  'Call Center todavía le está sumando ventas a este envío. Para surtirlo ya, termina la captura; si no, se termina sola a los 30 minutos sin movimiento.';
+
+/** Almacén puede terminar la captura él mismo (con permiso de cambiar estados). */
+export function canFinishShipmentCapture(
+  d: Partial<Pick<Delivery, 'kind' | 'shipmentStatus' | 'shipmentId'>>,
+  canAct: boolean,
+): boolean {
+  return canAct && isShipmentInCapture(d) && !!d.shipmentId;
+}
+
+/** Al envío se le sumó una venta o se le corrigió el destino después de terminarlo. */
+export function shipmentChangedAfterClose(
+  d: Partial<Pick<Delivery, 'shipmentStatus' | 'shipmentChangedAfterCloseAt'>>,
+): boolean {
+  return d.shipmentStatus === 'closed' && !!d.shipmentChangedAfterCloseAt;
+}
+
+export const SHIPMENT_NO_TICKET_LABEL = 'Sin ticket y sin nota';
+
+/**
+ * Título de un envío en la bandeja y en la hoja: "Envío ENV-2026-000123 · 3 ventas"; sin
+ * folio (consolidado anterior a la mig 211) "Envío consolidado · 3 ventas".
+ */
+export function shipmentTitle(d: Partial<Pick<Delivery, 'shipmentFolio'>>, sales: number): string {
+  const count = `${sales} ${sales === 1 ? 'venta' : 'ventas'}`;
+  return d.shipmentFolio ? `Envío ${d.shipmentFolio} · ${count}` : `Envío consolidado · ${count}`;
 }
 
 const ACTION_TITLES: Record<DeliveryAction, string> = {

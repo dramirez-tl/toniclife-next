@@ -18,10 +18,33 @@
 // Personalización (mig 179, 30-oct-2026): si un renglón trae el texto que el
 // comprador escribió para estampar, la hoja de surtido avisa arriba y lo pinta
 // enmarcado bajo el producto; el ticket lo lista bajo el nombre.
+//
+// ENVÍO con folio de Call Center (API mig 211, 17-nov-2026): la hoja lleva el
+// folio del envío (ENV-…), avisa en grande "SIN TICKET Y SIN NOTA", "EN CAPTURA"
+// o "cambió después de terminarse", y con varias ventas trae DOS secciones: el
+// total por producto (lo que se saca del almacén) y lo que lleva cada
+// distribuidor. Los tickets de todas las ventas del envío salen en una sola
+// impresión, uno por hoja (buildTicketsHtml).
 
 import type { Delivery } from '@/types/deliveries';
 import { DELIVERY_MODE_LABELS } from '@/types/deliveries';
-import { deliveryDocLabel, deliveryModeOf, deliveryStatusLabel, paymentMethodLabel } from '@/lib/deliveries/actions';
+import {
+  SHIPMENT_IN_CAPTURE_LABEL,
+  SHIPMENT_NO_TICKET_LABEL,
+  deliveryDocLabel,
+  deliveryModeOf,
+  deliveryStatusLabel,
+  isShipmentInCapture,
+  paymentMethodLabel,
+  shipmentChangedAfterClose,
+  shipmentTitle,
+} from '@/lib/deliveries/actions';
+import {
+  isMultiSaleShipment,
+  liveShipmentSales,
+  shipmentSaleCustomerLabel,
+  shipmentSalesBreakdown,
+} from '@/lib/deliveries/shipment-sheet';
 import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 
 // Compatibilidad: el nombre vivía aquí; ahora la regla está en lib/deliveries/actions.
@@ -86,6 +109,9 @@ const baseCss = (scale: number) => `
   tr.comp td { background: #fafafa; font-size: calc(11px * var(--s)); padding-top: 3px; padding-bottom: 3px; }
   .perso { display: inline-block; margin-top: 3px; padding: 2px 6px; border: 2px solid #111; border-radius: 4px; font-weight: bold; }
   .box.alert { border: 2px solid #111; background: #fff3c4; font-weight: bold; }
+  .box.alert.strong { font-size: calc(17px * var(--s)); text-align: center; letter-spacing: .03em; }
+  table.bysale { margin-top: 8px; break-inside: avoid; page-break-inside: avoid; }
+  table.bysale th { text-transform: none; font-size: calc(12px * var(--s)); }
   tfoot td { font-weight: bold; background: #f7f7f7; }
   .sign { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; font-size: calc(11px * var(--s)); text-align: center; }
   .sign div { border-top: 1px solid #333; padding-top: 4px; }
@@ -97,7 +123,7 @@ const baseCss = (scale: number) => `
  *  desglosa cada producto por venta/distribuidor. Con una sola venta lleva
  *  precio unitario e importe por renglón y el total de la venta. */
 export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?: number): string {
-  const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
+  const consolidated = isMultiSaleShipment(d);
   const items = consolidated
     ? (d.shipmentItems ?? []).map((it) => ({
         productSku: it.productSku,
@@ -164,16 +190,52 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
     })
     .join('');
   const units = items.reduce((s, it) => s + it.quantity, 0);
-  const sales = consolidated ? (d.shipmentDeliveries ?? []) : [];
+  // Las ventas canceladas ya no van en el paquete (sus productos tampoco vienen arriba).
+  const sales = consolidated ? liveShipmentSales(d) : [];
   const isOrder = d.kind === 'order';
   const pickup = deliveryModeOf(d) === 'pickup';
-  const title = consolidated ? `Envío consolidado · ${sales.length} ventas` : deliveryDocLabel(d);
+  const title = consolidated
+    ? shipmentTitle(d, sales.length)
+    : d.shipmentFolio
+      ? `Envío ${d.shipmentFolio} · ${deliveryDocLabel(d)}`
+      : deliveryDocLabel(d);
+  // Avisos del envío con folio (mig 211): van arriba y en grande.
+  const shipmentAlerts = [
+    isShipmentInCapture(d)
+      ? `<div class="box alert strong">EN CAPTURA: Call Center todavía le está sumando ventas a este envío.<br>No lo empaques hasta que esté terminado; esta hoja puede quedar incompleta.</div>`
+      : '',
+    d.shipmentNoTicket
+      ? `<div class="box alert strong">${esc(SHIPMENT_NO_TICKET_LABEL.toUpperCase())}: no metas ticket ni nota de venta en el paquete.</div>`
+      : '',
+    shipmentChangedAfterClose(d)
+      ? `<div class="box alert">Este envío cambió después de terminarse (${esc(dateTime(d.shipmentChangedAfterCloseAt, timeZone))}): se le sumó una venta o se corrigió el destino. Esta es la orden vigente; descarta la impresión anterior.</div>`
+      : '',
+  ].join('');
+  // Segunda sección (envío de varias ventas): qué lleva cada distribuidor.
+  const bySale = consolidated
+    ? shipmentSalesBreakdown(d)
+        .map(
+          (sale) => `
+    <table class="bysale">
+      <thead><tr><th colspan="3">${esc(sale.saleNumber)} · ${esc(shipmentSaleCustomerLabel(sale))}</th><th class="num">${esc(sale.units)} pza(s) · ${esc(money(sale.saleTotal, d.currencyCode))}</th></tr></thead>
+      <tbody>${
+        sale.lines
+          .map(
+            (l) =>
+              `<tr><td style="width:24px"><span class="check small"></span></td><td style="width:90px">${esc(l.productSku)}</td><td>${esc(l.productName)}</td><td class="num big">${esc(l.quantity)}</td></tr>`,
+          )
+          .join('') || '<tr><td colspan="4" class="muted">Sin renglones</td></tr>'
+      }</tbody>
+    </table>`,
+        )
+        .join('')
+    : '';
   const distributorBox = consolidated
     ? `<div class="muted">Ventas en este paquete</div>
        <table style="margin-top:4px"><tbody>${sales
          .map(
            (s) =>
-             `<tr><td>${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td><td class="num">${esc(money(s.saleTotal, d.currencyCode))}</td></tr>`,
+             `<tr><td style="white-space:nowrap">${esc(s.saleNumber)}</td><td>${esc(s.customerNumber ?? '')} ${esc(s.customerName ?? '')}</td><td class="num">${esc(s.itemsUnits)} pza(s)</td><td class="num">${esc(money(s.saleTotal, d.currencyCode))}</td></tr>`,
          )
          .join('')}</tbody></table>`
     : `<div class="muted">${isOrder ? 'Comprador' : 'Distribuidor'}</div>
@@ -183,7 +245,7 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
     : `<tfoot><tr><td colspan="4" class="num">${items.length} renglón(es)</td><td class="num">${units} pza(s)</td></tr></tfoot>`;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Surtido ${esc(title)}</title><style>${baseCss(scaleOf(fontScale))}</style></head><body>
     <h1>Hoja de surtido · ${esc(title)}</h1>
-    <div class="muted">${esc(DELIVERY_MODE_LABELS[deliveryModeOf(d)])} · ${esc(deliveryStatusLabel({ status: d.status, deliveryMode: d.deliveryMode }))} · ${pickup ? 'Entrega en mostrador' : 'Surte'}: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
+    <div class="muted">${esc(DELIVERY_MODE_LABELS[deliveryModeOf(d)])} · ${esc(isShipmentInCapture(d) && d.status === 'pending' ? SHIPMENT_IN_CAPTURE_LABEL : deliveryStatusLabel({ status: d.status, deliveryMode: d.deliveryMode }))} · ${pickup ? 'Entrega en mostrador' : 'Surte'}: ${esc(d.fulfillBranchCode)} ${esc(d.fulfillBranchName)} · Impreso ${esc(dateTime(new Date().toISOString(), timeZone))}</div>
     <div class="grid">
       <div class="box">
         ${distributorBox}
@@ -207,12 +269,14 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
         ? `<div class="box alert">&#9998; Lleva texto a estampar en ${personalized} renglón(es): estámpalo antes de empacar (ver "Personalización" en cada producto).</div>`
         : ''
     }
-    <h2>Productos (${items.length} renglón(es) · ${units} pieza(s))</h2>
+    ${shipmentAlerts}
+    <h2>${consolidated ? '1. Total por producto' : 'Productos'} (${items.length} renglón(es) · ${units} pieza(s))</h2>
     <table>
       <thead><tr><th class="num">#</th><th></th><th>Clave</th><th>Producto</th><th class="num">Cant.</th>${withPrices ? '<th class="num">P. unit.</th><th class="num">Importe</th>' : ''}</tr></thead>
       <tbody>${rows || `<tr><td colspan="${cols}" class="muted">Sin renglones</td></tr>`}</tbody>
       ${foot}
     </table>
+    ${consolidated ? `<h2>2. Por distribuidor (${sales.length} ventas en el paquete)</h2>${bySale}` : ''}
     ${d.warehouseNotes ? `<div class="box"><span class="muted">Observaciones de Almacén:</span> ${esc(d.warehouseNotes)}</div>` : ''}
     ${
       pickup
@@ -232,6 +296,44 @@ export function buildPickingSheetHtml(d: Delivery, timeZone?: string, fontScale?
  *  Sin lote: el POS no registra el lote al vender (pos_sale_items.lot_number
  *  siempre vacío), así que no hay un lote confiable que imprimir. */
 export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: number): string {
+  return buildTicketsHtml([d], timeZone, fontScale);
+}
+
+/**
+ * Los tickets de TODAS las ventas de un envío en una sola impresión, uno por hoja (cada
+ * distribuidor conserva su ticket). Con una sola entrega es el ticket de siempre.
+ */
+export function buildTicketsHtml(list: Delivery[], timeZone?: string, fontScale?: number): string {
+  const scale = scaleOf(fontScale);
+  const title =
+    list.length === 1 ? `Ticket ${list[0].saleNumber}` : `Tickets ${list.map((d) => d.saleNumber).join(', ')}`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${ticketCss(scale)}</style></head><body>
+    ${list.map((d) => `<div class="ticket">${ticketBody(d, timeZone)}</div>`).join('')}
+  </body></html>`;
+}
+
+const ticketCss = (scale: number) => `
+    :root { --s: ${scale}; }
+    body { font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: calc(13px * var(--s)); margin: 0; padding: 10px; width: 80mm; color: #000; }
+    .c { text-align: center; } .muted { color: #444; font-size: calc(11px * var(--s)); }
+    table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } td.num { text-align: right; white-space: nowrap; }
+    tr.line td { padding-top: 6px; }
+    td.name { padding-top: 0; }
+    td.comp { font-size: calc(12px * var(--s)); padding: 1px 0 1px calc(8px * var(--s)); }
+    td.perso { padding: 0 0 2px calc(8px * var(--s)); text-decoration: underline; }
+    .sku { font-size: calc(12px * var(--s)); letter-spacing: .02em; }
+    .qty { font-size: calc(14px * var(--s)); }
+    .check { display: inline-block; width: calc(10px * var(--s)); height: calc(10px * var(--s)); border: 1px solid #000; vertical-align: middle; }
+    th { font-size: calc(11px * var(--s)); text-align: right; padding: 0 0 2px; border-bottom: 1px dashed #333; }
+    th.l { text-align: left; }
+    hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
+    .tot td { font-size: calc(15px * var(--s)); }
+    .warn { border: 2px solid #000; padding: 4px; margin-bottom: 6px; text-align: center; }
+    .ticket + .ticket { break-before: page; page-break-before: always; margin-top: 18px; padding-top: 12px; border-top: 2px dashed #000; }
+    @media print { @page { margin: 4mm; } .ticket + .ticket { margin-top: 0; padding-top: 0; border-top: 0; } }
+  `;
+
+function ticketBody(d: Delivery, timeZone?: string): string {
   const items = d.items ?? [];
   const rows = items
     .map((it) => {
@@ -253,29 +355,12 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
       ${persoRow}${children}`;
     })
     .join('');
-  const scale = scaleOf(fontScale);
-  const css = `
-    :root { --s: ${scale}; }
-    body { font-family: "Courier New", Courier, monospace; font-weight: bold; font-size: calc(13px * var(--s)); margin: 0; padding: 10px; width: 80mm; color: #000; }
-    .c { text-align: center; } .muted { color: #444; font-size: calc(11px * var(--s)); }
-    table { width: 100%; border-collapse: collapse; } td { padding: 2px 0; vertical-align: top; } td.num { text-align: right; white-space: nowrap; }
-    tr.line td { padding-top: 6px; }
-    td.name { padding-top: 0; }
-    td.comp { font-size: calc(12px * var(--s)); padding: 1px 0 1px calc(8px * var(--s)); }
-    td.perso { padding: 0 0 2px calc(8px * var(--s)); text-decoration: underline; }
-    .sku { font-size: calc(12px * var(--s)); letter-spacing: .02em; }
-    .qty { font-size: calc(14px * var(--s)); }
-    .check { display: inline-block; width: calc(10px * var(--s)); height: calc(10px * var(--s)); border: 1px solid #000; vertical-align: middle; }
-    th { font-size: calc(11px * var(--s)); text-align: right; padding: 0 0 2px; border-bottom: 1px dashed #333; }
-    th.l { text-align: left; }
-    hr { border: 0; border-top: 1px dashed #333; margin: 6px 0; }
-    .tot td { font-size: calc(15px * var(--s)); }
-    @media print { @page { margin: 4mm; } }
-  `;
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ticket ${esc(d.saleNumber)}</title><style>${css}</style></head><body>
+  return `
+    ${d.shipmentNoTicket ? `<div class="warn">ENVÍO ${esc(SHIPMENT_NO_TICKET_LABEL.toUpperCase())}<br>NO INCLUIR EN EL PAQUETE</div>` : ''}
     <div class="c">TONIC LIFE<br>${esc(d.saleBranchName)}</div>
     <hr>
     <div>Folio: ${esc(d.saleNumber)}</div>
+    ${d.shipmentFolio ? `<div>Envío: ${esc(d.shipmentFolio)}</div>` : ''}
     <div>Fecha: ${esc(dateTime(d.saleCreatedAt, timeZone))}</div>
     <div>Cliente: ${esc(d.customerNumber ?? '')} ${esc(d.customerName ?? d.recipientName)}</div>
     <div>Pago: ${esc(paymentMethodLabel(d.paymentMethod))}</div>
@@ -293,25 +378,58 @@ export function buildTicketHtml(d: Delivery, timeZone?: string, fontScale?: numb
     ${d.reference ? `<div class="muted">Ref.: ${esc(d.reference)}</div>` : ''}
     ${d.carrier || d.trackingNumber ? `<div>${esc(d.carrier ?? '')} ${d.trackingNumber ? `· Guía ${esc(d.trackingNumber)}` : ''}</div>` : ''}
     <hr>
-    <div class="c muted">Gracias por su compra</div>
-  </body></html>`;
+    <div class="c muted">Gracias por su compra</div>`;
+}
+
+export interface PrintWindow {
+  /** Escribe el HTML y lanza el diálogo de impresión. */
+  write: (html: string) => void;
+  /** Cierra la ventana (no se pudo armar lo que se iba a imprimir). */
+  close: () => void;
+}
+
+/**
+ * Abre la ventana de impresión YA (dentro del clic, para que el navegador no la bloquee) y
+ * deja escribir el HTML después: sirve cuando hay que pedir datos antes de imprimir (los
+ * tickets de todas las ventas de un envío). null = el navegador bloqueó la ventana.
+ */
+export function openPrintWindow(): PrintWindow | null {
+  const w = window.open('', '_blank', 'width=900,height=720');
+  if (!w) return null;
+  w.document.open();
+  w.document.write(
+    '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Preparando la impresión…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#444">Preparando la impresión…</body></html>',
+  );
+  w.document.close();
+  return {
+    write(html: string) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      // Dar tiempo a que pinte antes de imprimir (Chrome imprime en blanco si no).
+      setTimeout(() => {
+        try {
+          w.print();
+        } catch {
+          // el usuario puede imprimir desde la ventana
+        }
+      }, 250);
+    },
+    close() {
+      try {
+        w.close();
+      } catch {
+        // ya estaba cerrada
+      }
+    },
+  };
 }
 
 /** Abre el HTML en una ventana nueva y lanza el diálogo de impresión. */
 export function printHtml(html: string): boolean {
-  const w = window.open('', '_blank', 'width=900,height=720');
-  if (!w) return false;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  // Dar tiempo a que pinte antes de imprimir (Chrome imprime en blanco si no).
-  setTimeout(() => {
-    try {
-      w.print();
-    } catch {
-      // el usuario puede imprimir desde la ventana
-    }
-  }, 250);
+  const win = openPrintWindow();
+  if (!win) return false;
+  win.write(html);
   return true;
 }

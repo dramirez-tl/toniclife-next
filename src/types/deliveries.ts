@@ -162,6 +162,20 @@ export interface Delivery {
   shipmentKey: string;
   /** Entregas (ventas) que comparten el envío; 1 = sencillo. */
   shipmentSize: number;
+  /**
+   * ENVÍO con folio de Call Center (API mig 211, 17-nov-2026): la cabecera con el destino a
+   * la que se le suman ventas de uno o varios distribuidores. Ausentes o null en entregas
+   * anteriores, en pedidos web y con un API anterior.
+   */
+  shipmentId?: string | null;
+  /** ENV-2026-000123 */
+  shipmentFolio?: string | null;
+  /** open = en captura (Call Center le sigue sumando ventas; aún no se surte) · closed = terminado. */
+  shipmentStatus?: ShipmentStatus | null;
+  /** Enviar sin ticket y sin nota dentro del paquete. */
+  shipmentNoTicket?: boolean;
+  /** Se le sumó una venta o se corrigió el destino DESPUÉS de terminarlo: hay que volver a imprimir. */
+  shipmentChangedAfterCloseAt?: string | null;
   /** Solo en el detalle. */
   items?: DeliveryItem[];
   /** Solo en el detalle de un envío consolidado: todas las ventas del paquete. */
@@ -169,6 +183,9 @@ export interface Delivery {
   /** Solo en el detalle de un envío consolidado: productos de todas las ventas, por producto. */
   shipmentItems?: ShipmentItem[];
 }
+
+/** Estado de la cabecera del envío (mig 211). */
+export type ShipmentStatus = 'open' | 'closed' | 'cancelled';
 
 export interface ShipmentDeliverySummary {
   id: string;

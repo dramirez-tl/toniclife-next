@@ -63,6 +63,17 @@ export function useUpdateDeliveryStatus() {
   });
 }
 
+/** Almacén termina la captura de un envío de Call Center (mig 211): ya se puede surtir. */
+export function useCloseShipment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (shipmentId: string) => deliveriesService.closeShipment(shipmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: deliveryKeys.all });
+    },
+  });
+}
+
 export function useUpdateDelivery() {
   const queryClient = useQueryClient();
   return useMutation({

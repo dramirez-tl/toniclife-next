@@ -46,6 +46,18 @@ export const deliveriesService = {
   },
 
   /**
+   * Termina la captura de un ENVÍO de Call Center (API mig 211) desde Almacén: ya se puede
+   * surtir. Necesita al menos una venta cobrada; terminar uno ya terminado no hace nada.
+   */
+  async closeShipment(shipmentId: string): Promise<{ id: string; folio: string; salesCount: number }> {
+    const { data } = await api.post<{ id: string; folio: string; salesCount: number }>(
+      `/pos/shipments/${shipmentId}/close`,
+      { fromWarehouse: true },
+    );
+    return data;
+  },
+
+  /**
    * Paqueterías ACTIVAS del catálogo por país (mig 200) para marcar un envío. Lista
    * vacía = no hay catálogo (migración pendiente o ninguna registrada): se escribe a mano.
    */

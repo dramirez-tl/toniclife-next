@@ -10,14 +10,23 @@
 // Puede ver la orden de surtido y el ticket e imprimirlos. Sin fechas, el API
 // muestra desde HOY más todo lo que siga abierto (las ventas anteriores al
 // arranque se surtieron en el legacy).
+//
+// ENVÍO con folio de Call Center (API mig 211, 17-nov-2026): varias ventas (una por
+// distribuidor) que viajan a un solo domicilio se ven como UN renglón con su folio
+// ENV-…. Mientras está "en captura" Call Center le sigue sumando ventas: Almacén lo
+// ve, pero no lo marca listo ni enviado hasta terminarlo (puede terminarlo aquí). La
+// orden de surtido trae el total por producto y lo que lleva cada distribuidor, avisa
+// "sin ticket y sin nota" y si el envío cambió después de terminarse, e imprime los
+// tickets de todas sus ventas de una vez.
 
-import { Fragment, Suspense, useMemo, useState } from 'react';
+import { Fragment, Suspense, useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import {
   ArrowPathIcon,
   ArrowUturnLeftIcon,
   BuildingStorefrontIcon,
+  CheckBadgeIcon,
   CheckCircleIcon,
   ClockIcon,
   EyeIcon,
@@ -50,12 +59,14 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import {
+  useCloseShipment,
   useDeliveries,
   useDelivery,
   useDeliveryCarriers,
   useUpdateDelivery,
   useUpdateDeliveryStatus,
 } from '@/hooks/useDeliveries';
+import { deliveriesService } from '@/services/deliveries.service';
 import {
   DELIVERY_KIND_LABELS,
   DELIVERY_MODE_LABELS,
@@ -65,12 +76,16 @@ import {
   type DeliveryQuery,
   type DeliveryStatus,
 } from '@/types/deliveries';
-import { buildPickingSheetHtml, buildTicketHtml, printHtml } from '@/lib/delivery-print';
+import { buildPickingSheetHtml, buildTicketsHtml, openPrintWindow, printHtml } from '@/lib/delivery-print';
 import {
   DELIVERY_DETAIL_ONLY_ACTIONS,
   PICKUP_READY_LABEL,
   RECEIVED_BY_NAME_MAX,
+  SHIPMENT_IN_CAPTURE_LABEL,
+  SHIPMENT_IN_CAPTURE_NOTICE,
+  SHIPMENT_NO_TICKET_LABEL,
   availableDeliveryActions,
+  canFinishShipmentCapture,
   deliveryActionTitle,
   deliveryCancelNotice,
   deliveryDocLabel,
@@ -78,10 +93,19 @@ import {
   deliveryPaymentNotice,
   deliveryPaymentShort,
   deliveryStatusLabel,
+  isShipmentInCapture,
   needsReceivedByName,
   paymentMethodLabel,
+  shipmentChangedAfterClose,
+  shipmentTitle,
   type DeliveryAction,
 } from '@/lib/deliveries/actions';
+import {
+  isMultiSaleShipment,
+  liveShipmentSales,
+  shipmentSaleCustomerLabel,
+  shipmentSalesBreakdown,
+} from '@/lib/deliveries/shipment-sheet';
 import {
   OTHER_CARRIER,
   carriersForDelivery,
@@ -158,6 +182,64 @@ function KindBadges({ d }: { d: Pick<Delivery, 'kind' | 'deliveryMode'> }) {
           {DELIVERY_MODE_LABELS.pickup}
         </span>
       ) : null}
+    </span>
+  );
+}
+
+type ShipmentBadgeFields = Pick<
+  Delivery,
+  'kind' | 'shipmentFolio' | 'shipmentStatus' | 'shipmentNoTicket' | 'shipmentChangedAfterCloseAt'
+>;
+
+/**
+ * Avisos de un envío con folio (mig 211): va sin ticket, o cambió después de terminarse (hay
+ * que volver a imprimir la orden). `withFolio` agrega el folio cuando el renglón no lo trae
+ * ya en su título (envío de una sola venta).
+ */
+function ShipmentBadges({
+  d,
+  timeZone,
+  withFolio = false,
+}: {
+  d: ShipmentBadgeFields;
+  timeZone: string;
+  withFolio?: boolean;
+}) {
+  const changed = shipmentChangedAfterClose(d);
+  if (!(withFolio && d.shipmentFolio) && !d.shipmentNoTicket && !changed) return null;
+  return (
+    <span className="mt-0.5 flex flex-wrap gap-1">
+      {withFolio && d.shipmentFolio ? (
+        <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 font-mono text-[11px] font-medium text-violet-800">
+          {d.shipmentFolio}
+        </span>
+      ) : null}
+      {d.shipmentNoTicket ? (
+        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+          {SHIPMENT_NO_TICKET_LABEL}
+        </span>
+      ) : null}
+      {changed ? (
+        <span
+          className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+          title={`Se le sumó una venta o se corrigió el destino el ${formatDateTime(d.shipmentChangedAfterCloseAt, timeZone)}: vuelve a imprimir la orden`}
+        >
+          Cambió · reimprime la orden
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** Estado del envío en captura (en lugar de "Pendiente de surtir": aún no se surte). */
+function InCaptureBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-800"
+      title={SHIPMENT_IN_CAPTURE_NOTICE}
+    >
+      <ClockIcon className="h-3 w-3" />
+      {SHIPMENT_IN_CAPTURE_LABEL}
     </span>
   );
 }
@@ -284,6 +366,24 @@ function EntregasContent() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [action, setAction] = useState<{ type: ActionType; delivery: Delivery } | null>(null);
 
+  // Envío de Call Center en captura (mig 211): Almacén puede terminarla para surtirlo ya.
+  const closeShipment = useCloseShipment();
+  const closeShipmentAsync = closeShipment.mutateAsync;
+  const closingShipmentId = closeShipment.isPending ? closeShipment.variables : undefined;
+  const finishCapture = useCallback(
+    async (d: Pick<Delivery, 'shipmentId' | 'shipmentFolio'>) => {
+      if (!d.shipmentId) return;
+      try {
+        const closed = await closeShipmentAsync(d.shipmentId);
+        toast.success(`Envío ${closed.folio ?? d.shipmentFolio ?? ''} terminado: ya se puede surtir.`);
+      } catch (err: unknown) {
+        const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        toast.error(message || 'No se pudo terminar la captura del envío');
+      }
+    },
+    [closeShipmentAsync],
+  );
+
   // Envío consolidado: las entregas que comparten clave se muestran como UN
   // renglón (el paquete), con sus ventas listadas. Las acciones aplican a todo
   // el envío (lo hace el API).
@@ -307,11 +407,12 @@ function EntregasContent() {
             <div>
               <button
                 type="button"
-                className="font-semibold text-[#3E667D] hover:underline"
+                className="text-left font-semibold text-[#3E667D] hover:underline"
                 onClick={() => setDetailId(d.id)}
               >
-                Envío consolidado · {d.shipmentSize} ventas
+                {shipmentTitle(d, d.shipmentSize)}
               </button>
+              <ShipmentBadges d={d} timeZone={timeZone} />
               <p className="font-mono text-xs text-gray-600">
                 {d.members.map((m) => m.saleNumber).join(', ')}
                 {d.members.length < d.shipmentSize ? ` (+${d.shipmentSize - d.members.length} fuera de esta vista)` : ''}
@@ -337,6 +438,7 @@ function EntregasContent() {
                 {d.saleNumber}
               </button>
               <KindBadges d={d} />
+              <ShipmentBadges d={d} timeZone={timeZone} withFolio />
               <p className="text-xs text-gray-500">
                 {formatDateTime(d.saleCreatedAt, timeZone)} · {paymentMethodLabel(d.paymentMethod)}
               </p>
@@ -418,7 +520,14 @@ function EntregasContent() {
         header: 'Estado',
         render: (d) => (
           <div className="space-y-1">
-            <StatusBadge status={d.status} label={deliveryStatusLabel(d)} />
+            {isShipmentInCapture(d) && d.status === 'pending' ? (
+              <>
+                <InCaptureBadge />
+                <p className="text-xs text-orange-800">Call Center sigue sumando ventas</p>
+              </>
+            ) : (
+              <StatusBadge status={d.status} label={deliveryStatusLabel(d)} />
+            )}
             {d.members.some((m) => m.status !== d.status) && (
               <p className="text-xs text-amber-700">Estados mixtos en el envío; abre el detalle</p>
             )}
@@ -449,6 +558,19 @@ function EntregasContent() {
             <Button variant="ghost" size="icon-sm" title="Ver orden y ticket" onClick={() => setDetailId(d.id)}>
               <EyeIcon className="h-4 w-4" />
             </Button>
+            {/* Envío en captura: Almacén puede terminarla él mismo para surtirlo ya. */}
+            {canFinishShipmentCapture(d, canAct) ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-orange-700 hover:bg-orange-50"
+                title="Terminar la captura: ya se puede surtir"
+                disabled={closingShipmentId === d.shipmentId}
+                onClick={() => finishCapture(d)}
+              >
+                <CheckBadgeIcon className="h-4 w-4" />
+              </Button>
+            ) : null}
             {/* Acciones según estado, modo (envío / recoger), cobro y origen (pedido web: sin cancelar);
                 las correcciones hacia atrás (regresar a pendiente / no se envió) solo en el detalle. */}
             {availableDeliveryActions(d, canAct)
@@ -473,7 +595,7 @@ function EntregasContent() {
         ),
       },
     ],
-    [canAct, timeZone, kindFilter],
+    [canAct, timeZone, kindFilter, finishCapture, closingShipmentId],
   );
 
   return (
@@ -488,7 +610,9 @@ function EntregasContent() {
             <p className="mt-1 text-sm text-white/70">
               Pedidos cobrados por Call Center en el POS con domicilio confirmado y pedidos web pagados en
               línea. Surte, marca listo, enviado (con guía) y entregado; los pedidos para recoger en sucursal
-              se marcan listos para recoger y entregados en mostrador. Se actualiza solo cada minuto.
+              se marcan listos para recoger y entregados en mostrador. Un envío de Call Center (ENV-…) junta
+              las ventas de varios distribuidores en un solo paquete: mientras dice &quot;En captura&quot; todavía
+              le están sumando ventas. Se actualiza solo cada minuto.
             </p>
           </div>
           <button
@@ -543,7 +667,7 @@ function EntregasContent() {
               id="deliveries-search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Folio (venta o pedido TL…), número de distribuidor, quien recibe o guía"
+              placeholder="Folio de venta, de pedido (TL…) o de envío (ENV-…), número de distribuidor, quien recibe o guía"
             />
             <Button type="submit" variant="outline" size="icon" title="Buscar">
               <MagnifyingGlassIcon className="h-4 w-4" />
@@ -642,6 +766,8 @@ function EntregasContent() {
         canAct={canAct}
         onClose={() => setDetailId(null)}
         onAction={(type, delivery) => setAction({ type, delivery })}
+        onFinishCapture={finishCapture}
+        finishingCapture={closeShipment.isPending}
       />
       {action ? (
         <DeliveryActionDialog
@@ -664,23 +790,72 @@ function DeliveryDetailDialog({
   canAct,
   onClose,
   onAction,
+  onFinishCapture,
+  finishingCapture,
 }: {
   id: string | null;
   timeZone: string;
   canAct: boolean;
   onClose: () => void;
   onAction: (type: ActionType, delivery: Delivery) => void;
+  onFinishCapture: (delivery: Delivery) => void;
+  finishingCapture: boolean;
 }) {
   const { data: d, isLoading } = useDelivery(id);
-  const [view, setView] = useState<'order' | 'ticket'>('order');
+  // La pestaña es de ESTA entrega: al abrir otra se empieza en la orden de surtido.
+  const [tab, setTab] = useState<{ id: string | null; view: 'order' | 'ticket' }>({ id: null, view: 'order' });
+  const view = tab.id === id ? tab.view : 'order';
+  const setView = (next: 'order' | 'ticket') => setTab({ id, view: next });
+  const [printingTickets, setPrintingTickets] = useState(false);
 
-  const print = (kind: 'order' | 'ticket') => {
+  // Envío de varias ventas: cada distribuidor conserva su ticket.
+  const multi = !!d && isMultiSaleShipment(d);
+  const liveSales = d && multi ? liveShipmentSales(d) : [];
+  const inCapture = !!d && isShipmentInCapture(d);
+
+  const blockedPopup = () =>
+    toast.error('El navegador bloqueó la ventana de impresión; permite ventanas emergentes.');
+
+  const print = async (kind: 'order' | 'ticket') => {
     if (!d) return;
     // La ventana de impresión no hereda el tamaño de letra del admin: se manda
     // la preferencia del usuario (Preferencias → tamaño de letra).
     const scale = currentFontScale();
-    const html = kind === 'order' ? buildPickingSheetHtml(d, timeZone, scale) : buildTicketHtml(d, timeZone, scale);
-    if (!printHtml(html)) toast.error('El navegador bloqueó la ventana de impresión; permite ventanas emergentes.');
+    if (kind === 'order') {
+      if (!printHtml(buildPickingSheetHtml(d, timeZone, scale))) blockedPopup();
+      return;
+    }
+    if (
+      d.shipmentNoTicket &&
+      !window.confirm(
+        'Este envío va SIN TICKET Y SIN NOTA: el ticket no debe ir en el paquete. ¿Imprimirlo de todos modos?',
+      )
+    ) {
+      return;
+    }
+    if (!multi) {
+      if (!printHtml(buildTicketsHtml([d], timeZone, scale))) blockedPopup();
+      return;
+    }
+    // Tickets de TODAS las ventas del envío, uno por hoja. La ventana se abre ya (dentro
+    // del clic) y se llena cuando llegan las ventas.
+    const win = openPrintWindow();
+    if (!win) {
+      blockedPopup();
+      return;
+    }
+    setPrintingTickets(true);
+    try {
+      const list = await Promise.all(
+        liveSales.map((s) => (s.id === d.id ? Promise.resolve(d) : deliveriesService.getDelivery(s.id))),
+      );
+      win.write(buildTicketsHtml(list, timeZone, scale));
+    } catch {
+      win.close();
+      toast.error('No se pudieron cargar los tickets del envío; intenta de nuevo.');
+    } finally {
+      setPrintingTickets(false);
+    }
   };
 
   return (
@@ -688,8 +863,19 @@ function DeliveryDetailDialog({
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
-            {d ? deliveryDocLabel(d) : 'Entrega'}
-            {d ? <StatusBadge status={d.status} label={deliveryStatusLabel(d)} /> : null}
+            {d ? (multi ? shipmentTitle(d, liveSales.length) : deliveryDocLabel(d)) : 'Entrega'}
+            {d && !multi && d.shipmentFolio ? (
+              <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 font-mono text-[11px] font-medium text-violet-800">
+                {d.shipmentFolio}
+              </span>
+            ) : null}
+            {d ? (
+              inCapture && d.status === 'pending' ? (
+                <InCaptureBadge />
+              ) : (
+                <StatusBadge status={d.status} label={deliveryStatusLabel(d)} />
+              )
+            ) : null}
             {d && d.kind === 'order' && deliveryModeOf(d) === 'pickup' ? (
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                 {DELIVERY_MODE_LABELS.pickup}
@@ -728,11 +914,42 @@ function DeliveryDetailDialog({
                 <Button variant="outline" size="sm" onClick={() => print('order')}>
                   <PrinterIcon className="mr-1 h-4 w-4" /> Imprimir hoja de surtido
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => print('ticket')}>
-                  <PrinterIcon className="mr-1 h-4 w-4" /> Imprimir ticket
+                <Button variant="outline" size="sm" disabled={printingTickets} onClick={() => print('ticket')}>
+                  <PrinterIcon className="mr-1 h-4 w-4" />{' '}
+                  {multi ? `Imprimir tickets (${liveSales.length})` : 'Imprimir ticket'}
                 </Button>
               </div>
             </div>
+
+            {/* Avisos del envío con folio (mig 211) */}
+            {inCapture ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-3 rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-sm text-orange-900"
+              >
+                <ClockIcon className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold">En captura.</span> {SHIPMENT_IN_CAPTURE_NOTICE}
+                </span>
+              </div>
+            ) : null}
+            {d.shipmentNoTicket ? (
+              <p
+                role="status"
+                className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+              >
+                {SHIPMENT_NO_TICKET_LABEL.toUpperCase()}: no metas ticket ni nota de venta en el paquete.
+              </p>
+            ) : null}
+            {shipmentChangedAfterClose(d) ? (
+              <p
+                role="status"
+                className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+              >
+                Este envío cambió después de terminarse ({formatDateTime(d.shipmentChangedAfterCloseAt, timeZone)}):
+                se le sumó una venta o se corrigió el destino. Vuelve a imprimir la orden antes de surtirlo.
+              </p>
+            ) : null}
 
             {view === 'order' ? <OrderView d={d} timeZone={timeZone} /> : <TicketView d={d} timeZone={timeZone} />}
 
@@ -748,6 +965,12 @@ function DeliveryDetailDialog({
 
         {d && canAct ? (
           <DialogFooter className="flex-wrap gap-2 sm:justify-start">
+            {/* Envío en captura: primero hay que terminarla; después salen "Listo" y "Enviado". */}
+            {canFinishShipmentCapture(d, canAct) ? (
+              <Button disabled={finishingCapture} onClick={() => onFinishCapture(d)}>
+                <CheckBadgeIcon className="mr-1 h-4 w-4" /> Terminar captura
+              </Button>
+            ) : null}
             {/* Botones según estado, modo, cobro y origen (recoger: "Listo para recoger", "Entregar en
                 mostrador" y "Regresar a pendiente"; pedido web: sin "Cancelar entrega"). */}
             {availableDeliveryActions(d, canAct).map((a) => {
@@ -804,7 +1027,9 @@ function DeliveryDetailDialog({
 }
 
 function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
-  const consolidated = !!d.shipmentItems && !!d.shipmentDeliveries && d.shipmentDeliveries.length > 1;
+  const consolidated = isMultiSaleShipment(d);
+  // Qué lleva cada distribuidor (segunda sección de la orden de un envío de varias ventas).
+  const bySale = consolidated ? shipmentSalesBreakdown(d) : [];
   const isOrder = d.kind === 'order';
   const pickup = deliveryModeOf(d) === 'pickup';
   const items = d.items ?? [];
@@ -819,20 +1044,25 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-md border border-gray-200 p-3">
           <p className="text-xs uppercase text-gray-500">
-            {consolidated ? 'Envío consolidado' : isOrder ? 'Comprador' : 'Distribuidor'}
+            {consolidated ? 'Ventas en este paquete' : isOrder ? 'Comprador' : 'Distribuidor'}
           </p>
           {consolidated ? (
             <ul className="space-y-0.5">
               {d.shipmentDeliveries!.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-2">
-                  <span>
+                <li key={s.id} className="flex items-start justify-between gap-2">
+                  <span className="min-w-0">
                     <span className="font-mono text-xs text-gray-500">{s.saleNumber}</span>{' '}
                     {s.customerNumber ? <span className="font-mono">{s.customerNumber} </span> : null}
                     {s.customerName ?? '—'}
                   </span>
-                  <span className="text-xs text-gray-500">
-                    {s.itemsUnits} pza(s) · {formatMoney(s.saleTotal, d.currencyCode)}
-                    {s.status !== 'pending' && s.status !== d.status ? ` · ${s.statusLabel}` : ''}
+                  <span
+                    className={`shrink-0 whitespace-nowrap text-xs ${s.status === 'cancelled' ? 'text-red-600' : 'text-gray-500'}`}
+                  >
+                    {s.status === 'cancelled'
+                      ? 'Cancelada: no va en el paquete'
+                      : `${s.itemsUnits} pza(s) · ${formatMoney(s.saleTotal, d.currencyCode)}${
+                          s.status !== 'pending' && s.status !== d.status ? ` · ${s.statusLabel}` : ''
+                        }`}
                   </span>
                 </li>
               ))}
@@ -862,7 +1092,7 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
       </div>
       <p className="text-xs text-gray-600">
         {consolidated
-          ? `${d.shipmentDeliveries!.length} ventas en un solo paquete · ${formatMoney(d.shipmentDeliveries!.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode)} en total`
+          ? `${bySale.length} ${bySale.length === 1 ? 'venta' : 'ventas'} en un solo paquete · ${formatMoney(bySale.reduce((s, x) => s + x.saleTotal, 0), d.currencyCode)} en total`
           : `${deliveryDocLabel(d)} del ${formatDateTime(d.saleCreatedAt, timeZone)} · ${paymentMethodLabel(d.paymentMethod)} · ${formatMoney(d.saleTotal, d.currencyCode)}`}
       </p>
       {personalized > 0 ? (
@@ -875,6 +1105,11 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
             Lleva texto a estampar en {personalized} renglón(es): estámpalo antes de empacar (ver
             &quot;Personalización&quot; en cada producto).
           </span>
+        </p>
+      ) : null}
+      {consolidated ? (
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+          1. Total por producto (lo que se saca del almacén)
         </p>
       ) : null}
       <table className="w-full text-sm">
@@ -995,6 +1230,38 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
           </tr>
         </tfoot>
       </table>
+      {/* Segunda sección: qué lleva cada distribuidor (el paquete es uno; esto dice qué es de quién). */}
+      {consolidated ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            2. Por distribuidor ({bySale.length} {bySale.length === 1 ? 'venta' : 'ventas'} en el paquete)
+          </p>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+            {bySale.map((sale) => (
+              <div key={sale.deliveryId} className="rounded-md border border-gray-200 p-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <p className="font-medium">{shipmentSaleCustomerLabel(sale)}</p>
+                  <p className="text-xs text-gray-500">
+                    {sale.units} pza(s) · {formatMoney(sale.saleTotal, d.currencyCode)}
+                  </p>
+                </div>
+                <p className="font-mono text-xs text-gray-500">{sale.saleNumber}</p>
+                <ul className="mt-1 space-y-0.5 text-sm">
+                  {sale.lines.map((l) => (
+                    <li key={l.productId} className="flex justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="font-mono text-xs text-gray-500">{l.productSku}</span> {l.productName}
+                      </span>
+                      <span className="font-semibold">{l.quantity}</span>
+                    </li>
+                  ))}
+                  {sale.lines.length === 0 ? <li className="text-xs text-gray-500">Sin renglones</li> : null}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {(d.carrier || d.trackingNumber || d.warehouseNotes || d.receivedByName || d.handoffTerminal) && (
         <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-700">
           {d.carrier || d.trackingNumber ? (
@@ -1031,7 +1298,50 @@ function OrderView({ d, timeZone }: { d: Delivery; timeZone: string }) {
   );
 }
 
+/**
+ * Ticket en pantalla. En un envío de varias ventas cada distribuidor tiene el suyo: se elige
+ * de qué venta se ve (el botón de imprimir saca todos, uno por hoja).
+ */
 function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
+  const sales = isMultiSaleShipment(d) ? liveShipmentSales(d) : [];
+  const [saleId, setSaleId] = useState<string>(d.id);
+  const selectedId = sales.some((s) => s.id === saleId) ? saleId : d.id;
+  const other = useDelivery(sales.length > 0 && selectedId !== d.id ? selectedId : null);
+  const shown = selectedId === d.id ? d : other.data;
+  return (
+    <div className="space-y-2">
+      {sales.length > 1 ? (
+        <div className="flex flex-wrap justify-center gap-1">
+          {sales.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSaleId(s.id)}
+              className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                s.id === selectedId
+                  ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+              title={shipmentSaleCustomerLabel(s)}
+            >
+              <span className="font-mono">{s.saleNumber}</span>
+              {s.customerNumber ? ` · #${s.customerNumber}` : ''}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {shown ? (
+        <TicketCard d={shown} timeZone={timeZone} />
+      ) : (
+        <p className="py-6 text-center text-sm text-gray-500">
+          {other.isError ? 'No se pudo cargar el ticket de esa venta.' : 'Cargando ticket…'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TicketCard({ d, timeZone }: { d: Delivery; timeZone: string }) {
   const items = d.items ?? [];
   return (
     <div className="mx-auto w-full max-w-sm rounded-md border border-dashed border-gray-300 bg-white p-4 font-mono text-xs text-gray-900">
@@ -1041,6 +1351,7 @@ function TicketView({ d, timeZone }: { d: Delivery; timeZone: string }) {
       <p>
         Folio: <strong>{d.saleNumber}</strong>
       </p>
+      {d.shipmentFolio ? <p>Envío: {d.shipmentFolio}</p> : null}
       <p>Fecha: {formatDateTime(d.saleCreatedAt, timeZone)}</p>
       <p>
         Cliente: {d.customerNumber ?? ''} {d.customerName ?? d.recipientName}
