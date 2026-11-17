@@ -18,20 +18,23 @@ import {
 import { Input } from '@/components/ui/input';
 import { useSaveBotnaturaProduct } from '@/hooks/useBotnatura';
 import { billingErrorMessage } from '@/lib/billing-error';
-import { parseAmount, splitIvaIncluded } from '@/lib/billing/botnatura';
+import { BOTNATURA_LINES, BOTNATURA_LINE_LABEL, lineOf, parseAmount, splitIvaIncluded } from '@/lib/billing/botnatura';
 import { moneyMx as money } from '@/lib/billing/manual-free';
-import type { BotnaturaProduct, SaveBotnaturaProduct } from '@/types/botnatura';
+import type { BotnaturaLine, BotnaturaProduct, SaveBotnaturaProduct } from '@/types/botnatura';
 
 interface Props {
   /** null = alta de un producto nuevo. */
   product: BotnaturaProduct | null;
+  /** Línea propuesta en un alta (la del filtro de la pantalla). */
+  defaultLine?: BotnaturaLine;
   onClose: () => void;
 }
 
 const priceText = (value: number | null | undefined) => (value === null || value === undefined ? '' : String(value));
 
-export function BotnaturaProductDialog({ product, onClose }: Props) {
+export function BotnaturaProductDialog({ product, defaultLine, onClose }: Props) {
   const [code, setCode] = useState(product?.code ?? '');
+  const [line, setLine] = useState<BotnaturaLine>(product ? lineOf(product) : (defaultLine ?? 'regular'));
   const [name, setName] = useState(product?.name ?? '');
   const [listPrice, setListPrice] = useState(priceText(product?.listPrice));
   const [salePrice, setSalePrice] = useState(priceText(product?.salePrice));
@@ -54,6 +57,9 @@ export function BotnaturaProductDialog({ product, onClose }: Props) {
       listPrice: list,
       salePrice: sale,
       isActive,
+      // Solo viaja cuando se elige algo distinto: un servidor sin la migración 209 no la conoce.
+      ...(!product && line !== 'regular' ? { line } : {}),
+      ...(product && line !== lineOf(product) ? { line } : {}),
     };
     try {
       const saved = await save.mutateAsync({ id: product?.id, dto });
@@ -86,6 +92,24 @@ export function BotnaturaProductDialog({ product, onClose }: Props) {
               <Input value={code} onChange={(e) => setCode(e.target.value)} maxLength={40} className="font-mono" />
             </div>
           )}
+          <div>
+            <p className="mb-1 block text-xs font-medium text-gray-600">Línea</p>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-sm" role="radiogroup">
+              {BOTNATURA_LINES.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={line === value}
+                  onClick={() => setLine(value)}
+                  className={`rounded-md px-3 py-1.5 font-medium transition-colors ${line === value ? 'bg-[#3E667D] text-white shadow-sm' : 'text-gray-600 hover:bg-white'}`}
+                >
+                  {BOTNATURA_LINE_LABEL[value]}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">La misma clave puede existir en las dos líneas con otro producto y otro precio.</p>
+          </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">Nombre (así sale en la factura)</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={255} />

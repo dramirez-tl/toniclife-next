@@ -5,6 +5,7 @@
 
 import type {
   BotnaturaInvoiceRequest,
+  BotnaturaLine,
   BotnaturaPriceMode,
   BotnaturaProduct,
   BotnaturaReceiver,
@@ -14,6 +15,23 @@ export const BOTNATURA_PRICE_LABEL: Record<BotnaturaPriceMode, string> = {
   list: 'Precio',
   sale: 'Precio venta',
   custom: 'Otro precio',
+};
+
+export const BOTNATURA_LINES: BotnaturaLine[] = ['regular', 'line2'];
+
+export const BOTNATURA_LINE_LABEL: Record<BotnaturaLine, string> = {
+  regular: 'Regular',
+  line2: 'Línea 2',
+};
+
+/** Lo que no sea Línea 2 es Regular (también un servidor que aún no manda la línea). */
+export function lineOf(product: { line?: string | null }): BotnaturaLine {
+  return product.line === 'line2' ? 'line2' : 'regular';
+}
+
+export const LINE_BADGE: Record<BotnaturaLine, string> = {
+  regular: 'bg-gray-100 text-gray-700',
+  line2: 'bg-violet-100 text-violet-800',
 };
 
 /** Texto del precio con el que salió una factura ('mixed' = conceptos con precios distintos). */
@@ -26,7 +44,7 @@ export function priceModeLabel(mode: string): string {
 export type BotnaturaInvoiceMode = Exclude<BotnaturaPriceMode, 'custom'>;
 
 export interface BotnaturaLineDraft {
-  product: Pick<BotnaturaProduct, 'id' | 'code' | 'name' | 'listPrice' | 'salePrice'>;
+  product: Pick<BotnaturaProduct, 'id' | 'code' | 'name' | 'listPrice' | 'salePrice' | 'line'>;
   /** Como se tecleó. */
   quantity: string;
   /** null = usa el precio general de la factura. */

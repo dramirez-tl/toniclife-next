@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BOTNATURA_LINE_LABEL,
+  LINE_BADGE,
   catalogPrice,
   draftBlockers,
   draftTotal,
+  lineOf,
   lineProblem,
   lineTotal,
   lineUnitPrice,
@@ -167,5 +170,30 @@ describe('datos fiscales de Botnatura', () => {
       'Uso del CFDI',
       'Código postal fiscal',
     ]);
+  });
+});
+
+describe('líneas de producto', () => {
+  it('son Regular y Línea 2; sin dato (servidor anterior) cuenta como Regular', () => {
+    expect(lineOf({ line: 'line2' })).toBe('line2');
+    expect(lineOf({ line: 'regular' })).toBe('regular');
+    expect(lineOf({})).toBe('regular');
+    expect(lineOf({ line: null })).toBe('regular');
+    expect(BOTNATURA_LINE_LABEL).toEqual({ regular: 'Regular', line2: 'Línea 2' });
+    expect(LINE_BADGE.line2).not.toBe(LINE_BADGE.regular);
+  });
+
+  it('dos productos con la misma clave en líneas distintas son conceptos distintos', () => {
+    const regular = { id: 'p-reg', code: '1525', name: 'CLOROFILA 500 ML', listPrice: 145, salePrice: 72.5, line: 'regular' as const };
+    const premium = { id: 'p-l2', code: '1525', name: 'CLOROFILA 500 ML.', listPrice: 230, salePrice: 115, line: 'line2' as const };
+    const request = toInvoiceRequest(
+      draft({ lines: [line({ product: regular, quantity: '2' }), line({ product: premium, quantity: '3' })] }),
+      { sendEmail: false, notes: '' },
+    );
+    expect(request.lines).toEqual([
+      { productId: 'p-reg', quantity: 2 },
+      { productId: 'p-l2', quantity: 3 },
+    ]);
+    expect(draftTotal([line({ product: regular, quantity: '2' }), line({ product: premium, quantity: '3' })], 'sale')).toBe(490);
   });
 });

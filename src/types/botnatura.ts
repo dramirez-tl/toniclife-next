@@ -5,10 +5,16 @@
 /** Con qué precio se factura: "Precio", "Precio venta" (la mitad) o uno capturado. */
 export type BotnaturaPriceMode = 'list' | 'sale' | 'custom';
 
+/** Línea de producto (mig 209): la Regular y la Línea 2 (premium). La clave es única por línea. */
+export type BotnaturaLine = 'regular' | 'line2';
+
 export interface BotnaturaProduct {
   id: string;
   code: string;
   name: string;
+  /** Ausente con un servidor anterior a las líneas: se toma como Regular. */
+  line?: BotnaturaLine;
+  lineLabel?: string;
   unitName: string;
   satUnitCode: string;
   satProductCode: string;
@@ -24,6 +30,8 @@ export interface BotnaturaProduct {
 export interface BotnaturaProductsQuery {
   search?: string;
   status?: 'active' | 'inactive' | 'all';
+  /** Ausente = las dos líneas. */
+  line?: BotnaturaLine;
   withoutPrice?: 'true' | 'false';
   page?: number;
   limit?: number;
@@ -34,7 +42,12 @@ export interface BotnaturaProductsResponse {
   total: number;
   page: number;
   limit: number;
-  stats: { total: number; withPrice: number; active: number };
+  stats: {
+    total: number;
+    withPrice: number;
+    active: number;
+    byLine?: { regular: number; line2: number };
+  };
 }
 
 export interface SaveBotnaturaProduct {
@@ -43,6 +56,7 @@ export interface SaveBotnaturaProduct {
   listPrice?: number | null;
   salePrice?: number | null;
   isActive?: boolean;
+  line?: BotnaturaLine;
 }
 
 export interface BotnaturaReceiver {

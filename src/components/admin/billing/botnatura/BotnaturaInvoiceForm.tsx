@@ -34,9 +34,12 @@ import {
 } from '@/hooks/useBotnatura';
 import { billingErrorMessage } from '@/lib/billing-error';
 import {
+  BOTNATURA_LINE_LABEL,
   BOTNATURA_PRICE_LABEL,
+  LINE_BADGE,
   draftBlockers,
   draftTotal,
+  lineOf,
   lineProblem,
   lineTotal,
   lineUnitPrice,
@@ -52,6 +55,7 @@ import { getPaymentFormName } from '@/types/billing';
 import type {
   BotnaturaCreateResponse,
   BotnaturaInvoiceRequest,
+  BotnaturaLine,
   BotnaturaPreview,
   BotnaturaPriceMode,
   BotnaturaProduct,
@@ -96,13 +100,18 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
   // Buscador del catálogo de Botnatura (clave o parte del nombre).
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
+  // En cuál línea se busca ('' = las dos): la misma clave existe en ambas con otro producto.
+  const [searchLine, setSearchLine] = useState<BotnaturaLine | ''>('');
   const searchRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const t = setTimeout(() => setTerm(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
   const searchable = term.length >= 2;
-  const results = useBotnaturaProducts({ search: term, limit: 12 }, { enabled: searchable });
+  const results = useBotnaturaProducts(
+    { search: term, limit: 12, ...(searchLine ? { line: searchLine } : {}) },
+    { enabled: searchable },
+  );
   const matches = searchable && term === search.trim() ? (results.data?.data ?? []) : [];
 
   const addProduct = (p: BotnaturaProduct) => {
@@ -298,6 +307,29 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
         <Card>
           <CardContent className="p-5">
             <StepTitle n={3} title="Productos" />
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-xs font-medium text-gray-600">Buscar en</span>
+              <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1" role="tablist" aria-label="Línea de producto">
+                {(
+                  [
+                    ['', 'Las dos líneas'],
+                    ['regular', BOTNATURA_LINE_LABEL.regular],
+                    ['line2', BOTNATURA_LINE_LABEL.line2],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={searchLine === value}
+                    onClick={() => setSearchLine(value)}
+                    className={`rounded-md px-3 py-1 font-medium transition-colors ${searchLine === value ? 'bg-[#3E667D] text-white shadow-sm' : 'text-gray-600 hover:bg-white'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="relative">
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               <Input
@@ -329,7 +361,10 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
                       >
                         <span className="min-w-0">
                           <span className="font-mono text-xs text-gray-500">{p.code}</span>{' '}
-                          <span className="text-gray-900">{p.name}</span>
+                          <span className="text-gray-900">{p.name}</span>{' '}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${LINE_BADGE[lineOf(p)]}`}>
+                            {BOTNATURA_LINE_LABEL[lineOf(p)]}
+                          </span>
                         </span>
                         <span className="shrink-0 text-right text-xs text-gray-500">
                           {p.salePrice === null && p.listPrice === null
@@ -558,7 +593,10 @@ function LineRow({
     <tr>
       <td className={TD}>
         <span className="font-mono text-xs text-gray-500">{line.product.code}</span>{' '}
-        <span className="text-gray-900">{line.product.name}</span>
+        <span className="text-gray-900">{line.product.name}</span>{' '}
+        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${LINE_BADGE[lineOf(line.product)]}`}>
+          {BOTNATURA_LINE_LABEL[lineOf(line.product)]}
+        </span>
         {problem && <p className="mt-0.5 text-xs text-red-600">{problem}</p>}
       </td>
       <td className={TD}>

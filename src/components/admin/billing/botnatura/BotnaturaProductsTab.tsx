@@ -11,8 +11,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBotnaturaProducts } from '@/hooks/useBotnatura';
 import { billingErrorMessage } from '@/lib/billing-error';
+import { BOTNATURA_LINE_LABEL, LINE_BADGE, lineOf } from '@/lib/billing/botnatura';
 import { moneyMx as money } from '@/lib/billing/manual-free';
-import type { BotnaturaProduct, BotnaturaProductsQuery } from '@/types/botnatura';
+import type { BotnaturaLine, BotnaturaProduct, BotnaturaProductsQuery } from '@/types/botnatura';
 import { BotnaturaProductDialog } from './BotnaturaProductDialog';
 
 const TH = 'px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap';
@@ -24,6 +25,8 @@ export function BotnaturaProductsTab() {
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [status, setStatus] = useState<Status>('active');
+  // '' = las dos líneas.
+  const [line, setLine] = useState<BotnaturaLine | ''>('');
   const [withoutPrice, setWithoutPrice] = useState(false);
   const [page, setPage] = useState(1);
   // undefined = cerrado; null = alta; producto = edición.
@@ -39,6 +42,7 @@ export function BotnaturaProductsTab() {
 
   const products = useBotnaturaProducts({
     ...(term ? { search: term } : {}),
+    ...(line ? { line } : {}),
     status,
     ...(withoutPrice ? { withoutPrice: 'true' as const } : {}),
     page,
@@ -71,6 +75,32 @@ export function BotnaturaProductsTab() {
               <PlusIcon className="h-4 w-4" />
               Agregar producto
             </Button>
+          </div>
+          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-sm" role="tablist" aria-label="Línea de producto">
+            {(
+              [
+                ['', 'Todas', stats?.total],
+                ['regular', BOTNATURA_LINE_LABEL.regular, stats?.byLine?.regular],
+                ['line2', BOTNATURA_LINE_LABEL.line2, stats?.byLine?.line2],
+              ] as const
+            ).map(([value, label, count]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={line === value}
+                onClick={() => {
+                  setLine(value);
+                  setPage(1);
+                }}
+                className={`rounded-md px-3 py-1.5 font-medium transition-colors ${line === value ? 'bg-[#3E667D] text-white shadow-sm' : 'text-gray-600 hover:bg-white'}`}
+              >
+                {label}
+                {count !== undefined && (
+                  <span className={`ml-1.5 text-xs ${line === value ? 'text-white/80' : 'text-gray-400'}`}>{count}</span>
+                )}
+              </button>
+            ))}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative min-w-[260px] flex-1">
@@ -128,7 +158,12 @@ export function BotnaturaProductsTab() {
         )}
       </CardContent>
       {editing !== undefined && (
-        <BotnaturaProductDialog key={editing?.id ?? 'new'} product={editing} onClose={() => setEditing(undefined)} />
+        <BotnaturaProductDialog
+          key={editing?.id ?? 'new'}
+          product={editing}
+          defaultLine={line || 'regular'}
+          onClose={() => setEditing(undefined)}
+        />
       )}
     </Card>
   );
@@ -154,6 +189,7 @@ function ProductsTable({
         <thead className="bg-gray-50">
           <tr>
             <th className={TH}>Clave</th>
+            <th className={TH}>Línea</th>
             <th className={TH}>Nombre</th>
             <th className={`${TH} text-right`}>Precio venta</th>
             <th className={`${TH} text-right`}>Precio</th>
@@ -166,6 +202,11 @@ function ProductsTable({
           {rows.map((p) => (
             <tr key={p.id} className="hover:bg-gray-50">
               <td className={`${TD} whitespace-nowrap font-mono text-xs text-gray-600`}>{p.code}</td>
+              <td className={`${TD} whitespace-nowrap`}>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LINE_BADGE[lineOf(p)]}`}>
+                  {BOTNATURA_LINE_LABEL[lineOf(p)]}
+                </span>
+              </td>
               <td className={`${TD} text-gray-900`}>{p.name}</td>
               <td className={`${TD} whitespace-nowrap text-right tabular-nums`}>{price(p.salePrice)}</td>
               <td className={`${TD} whitespace-nowrap text-right tabular-nums`}>{price(p.listPrice)}</td>
