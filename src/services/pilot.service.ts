@@ -46,6 +46,11 @@ export interface PilotCheckoutState {
    * registra, con sus puntos, a nombre de otro. Ausente = el API aún no lo conoce.
    */
   buyForOther?: { enabled: boolean };
+  /**
+   * Facturar desde la cuenta (17-nov-2026): el distribuidor factura en su portal sus
+   * compras de la tienda del mes en curso. Ausente = el API aún no lo conoce.
+   */
+  selfInvoicing?: { enabled: boolean };
 }
 
 /** Lo que se puede cambiar de OXXO desde el admin (PATCH /admin/pilot/oxxo). */
@@ -111,6 +116,15 @@ class PilotService {
   async setBuyForOther(enabled: boolean): Promise<PilotCheckoutState> {
     const { data } = await api.patch<PilotCheckoutState>(
       '/admin/pilot/buy-for-other',
+      { enabled },
+    );
+    return data;
+  }
+
+  /** Enciende o apaga "facturar desde mi cuenta" en el portal. Responde el estado completo. */
+  async setSelfInvoicing(enabled: boolean): Promise<PilotCheckoutState> {
+    const { data } = await api.patch<PilotCheckoutState>(
+      '/admin/pilot/self-invoicing',
       { enabled },
     );
     return data;

@@ -26,6 +26,7 @@ import {
   PhoneIcon,
   ShoppingBagIcon,
   CubeIcon,
+  DocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { useMyOrders } from '@/hooks/useMyOrders';
+import { useSelfInvoicingAvailable } from '@/hooks/useSelfInvoicingAvailable';
 import { beneficiaryLabel } from '@/lib/checkout/buy-for-other';
 import { useMyOrder } from '@/hooks/useOrders';
 import { localeLanguage, type LanguageCode } from '@/i18n/config';
@@ -163,6 +165,8 @@ export function MyOrdersView({ variant = 'panel' }: MyOrdersViewProps) {
   const t = useTranslations('distributor.orders');
   const lang = localeLanguage(useLocale());
   const [page, setPage] = useState(1);
+  // Facturar desde la cuenta: solo en el panel del distribuidor y con la función encendida.
+  const selfInvoicing = useSelfInvoicingAvailable() && !inStore;
   const { data, isLoading, isError, refetch, isFetching } = useMyOrders({
     page,
     limit: PAGE_SIZE,
@@ -191,6 +195,14 @@ export function MyOrdersView({ variant = 'panel' }: MyOrdersViewProps) {
                 <Link href="/distribuidor">
                   <Button variant="secondary" size="sm">
                     {t('backToPanel')}
+                  </Button>
+                </Link>
+              )}
+              {selfInvoicing && (
+                <Link href="/distribuidor/facturas">
+                  <Button variant="secondary" size="sm">
+                    <DocumentCheckIcon className="h-4 w-4" />
+                    {t('invoiceMyPurchases')}
                   </Button>
                 </Link>
               )}

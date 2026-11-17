@@ -74,6 +74,21 @@ export const useSetPilotBuyForOther = () => {
   });
 };
 
+/**
+ * "Facturar desde mi cuenta" en el portal del distribuidor: encender o apagar. Invalida el
+ * estado del admin y el público (el portal muestra u oculta "Mis facturas").
+ */
+export const useSetPilotSelfInvoicing = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => pilotService.setSelfInvoicing(enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: pilotKeys.publicState() });
+      return qc.invalidateQueries({ queryKey: pilotKeys.checkout() });
+    },
+  });
+};
+
 export const useSetPilotFeature = () => {
   const qc = useQueryClient();
   return useMutation({

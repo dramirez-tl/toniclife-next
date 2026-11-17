@@ -15,6 +15,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
+import { useSelfInvoicingAvailable } from '@/hooks/useSelfInvoicingAvailable';
 import { MORE_GROUPS, COMING_SOON } from './distributorNav';
 import { DistributorLanguageToggle } from './DistributorLanguageToggle';
 
@@ -38,6 +39,7 @@ export function DistributorMoreMenu({ onNavigate }: DistributorMoreMenuProps) {
 
   const user = useAppSelector(selectUser);
   const { networkSummary, profile, points } = useDistributorDashboard();
+  const selfInvoicing = useSelfInvoicingAvailable();
 
   // Progreso hacia el mínimo personal para calificar (3,300 pts por defecto).
   const qualifyProgress = Math.min(
@@ -178,7 +180,10 @@ export function DistributorMoreMenu({ onNavigate }: DistributorMoreMenuProps) {
               {t(`groups.${group.key}`)}
             </p>
             <ul className="space-y-1">
-              {group.items.map((item) => {
+              {group.items
+                // "Mis facturas" aparece cuando Sistemas enciende la función.
+                .filter((item) => item.key !== 'invoices' || selfInvoicing)
+                .map((item) => {
                 const active = isActive(item.href);
                 return (
                   <li key={item.href}>
