@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { checkerLicensesService } from '@/services/checkerLicenses.service';
-import type { CreatePosLicenseDto, RevokePosLicenseDto, UpdatePosLicenseDto } from '@/types/posLicense';
+import type { CreateCheckerLicenseDto, RevokePosLicenseDto, UpdatePosLicenseDto } from '@/types/posLicense';
 
 export const checkerLicenseKeys = {
   all: ['checker-licenses'] as const,
@@ -25,7 +25,7 @@ const useInvalidate = () => {
 export const useCreateCheckerLicense = () => {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (dto: CreatePosLicenseDto) => checkerLicensesService.create(dto),
+    mutationFn: (dto: CreateCheckerLicenseDto) => checkerLicensesService.create(dto),
     onSuccess: invalidate,
   });
 };

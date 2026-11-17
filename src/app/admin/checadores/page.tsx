@@ -131,8 +131,13 @@ export default function CheckerLicensesPage() {
     if (!label) return void toast.error('Escribe el nombre del checador (por ejemplo, "Recepción").');
     try {
       if (form.mode === 'create') {
-        if (!values.branchId) return void toast.error('Elige la sucursal donde estará el checador.');
-        const license = await createLicense.mutateAsync({ branchId: values.branchId, label, notes: notes || undefined });
+        // Sin sucursal = "Todos (Corporativo)": el checador de oficinas, donde checa quien venga de
+        // cualquier sucursal. El API lo deja en la sucursal del corporativo.
+        const license = await createLicense.mutateAsync({
+          branchId: values.branchId || undefined,
+          label,
+          notes: notes || undefined,
+        });
         setForm(null);
         setCreated(license);
       } else {
@@ -351,20 +356,20 @@ export default function CheckerLicensesPage() {
             {form?.mode === 'create' && (
               <div className="grid gap-2">
                 <Label htmlFor="checker-branch">Sucursal</Label>
-                {/* Sin la opción "Todos" del selector: una licencia es de UNA sucursal, la del lugar
-                    donde está la tableta. No limita quién checa: cualquier colaborador puede hacerlo. */}
+                {/* "Todos (Corporativo)" (sin sucursal) = el checador de oficinas: aquí checa quien
+                    venga de cualquier sucursal a una cita o a apoyar. Con una sucursal elegida, el
+                    checador es de esa sucursal. En los dos casos puede checar cualquier colaborador. */}
                 <SearchableSelect
                   id="checker-branch"
                   options={branchOptions}
                   value={values.branchId}
                   onChange={(branchId) => setValues((v) => ({ ...v, branchId }))}
-                  placeholder="Elige la sucursal"
-                  showAllOption={false}
+                  allLabel="Todos (Corporativo)"
                   aria-describedby="checker-branch-help"
                 />
                 <p id="checker-branch-help" className="text-xs text-muted-foreground">
-                  Es el lugar donde está la tableta: de ahí sale su nombre y su horario. Ahí puede checar cualquier
-                  colaborador, sea de la sucursal que sea.
+                  Deja &quot;Todos (Corporativo)&quot; para el checador de oficinas, donde checa quien venga de cualquier
+                  sucursal. O elige la sucursal donde estará la tableta.
                 </p>
               </div>
             )}

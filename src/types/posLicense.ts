@@ -57,6 +57,13 @@ export interface CreatePosLicenseDto {
   notes?: string;
 }
 
+/** Alta de una licencia de checador. Sin `branchId` = "Todos (Corporativo)": el checador de oficinas. */
+export interface CreateCheckerLicenseDto {
+  branchId?: string;
+  label?: string;
+  notes?: string;
+}
+
 export interface UpdatePosLicenseDto {
   label?: string;
   notes?: string;

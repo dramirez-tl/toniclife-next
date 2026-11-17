@@ -4,7 +4,12 @@
 // (checker_licenses:manage). Estas rutas solo ven y tocan licencias de checador.
 
 import api from '@/lib/axios';
-import type { CreatePosLicenseDto, PosLicense, RevokePosLicenseDto, UpdatePosLicenseDto } from '@/types/posLicense';
+import type {
+  CreateCheckerLicenseDto,
+  PosLicense,
+  RevokePosLicenseDto,
+  UpdatePosLicenseDto,
+} from '@/types/posLicense';
 
 class CheckerLicensesService {
   async getAll(): Promise<PosLicense[]> {
@@ -12,7 +17,8 @@ class CheckerLicensesService {
     return response.data;
   }
 
-  async create(dto: CreatePosLicenseDto): Promise<PosLicense> {
+  /** Sin `branchId` la licencia es del checador de oficinas (sucursal Corporativo). */
+  async create(dto: CreateCheckerLicenseDto): Promise<PosLicense> {
     const response = await api.post<PosLicense>('/checker-licenses', dto);
     return response.data;
   }
