@@ -110,6 +110,19 @@ export function useOrderTracking(id: string | null) {
   });
 }
 
+/**
+ * Historial del pedido (pago y entrega paso por paso). Sin reintentos: si el servidor aún no
+ * trae la ruta, la ficha se queda con la tarjeta de pago de siempre.
+ */
+export function useOrderTimeline(id: string | null) {
+  return useQuery({
+    queryKey: ['orders', 'admin', id, 'timeline'],
+    queryFn: () => ordersService.getTimeline(id!),
+    enabled: !!id,
+    retry: false,
+  });
+}
+
 export function useOrderPayments(id: string | null) {
   return useQuery({
     queryKey: ['orders', 'admin', id, 'payments'],

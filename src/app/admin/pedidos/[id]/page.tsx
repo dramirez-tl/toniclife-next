@@ -24,6 +24,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useOrder,
   useOrderTracking,
+  useOrderTimeline,
   useUpdateOrderStatus,
   useCancelOrder,
 } from '@/hooks/useOrders';
@@ -43,6 +44,8 @@ import {
 } from '@/lib/billing-error';
 import { downloadInvoiceFile } from '@/lib/invoice-download';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { OrderPaymentCard } from '@/components/admin/orders/OrderPaymentCard';
+import { OrderTimelineCard } from '@/components/admin/orders/OrderTimelineCard';
 import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -201,6 +204,9 @@ export default function OrderDetailAdminPage() {
   const queryClient = useQueryClient();
   const { data: order, isLoading, error } = useOrder(id);
   const { data: tracking } = useOrderTracking(id);
+  // Historial del pedido (pago con tarjeta u OXXO, ficha y entrega paso por paso). Si el
+  // servidor aún no trae la ruta, la ficha queda como antes.
+  const { data: timeline } = useOrderTimeline(id);
   const updateStatus = useUpdateOrderStatus();
   const cancelOrderMutation = useCancelOrder();
   const createInvoice = useCreateInvoice();
@@ -432,6 +438,11 @@ export default function OrderDetailAdminPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {timeline && (
+          <div className="mb-8">
+            <OrderTimelineCard timeline={timeline} />
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -623,6 +634,9 @@ export default function OrderDetailAdminPage() {
               )}
             </div>
 
+            {/* Pago: método (tarjeta u OXXO), estado, ficha y fechas */}
+            {timeline && <OrderPaymentCard payment={timeline.payment} />}
+
             {/* Entrega de almacén (pos_sale_deliveries con order_id, mig 176) */}
             <OrderDeliveryCard
               delivery={tracking?.delivery}
@@ -758,7 +772,8 @@ export default function OrderDetailAdminPage() {
               </div>
             )}
 
-            {/* Payment Info */}
+            {/* Payment Info: solo mientras no llega el historial (arriba va la tarjeta nueva) */}
+            {!timeline && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Pago</h2>
               <div className="space-y-3 text-sm">
@@ -789,6 +804,7 @@ export default function OrderDetailAdminPage() {
                 )}
               </div>
             </div>
+            )}
 
             {/* Invoice / Facturación */}
             <div className="bg-white rounded-lg shadow p-6">

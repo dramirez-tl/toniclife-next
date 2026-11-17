@@ -2,6 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
 import api from '@/lib/api';
+import type { OrderTimeline } from '@/types/order-timeline';
 import type {
   Order,
   OrderQueryParams,
@@ -131,6 +132,12 @@ class OrdersService {
 
   async getTracking(id: string): Promise<TrackingInfo> {
     const response = await api.get<TrackingInfo>(`/orders/${id}/tracking`);
+    return response.data;
+  }
+
+  /** Historial del pedido: pago (tarjeta u OXXO), ficha y entrega, paso por paso. */
+  async getTimeline(id: string): Promise<OrderTimeline> {
+    const response = await api.get<OrderTimeline>(`/orders/${id}/timeline`);
     return response.data;
   }
 
