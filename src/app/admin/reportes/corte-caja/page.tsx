@@ -7,9 +7,10 @@
 //
 // También trae los pedidos de la tienda en línea que la sucursal surte o
 // entrega (como el corte del sistema anterior). Esos NO pasaron por su caja:
-// salen con la forma de pago "Pedido en linea" y el total se muestra partido en
-// "en caja" y "en línea", para que la sucursal y Contabilidad vean por qué el
-// corte es mayor que lo cobrado en caja (14-nov-2026).
+// su forma de pago dice con qué se cobraron en línea, "Stripe (tarjeta)" o
+// "Stripe (OXXO)" (17-nov-2026; "Pedido en linea" si no se sabe), y el total se
+// muestra partido en "en caja" y "en línea", para que la sucursal y Contabilidad
+// vean por qué el corte es mayor que lo cobrado en caja (14-nov-2026).
 
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -327,9 +328,12 @@ function CorteCajaContent() {
               )}
               {split && split.onlineCount > 0 && (
                 <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                  <span className="font-semibold text-gray-700">Stripe (tarjeta)</span>,{' '}
+                  <span className="font-semibold text-gray-700">Stripe (OXXO)</span> y{' '}
                   <span className="font-semibold text-gray-700">Pedido en linea</span> son pedidos de la tienda en
-                  línea que esta sucursal surte o entrega: se cobraron en la tienda (tarjeta u OXXO), no en la caja
-                  ni en la terminal de la sucursal. Las demás formas de pago son lo que sí pasó por la caja.
+                  línea que esta sucursal surte o entrega: se cobraron en la tienda, con tarjeta o con ficha de OXXO
+                  por Stripe, no en la caja ni en la terminal de la sucursal. Las demás formas de pago son lo que sí
+                  pasó por la caja.
                 </p>
               )}
             </div>
@@ -386,7 +390,7 @@ function CorteCajaContent() {
                       <TableCell className="px-6 py-3.5 text-sm text-center text-gray-500 whitespace-nowrap">{r.currencyCode}</TableCell>
                       <TableCell className="px-6 py-3.5 text-sm text-gray-700 whitespace-nowrap">
                         {r.paymentLabel}
-                        {/* Pedido en línea: con qué se pagó en la tienda, si se sabe. */}
+                        {/* Pedido en línea: dato extra del cobro (la referencia de OXXO). */}
                         {r.isOnline && r.onlinePaymentLabel && (
                           <span className="ml-1.5 text-xs text-gray-400">· {r.onlinePaymentLabel}</span>
                         )}

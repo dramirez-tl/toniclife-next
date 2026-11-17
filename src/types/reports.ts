@@ -1166,10 +1166,11 @@ export interface CashCutRow {
   saleDateTime: string;
   /**
    * true = pedido de la tienda en línea asignado a la sucursal: se cobró en línea,
-   * no pasó por su caja (su forma de pago es siempre "Pedido en linea").
+   * no pasó por su caja. Su forma de pago dice con qué se cobró: "Stripe (tarjeta)",
+   * "Stripe (OXXO)" o "Pedido en linea" si no se sabe.
    */
   isOnline?: boolean;
-  /** Solo pedidos en línea: con qué se pagó en la tienda ("Tarjeta de Credito", "OXXO"). */
+  /** Solo pedidos en línea: dato extra del cobro, hoy la referencia de OXXO ("Referencia 9300…"). */
   onlinePaymentLabel?: string | null;
 }
 
