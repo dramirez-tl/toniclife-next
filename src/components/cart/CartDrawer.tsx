@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { LinePersonalization } from '@/components/storefront/LinePersonalization';
 import { ProductImage } from '@/components/storefront/ProductImage';
-import { useCart, useRemoveCartItem, useUpdateCartItem } from '@/hooks/useCart';
+import { useCart, useCartGiftsOnOpen, useRemoveCartItem, useUpdateCartItem } from '@/hooks/useCart';
 import { useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
@@ -119,6 +119,8 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const { hasCustomerSession } = useStorefrontViewer();
   const accountStoreCountry = useAccountStoreCountry();
   const { data: cart, isLoading, isError, refetch } = useCart();
+  // Carrito armado antes de que arrancara la promoción del día: su pieza gratis entra al abrirlo.
+  useCartGiftsOnOpen(cart);
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
   const [status, setStatus] = useState('');

@@ -36,8 +36,10 @@ import { SavedAddressPicker, SavedAddressPickerSkeleton } from '@/components/che
 import { ShippingAddressForm, addressFieldId, useAddressFormTexts } from '@/components/checkout/ShippingAddressForm';
 import {
   useCart,
+  useCartGiftsOnOpen,
   useCartMergeStatus,
   useCheckoutSummary,
+  useCompleteCartGifts,
   useGuestCheckout,
   useAuthenticatedCheckout,
   useCustomerAddresses,
@@ -213,6 +215,14 @@ export default function CheckoutContent() {
   // por cuenta y otra pestaña u otro dispositivo pudo cambiarlo (lib/storefront/cart-sync).
   const queryClient = useQueryClient();
   const { data: cart, isLoading: cartLoading, isFetching: cartFetching } = useCart({ fresh: true });
+  // Carrito armado antes de que arrancara la promoción del día (17-nov-2026): su pieza gratis
+  // entra al abrir esta página y, por si la página lleva horas abierta, otra vez justo antes
+  // de pagar (`handlePaymentSubmit`).
+  useCartGiftsOnOpen(cart);
+  const completeGifts = useCompleteCartGifts();
+  const tGifts = useTranslations('storefront.cart.autoGift');
+  // Un segundo clic en "Pagar" mientras se revisan las piezas gratis no manda otro pedido.
+  const checkingGifts = useRef(false);
   // Quien inicia sesión o crea su cuenta desde aquí vuelve con el carrito de invitado aún
   // sin pasar a su cuenta (lo mezcla `CartMergeOnLogin`): el carrito de la cuenta puede
   // llegar vacío un instante. Mientras la sesión no se ha leído, la mezcla sigue en curso
@@ -644,6 +654,23 @@ export default function CheckoutContent() {
         toast.error(t('toasts.reviewAddress'));
         return;
       }
+    }
+
+    // Antes de pagar: si alguna línea quedó pagando sin su regalo (la promoción arrancó con
+    // esta página ya abierta), la pieza gratis entra ahora. El pedido cambió, así que se
+    // muestra y se pide pagar de nuevo: nunca se manda un pedido distinto al que se vio.
+    if (checkingGifts.current) return;
+    checkingGifts.current = true;
+    try {
+      const gifts = await completeGifts.mutateAsync({ announce: false });
+      if (gifts.added > 0) {
+        toast.success(tGifts('reviewBeforePaying', { count: gifts.added }), { id: 'cart-auto-gift', duration: 12_000 });
+        return;
+      }
+    } catch {
+      // La pieza gratis nunca detiene el pago.
+    } finally {
+      checkingGifts.current = false;
     }
 
     try {
@@ -1323,6 +1350,7 @@ export default function CheckoutContent() {
                           !checkoutEnabled ||
                           deliveryBlocked ||
                           waitingForCountry ||
+                          completeGifts.isPending ||
                           authenticatedCheckout.isPending ||
                           guestCheckout.isPending
                         }
@@ -1334,7 +1362,7 @@ export default function CheckoutContent() {
                               : undefined
                         }
                       >
-                        {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
+                        {(completeGifts.isPending || authenticatedCheckout.isPending || guestCheckout.isPending) && (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         )}
                         {selectedPaymentMethod === PaymentMethod.OXXO ? (

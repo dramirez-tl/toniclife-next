@@ -30,6 +30,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {
   useCart,
+  useCartGiftsOnOpen,
   useClearCart,
   useUpdateCartItem,
   useRemoveCartItem,
@@ -166,6 +167,8 @@ export default function CartPage() {
   // Se relee SIEMPRE al entrar y al volver a la ventana: el carrito es uno por cuenta y
   // otra pestaña u otro dispositivo pudo cambiarlo (lib/storefront/cart-sync).
   const { data: cart, isLoading } = useCart({ fresh: true });
+  // Carrito armado antes de que arrancara la promoción del día: su pieza gratis entra al abrirlo.
+  useCartGiftsOnOpen(cart);
   // País FIJADO en el carrito (C2); `null` = carrito sin país fijado: todo como antes de C2.
   const pinnedCountry = pinnedCartCountry(cart);
   // El impuesto incluido es regla del país DEL CARRITO; sin país fijado, el de la tienda.

@@ -4,8 +4,10 @@ import type { Cart, CartItem } from '@/types/cart';
 import {
   autoGiftAfterAdd,
   autoGiftOffer,
+  autoGiftOnOpen,
   autoGiftOnUpdate,
   autoGiftTarget,
+  pendingAutoGifts,
   planAutoGift,
   planGroupAutoGift,
 } from './cart-auto-gift';
@@ -425,5 +427,174 @@ describe('sabores que se combinan: la gratis entra sola contando el GRUPO (14-no
     expect(s.calls).toEqual([['l-choc', 1]]);
     expect(s.pieces(r.cart)).toEqual({ van: 4, choc: 1 });
     expect(r.notice).toBeNull();
+  });
+
+  it('al abrir el carrito: 3 de vainilla + 2 de chocolate armados antes de la promoción → entra la sexta una sola vez', async () => {
+    const s = shop({ van: 3, choc: 2 });
+    const cart = s.build();
+    const before = s.total(cart);
+    // El grupo cuenta UNA vez, no una por línea.
+    expect(pendingAutoGifts(cart, GROUP_BADGES)).toHaveLength(1);
+    const r = await autoGiftOnOpen({ cart, badges: GROUP_BADGES, updateItem: s.updateItem });
+    expect(s.calls).toEqual([['l-van', 4]]);
+    expect(s.total(r.cart)).toBe(before);
+    expect(r.added).toBe(1);
+    expect(pendingAutoGifts(r.cart, GROUP_BADGES)).toEqual([]);
+  });
+});
+
+describe('carrito armado ANTES de la promoción: la gratis entra al abrirlo o antes de pagar (17-nov-2026)', () => {
+  // El pedido TL2611170001: 2 Tnc Clin, 2 Oxifila y 2 Lexi Life puestos el lunes a las 21:25;
+  // el 3x2 del martes, que incluye los tres, empezó a medianoche y se pagó a las 00:03 sin tocarlo.
+  const PRICES: Record<string, number> = { '8043': 582, '8098': 558, '8050': 435, '9019': 391 };
+  const PROMO = new Map<string, SeasonalProductBadge>(
+    ['8043', '8098', '8050'].map((id) => [id, badge({ promotionId: 'mar', name: '3x2 Buen Fin martes 17' })]),
+  );
+
+  /**
+   * Tienda de mentira con varias líneas y un 3x2 por producto. `charge` = productos a los que el
+   * servidor NO les aplica la promoción (cobra la pieza); `max` = existencias; `fail` = sin red.
+   */
+  function store(initial: Record<string, number>, opts: { charge?: string[]; max?: Record<string, number>; fail?: boolean } = {}) {
+    const qty = new Map(Object.entries(initial));
+    const calls: [string, number][] = [];
+    const build = (): Cart =>
+      ({
+        items: [...qty.entries()]
+          .filter(([, q]) => q > 0)
+          .map(([productId, quantity]) => {
+            const promo = PROMO.has(productId) && !opts.charge?.includes(productId);
+            const free = promo ? Math.floor(quantity / 3) : 0;
+            return {
+              id: `l-${productId}`,
+              productId,
+              quantity,
+              unitPrice: PRICES[productId].toFixed(2),
+              lineTotal: (PRICES[productId] * (quantity - free)).toFixed(2),
+              points: 0,
+              businessValue: '0',
+              productName: `Producto ${productId}`,
+              productCode: productId,
+              ...(opts.max?.[productId] !== undefined ? { maxQuantity: opts.max[productId] } : {}),
+              ...(free > 0 ? { seasonPromotionId: 'mar', promoFreeQuantity: free } : {}),
+              createdAt: '',
+              updatedAt: '',
+            };
+          }),
+      }) as unknown as Cart;
+    const updateItem = async (itemId: string, quantity: number): Promise<Cart> => {
+      calls.push([itemId, quantity]);
+      if (opts.fail) throw new Error('sin red');
+      qty.set(itemId.replace(/^l-/, ''), quantity);
+      return build();
+    };
+    const pieces = (cart: Cart) => Object.fromEntries(cart.items.map((i) => [i.productId, i.quantity]));
+    const total = (cart: Cart) => cart.items.reduce((sum, i) => sum + Number(i.lineTotal), 0);
+    return { build, updateItem, calls, pieces, total };
+  }
+
+  it('pendientes: las líneas que pagan 2 sin su regalo; con 1, 3 o 4 piezas, o sin promoción, nada', () => {
+    const ticul = store({ '8043': 2, '8098': 2, '8050': 2, '9019': 2 }).build();
+    // (El carrito de mentira ordena las líneas por clave.)
+    expect(pendingAutoGifts(ticul, PROMO).map((p) => p.line.productId)).toEqual(['8043', '8050', '8098']);
+    expect(pendingAutoGifts(store({ '8043': 1, '8098': 3, '8050': 4 }).build(), PROMO)).toEqual([]);
+    // 5 piezas: 3 ya llevan su regalo y sobran 2 que pagan sin el suyo.
+    expect(pendingAutoGifts(store({ '8043': 5 }).build(), PROMO)).toHaveLength(1);
+    // Sin promociones vigentes (la noche anterior) o sin carrito: nada.
+    expect(pendingAutoGifts(ticul, new Map())).toEqual([]);
+    expect(pendingAutoGifts(undefined, PROMO)).toEqual([]);
+    // Promoción solo de sucursal: en la tienda no entra nada sola.
+    const storeOnly = new Map([['8043', badge({ storeOnly: true })]]);
+    expect(pendingAutoGifts(ticul, storeOnly)).toEqual([]);
+    // Línea agotada (hay 1 y el carrito pide 2): eso lo avisa el carrito.
+    expect(pendingAutoGifts(store({ '8043': 2 }, { max: { '8043': 1 } }).build(), PROMO)).toEqual([]);
+  });
+
+  it('la clave del pendiente cambia con las piezas: un intento hecho no se repite, uno nuevo sí', () => {
+    const [two] = pendingAutoGifts(store({ '8043': 2 }).build(), PROMO);
+    const [five] = pendingAutoGifts(store({ '8043': 5 }).build(), PROMO);
+    expect(two.key).toBe('mar|l-8043:2');
+    expect(five.key).toBe('mar|l-8043:5');
+  });
+
+  it('el caso de Ticul: entran las 3 piezas gratis y se paga exactamente lo mismo', async () => {
+    const s = store({ '8043': 2, '8098': 2, '8050': 2 });
+    const cart = s.build();
+    expect(s.total(cart)).toBe(3150);
+    const r = await autoGiftOnOpen({ cart, badges: PROMO, updateItem: s.updateItem });
+    expect(s.calls).toEqual([
+      ['l-8043', 3],
+      ['l-8050', 3],
+      ['l-8098', 3],
+    ]);
+    expect(s.pieces(r.cart)).toEqual({ '8043': 3, '8098': 3, '8050': 3 });
+    expect(s.total(r.cart)).toBe(3150);
+    expect(r.added).toBe(3);
+    expect(r.touched).toEqual(['l-8043', 'l-8050', 'l-8098']);
+    expect(r.notices).toEqual([
+      { kind: 'added', label: '3x2', productName: 'Producto 8043', count: 1 },
+      { kind: 'added', label: '3x2', productName: 'Producto 8050', count: 1 },
+      { kind: 'added', label: '3x2', productName: 'Producto 8098', count: 1 },
+    ]);
+    // Ya no queda nada pendiente: abrir otra vez no pide nada.
+    const again = await autoGiftOnOpen({ cart: r.cart, badges: PROMO, updateItem: s.updateItem });
+    expect(s.calls).toHaveLength(3);
+    expect(again).toMatchObject({ added: 0, notices: [], touched: [] });
+  });
+
+  it('el caso de Naucalpan: las líneas ya completas no se tocan; solo las que se quedaron en 2', async () => {
+    const s = store({ '8043': 6, '8098': 4, '8050': 2 });
+    const r = await autoGiftOnOpen({ cart: s.build(), badges: PROMO, updateItem: s.updateItem });
+    expect(s.calls).toEqual([['l-8050', 3]]);
+    expect(s.pieces(r.cart)).toEqual({ '8043': 6, '8098': 4, '8050': 3 });
+    expect(r.added).toBe(1);
+  });
+
+  it('CANDADO: si el servidor cobraría la pieza, se deshace, no se avisa y no se insiste', async () => {
+    const s = store({ '8043': 2, '8098': 2 }, { charge: ['8043'] });
+    const cart = s.build();
+    const before = s.total(cart);
+    const r = await autoGiftOnOpen({ cart, badges: PROMO, updateItem: s.updateItem });
+    // 8043: sube a 3, cuesta más, regresa a 2. 8098: entra su gratis.
+    expect(s.calls).toEqual([
+      ['l-8043', 3],
+      ['l-8043', 2],
+      ['l-8098', 3],
+    ]);
+    expect(s.pieces(r.cart)).toEqual({ '8043': 2, '8098': 3 });
+    expect(s.total(r.cart)).toBe(before);
+    expect(r.added).toBe(1);
+    expect(r.notices).toEqual([{ kind: 'added', label: '3x2', productName: 'Producto 8098', count: 1 }]);
+  });
+
+  it('sin existencias para la gratis: no pide nada y avisa que se cobra sin promoción', async () => {
+    const s = store({ '8043': 2 }, { max: { '8043': 2 } });
+    const cart = s.build();
+    const r = await autoGiftOnOpen({ cart, badges: PROMO, updateItem: s.updateItem });
+    expect(s.calls).toEqual([]);
+    expect(r.cart).toBe(cart);
+    expect(r).toMatchObject({ added: 0, touched: [] });
+    expect(r.notices).toEqual([{ kind: 'missing', label: '3x2', productName: 'Producto 8043', count: 1 }]);
+  });
+
+  it('sin red: el carrito queda como estaba, sin avisos y sin lanzar', async () => {
+    const s = store({ '8043': 2, '8098': 2 }, { fail: true });
+    const cart = s.build();
+    const r = await autoGiftOnOpen({ cart, badges: PROMO, updateItem: s.updateItem });
+    expect(r.cart).toBe(cart);
+    expect(r).toMatchObject({ added: 0, notices: [], touched: [] });
+    // Un intento por línea, no más.
+    expect(s.calls).toEqual([
+      ['l-8043', 3],
+      ['l-8098', 3],
+    ]);
+  });
+
+  it('carrito sin nada pendiente: no llama al servidor', async () => {
+    const s = store({ '8043': 3, '9019': 2 });
+    const cart = s.build();
+    const r = await autoGiftOnOpen({ cart, badges: PROMO, updateItem: s.updateItem });
+    expect(s.calls).toEqual([]);
+    expect(r.cart).toBe(cart);
   });
 });

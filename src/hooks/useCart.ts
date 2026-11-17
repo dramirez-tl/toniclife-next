@@ -1,18 +1,24 @@
 // useCart.ts - React Query hooks for e-commerce cart
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { keepPreviousData, useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
 import { seasonalPromotionsService } from '@/services/seasonal-promotions.service';
-import { seasonalPromotionKeys } from '@/hooks/useSeasonalPromotions';
+import { seasonalPromotionKeys, useSeasonalProductBadges } from '@/hooks/useSeasonalPromotions';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { localeLanguage } from '@/i18n/config';
 import { seasonalProductBadges, type SeasonalProductBadge } from '@/lib/seasonal-promotions';
-import { autoGiftAfterAdd, autoGiftOnUpdate, type AutoGiftNotice } from '@/lib/storefront/cart-auto-gift';
+import {
+  autoGiftAfterAdd,
+  autoGiftOnOpen,
+  autoGiftOnUpdate,
+  pendingAutoGifts,
+  type AutoGiftNotice,
+} from '@/lib/storefront/cart-auto-gift';
 import { formatProductName } from '@/lib/storefront/content-format';
 import { catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
 import { conflictItemCount, countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
@@ -215,7 +221,10 @@ function useAutoGift() {
       // País DEL CARRITO: es con el que el servidor aplica las promociones.
       const country = (normalizeCountryCode(cart?.countryCode) ?? storeCountry).toUpperCase();
       try {
-        const bundle = await queryClient.ensureQueryData({
+        // `fetchQuery` y no `ensureQueryData`: este último devuelve lo que haya en caché aunque
+        // sea de hace horas, y una pestaña abierta desde antes de que arrancara la promoción
+        // del día se quedaba sin la pieza gratis. Aquí lo guardado solo vale un minuto.
+        const bundle = await queryClient.fetchQuery({
           queryKey: seasonalPromotionKeys.storefront(country),
           queryFn: () => seasonalPromotionsService.storefrontBundle(country),
           staleTime: 60 * 1000,
@@ -243,7 +252,24 @@ function useAutoGift() {
     [t],
   );
 
-  return { badgesFor, announce };
+  /** Al abrir el carrito pueden entrar varias gratis a la vez: un solo aviso con todas. */
+  const announceOpen = useCallback(
+    (notices: AutoGiftNotice[]) => {
+      const added = notices.filter((notice) => notice.kind === 'added');
+      if (added.length <= 1) {
+        announce(added[0] ?? notices[0] ?? null);
+        return;
+      }
+      const text = t('addedMany', {
+        count: added.reduce((sum, notice) => sum + notice.count, 0),
+        items: added.map((notice) => formatProductName(notice.productName)).join(', '),
+      });
+      toast.success(text, { id: 'cart-auto-gift', duration: 9000 });
+    },
+    [announce, t],
+  );
+
+  return { badgesFor, announce, announceOpen };
 }
 
 // ================================
@@ -402,6 +428,79 @@ export const useUpdateCartItem = () => {
       toastCartError(err, 'update', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.id === itemId))),
   });
 };
+
+// ================================
+// PIEZA GRATIS DE UN CARRITO ARMADO ANTES DE LA PROMOCIÓN (17-nov-2026)
+// ================================
+
+export interface CartGiftsCompleted {
+  /** Piezas gratis que entraron. */
+  added: number;
+}
+
+/**
+ * Completa la pieza gratis de las líneas que se quedaron "pagando sin su regalo" (carrito armado
+ * antes de que arrancara la promoción del día). Lee el carrito y las promociones al momento;
+ * la pieza solo se queda si el servidor confirma que NO se paga más. Nunca falla por la pieza
+ * gratis: si algo sale mal, el carrito queda como estaba. `announce: false` = quien llama
+ * avisa (la página de pago, justo antes de pagar).
+ */
+export const useCompleteCartGifts = () => {
+  const queryClient = useQueryClient();
+  const notifyElsewhere = useCartElsewhereNotice();
+  const autoGift = useAutoGift();
+
+  return useMutation({
+    onMutate: () => cartActivity.mutationStarted(),
+    mutationFn: async ({ announce }: { announce: boolean }): Promise<CartGiftsCompleted & { cart?: Cart; touched: string[] }> => {
+      const cart = queryClient.getQueryData<Cart>(cartKeys.cart());
+      if (!cart || cart.items.length === 0) return { added: 0, touched: [] };
+      const result = await autoGiftOnOpen({
+        cart,
+        badges: await autoGift.badgesFor(cart),
+        updateItem: (itemId, quantity) => cartService.updateItem(itemId, { quantity }),
+      });
+      if (announce) autoGift.announceOpen(result.notices);
+      // Solo hay algo que guardar si el servidor respondió con otro carrito.
+      return { added: result.added, touched: result.touched, ...(result.cart !== cart ? { cart: result.cart } : {}) };
+    },
+    onSuccess: (data) => {
+      if (!data.cart) return;
+      // Sin líneas propias que señalar (un candado que deshizo): se guarda sin comparar.
+      applyCartMutation(queryClient, data.cart, data.touched.length > 0 ? data.touched : 'all', notifyElsewhere);
+    },
+    onSettled: (_data, error) => settleCartMutation(queryClient, !error),
+  });
+};
+
+/** Pendientes que ya dispararon un intento en esta pestaña: no se repiten solos (sin bucles). */
+const giftsOnOpenTried = new Set<string>();
+
+/**
+ * Al ABRIR el carrito, el cajón del carrito o la página de pago: si alguna línea está pagando
+ * sin su regalo, la pieza gratis entra sola (igual que cuando se cambia la cantidad). Cada
+ * pendiente se intenta una vez; si no se pudo (sin red, sin existencias, costaría más) no se
+ * insiste hasta que el carrito cambie. `active = false` lo deja en pausa (cajón cerrado).
+ */
+export function useCartGiftsOnOpen(cart: Cart | undefined, active = true): void {
+  const queryClient = useQueryClient();
+  const { countryCode: storeCountry } = useStoreCountry();
+  // País DEL CARRITO: es con el que el servidor aplica las promociones.
+  const country = (normalizeCountryCode(cart?.countryCode) ?? storeCountry).toUpperCase();
+  const { badges } = useSeasonalProductBadges(country);
+  const { mutate, isPending } = useCompleteCartGifts();
+
+  useEffect(() => {
+    if (!active || isPending || !cart) return;
+    const fresh = pendingAutoGifts(cart, badges).filter((pending) => !giftsOnOpenTried.has(pending.key));
+    if (fresh.length === 0) return;
+    // El comprador está moviendo el carrito: ese cambio ya cuida su regalo. Al terminar, el
+    // carrito cambia y este efecto vuelve a mirar.
+    if (queryClient.isMutating() > 0) return;
+    for (const pending of fresh) giftsOnOpenTried.add(pending.key);
+    mutate({ announce: true });
+  }, [active, isPending, cart, badges, mutate, queryClient]);
+}
 
 export const useRemoveCartItem = () => {
   const queryClient = useQueryClient();

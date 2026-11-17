@@ -413,6 +413,8 @@
       },
       "autoGift": {
         "added": "{label}: agregamos {count, plural, one {# pieza gratis} other {# piezas gratis}} de {name}",
+        "addedMany": "Tus promociones: agregamos {count, plural, one {# pieza gratis} other {# piezas gratis}} a tu carrito ({items})",
+        "reviewBeforePaying": "Agregamos {count, plural, one {# pieza gratis} other {# piezas gratis}} de tus promociones. Revisa tu pedido y vuelve a dar clic en pagar.",
         "removed": "{label}: también quitamos {count, plural, one {la pieza gratis} other {las # piezas gratis}} de {name}",
         "missing": "{label}: no hay existencias para {count, plural, one {la pieza gratis} other {las # piezas gratis}} de {name}; se cobra sin promoción"
       },

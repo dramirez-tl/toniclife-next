@@ -20,6 +20,13 @@
 // bajar, si la línea que se movió no puede dar una pieza más, se queda como se pidió y el
 // carrito avisa que falta una (`cart-promotions`).
 //
+// CARRITO ARMADO ANTES DE LA PROMOCIÓN (17-nov-2026): la gratis entraba solo al CAMBIAR la
+// cantidad. Un carrito armado la noche anterior (el producto aún no estaba en promoción) y pagado
+// ya iniciada la promoción, sin tocarlo, se quedaba en 2 piezas: pagaba 2 y se llevaba 2 (pedidos
+// TL2611170001 de Ticul y TL2611170019 de Naucalpan). Ahora las líneas que se quedaron "pagando
+// sin su regalo" se completan también al ABRIR el carrito o la página de pago y justo antes de
+// pagar (`pendingAutoGifts`, `autoGiftOnOpen`), con el mismo candado: nunca se paga más.
+//
 // Alcance: promociones "lleva N, paga M" de piezas IDÉNTICAS (con o sin grupos) que valen en la
 // tienda en línea. En un surtido (cualquiera de la promoción) la gratis es la más barata del
 // conjunto: ahí no se adivina; el carrito solo avisa. Puro: sin React; la red llega inyectada.
@@ -315,4 +322,98 @@ export async function autoGiftOnUpdate(args: {
     updateItem,
   });
   return { cart: next, notice: host ? notice('added', plan.added, host.productName) : null };
+}
+
+// ================================
+// AL ABRIR EL CARRITO O LA PÁGINA DE PAGO
+// ================================
+
+export interface PendingAutoGift {
+  line: CartItem;
+  badge: SeasonalProductBadge;
+  /** La misma promoción con las mismas líneas y piezas: un intento ya hecho no se repite. */
+  key: string;
+}
+
+/**
+ * Líneas (o grupos) que están "pagando sin su regalo": la promoción vale HOY y les falta justo la
+ * pieza gratis (2 en un 3x2, 5 en un 6x5). Pasa cuando el carrito se armó antes de que arrancara
+ * la promoción. Un grupo que se combina cuenta una sola vez; una línea agotada no se toca.
+ */
+export function pendingAutoGifts(cart: Cart | undefined, badges: Badges): PendingAutoGift[] {
+  if (!cart) return [];
+  const seen = new Set<string>();
+  const out: PendingAutoGift[] = [];
+  for (const line of cart.items) {
+    const badge = badges.get(line.productId);
+    const offer = autoGiftOffer(badge);
+    const quantity = whole(line.quantity);
+    if (!badge || !offer || !(quantity > 0)) continue;
+    // Ya no hay existencias ni para lo que está en el carrito: eso lo avisa el carrito.
+    const max = knownMax(line);
+    if (max !== null && max < quantity) continue;
+    const pool = poolOf(cart, line, badge, badges);
+    if (piecesOf(pool) % offer.buy < offer.pay) continue;
+    const key = `${badge.promotionId}|${pool
+      .map((l) => `${l.id}:${whole(l.quantity)}`)
+      .sort()
+      .join(',')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ line, badge, key });
+  }
+  return out;
+}
+
+export interface AutoGiftOpenResult {
+  cart: Cart;
+  /** Un aviso por línea atendida (entró la gratis, o no hay existencias para ella). */
+  notices: AutoGiftNotice[];
+  /** Líneas a las que les entró la pieza gratis. */
+  touched: string[];
+  /** Piezas gratis que entraron en total. */
+  added: number;
+}
+
+/**
+ * Completa la pieza gratis de lo que quedó pendiente (`pendingAutoGifts`), una línea a la vez y
+ * siempre con el carrito como lo dejó el servidor. Mismo candado que al agregar: la pieza solo se
+ * queda si NO se paga más; si costara más, se deshace. Nunca lanza: un fallo de red deja el
+ * carrito como estaba.
+ */
+export async function autoGiftOnOpen(args: { cart: Cart; badges: Badges; updateItem: UpdateItem }): Promise<AutoGiftOpenResult> {
+  const { badges, updateItem } = args;
+  let cart = args.cart;
+  const notices: AutoGiftNotice[] = [];
+  const touched: string[] = [];
+  let added = 0;
+  // Lo que ya se intentó en ESTA pasada no se repite (un candado que deshizo deja la línea igual).
+  const tried = new Set<string>();
+  // Tope de vueltas: cada una atiende un pendiente distinto.
+  for (let turn = 0; turn < 30; turn += 1) {
+    const next = pendingAutoGifts(cart, badges).find((pending) => !tried.has(pending.key));
+    if (!next) break;
+    tried.add(next.key);
+    const { line, badge } = next;
+    const offer = autoGiftOffer(badge);
+    if (!offer) continue;
+    const wanted = whole(line.quantity);
+    const pool = poolOf(cart, line, badge, badges);
+    // `previous = wanted`: la línea no bajó; solo le falta su regalo.
+    const plan = badge.group
+      ? planGroupAutoGift({ wanted, previous: wanted, others: piecesOf(pool) - wanted, offer, max: knownMax(line) })
+      : planAutoGift({ wanted, previous: wanted, offer, max: knownMax(line) });
+    if (plan.missing > 0) {
+      notices.push({ kind: 'missing', label: badge.label, productName: line.productName, count: plan.missing });
+      continue;
+    }
+    if (plan.added <= 0) continue;
+    const result = await addGift({ cart, line, pool, added: plan.added, target: plan.quantity, updateItem });
+    cart = result.cart;
+    if (!result.host) continue;
+    notices.push({ kind: 'added', label: badge.label, productName: result.host.productName, count: plan.added });
+    touched.push(result.host.id);
+    added += plan.added;
+  }
+  return { cart, notices, touched, added };
 }
