@@ -45,6 +45,8 @@ export interface DeliveryQuery {
   /** Solo ventas POS o solo pedidos web; sin filtro = ambas. */
   /** pos_sale | order | all (sin valor el API devuelve solo ventas POS). */
   kind?: DeliveryKind | 'all';
+  /** Forma de entrega: envío a domicilio o recoger en sucursal; sin valor = todas. */
+  mode?: DeliveryMode;
   page?: number;
   limit?: number;
 }

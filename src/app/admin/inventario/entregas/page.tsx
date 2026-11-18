@@ -113,6 +113,12 @@ import {
   pickCarrier,
   resolveCarrierChoice,
 } from '@/lib/deliveries/carrier-choice';
+import {
+  DELIVERY_MODE_FILTER_OPTIONS,
+  deliveryModeQueryValue,
+  deliveryModeUrlValue,
+  parseDeliveryModeFilter,
+} from '@/lib/deliveries/list-filters';
 import { currentFontScale } from '@/lib/preferences';
 import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
@@ -304,6 +310,7 @@ function EntregasContent() {
     tab: 'open',
     branch: 'all',
     kind: 'all',
+    mode: 'all',
     page: '1',
     limit: '50',
   });
@@ -311,6 +318,8 @@ function EntregasContent() {
   const branchFilter = get('branch');
   const kindRaw = get('kind');
   const kindFilter: 'all' | DeliveryKind = kindRaw === 'order' || kindRaw === 'pos_sale' ? kindRaw : 'all';
+  // Forma de entrega (?mode=shipping | pickup): la aplica el API, así las pestañas cuentan lo mismo.
+  const modeFilter = parseDeliveryModeFilter(get('mode'));
   const fromDate = get('from');
   const toDate = get('to');
   const search = get('search');
@@ -346,10 +355,11 @@ function EntregasContent() {
       // Sin kind el API devuelve SOLO ventas POS (fail-closed para la terminal);
       // el admin pide 'all' explícito para ver ventas y pedidos web juntos.
       kind: kindFilter,
+      mode: deliveryModeQueryValue(modeFilter),
       page,
       limit,
     }),
-    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, kindFilter, page, limit],
+    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, kindFilter, modeFilter, page, limit],
   );
 
   const { data, isLoading, isFetching, refetch } = useDeliveries(query);
@@ -652,9 +662,11 @@ function EntregasContent() {
         })}
       </div>
 
-      {/* Filtros */}
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-6">
-        <div className="md:col-span-2">
+      {/* Filtros: dos renglones de cuatro columnas desde 1280 px y un solo renglón desde 1920 px,
+          que es cuando cada selector tiene ancho para "Recoger en sucursal" completo. El corte ancho
+          va en rem: Tailwind ordena los cortes en px ANTES de sm/lg/xl y no ganarían. */}
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2 xl:grid-cols-4 min-[120rem]:grid-cols-8">
+        <div className="sm:col-span-2">
           <Label htmlFor="deliveries-search">Buscar</Label>
           <form
             className="mt-1 flex gap-2"
@@ -687,6 +699,18 @@ function EntregasContent() {
           />
         </div>
         <div>
+          <Label htmlFor="deliveries-mode">Forma de entrega</Label>
+          <SearchableSelect
+            id="deliveries-mode"
+            className="mt-1"
+            options={DELIVERY_MODE_FILTER_OPTIONS}
+            value={modeFilter}
+            onChange={(v) => setParams({ mode: deliveryModeUrlValue(parseDeliveryModeFilter(v)), page: '1' })}
+            showAllOption={false}
+            placeholder="Todas"
+          />
+        </div>
+        <div className="sm:col-span-2">
           <Label htmlFor="deliveries-branch">Sucursal que surte</Label>
           <SearchableSelect
             id="deliveries-branch"
@@ -720,7 +744,7 @@ function EntregasContent() {
             onChange={(e) => setParams({ to: e.target.value })}
           />
         </div>
-        <div className="flex items-center gap-2 md:col-span-6">
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-4 min-[120rem]:col-span-8">
           <Checkbox
             id="deliveries-unpaid"
             checked={includeUnpaid}
