@@ -47,6 +47,8 @@ export interface DeliveryQuery {
   kind?: DeliveryKind | 'all';
   /** Forma de entrega: envío a domicilio o recoger en sucursal; sin valor = todas. */
   mode?: DeliveryMode;
+  /** País de la sucursal que surte (MX incluye Frontera); sin valor = todos. */
+  country?: string;
   page?: number;
   limit?: number;
 }
@@ -229,6 +231,11 @@ export interface DeliveryListResponse {
   limit: number;
   totalPages: number;
   counts: DeliveryStatusCounts;
+  /**
+   * Entregas por país de la sucursal que surte, con los mismos filtros y estado que la lista
+   * pero sin el filtro de país (pestañas por país). Ausente con un API anterior.
+   */
+  countryCounts?: Record<string, number>;
 }
 
 export interface UpdateDeliveryStatusPayload {

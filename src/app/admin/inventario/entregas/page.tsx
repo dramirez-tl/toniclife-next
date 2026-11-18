@@ -115,9 +115,16 @@ import {
 } from '@/lib/deliveries/carrier-choice';
 import {
   DELIVERY_MODE_FILTER_OPTIONS,
+  branchInDeliveryCountry,
+  deliveryCountryCount,
+  deliveryCountryQueryValue,
+  deliveryCountryTabs,
+  deliveryCountryUrlValue,
   deliveryModeQueryValue,
   deliveryModeUrlValue,
+  parseDeliveryCountryFilter,
   parseDeliveryModeFilter,
+  type DeliveryCountryFilter,
 } from '@/lib/deliveries/list-filters';
 import { currentFontScale } from '@/lib/preferences';
 import { countPersonalizedLines, personalizationLine } from '@/lib/product-personalization';
@@ -130,6 +137,9 @@ const KIND_OPTIONS: { value: 'all' | DeliveryKind; label: string }[] = [
   { value: 'pos_sale', label: 'Ventas POS' },
   { value: 'order', label: 'Pedidos web' },
 ];
+
+/** Pestañas por país de la sucursal que surte: Todas, México/Frontera, Estados Unidos… */
+const COUNTRY_TABS = deliveryCountryTabs();
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'open', label: 'Abiertas' },
@@ -311,6 +321,7 @@ function EntregasContent() {
     branch: 'all',
     kind: 'all',
     mode: 'all',
+    country: 'all',
     page: '1',
     limit: '50',
   });
@@ -320,6 +331,8 @@ function EntregasContent() {
   const kindFilter: 'all' | DeliveryKind = kindRaw === 'order' || kindRaw === 'pos_sale' ? kindRaw : 'all';
   // Forma de entrega (?mode=shipping | pickup): la aplica el API, así las pestañas cuentan lo mismo.
   const modeFilter = parseDeliveryModeFilter(get('mode'));
+  // País de la sucursal que surte (?country=MX | US | CO | GT): también lo aplica el API.
+  const countryFilter = parseDeliveryCountryFilter(get('country'));
   const fromDate = get('from');
   const toDate = get('to');
   const search = get('search');
@@ -332,11 +345,34 @@ function EntregasContent() {
   // Catálogo de paqueterías y países: se piden al abrir la pantalla para que el diálogo
   // de "Marcar enviado" ya los tenga (ahí se usan; aquí solo se precargan).
   useDeliveryCarriers({ enabled: canAct });
-  useActiveCountries();
-  const branchOptions = useMemo(
-    () => (branches ?? []).map((b) => ({ value: b.id, label: `${b.code} - ${b.name}` })),
-    [branches],
+  const { data: activeCountries } = useActiveCountries();
+  // Con una pestaña de país el selector de sucursal solo ofrece las de ese país (Frontera va
+  // con México). Mientras el catálogo de países no llega, se ofrecen todas.
+  const countryCodeById = useMemo(
+    () => new Map((activeCountries ?? []).map((c) => [c.id, c.code])),
+    [activeCountries],
   );
+  const branchIsInCountry = useCallback(
+    (branch: { countryId?: string }, country: DeliveryCountryFilter) =>
+      countryCodeById.size === 0 ||
+      branchInDeliveryCountry(branch.countryId ? countryCodeById.get(branch.countryId) : null, country),
+    [countryCodeById],
+  );
+  const branchOptions = useMemo(
+    () =>
+      (branches ?? [])
+        .filter((b) => branchIsInCountry(b, countryFilter))
+        .map((b) => ({ value: b.id, label: `${b.code} - ${b.name}` })),
+    [branches, branchIsInCountry, countryFilter],
+  );
+  const selectCountry = (country: DeliveryCountryFilter) => {
+    // Una sucursal elegida que no es de ese país dejaría la lista vacía: se quita ese filtro.
+    const keepBranch =
+      !branchFilter ||
+      branchFilter === 'all' ||
+      (branches ?? []).some((b) => b.id === branchFilter && branchIsInCountry(b, country));
+    setParams({ country: deliveryCountryUrlValue(country), ...(keepBranch ? {} : { branch: '' }), page: '1' });
+  };
   const timeZone = useMemo(() => {
     if (branchFilter && branchFilter !== 'all') {
       return branches?.find((b) => b.id === branchFilter)?.timezone || DEFAULT_TIMEZONE;
@@ -356,10 +392,11 @@ function EntregasContent() {
       // el admin pide 'all' explícito para ver ventas y pedidos web juntos.
       kind: kindFilter,
       mode: deliveryModeQueryValue(modeFilter),
+      country: deliveryCountryQueryValue(countryFilter),
       page,
       limit,
     }),
-    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, kindFilter, modeFilter, page, limit],
+    [branchFilter, tab, fromDate, toDate, search, includeUnpaid, kindFilter, modeFilter, countryFilter, page, limit],
   );
 
   const { data, isLoading, isFetching, refetch } = useDeliveries(query);
@@ -635,6 +672,35 @@ function EntregasContent() {
             Actualizar
           </button>
         </div>
+      </div>
+
+      {/* Pestañas por país de la sucursal que surte (el número sigue la pestaña de estado elegida) */}
+      <div
+        role="tablist"
+        aria-label="País de la sucursal que surte"
+        className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm"
+      >
+        {COUNTRY_TABS.map((t) => {
+          const n = deliveryCountryCount(data?.countryCounts, t.value);
+          const active = countryFilter === t.value;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => selectCountry(t.value)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                active ? 'bg-[#3E667D] text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {t.label}
+              {n !== null ? (
+                <span className={`ml-1.5 text-xs font-normal ${active ? 'text-white/80' : 'text-gray-500'}`}>({n})</span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
       {/* Pestañas por estado */}

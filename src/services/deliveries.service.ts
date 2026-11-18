@@ -24,6 +24,7 @@ export const deliveriesService = {
     if (query.search) params.append('search', query.search);
     if (query.kind) params.append('kind', query.kind);
     if (query.mode) params.append('mode', query.mode);
+    if (query.country) params.append('country', query.country);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
     const qs = params.toString();
