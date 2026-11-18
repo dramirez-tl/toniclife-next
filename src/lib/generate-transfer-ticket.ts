@@ -1,9 +1,26 @@
 // generate-transfer-ticket.ts — PDF document generator for inventory transfers
 // Based on generate-pos-ticket.ts pattern, adapted for TransferDto (A4 format)
+//
+// La LISTA de productos va con letra grande (11 puntos; la cantidad a 13 en negritas) y
+// renglones altos: es lo que Almacén lee al surtir el traspaso (pedido del 17-nov-2026; antes
+// iba a 7.5 puntos). Sus medidas viven en transfer-ticket-layout.ts.
 
 import type { jsPDF } from 'jspdf';
 import type { TransferDto } from '@/types/inventory';
 import { applyPdfFontScale, resolvePdfFontScale } from './pdf-font-scale';
+import {
+  TRANSFER_EMPTY,
+  TRANSFER_LIST_FONT,
+  planTransferListRows,
+  transferHeadHeight,
+  transferListColumns,
+  transferNameLineHeight,
+  transferRowBaseline,
+  transferRowHeight,
+  type TransferListFont,
+  type TransferListMeasure,
+  type TransferListStyle,
+} from './transfer-ticket-layout';
 
 // ================================
 // Constants
@@ -63,6 +80,15 @@ function statusLabel(status: string): string {
 // ================================
 
 export async function generateTransferTicketPdf(transfer: TransferDto): Promise<string> {
+  const doc = await buildTransferTicketDoc(transfer);
+  return URL.createObjectURL(doc.output('blob'));
+}
+
+/**
+ * Arma el documento (sin convertirlo a archivo). `fontScale` = preferencia de tamaño de letra;
+ * sin él se toma la del usuario del admin.
+ */
+export async function buildTransferTicketDoc(transfer: TransferDto, fontScale?: number): Promise<jsPDF> {
   const { jsPDF: JsPDF } = await import('jspdf');
 
   let LOGO_BASE64: string | null = null;
@@ -75,7 +101,8 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
 
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   // Letra más grande para quien lo configuró en Preferencias del admin.
-  applyPdfFontScale(doc, resolvePdfFontScale());
+  const scale = resolvePdfFontScale(fontScale);
+  applyPdfFontScale(doc, scale);
   let y = TOP_MARGIN;
 
   // ----- 1. Logo + Company Header -----
@@ -215,103 +242,125 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
   y += 2;
 
   // ----- 4. Products Table -----
+  // La lista es lo que Almacén lee al surtir: letra grande, renglones altos, el nombre
+  // completo y las columnas repartidas según lo que trae el traspaso.
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
   y += 6;
 
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setTextColor(62, 102, 125);
   doc.text('PRODUCTOS', colLeft, y);
-  y += 6;
+  y += 3;
 
-  // Table header
   const tableLeft = MARGIN;
-  const col1 = tableLeft;             // #
-  const col2 = tableLeft + 6;         // Código
-  const col3 = tableLeft + 30;        // Producto
-  const col4 = tableLeft + 98;        // Cantidad
-  const col5 = tableLeft + 120;       // Lote
-  const col6 = tableLeft + 155;       // CAD
   const tableRight = PAGE_W - MARGIN;
+  const LIST = TRANSFER_LIST_FONT;
+  const setListFont = (font: TransferListFont, style: TransferListStyle, sizePt: number) => {
+    doc.setFont(font === 'mono' ? FONT_MONO : FONT_BODY, style);
+    doc.setFontSize(sizePt);
+  };
+  const measure: TransferListMeasure = (text, font, style, sizePt) => {
+    setListFont(font, style, sizePt);
+    return doc.getTextWidth(text);
+  };
+  const cols = transferListColumns(transfer.items, measure, { left: tableLeft, right: tableRight });
 
-  y = checkPage(doc, y, 8);
-  doc.setFillColor(62, 102, 125);
-  doc.rect(tableLeft, y - 4, CONTENT_W, 7, 'F');
+  // Nombre completo de cada producto, envuelto al ancho de su columna.
+  setListFont('body', 'normal', LIST.row);
+  const names = transfer.items.map(
+    (item) => doc.splitTextToSize(item.productName || TRANSFER_EMPTY, cols.nameWidth) as string[],
+  );
+  const rowHeights = names.map((lines) => transferRowHeight(lines.length, scale));
+  const headH = transferHeadHeight(scale);
+  const listBottom = PAGE_H - BOTTOM_MARGIN;
 
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text('#', col1 + 1, y);
-  doc.text('CÓDIGO', col2, y);
-  doc.text('PRODUCTO', col3, y);
-  doc.text('CANT.', col4, y);
-  doc.text('LOTE', col5, y);
-  doc.text('CAD', col6, y);
-  y += 5;
+  const drawListHead = (top: number) => {
+    doc.setFillColor(62, 102, 125);
+    doc.rect(tableLeft, top, CONTENT_W, headH, 'F');
+    setListFont('body', 'bold', LIST.head);
+    doc.setTextColor(255, 255, 255);
+    const base = top + headH * 0.68;
+    doc.text('#', cols.indexX, base);
+    doc.text('CÓDIGO', cols.codeX, base);
+    doc.text('PRODUCTO', cols.nameX, base);
+    doc.text('CANT.', cols.qtyRight, base, { align: 'right' });
+    if (cols.lotX !== null) doc.text('LOTE', cols.lotX, base);
+    if (cols.expirationX !== null) doc.text('CAD', cols.expirationX, base);
+    doc.setTextColor(0, 0, 0);
+  };
 
-  // Table rows
-  doc.setTextColor(0, 0, 0);
-  doc.setFont(FONT_MONO, 'normal');
-  doc.setFontSize(7.5);
+  // El encabezado y el primer renglón van juntos: si no caben, la tabla empieza en hoja nueva.
+  if (y + headH + (rowHeights[0] ?? 0) > listBottom) {
+    doc.addPage();
+    y = TOP_MARGIN;
+  }
+  drawListHead(y);
+  const plan = planTransferListRows(rowHeights, {
+    firstTop: y + headH,
+    nextTop: TOP_MARGIN,
+    bottom: listBottom,
+    headHeight: headH,
+  });
 
   let totalQty = 0;
+  let listPage = 0;
+  const rowBaseline = transferRowBaseline(scale);
+  const nameLineH = transferNameLineHeight(scale);
   transfer.items.forEach((item, idx) => {
-    const rowNeeded = 6;
-    y = checkPage(doc, y, rowNeeded);
+    const row = plan.rows[idx];
+    // En cada hoja nueva la tabla vuelve a traer su encabezado de columnas.
+    if (row.page !== listPage) {
+      doc.addPage();
+      listPage = row.page;
+      drawListHead(TOP_MARGIN);
+    }
 
     // Alternate row bg
     if (idx % 2 === 0) {
       doc.setFillColor(245, 247, 250);
-      doc.rect(tableLeft, y - 3.5, CONTENT_W, rowNeeded, 'F');
+      doc.rect(tableLeft, row.top, CONTENT_W, row.height, 'F');
     }
 
-    doc.setFont(FONT_MONO, 'normal');
-    doc.setFontSize(7.5);
-    doc.text(String(idx + 1), col1 + 1, y);
-    doc.text(item.productCode || '\u2014', col2, y);
+    const base = row.top + rowBaseline;
+    doc.setTextColor(130, 130, 130);
+    setListFont('mono', 'normal', LIST.index);
+    doc.text(String(idx + 1), cols.indexX, base);
 
-    // Product name — truncate if too long
-    doc.setFont(FONT_BODY, 'normal');
-    const maxNameW = col4 - col3 - 3;
-    const nameLines = doc.splitTextToSize(item.productName, maxNameW) as string[];
-    doc.text(nameLines[0], col3, y);
+    doc.setTextColor(0, 0, 0);
+    setListFont('mono', 'normal', LIST.row);
+    doc.text(item.productCode || TRANSFER_EMPTY, cols.codeX, base);
 
-    doc.setFont(FONT_MONO, 'bold');
-    doc.text(String(item.quantity), col4, y);
+    setListFont('body', 'normal', LIST.row);
+    names[idx].forEach((line, i) => doc.text(line, cols.nameX, base + i * nameLineH));
 
-    // Lote / CAD
-    doc.setFont(FONT_MONO, 'normal');
-    doc.setFontSize(7);
-    doc.text(item.lotNumber || '\u2014', col5, y);
-    doc.text(item.expirationDate || '\u2014', col6, y);
+    setListFont('mono', 'bold', LIST.quantity);
+    doc.text(String(item.quantity), cols.qtyRight, base, { align: 'right' });
+
+    // Lote / CAD (solo si algún producto del traspaso los trae)
+    if (cols.lotX !== null && cols.expirationX !== null) {
+      setListFont('mono', 'normal', LIST.extra);
+      doc.text(item.lotNumber || TRANSFER_EMPTY, cols.lotX, base);
+      doc.text(item.expirationDate || TRANSFER_EMPTY, cols.expirationX, base);
+    }
 
     totalQty += item.quantity;
-
-    // If name wraps to a second line
-    if (nameLines.length > 1) {
-      y += 3.5;
-      y = checkPage(doc, y, 4);
-      doc.setFont(FONT_BODY, 'normal');
-      doc.setFontSize(6.5);
-      doc.text(nameLines[1], col3, y);
-    }
-
-    y += 5;
   });
+  y = plan.endY + 2;
 
   // Total row
-  y = checkPage(doc, y, 8);
+  y = checkPage(doc, y, 12);
   doc.setDrawColor(62, 102, 125);
   doc.setLineWidth(0.5);
-  doc.line(tableLeft, y - 2, tableRight, y - 2);
-  y += 2;
+  doc.line(tableLeft, y, tableRight, y);
+  y += 6;
 
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(LIST.total);
   doc.setTextColor(62, 102, 125);
-  doc.text('TOTAL', col3, y);
+  doc.text('TOTAL', cols.nameX, y);
   doc.text(`${transfer.totalItems} producto${transfer.totalItems !== 1 ? 's' : ''}, ${totalQty} unidades`, tableRight, y, { align: 'right' });
   y += 10;
 
@@ -367,11 +416,12 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
   y = checkPage(doc, y, 35);
   y += 10;
 
-  const sigWidth = 60;
+  // Tres líneas de firma separadas (antes medían 60 mm y se encimaban en una sola raya).
+  const sigWidth = 50;
   const sigY = y + 15;
-  const sig1X = MARGIN + 10;
+  const sig1X = MARGIN + 5;
   const sig2X = PAGE_W / 2 - sigWidth / 2;
-  const sig3X = PAGE_W - MARGIN - sigWidth - 10;
+  const sig3X = PAGE_W - MARGIN - sigWidth - 5;
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -409,7 +459,5 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
   doc.text(`Generado el ${fmtDate(new Date())}  |  ${transfer.movementNumber}`, MARGIN, footerY);
   doc.text('Tonic Life — Sistema de Inventarios', PAGE_W - MARGIN, footerY, { align: 'right' });
 
-  // ----- Return blob URL -----
-  const blob = doc.output('blob');
-  return URL.createObjectURL(blob);
+  return doc;
 }
