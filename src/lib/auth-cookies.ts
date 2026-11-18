@@ -5,7 +5,7 @@
 // Centralised here so both the auth service (login) and the axios interceptor
 // (token refresh) write/clear them identically, and so the cookie lifetime
 // always matches where the real token lives:
-//   • "Recordarme" ON  → tokens in localStorage  → persistent cookie (7 days)
+//   • "Recordarme" ON  → tokens in localStorage  → persistent cookie (30 days)
 //   • "Recordarme" OFF → tokens in sessionStorage → session cookie (clears on
 //     browser close), so the middleware never believes you're logged in after
 //     the token itself is already gone.
@@ -21,8 +21,13 @@ const ROLE_COOKIE = 'authRole';
 const PORTAL_COOKIE = 'authPortal';
 const REMEMBER_KEY = 'rememberMe';
 
-// Matches the backend refresh-token lifetime (JWT_REFRESH_EXPIRES_IN = 7d).
-const AUTH_MAX_AGE = 60 * 60 * 24 * 7;
+// Igual a la ventana de inactividad de la sesión en el API (JWT_REFRESH_EXPIRES_IN = 30d,
+// 18-nov-2026). Estas cookies se reescriben en cada login y en cada renovación del acceso,
+// así que la ventana se recorre con el uso: quien entra al menos una vez cada 30 días no
+// vuelve a ver el login. Con 7 días, el middleware mandaba a /login a quien llevaba una
+// semana sin entrar aunque su sesión siguiera viva en el servidor.
+export const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const AUTH_MAX_AGE = AUTH_COOKIE_MAX_AGE_SECONDS;
 
 const isRemembered = (): boolean =>
   typeof window !== 'undefined' && localStorage.getItem(REMEMBER_KEY) === '1';

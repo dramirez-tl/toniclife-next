@@ -311,7 +311,7 @@ class AuthService {
     this.setRemember(remember ?? false);
 
     // rememberMe viaja al API: decide si la cookie httpOnly del refresh es
-    // persistente (7d) o de sesión.
+    // persistente (30d) o de sesión.
     const response = await api.post<LoginResult>('/auth/login', {
       ...loginData,
       rememberMe: remember ?? false,
