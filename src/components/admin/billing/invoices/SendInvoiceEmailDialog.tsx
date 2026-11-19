@@ -1,8 +1,11 @@
 'use client';
 
 // Reenvío de una factura por correo (`POST /billing/invoices/:id/email`).
-// Sin destinatarios el API manda al correo fiscal del cliente (o al de
-// contacto); máximo 5 direcciones.
+// Sin destinatarios el API manda al correo del RECEPTOR de la factura: el
+// fiscal capturado con su RFC y, solo si la factura está a nombre del titular
+// de la cuenta, su correo de contacto. Una factura a nombre de otra persona
+// nunca sale sola al correo del titular (18-nov-2026): si no hay correo del
+// receptor, el API pide indicar a quién enviarla. Máximo 5 direcciones.
 
 import { useId, useState } from 'react';
 import { Input } from '@/components/ui/input';
@@ -24,7 +27,7 @@ export function SendInvoiceEmailDialog({
   onOpenChange: (open: boolean) => void;
   invoiceId: string;
   folio: string;
-  /** Correo fiscal (o de contacto) del receptor, si se conoce. */
+  /** Correo del receptor de la factura, si se conoce (lo decide el API). */
   defaultEmail?: string | null;
 }) {
   const [raw, setRaw] = useState(defaultEmail ?? '');
@@ -76,13 +79,14 @@ export function SendInvoiceEmailDialog({
           inputMode="email"
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
-          placeholder="Vacío = correo fiscal del cliente"
+          placeholder="Vacío = correo de quien recibe la factura"
           aria-describedby={helpId}
           aria-invalid={!!error}
           autoComplete="off"
         />
         <p id={helpId} className={`text-xs ${error ? 'text-red-600' : 'text-muted-foreground'}`} role={error ? 'alert' : undefined}>
-          {error || 'Si lo dejas vacío se usa el correo fiscal del cliente (o su correo de contacto).'}
+          {error ||
+            'Si lo dejas vacío se usa el correo fiscal de quien recibe la factura. El correo de contacto de la cuenta solo se usa cuando la factura está a nombre de su titular.'}
         </p>
       </div>
     </ConfirmDialog>
