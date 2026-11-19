@@ -117,6 +117,9 @@ export function TemporadasTab() {
   const seasons: PromoSeason[] = useMemo(() => data?.data ?? [], [data]);
   const total = data?.total ?? 0;
 
+  /** Abre la temporada: lo hacen el lápiz y el clic en cualquier parte de su fila. */
+  const openSeason = (seasonId: string) => router.push(`/admin/temporadas/${seasonId}`);
+
   const hasActiveFilters = Boolean(searchQuery || filterStatus !== 'all' || filterCountryId);
   const handleSearch = () => setParams({ search: searchInput.trim() });
   const resetFilters = () => {
@@ -248,7 +251,7 @@ export function TemporadasTab() {
         <div className="flex items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => router.push(`/admin/temporadas/${s.id}`)}
+            onClick={() => openSeason(s.id)}
             className="rounded-lg p-2 transition-colors hover:bg-green-50"
             title={canManageSeasons ? 'Editar temporada' : 'Ver temporada'}
           >
@@ -448,6 +451,13 @@ export function TemporadasTab() {
               isLoading={isLoading && !data}
               getRowKey={(s) => s.id}
               minWidthClassName="min-w-[1000px]"
+              rowClassName="cursor-pointer border-b border-border transition-colors hover:bg-muted/50"
+              // Clic en la fila = abrir la temporada. Si lo que hizo fue seleccionar texto (para
+              // copiar un importe), no navega. La miniatura del arte y el lápiz conservan lo suyo.
+              onRowClick={(s) => {
+                if (window.getSelection()?.toString()) return;
+                openSeason(s.id);
+              }}
               emptyState={
                 <div className="py-2 text-center">
                   <CalendarDaysIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />

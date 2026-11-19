@@ -368,6 +368,9 @@ export function DataTable<T>({
                 onClick={
                   onRowClick
                     ? (e) => {
+                        // Un clic dentro de un diálogo abierto desde la fila (p. ej. el arte en grande)
+                        // llega aquí por React aunque se pinte fuera de la tabla: no es un clic en la fila.
+                        if (!e.currentTarget.contains(e.target as Node)) return;
                         // Los controles de la fila (ver, editar, enlaces) no despliegan.
                         if ((e.target as HTMLElement).closest('button, a, input, select, textarea, label')) return;
                         onRowClick(item, index);
