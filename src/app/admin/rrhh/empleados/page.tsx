@@ -207,6 +207,7 @@ function EmpleadosContent() {
           'Estado',
           'Telefono',
           'Correo',
+          'Codigo checador legacy',
         ],
         exported.map((e) => [
           csvSafe(e.employeeNumber),
@@ -223,6 +224,7 @@ function EmpleadosContent() {
           EMPLOYEE_STATUS_LABELS[e.status] ?? e.status,
           csvSafe(e.phone),
           csvSafe(e.email),
+          csvSafe(e.legacyCheckerCode),
         ]),
       );
       toast.success('Listado exportado');
@@ -400,7 +402,7 @@ function EmpleadosContent() {
               <Input
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                placeholder="Número, NOI, gafete o nombre"
+                placeholder="Número, NOI, código legacy, gafete o nombre"
               />
             </div>
             <div>

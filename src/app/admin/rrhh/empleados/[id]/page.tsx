@@ -14,6 +14,7 @@ import {
   ArrowLeftIcon,
   ArrowDownTrayIcon,
   CameraIcon,
+  CheckCircleIcon,
   ClockIcon,
   IdentificationIcon,
   PencilSquareIcon,
@@ -36,11 +37,23 @@ import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { EmployeeFormDialog } from '@/components/admin/hr/EmployeeFormDialog';
 import { PhotoCropDialog } from '@/components/admin/hr/PhotoCropDialog';
 import { BADGE_PHOTO_SOURCE_MAX_MB } from '@/lib/badge-photo';
+import {
+  BADGE_STAGE_LABELS,
+  BADGE_STATE_LABELS,
+  badgeDeliveryNotes,
+  badgeDeliveryStatus,
+  badgeReceiverLabel,
+  formatBadgeDateTime,
+  sortBadgeDeliveries,
+  timesLabel,
+  type BadgeDeliveryState,
+} from '@/lib/badge-deliveries';
 import { downloadEmployeeBadgePdf } from '@/lib/generate-employee-badge-pdf';
 import {
   useDeleteEmployeePhoto,
   useEmployee,
   useEmployeeAttendance,
+  useEmployeeBadgeDeliveries,
   useGenerateBadge,
   useMarkBadgePrinted,
   useUploadEmployeePhoto,
@@ -77,6 +90,7 @@ import {
   WORK_DAYS,
   employeeDisplayName,
   type AttendanceEvent,
+  type BadgeDelivery,
   type Vacation,
   type WorkScheduleSummary,
 } from '@/types/hr';
@@ -256,6 +270,11 @@ export default function EmployeeDetailPage({
                 <CardContent className="grid gap-x-8 gap-y-3 p-6">
                   <SectionTitle>Identificación</SectionTitle>
                   <Field label="Número de empleado" value={employee.employeeNumber} mono />
+                  <Field
+                    label="Código checador sistema legacy"
+                    value={employee.legacyCheckerCode}
+                    mono
+                  />
                   <Field label="Número Aspel NOI" value={employee.noiNumber} mono />
                   <Field label="Empresa en NOI" value={employee.noiCompany} />
                   <Field
@@ -391,6 +410,7 @@ export default function EmployeeDetailPage({
           <TabsContent value="gafete">
             <BadgeTab
               employeeId={employee.id}
+              employeeNumber={employee.employeeNumber}
               badgeCode={employee.badgeCode}
               badgeIssuedAt={employee.badgeIssuedAt}
               badgePrintedCount={employee.badgePrintedCount}
@@ -734,8 +754,214 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
 // Pestaña: gafete
 // ---------------------------------------------------------------------------
 
+/** Color del estado de la credencial (dónde está). */
+const BADGE_STATE_VARIANTS: Record<BadgeDeliveryState, 'success' | 'warning' | 'secondary'> = {
+  delivered: 'success',
+  in_hr: 'warning',
+  none: 'secondary',
+};
+
+/** Un paso del recorrido de la credencial: impresa → en RRHH → con el colaborador. */
+function CredentialStep({
+  title,
+  done,
+  main,
+  lines = [],
+}: {
+  title: string;
+  done: boolean;
+  main: string;
+  lines?: (string | null)[];
+}) {
+  const details = lines.filter((l): l is string => !!l);
+  return (
+    <div className="flex gap-3 rounded-lg border border-border p-3">
+      {done ? (
+        <CheckCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+      ) : (
+        <ClockIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/60" aria-hidden />
+      )}
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </p>
+        <p className={`text-sm font-semibold ${done ? '' : 'text-muted-foreground'}`}>{main}</p>
+        {details.map((line) => (
+          <p key={line} className="break-words text-xs text-muted-foreground">
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Credencial impresa: a quién se le entregó y cuándo. Las entregas se registran
+ * con la app Tonic Life al escanear el reverso (Sistemas → RRHH → colaborador);
+ * aquí solo se consultan.
+ */
+function CredentialDeliveriesCard({
+  employeeId,
+  employeeNumber,
+  badgePrintedCount,
+}: {
+  employeeId: string;
+  employeeNumber: string;
+  badgePrintedCount: number;
+}) {
+  const { data, isLoading, isError } = useEmployeeBadgeDeliveries(employeeId);
+  const rows = useMemo(() => sortBadgeDeliveries(data?.data ?? []), [data]);
+  const status = useMemo(() => badgeDeliveryStatus(rows), [rows]);
+  const printed = Number(badgePrintedCount ?? 0);
+  const loading = isLoading && !data;
+
+  const columns: DataTableColumn<BadgeDelivery>[] = [
+    {
+      key: 'deliveredAt',
+      header: 'Fecha y hora',
+      render: (d) => (
+        <span
+          className={`whitespace-nowrap text-sm tabular-nums ${
+            d.voidedAt ? 'text-muted-foreground line-through' : 'font-medium'
+          }`}
+        >
+          {formatBadgeDateTime(d.deliveredAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'stage',
+      header: 'Movimiento',
+      render: (d) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={d.stage === 'employee' ? 'success' : 'info'}>
+            {BADGE_STAGE_LABELS[d.stage] ?? d.stage}
+          </Badge>
+          {d.isReplacement && <Badge variant="warning">Reposición</Badge>}
+          {d.voidedAt && <Badge variant="destructive">Anulada</Badge>}
+        </div>
+      ),
+    },
+    {
+      key: 'deliveredByName',
+      header: 'Registró',
+      cellClassName: 'text-sm',
+      render: (d) => d.deliveredByName ?? '—',
+    },
+    {
+      key: 'receivedByName',
+      header: 'Recibió',
+      cellClassName: 'text-sm',
+      render: (d) => badgeReceiverLabel(d),
+    },
+    {
+      key: 'notes',
+      header: 'Notas',
+      cellClassName: 'text-xs text-muted-foreground',
+      render: (d) => badgeDeliveryNotes(d) ?? '—',
+    },
+  ];
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <SectionTitle>Credencial</SectionTitle>
+            <p className="text-sm text-muted-foreground">
+              Entregas registradas con la app Tonic Life al escanear la credencial: primero Sistemas
+              la entrega a RRHH y después RRHH al colaborador.
+            </p>
+          </div>
+          {!loading && !isError && (
+            <Badge variant={BADGE_STATE_VARIANTS[status.state]}>
+              {BADGE_STATE_LABELS[status.state]}
+            </Badge>
+          )}
+        </div>
+
+        {loading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : isError ? (
+          <p className="text-sm text-muted-foreground">
+            No se pudieron consultar las entregas de la credencial. Recarga la página para
+            intentarlo de nuevo.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-3 lg:grid-cols-3">
+              <CredentialStep
+                title="Impresa"
+                done={printed > 0}
+                main={printed > 0 ? timesLabel(printed) : 'Sin impresión registrada'}
+                lines={[`Código de barras: ${employeeNumber}`]}
+              />
+              <CredentialStep
+                title="Entregada a RRHH"
+                done={!!status.handoff}
+                main={status.handoff ? formatBadgeDateTime(status.handoff.deliveredAt) : 'Pendiente'}
+                lines={
+                  status.handoff
+                    ? [
+                        status.handoff.deliveredByName
+                          ? `Entregó: ${status.handoff.deliveredByName}`
+                          : null,
+                        status.handoff.receivedByName
+                          ? `Recibió: ${status.handoff.receivedByName}`
+                          : null,
+                      ]
+                    : []
+                }
+              />
+              <CredentialStep
+                title="Entregada al colaborador"
+                done={status.state === 'delivered'}
+                main={
+                  status.delivery
+                    ? formatBadgeDateTime(status.delivery.deliveredAt)
+                    : 'Pendiente'
+                }
+                lines={
+                  status.delivery
+                    ? [
+                        status.delivery.deliveredByName
+                          ? `Entregó: ${status.delivery.deliveredByName}`
+                          : null,
+                        status.state === 'in_hr'
+                          ? 'Hay una credencial nueva en RRHH por entregar'
+                          : null,
+                        status.deliveredCount > 1
+                          ? `${status.deliveredCount} entregas (incluye reposiciones)`
+                          : null,
+                      ]
+                    : []
+                }
+              />
+            </div>
+
+            {rows.length > 0 ? (
+              <DataTable
+                columns={columns}
+                data={rows}
+                getRowKey={(d) => d.id}
+                minWidthClassName="min-w-[720px]"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Todavía no hay entregas registradas de la credencial de este colaborador.
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function BadgeTab({
   employeeId,
+  employeeNumber,
   badgeCode,
   badgeIssuedAt,
   badgePrintedCount,
@@ -743,6 +969,7 @@ function BadgeTab({
   badgeData,
 }: {
   employeeId: string;
+  employeeNumber: string;
   badgeCode: string | null;
   badgeIssuedAt: string | null;
   badgePrintedCount: number;
@@ -791,91 +1018,101 @@ function BadgeTab({
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-4 p-6">
-        {badgeCode ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              El gafete se escanea como CODE128. El código es propio del gafete: si se extravía se
-              repone sin cambiar el número con el que la persona checa.
-            </p>
-            <div className="flex flex-col items-start gap-4">
-              <AssetBarcode value={badgeCode} />
-              <div className="grid gap-1 text-xs text-muted-foreground">
-                <span>
-                  Código: <span className="font-mono text-foreground">{badgeCode}</span>
-                </span>
-                <span>Emitido: {formatDateOnly(badgeIssuedAt)}</span>
-                <span>Impresiones registradas: {badgePrintedCount ?? 0}</span>
+    <div className="space-y-4">
+      <CredentialDeliveriesCard
+        employeeId={employeeId}
+        employeeNumber={employeeNumber}
+        badgePrintedCount={badgePrintedCount}
+      />
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <SectionTitle>Gafete en PDF (código propio)</SectionTitle>
+          {badgeCode ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                El gafete se escanea como CODE128. El código es propio del gafete: si se extravía se
+                repone sin cambiar el número con el que la persona checa.
+              </p>
+              <div className="flex flex-col items-start gap-4">
+                <AssetBarcode value={badgeCode} />
+                <div className="grid gap-1 text-xs text-muted-foreground">
+                  <span>
+                    Código: <span className="font-mono text-foreground">{badgeCode}</span>
+                  </span>
+                  <span>Emitido: {formatDateOnly(badgeIssuedAt)}</span>
+                  <span>Impresiones registradas: {badgePrintedCount ?? 0}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => void download()} disabled={downloading}>
+                    {downloading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                    )}
+                    Descargar PDF
+                  </Button>
+                  {canManage && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void printed()}
+                        disabled={markPrinted.isPending}
+                      >
+                        <PrinterIcon className="mr-2 h-4 w-4" />
+                        Marcar como impreso
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void generate(true)}
+                        disabled={generateBadge.isPending}
+                      >
+                        {generateBadge.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <IdentificationIcon className="mr-2 h-4 w-4" />
+                        )}
+                        Reponer gafete
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => void download()} disabled={downloading}>
-                  {downloading ? (
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Este colaborador no tiene código de gafete propio. Solo hace falta para el gafete en
+                PDF de esta pantalla: la credencial impresa lleva el número de empleado en el código
+                de barras.
+              </p>
+              {canManage ? (
+                <Button size="sm" onClick={() => void generate(false)} disabled={generateBadge.isPending}>
+                  {generateBadge.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                    <IdentificationIcon className="mr-2 h-4 w-4" />
                   )}
-                  Descargar PDF
+                  Generar código
                 </Button>
-                {canManage && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void printed()}
-                      disabled={markPrinted.isPending}
-                    >
-                      <PrinterIcon className="mr-2 h-4 w-4" />
-                      Marcar como impreso
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void generate(true)}
-                      disabled={generateBadge.isPending}
-                    >
-                      {generateBadge.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <IdentificationIcon className="mr-2 h-4 w-4" />
-                      )}
-                      Reponer gafete
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Este colaborador aún no tiene gafete. Genera el código para poder imprimirlo.
-            </p>
-            {canManage ? (
-              <Button size="sm" onClick={() => void generate(false)} disabled={generateBadge.isPending}>
-                {generateBadge.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <IdentificationIcon className="mr-2 h-4 w-4" />
-                )}
-                Generar código
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Se necesita permiso de gestión de RRHH para generar el gafete.
+                </p>
+              )}
+              <Button size="sm" variant="outline" disabled>
+                <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                Descargar PDF
               </Button>
-            ) : (
               <p className="text-xs text-muted-foreground">
-                Se necesita permiso de gestión de RRHH para generar el gafete.
+                El PDF se habilita cuando el gafete tiene código.
               </p>
-            )}
-            <Button size="sm" variant="outline" disabled>
-              <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-              Descargar PDF
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              El PDF se habilita cuando el gafete tiene código.
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

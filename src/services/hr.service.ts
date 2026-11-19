@@ -10,6 +10,7 @@ import type {
   EmployeeListResponse,
   EmployeeQuery,
   EmployeeImportResult,
+  BadgeDeliveryListResponse,
   Department,
   CreateDepartmentDto,
   UpdateDepartmentDto,
@@ -199,6 +200,21 @@ class HrService {
   /** Marca que el gafete se imprimió (badge_printed_count++). */
   async markBadgePrinted(id: string): Promise<void> {
     await api.post(`/hr/employees/${id}/badge/printed`, {});
+  }
+
+  /**
+   * Entregas de la credencial de UN expediente, registradas con la app Tonic
+   * Life (Sistemas → RRHH → colaborador). Incluye las anuladas: en la ficha se
+   * ven tachadas, con su motivo. Solo lectura.
+   */
+  async getEmployeeBadgeDeliveries(employeeId: string): Promise<BadgeDeliveryListResponse> {
+    const { data } = await api.get<BadgeDeliveryListResponse>('/hr/badges/deliveries', {
+      params: { employeeId, includeVoided: 'true', limit: 50 },
+    });
+    return {
+      data: data?.data ?? [],
+      pagination: data?.pagination ?? { total: 0, page: 1, limit: 50, pages: 1 },
+    };
   }
 
   // --- Carga masiva de expedientes (CSV) ---

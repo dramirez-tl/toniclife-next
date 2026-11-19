@@ -275,6 +275,11 @@ export interface Employee {
   employeeNumber: string;
   /** Número de nómina en Aspel NOI. null si no está en NOI. */
   noiNumber: string | null;
+  /**
+   * "Código checador sistema legacy": con el que checaba en el sistema anterior
+   * (mig 213). null si no se ha capturado o si falta aplicar la migración.
+   */
+  legacyCheckerCode?: string | null;
   /** Código del GAFETE (distinto del número de checador). */
   badgeCode: string | null;
   /** Lo que RRHH eligió para la credencial (null = no eligió). Mig 153. */
@@ -363,8 +368,40 @@ export interface EmployeeListResponse {
   };
 }
 
+// --- Entregas de la credencial (app Tonic Life; GET /hr/badges/deliveries) ---
+
+/** `hr` = Sistemas la entrega a RRHH; `employee` = RRHH la entrega al colaborador. */
+export type BadgeStage = 'hr' | 'employee';
+
+export interface BadgeDelivery {
+  id: string;
+  employeeId: string;
+  employeeNumber: string | null;
+  stage: BadgeStage;
+  /** Momento del escaneo (UTC). */
+  deliveredAt: string;
+  deliveredById: string | null;
+  /** Quién la registró: la sesión de la app que escaneó. */
+  deliveredByName: string | null;
+  /** Quién recibe en RRHH (etapa `hr`); en la etapa `employee` no se captura. */
+  receivedByName: string | null;
+  source: string;
+  isReplacement: boolean;
+  notes: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
+}
+
+export interface BadgeDeliveryListResponse {
+  data: BadgeDelivery[];
+  pagination: { total: number; page: number; limit: number; pages: number };
+}
+
 export interface EmployeeQuery {
-  /** Número de empleado, número NOI, gafete o nombre (también "nombre apellido"). */
+  /**
+   * Número de empleado, número NOI, código del checador anterior, gafete o
+   * nombre (también "nombre apellido").
+   */
   search?: string;
   branchId?: string;
   departmentId?: string;
@@ -388,6 +425,8 @@ export interface CreateEmployeeDto {
   employeeNumber?: string;
   noiNumber?: string;
   noiCompany?: string;
+  /** Código con el que checaba en el sistema anterior (mig 213). */
+  legacyCheckerCode?: string;
   /** Un nombre + apellido paterno para la credencial; vacío = propuesto. */
   badgeName?: string;
   employmentType?: EmploymentType;
@@ -413,6 +452,8 @@ export interface UpdateEmployeeDto {
   employeeNumber?: string;
   noiNumber?: string | null;
   noiCompany?: string | null;
+  /** Código del checador anterior (mig 213); null = quitarlo. Mandarlo SOLO si cambió. */
+  legacyCheckerCode?: string | null;
   /** null = volver al propuesto (primer nombre + paterno). */
   badgeName?: string | null;
   employmentType?: EmploymentType;

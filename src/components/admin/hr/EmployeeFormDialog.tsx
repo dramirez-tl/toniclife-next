@@ -72,6 +72,8 @@ interface FormState {
   employeeNumber: string;
   noiNumber: string;
   noiCompany: string;
+  /** Código con el que checaba en el sistema anterior (mig 213). */
+  legacyCheckerCode: string;
   employmentType: EmploymentType;
   firstName: string;
   lastName: string;
@@ -98,6 +100,7 @@ function initialState(employee?: EmployeeDetail | null): FormState {
     employeeNumber: employee?.employeeNumber ?? '',
     noiNumber: employee?.noiNumber ?? '',
     noiCompany: employee?.noiCompany ?? '',
+    legacyCheckerCode: employee?.legacyCheckerCode ?? '',
     employmentType: employee?.employmentType ?? 'nomina',
     firstName: employee?.firstName ?? '',
     lastName: employee?.lastName ?? '',
@@ -132,6 +135,10 @@ function nullable(value: string): string | null {
   const v = value.trim();
   return v.length > 0 ? v : null;
 }
+
+/** Lo mismo que acepta el API: letras, dígitos, punto y guiones, sin espacios. */
+const LEGACY_CHECKER_CODE_PATTERN = /^[A-Za-z0-9._-]+$/;
+const LEGACY_CHECKER_CODE_MAX = 30;
 
 /**
  * En edición SIEMPRE se trabaja sobre el expediente COMPLETO.
@@ -247,6 +254,13 @@ function EmployeeForm({
       toast.error('Para dar de baja hay que capturar la fecha de baja');
       return;
     }
+    const legacyCode = form.legacyCheckerCode.trim().toUpperCase();
+    if (legacyCode && !LEGACY_CHECKER_CODE_PATTERN.test(legacyCode)) {
+      toast.error(
+        'El código checador sistema legacy solo puede llevar letras, números, punto y guiones (sin espacios)',
+      );
+      return;
+    }
     if (form.phone) {
       const p = parsePhone(form.phone);
       if (!isValidLocalNumber(p.country, p.number)) {
@@ -261,6 +275,10 @@ function EmployeeForm({
           employeeNumber: opt(form.employeeNumber),
           noiNumber: nullable(form.noiNumber),
           noiCompany: nullable(form.noiCompany),
+          // Solo si cambió: así editar cualquier otro dato no depende de la mig 213.
+          ...(legacyCode !== (employee.legacyCheckerCode ?? '').trim().toUpperCase()
+            ? { legacyCheckerCode: legacyCode || null }
+            : {}),
           employmentType: form.employmentType,
           firstName: opt(form.firstName),
           lastName: opt(form.lastName),
@@ -287,6 +305,7 @@ function EmployeeForm({
           employeeNumber: opt(form.employeeNumber),
           noiNumber: opt(form.noiNumber),
           noiCompany: opt(form.noiCompany),
+          legacyCheckerCode: legacyCode || undefined,
           employmentType: form.employmentType,
           firstName: form.firstName.trim(),
           lastName: form.lastName.trim(),
@@ -446,6 +465,21 @@ function EmployeeForm({
                 onChange={(e) => set('noiCompany', e.target.value)}
                 placeholder="Razón social con la que aparece en NOI"
               />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="legacy-checker-code">Código checador sistema legacy</Label>
+              <Input
+                id="legacy-checker-code"
+                value={form.legacyCheckerCode}
+                onChange={(e) => set('legacyCheckerCode', e.target.value)}
+                placeholder="El que tenía en el checador anterior"
+                maxLength={LEGACY_CHECKER_CODE_MAX}
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                El número con el que checaba en el sistema anterior. No se puede repetir en otro
+                expediente.
+              </p>
             </div>
           </section>
 

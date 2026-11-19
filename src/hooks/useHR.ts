@@ -34,6 +34,9 @@ export const hrKeys = {
   employee: (id: string) => [...hrKeys.employees(), id] as const,
   employeeAttendance: (id: string, query: Record<string, unknown>) =>
     [...hrKeys.employees(), id, 'attendance', query] as const,
+  // Cuelga de employees() para que invalidar el expediente también la refresque.
+  employeeBadgeDeliveries: (id: string) =>
+    [...hrKeys.employees(), id, 'badge-deliveries'] as const,
   myEmployee: () => [...hrKeys.employees(), 'me'] as const,
   workSchedules: (includeInactive: boolean) =>
     [...hrKeys.all, 'work-schedules', includeInactive] as const,
@@ -172,6 +175,17 @@ export function useMarkBadgePrinted() {
   return useMutation({
     mutationFn: (id: string) => hrApi.markBadgePrinted(id),
     onSuccess: (_, id) => invalidate(id),
+  });
+}
+
+/** Entregas de la credencial del expediente (app Tonic Life), para la pestaña Gafete. */
+export function useEmployeeBadgeDeliveries(id: string) {
+  return useQuery({
+    queryKey: hrKeys.employeeBadgeDeliveries(id),
+    queryFn: () => hrApi.getEmployeeBadgeDeliveries(id),
+    enabled: !!id,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
