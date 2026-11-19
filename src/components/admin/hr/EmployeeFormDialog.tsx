@@ -33,11 +33,8 @@ import { parsePhone, isValidLocalNumber } from '@/lib/phone';
 import {
   LEGACY_CHECKER_CODE_MAX,
   isValidLegacyCheckerCode,
-  legacyCodeClashNotice,
-  legacyCodeNoiClash,
   normalizeLegacyCheckerCode,
 } from '@/lib/legacy-checker-code';
-import { hrService } from '@/services/hr.service';
 import {
   useCreateEmployee,
   useDepartments,
@@ -228,14 +225,6 @@ function EmployeeForm({
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const isSaving = createEmployee.isPending || updateEmployee.isPending;
-  /**
-   * Código anterior que choca con el número de nómina de otra persona y que el
-   * usuario ya vio: el aviso sale bajo el campo y un segundo «Guardar» con el
-   * MISMO código lo confirma.
-   */
-  const [legacyClash, setLegacyClash] = useState<{ code: string; otherNumber: string } | null>(
-    null,
-  );
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -278,23 +267,6 @@ function EmployeeForm({
       const p = parsePhone(form.phone);
       if (!isValidLocalNumber(p.country, p.number)) {
         toast.error(`Teléfono incompleto: ${p.country.name} requiere ${p.country.digits} dígitos`);
-        return;
-      }
-    }
-    // El checador también acepta este código. Si es el número de nómina de OTRA
-    // persona, ninguna de las dos podría entrar con él: se avisa antes de
-    // guardar. Si la consulta falla no estorba; lo demás lo valida el API.
-    if (legacyCode && legacyChanged && legacyClash?.code !== legacyCode) {
-      let clashNumber: string | null = null;
-      try {
-        const found = await hrService.listEmployees({ search: legacyCode, limit: 50 });
-        clashNumber = legacyCodeNoiClash(legacyCode, found.data, employee?.id)?.employeeNumber ?? null;
-      } catch {
-        clashNumber = null;
-      }
-      if (clashNumber) {
-        setLegacyClash({ code: legacyCode, otherNumber: clashNumber });
-        toast.warning('Revisa el aviso del código checador sistema legacy');
         return;
       }
     }
@@ -506,17 +478,9 @@ function EmployeeForm({
               />
               <p className="text-[11px] text-muted-foreground">
                 El número con el que checaba en el sistema anterior: también puede checar con él.
-                No se puede repetir en otro expediente.
+                No se puede repetir: ni en otro expediente ni con el número de nómina o de
+                empleado de otra persona.
               </p>
-              {legacyClash &&
-                legacyClash.code === normalizeLegacyCheckerCode(form.legacyCheckerCode) && (
-                  <p
-                    role="alert"
-                    className="rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900"
-                  >
-                    {legacyCodeClashNotice(legacyClash.code, legacyClash.otherNumber)}
-                  </p>
-                )}
             </div>
           </section>
 
