@@ -98,7 +98,7 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
   } else if (isError || !season) {
     const migrationMissing = isMigrationMissingError(error);
     content = (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Link
           href={BACK_HREF}
           className="mb-4 inline-flex items-center text-sm text-[#3E667D] hover:underline"
@@ -139,7 +139,7 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
     content = (
       <>
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <Link
               href={BACK_HREF}
               className="mb-3 inline-flex items-center text-sm text-white/80 hover:text-white"
@@ -195,7 +195,7 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
           <SeasonForm
             key={season.updatedAt}
             mode="edit"

@@ -376,12 +376,21 @@ y pidió que esa sea la separación de todos los módulos.
 - Alcance: **solo el admin** (`src/app/admin`, `src/components/admin`, `src/components/inventory`). La
   tienda pública y el panel del distribuidor conservan su ancho (`max-w-7xl`); por eso
   `components/network/NetworkWorkspace.tsx`, que comparten, no se tocó.
-- Aplicado el 19-nov-2026 a las pantallas anchas (207 contenedores en 95 archivos). **Pendiente de
-  decisión de Diego:** las fichas y formularios angostos (`max-w-6xl` o menos: nuevo/editar/detalle de
-  distribuidores, temporadas, membresías, eventos, activos, empleados, datos fiscales, entradas/salidas…)
-  siguen centrados; no cambiarlos de ancho sin que él lo diga.
+- **Fichas y formularios (decisión de Diego, 19-nov-2026):** las **fichas que tienen tablas** también
+  van a todo el ancho; los **formularios de captura** (nuevo / editar) se quedan centrados con su
+  `mx-auto max-w-*`, porque a todo el ancho los campos quedarían de ~1,500 px.
+  - A todo el ancho: activo, insumo, empleado, temporada, campaña de membresía, ajuste / entrada /
+    salida de inventario y la ficha del distribuidor (de consulta, tarjetas en 3 columnas). En el
+    evento las pestañas con tablas van a todo el ancho y la pestaña "Datos" (formulario) conserva su
+    `max-w-5xl`: ese es el modelo cuando una ficha mezcla tabla y formulario en pestañas.
+  - Centrados: alta y edición de distribuidor y sus direcciones, alta de evento / membresía /
+    promoción / temporada, edición de promoción, datos fiscales, ficha de usuario, comprobación de
+    viáticos y las tarjetas de error ("no encontrado").
+  - Pantalla nueva: ¿tiene tabla o lista ancha? → todo el ancho. ¿Es solo captura? → centrada.
+- Aplicado el 19-nov-2026: 207 contenedores en 95 archivos (pantallas anchas) y 25 contenedores en 9
+  fichas con tablas.
 - Para revisar que ninguna pantalla se salga: buscar `max-w-7xl` y contenedores raíz con `p-6` en
-  `src/app/admin` (deben salir cero).
+  `src/app/admin` (deben salir cero); los `mx-auto max-w-*` que queden deben ser formularios de captura.
 
 **Checklist para una página admin nueva:**
 - [ ] `'use client'` al inicio.

@@ -65,7 +65,7 @@ export default function EditarMembresiaPage({ params }: { params: Promise<{ id: 
   } else if (isError || !campaign) {
     const migrationMissing = isMigrationMissingError(error);
     content = (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Link href={BACK_HREF} className="inline-flex items-center text-sm text-[#3E667D] hover:underline mb-4">
           <ArrowLeftIcon className="h-4 w-4 mr-1" /> Volver a Membresías
         </Link>
@@ -99,7 +99,7 @@ export default function EditarMembresiaPage({ params }: { params: Promise<{ id: 
     content = (
       <>
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <Link href={BACK_HREF} className="inline-flex items-center text-white/80 hover:text-white mb-3 text-sm">
               <ArrowLeftIcon className="h-4 w-4 mr-1" /> Volver a Membresías
             </Link>
@@ -136,7 +136,7 @@ export default function EditarMembresiaPage({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+        <div className="px-4 py-8 sm:px-6 lg:px-8 space-y-6">
           {/* `key`: al guardar cambia updatedAt y el formulario se vuelve a
               montar con lo que quedó en el servidor (sucursales con quién y
               cuándo, regalos con su estado). */}

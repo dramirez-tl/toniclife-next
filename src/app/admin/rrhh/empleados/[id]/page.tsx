@@ -110,7 +110,7 @@ export default function EmployeeDetailPage({
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4 p-8">
+      <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -119,7 +119,7 @@ export default function EmployeeDetailPage({
 
   if (!employee) {
     return (
-      <div className="mx-auto max-w-6xl p-8 text-center">
+      <div className="px-4 py-8 sm:px-6 lg:px-8 text-center">
         <p className="text-lg font-medium">Expediente no encontrado</p>
         <Button asChild variant="outline" className="mt-4">
           <Link href="/admin/rrhh/empleados">Volver a Empleados</Link>
@@ -134,7 +134,7 @@ export default function EmployeeDetailPage({
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Encabezado */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <button
             type="button"
             onClick={() => router.push('/admin/rrhh/empleados')}
@@ -225,7 +225,7 @@ export default function EmployeeDetailPage({
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {employee.status === 'terminated' && (
           <Card className="border-destructive">
             <CardContent className="p-4">
