@@ -70,6 +70,8 @@ type FilterMode = 'period' | 'dates';
 
 /** Mismo tope que el API para el Excel por rango. */
 const MAX_RANGE_DAYS = 366;
+/** Tope del Excel por día (una columna por día); el mismo que valida el API. */
+const DAILY_XLSX_MAX_DAYS = 92;
 
 function getCurrencyTotal(branch: Record<string, unknown>, key: CurrencyCode): number {
   const map: Record<CurrencyCode, string> = { MXN: 'totalMxn', USD: 'totalUsd', COP: 'totalCop', GTQ: 'totalGtq' };
@@ -98,6 +100,7 @@ export default function VentasSucursalPage() {
   const [dateFrom, setDateFrom] = useState(() => daysAgo(0));
   const [dateTo, setDateTo] = useState(() => daysAgo(0));
   const [downloadingXlsx, setDownloadingXlsx] = useState(false);
+  const [downloadingDailyXlsx, setDownloadingDailyXlsx] = useState(false);
 
   // Auto-select current period once loaded
   useEffect(() => {
@@ -169,6 +172,35 @@ export default function VentasSucursalPage() {
       toast.error('No se pudo generar el Excel');
     } finally {
       setDownloadingXlsx(false);
+    }
+  };
+
+  // Excel NUEVO con las ventas partidas por día (19-nov-2026): una columna por cada día del
+  // rango aplicado. No sustituye al "formato anterior" ni al CSV.
+  const dailyRangeDays =
+    appliedStart && appliedEnd
+      ? Math.round((Date.parse(appliedEnd) - Date.parse(appliedStart)) / 86_400_000) + 1
+      : 0;
+  const handleDownloadDailyXlsx = async () => {
+    if (!appliedStart || !appliedEnd) {
+      toast.error('Aplica un periodo o un rango de fechas');
+      return;
+    }
+    if (dailyRangeDays > DAILY_XLSX_MAX_DAYS) {
+      toast.error(`El Excel por día acepta hasta ${DAILY_XLSX_MAX_DAYS} días; acorta el rango`);
+      return;
+    }
+    setDownloadingDailyXlsx(true);
+    try {
+      await reportsService.downloadSalesByBranchDailyXlsx({
+        startDate: appliedStart,
+        endDate: appliedEnd,
+      });
+      toast.success('Excel por día generado');
+    } catch {
+      toast.error('No se pudo generar el Excel por día');
+    } finally {
+      setDownloadingDailyXlsx(false);
     }
   };
 
@@ -266,6 +298,22 @@ export default function VentasSucursalPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* Botón nuevo, a la izquierda: los dos de siempre conservan su lugar. */}
+            <button
+              onClick={handleDownloadDailyXlsx}
+              disabled={!appliedStart || !appliedEnd || isFetching || downloadingDailyXlsx}
+              title="Las mismas ventas, partidas por día: una fila por sucursal y una columna por cada día del rango aplicado, con totales por moneda. Trae una hoja de detalle por día con venta en caja y pedidos en línea."
+              className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {downloadingDailyXlsx ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2f5165] border-t-transparent" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                </svg>
+              )}
+              Excel por día
+            </button>
             <button
               onClick={handleDownloadLegacyXlsx}
               disabled={!appliedStart || !appliedEnd || isFetching || downloadingXlsx}

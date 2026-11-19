@@ -146,6 +146,30 @@ class ReportsService {
     );
   }
 
+  /**
+   * Excel "Ventas por sucursal POR DÍA" (19-nov-2026): las mismas ventas del reporte, con una
+   * columna por cada día del rango, agrupadas por moneda, y una hoja de detalle por día. Es un
+   * reporte aparte del "formato anterior". Hasta 92 días por archivo.
+   * Backend: GET /reports/sales/by-branch/daily-xlsx
+   */
+  async downloadSalesByBranchDailyXlsx(query: DateRangeQuery): Promise<void> {
+    const response = await api.get('/reports/sales/by-branch/daily-xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+      },
+      responseType: 'blob',
+    });
+    // Content-Disposition no se expone por CORS: el nombre se arma aquí, igual que en el API.
+    const compact = (d: string) => d.slice(0, 10).replace(/-/g, '');
+    saveBlob(
+      response.data as BlobPart,
+      `VENTAS_POR_SUCURSAL_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+  }
+
   // ================================
   // INVENTORY REPORTS
   // ================================
