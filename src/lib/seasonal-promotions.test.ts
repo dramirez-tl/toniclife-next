@@ -22,6 +22,7 @@ import {
   promotionSummary,
   removeProductFromGroups,
   seasonHighlights,
+  seasonSalesSummary,
   seasonalFilterName,
   seasonalProductBadges,
   suggestNxmGroups,
@@ -535,6 +536,67 @@ describe('admin: insignia de ventas de cada promoción', () => {
     expect(promotionSalesSummary({ usageCount: 3, salesAmounts: [{ currency: 'MXN', amount: 0 }] }).label).toBe(
       '3 ventas',
     );
+  });
+
+  it('la temporada: ventas, lo vendido y, aparte, el descuento (Buen Fin 2026)', () => {
+    const s = seasonSalesSummary({
+      usageCount: 6758,
+      discountTotal: 5857541,
+      salesAmounts: [{ currency: 'MXN', amount: 14848317 }],
+      discountAmounts: [{ currency: 'MXN', amount: 5857541 }],
+    });
+    expect(s.hasSales).toBe(true);
+    expect(s.count).toBe('6,758 ventas');
+    expect(s.sold).toEqual(['$14,848,317.00 MXN']);
+    expect(s.discount).toEqual(['$5,857,541.00 MXN']);
+    expect(s.soldHint).toContain('ticket completo');
+    expect(s.discountHint).toContain('No es venta');
+  });
+
+  it('la temporada en dos monedas: un importe por moneda, sin sumarlos', () => {
+    const s = seasonSalesSummary({
+      usageCount: 12,
+      discountTotal: 2300,
+      salesAmounts: [
+        { currency: 'MXN', amount: 90000.5 },
+        { currency: 'USD', amount: 1200 },
+      ],
+      discountAmounts: [
+        { currency: 'MXN', amount: 2000 },
+        { currency: 'USD', amount: 300 },
+      ],
+    });
+    expect(s.sold.map(plain)).toEqual(['$90,000.50 MXN', '$1,200.00 USD']);
+    expect(s.discount.map(plain)).toEqual(['$2,000.00 MXN', '$300.00 USD']);
+  });
+
+  it('la temporada sin ventas no presume importes; una sola venta va en singular', () => {
+    expect(
+      seasonSalesSummary({ usageCount: 0, discountTotal: 0, salesAmounts: [], discountAmounts: [] }),
+    ).toMatchObject({ hasSales: false, count: 'Sin ventas', sold: [], discount: [] });
+    expect(
+      seasonSalesSummary({
+        usageCount: 0,
+        discountTotal: 50,
+        salesAmounts: [{ currency: 'MXN', amount: 100 }],
+      }),
+    ).toMatchObject({ sold: [], discount: [] });
+    expect(seasonSalesSummary({ usageCount: 1, discountTotal: 0 }).count).toBe('1 venta');
+  });
+
+  it('la temporada con un API anterior: sin lo vendido, y el descuento sale de la suma única', () => {
+    const s = seasonSalesSummary({ usageCount: 6758, discountTotal: 5857541 });
+    expect(s.sold).toEqual([]);
+    expect(s.discount).toEqual(['$5,857,541.00']);
+    // Vendió, pero la promoción era de regalo: no hay descuento que mostrar.
+    expect(
+      seasonSalesSummary({
+        usageCount: 3,
+        discountTotal: 0,
+        salesAmounts: [{ currency: 'MXN', amount: 4500 }],
+        discountAmounts: [],
+      }),
+    ).toMatchObject({ sold: ['$4,500.00 MXN'], discount: [] });
   });
 
   it('el monto siempre lleva el código de su moneda, sin repetirlo', () => {

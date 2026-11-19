@@ -68,7 +68,7 @@ export interface SeasonPromotionProduct {
   productActive?: boolean;
 }
 
-/** Lo cobrado por los productos de una promoción, en una moneda (solo admin). */
+/** Un importe de venta de una promoción o de una temporada, en una moneda (solo admin). */
 export interface SeasonSalesAmount {
   /** Código de moneda del país de la venta: MXN, USD… */
   currency: string;
@@ -137,7 +137,16 @@ export interface PromoSeason {
   promotionsCount: number;
   /** Ventas y descuento acumulados. Solo admin: la tienda y el POS reciben 0. */
   usageCount: number;
+  /** Una sola suma (sin moneda); con un API al día se usa `discountAmounts`. */
   discountTotal: number;
+  /**
+   * Solo admin: total cobrado de las ventas y pedidos de `usageCount` (el ticket completo, con
+   * impuestos; no solo los productos en promoción), por moneda (la mayor primero). Ausente con
+   * un API anterior; la tienda y el POS no lo reciben.
+   */
+  salesAmounts?: SeasonSalesAmount[];
+  /** Solo admin: descuento que las promociones otorgaron en esas ventas, por moneda. */
+  discountAmounts?: SeasonSalesAmount[];
   /** Solo en el detalle. */
   promotions?: SeasonPromotion[];
   createdAt: string;

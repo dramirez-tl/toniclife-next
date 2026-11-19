@@ -7,6 +7,7 @@ import type {
   NxmGroup,
   PromoSeason,
   SeasonPromotion,
+  SeasonSalesAmount,
   SeasonStatus,
   SeasonUsageStatus,
   SeasonalPromoChannel,
@@ -874,6 +875,55 @@ export function promotionSalesSummary(
     hint:
       'Ventas y pedidos ya cobrados que usaron la promoción, y lo cobrado por sus productos (con IVA). ' +
       'No cuenta lo demás del ticket ni las ventas sin cobrar o canceladas.',
+  };
+}
+
+// ── Admin: cifras de venta de la temporada (lista y encabezado del detalle) ─────────────────
+
+/** Lo que el admin dice de las ventas de una temporada. */
+export interface SeasonSalesSummary {
+  /** false = todavía ninguna venta cobrada usó alguna de sus promociones. */
+  hasSales: boolean;
+  /** "6,758 ventas" · "1 venta" · "Sin ventas". */
+  count: string;
+  /** Total cobrado de esas ventas, un texto por moneda. Vacío sin ventas o con un API anterior. */
+  sold: string[];
+  /** Descuento que otorgaron las promociones, un texto por moneda. */
+  discount: string[];
+  /** Qué cuenta cada cifra (texto de ayuda al pasar el cursor). */
+  soldHint: string;
+  discountHint: string;
+}
+
+/**
+ * Cifras de una temporada: cuántas ventas y pedidos ya cobrados usaron alguna de sus promociones,
+ * cuánto se cobró por esos tickets (completos) y cuánto descuento dieron las promociones. El
+ * descuento NO es venta: por eso cada cifra lleva su nombre (19-nov-2026: la lista mostraba solo
+ * el descuento bajo "Ventas" y se leía como lo vendido). Por moneda: no se suman pesos con dólares.
+ */
+export function seasonSalesSummary(
+  s: Pick<PromoSeason, 'usageCount' | 'discountTotal' | 'salesAmounts' | 'discountAmounts'>,
+): SeasonSalesSummary {
+  const sales = Math.max(0, Math.floor(Number(s.usageCount) || 0));
+  const texts = (amounts: SeasonSalesAmount[] | undefined) =>
+    (amounts ?? []).filter((a) => a.amount > 0).map((a) => formatSalesAmount(a.amount, a.currency));
+  // Un API anterior solo manda el descuento como una suma, sin decir la moneda.
+  const discount = s.discountAmounts
+    ? texts(s.discountAmounts)
+    : s.discountTotal > 0
+      ? [formatMoney(s.discountTotal)]
+      : [];
+  return {
+    hasSales: sales > 0,
+    count: sales === 0 ? 'Sin ventas' : `${sales.toLocaleString('es-MX')} venta${sales === 1 ? '' : 's'}`,
+    sold: sales === 0 ? [] : texts(s.salesAmounts),
+    discount: sales === 0 ? [] : discount,
+    soldHint:
+      'Total cobrado (el ticket completo, con impuestos) de las ventas y pedidos que usaron alguna ' +
+      'promoción de la temporada. No cuenta ventas canceladas ni pedidos sin pagar.',
+    discountHint:
+      'Lo que las promociones dejaron de cobrar en esas ventas: las piezas gratis a su precio y las ' +
+      'rebajas. No es venta.',
   };
 }
 

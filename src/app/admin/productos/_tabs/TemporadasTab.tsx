@@ -34,10 +34,10 @@ import type { PromoSeason, PromoSeasonListQueryParams, SeasonStatusFilter } from
 import {
   FLAGS,
   apiErrorMessage,
-  formatMoney,
+  formatLocalStamp,
   isMigrationMissingError,
+  seasonSalesSummary,
   seasonStatusLabel,
-  windowLabel,
 } from '@/lib/seasonal-promotions';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
@@ -160,7 +160,7 @@ export function TemporadasTab() {
           <div className="min-w-0">
             <p className="font-semibold text-gray-900">{s.name}</p>
             {s.description && (
-              <p className="max-w-xs truncate text-xs text-gray-500" title={s.description}>
+              <p className="max-w-64 truncate text-xs text-gray-500" title={s.description}>
                 {s.description}
               </p>
             )}
@@ -175,7 +175,11 @@ export function TemporadasTab() {
       sortValue: (s) => s.startsAt,
       render: (s) => (
         <div className="flex flex-col gap-1">
-          <span className="whitespace-nowrap text-sm text-gray-700">{windowLabel(s.startsAt, s.endsAt)}</span>
+          {/* Inicio y fin pueden ir en dos renglones: así la tabla cabe con sus importes sin recorte. */}
+          <span className="text-sm text-gray-700">
+            <span className="whitespace-nowrap">{formatLocalStamp(s.startsAt)} →</span>{' '}
+            <span className="whitespace-nowrap">{formatLocalStamp(s.endsAt)}</span>
+          </span>
           <SeasonStatusPill status={s.status} />
         </div>
       ),
@@ -206,16 +210,34 @@ export function TemporadasTab() {
       sortValue: (s) => s.usageCount,
       headerClassName: 'text-right',
       cellClassName: 'text-right',
-      render: (s) => (
-        <div className="flex flex-col items-end">
-          <span className="text-sm font-medium text-gray-900">{formatNumber(s.usageCount)}</span>
-          {s.discountTotal > 0 && (
-            <span className="text-xs text-gray-500" title="Descuento acumulado en ventas cobradas">
-              {formatMoney(s.discountTotal)}
-            </span>
-          )}
-        </div>
-      ),
+      // Ventas cobradas con alguna promoción, lo que se cobró por ellas y, aparte y con su
+      // nombre, el descuento que dieron las promociones (antes iba solo y se leía como venta).
+      render: (s) => {
+        const sales = seasonSalesSummary(s);
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-sm font-medium text-gray-900">{formatNumber(s.usageCount)}</span>
+            {sales.sold.map((amount) => (
+              <span
+                key={`vendido-${amount}`}
+                className="whitespace-nowrap text-xs text-gray-500"
+                title={sales.soldHint}
+              >
+                Vendido <span className="font-semibold text-gray-900">{amount}</span>
+              </span>
+            ))}
+            {sales.discount.map((amount) => (
+              <span
+                key={`descuento-${amount}`}
+                className="whitespace-nowrap text-xs text-gray-500"
+                title={sales.discountHint}
+              >
+                Descuento <span className="font-medium text-gray-700">{amount}</span>
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',

@@ -39,6 +39,7 @@ import {
   formatLocalStamp,
   isMigrationMissingError,
   promotionSummary,
+  seasonSalesSummary,
   windowLabel,
 } from '@/lib/seasonal-promotions';
 import { branchScopeSummary } from '@/lib/seasonal-promotion-branches';
@@ -134,6 +135,7 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
     );
   } else {
     const promotions = season.promotions ?? [];
+    const seasonSales = seasonSalesSummary(season);
     content = (
       <>
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
@@ -168,9 +170,27 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
                       : 'Inactiva'}
               </span>
               <span className="rounded bg-white/15 px-3 py-1 text-sm">
-                {promotions.length} promoción{promotions.length === 1 ? '' : 'es'} · {season.usageCount} venta
-                {season.usageCount === 1 ? '' : 's'}
+                {promotions.length} {promotions.length === 1 ? 'promoción' : 'promociones'} ·{' '}
+                {seasonSales.hasSales ? seasonSales.count : '0 ventas'}
               </span>
+              {seasonSales.sold.map((amount) => (
+                <span
+                  key={`vendido-${amount}`}
+                  className="rounded bg-white/15 px-3 py-1 text-sm"
+                  title={seasonSales.soldHint}
+                >
+                  Vendido {amount}
+                </span>
+              ))}
+              {seasonSales.discount.map((amount) => (
+                <span
+                  key={`descuento-${amount}`}
+                  className="rounded bg-white/15 px-3 py-1 text-sm"
+                  title={seasonSales.discountHint}
+                >
+                  Descuento {amount}
+                </span>
+              ))}
             </div>
           </div>
         </div>
