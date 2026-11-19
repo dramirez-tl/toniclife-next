@@ -14,6 +14,12 @@ import type {
   SeasonalPointsMode,
 } from '@/types/seasonal-promotion';
 
+import {
+  branchIdsForPayload,
+  validatePromotionBranches,
+  type PromotionBranchMode,
+} from '@/lib/seasonal-promotion-branches';
+
 export { apiErrorMessage, isMigrationMissingError } from '@/lib/membership-campaigns';
 
 export const FLAGS: Record<string, string> = {
@@ -313,6 +319,9 @@ export interface PromotionFormValues {
   channels: SeasonalPromoChannel[];
   /** Vacío = todos los países de la temporada. */
   countryIds: string[];
+  /** Sucursales (mig 212): todas las de sus países o solo `branchIds` (en la caja). */
+  branchMode: PromotionBranchMode;
+  branchIds: string[];
   useOwnWindow: boolean;
   startsAt: string;
   endsAt: string;
@@ -342,6 +351,8 @@ export const EMPTY_PROMOTION_FORM: PromotionFormValues = {
   repeat: false,
   channels: ['pos', 'online'],
   countryIds: [],
+  branchMode: 'all',
+  branchIds: [],
   useOwnWindow: false,
   startsAt: '',
   endsAt: '',
@@ -385,6 +396,8 @@ export function formFromPromotion(p: SeasonPromotion): PromotionFormValues {
     repeat: cfg.repeat === true,
     channels: p.channels.length > 0 ? [...p.channels] : ['pos', 'online'],
     countryIds: p.countriesRestricted ? p.countries.map((c) => c.id) : [],
+    branchMode: (p.branches?.length ?? 0) > 0 ? 'some' : 'all',
+    branchIds: (p.branches ?? []).map((b) => b.id),
     useOwnWindow: !!(p.startsAt && p.endsAt),
     startsAt: toInputStamp(p.startsAt),
     endsAt: toInputStamp(p.endsAt),
@@ -431,6 +444,7 @@ export function validatePromotionForm(
     errors.push('El código solo admite letras, números, guion y guion bajo.');
   }
   if (v.channels.length === 0) errors.push('Elige al menos un canal (POS o tienda).');
+  errors.push(...validatePromotionBranches(v));
   if (v.eligible.length === 0) {
     errors.push(
       v.type === 'gift_with_purchase'
@@ -513,6 +527,8 @@ export function validatePromotionForm(
 export function toPromotionPayload(
   v: PromotionFormValues,
   mode: 'create' | 'edit',
+  /** `hadBranches` = la promoción ya estaba limitada a sucursales (para poder quitar el límite). */
+  opts: { hadBranches?: boolean } = {},
 ): CreateSeasonPromotionDto & {
   imageUrl?: string | null;
 } {
@@ -549,6 +565,7 @@ export function toPromotionPayload(
       };
   }
   const useWindow = v.useOwnWindow && normalizeInputStamp(v.startsAt) && normalizeInputStamp(v.endsAt);
+  const branchIds = branchIdsForPayload(v, opts.hadBranches === true);
   const base: CreateSeasonPromotionDto = {
     code: v.code.trim() || null,
     name: v.name.trim(),
@@ -557,6 +574,8 @@ export function toPromotionPayload(
     config,
     channels: [...new Set(v.channels)],
     countryIds: [...new Set(v.countryIds)],
+    // Sin límite (ni antes ni ahora) el campo no viaja: el payload queda como siempre.
+    ...(branchIds ? { branchIds } : {}),
     startsAt: useWindow ? normalizeInputStamp(v.startsAt) : null,
     endsAt: useWindow ? normalizeInputStamp(v.endsAt) : null,
     priority: parseDecimal(v.priority) ?? 0,

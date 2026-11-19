@@ -49,6 +49,13 @@ export interface SeasonCountry {
   name: string;
 }
 
+/** Sucursal donde vale una promoción en la caja (mig 212). */
+export interface SeasonBranch {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface SeasonPromotionProduct {
   productId: string;
   sku: string;
@@ -84,6 +91,12 @@ export interface SeasonPromotion {
   /** Países efectivos (temporada ∩ promoción). */
   countries: SeasonCountry[];
   countriesRestricted: boolean;
+  /**
+   * Sucursales donde vale en la caja (mig 212); vacío = todas las de sus países. Solo admin:
+   * la tienda y el POS no lo reciben. Ausente con un API anterior.
+   */
+  branches?: SeasonBranch[];
+  branchesRestricted?: boolean;
   /** Ventana propia (hora local 'YYYY-MM-DDTHH:mm:ss') o null = la de la temporada. */
   startsAt: string | null;
   endsAt: string | null;
@@ -163,6 +176,8 @@ export interface CreateSeasonPromotionDto {
   channels?: SeasonalPromoChannel[];
   /** Subconjunto de países de la temporada (vacío = todos). */
   countryIds?: string[];
+  /** Sucursales donde vale en la caja (mig 212); vacío = todas. Solo viaja si hay o había límite. */
+  branchIds?: string[];
   startsAt?: string | null;
   endsAt?: string | null;
   priority?: number;

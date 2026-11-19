@@ -773,3 +773,54 @@ describe('promoción "lleva N, paga M": sabores que se combinan por grupo (14-no
     expect(plain.get('a')).not.toHaveProperty('group');
   });
 });
+
+describe('promoción limitada a algunas sucursales (mig 212, 18-nov-2026)', () => {
+  const TULSA = { id: 'b-205', code: '205', name: 'USA Tulsa Almacen TL' };
+  const IRAPUATO = { id: 'b-254', code: '254', name: 'Irapuato Alvaro Obregon TL' };
+  const scoped: SeasonPromotion = { ...PROMO, branches: [TULSA, IRAPUATO], branchesRestricted: true };
+
+  it('una promoción sin límite (o de un API anterior) abre en "Todas las sucursales"', () => {
+    expect(formFromPromotion(PROMO)).toMatchObject({ branchMode: 'all', branchIds: [] });
+    expect(formFromPromotion({ ...PROMO, branches: [] })).toMatchObject({ branchMode: 'all', branchIds: [] });
+    expect(EMPTY_PROMOTION_FORM).toMatchObject({ branchMode: 'all', branchIds: [] });
+  });
+
+  it('una promoción limitada abre en "Solo algunas" con sus sucursales', () => {
+    expect(formFromPromotion(scoped)).toMatchObject({ branchMode: 'some', branchIds: ['b-205', 'b-254'] });
+  });
+
+  it('sin límite el payload queda idéntico al de siempre: el campo no viaja', () => {
+    expect(toPromotionPayload(formFromPromotion(PROMO), 'create')).not.toHaveProperty('branchIds');
+    expect(toPromotionPayload(formFromPromotion(PROMO), 'edit')).not.toHaveProperty('branchIds');
+    // Aunque haya quedado algo elegido, en "Todas" no se manda.
+    const form = { ...formFromPromotion(PROMO), branchIds: ['b-205'] };
+    expect(toPromotionPayload(form, 'create')).not.toHaveProperty('branchIds');
+  });
+
+  it('"Solo algunas" manda las sucursales elegidas, sin repetir', () => {
+    const form = { ...formFromPromotion(PROMO), branchMode: 'some' as const, branchIds: ['b-205', 'b-254', 'b-205'] };
+    expect(toPromotionPayload(form, 'create').branchIds).toEqual(['b-205', 'b-254']);
+    expect(toPromotionPayload(formFromPromotion(scoped), 'edit', { hadBranches: true }).branchIds).toEqual([
+      'b-205',
+      'b-254',
+    ]);
+  });
+
+  it('volver a "Todas las sucursales" en una promoción que estaba limitada manda la lista vacía', () => {
+    const form = { ...formFromPromotion(scoped), branchMode: 'all' as const };
+    expect(toPromotionPayload(form, 'edit', { hadBranches: true }).branchIds).toEqual([]);
+  });
+
+  it('no deja guardar "Solo algunas" sin sucursales ni sin el canal de caja', () => {
+    const base = formFromPromotion(scoped);
+    expect(validatePromotionForm(base, SEASON_CTX)).toEqual([]);
+    expect(validatePromotionForm({ ...base, branchIds: [] }, SEASON_CTX)).toEqual([
+      'Elige al menos una sucursal, o cambia a "Todas las sucursales".',
+    ]);
+    expect(validatePromotionForm({ ...base, channels: ['online'] }, SEASON_CTX).join(' ')).toContain(
+      'solo cuenta en la caja',
+    );
+    // En "Todas" la lista no importa.
+    expect(validatePromotionForm({ ...base, branchMode: 'all', branchIds: [] }, SEASON_CTX)).toEqual([]);
+  });
+});

@@ -41,6 +41,7 @@ import {
   promotionSummary,
   windowLabel,
 } from '@/lib/seasonal-promotions';
+import { branchScopeSummary } from '@/lib/seasonal-promotion-branches';
 import type { CreatePromoSeasonDto, SeasonPromotion } from '@/types/seasonal-promotion';
 
 const BACK_HREF = '/admin/productos?tab=temporadas';
@@ -265,8 +266,16 @@ export default function EditarTemporadaPage({ params }: { params: Promise<{ id: 
                           {' · '}
                           {channelsLabel(p.channels)}
                         </p>
-                        <div className="mt-1">
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <CountryChips countries={p.countries} />
+                          {branchScopeSummary(p.branches) && (
+                            <span
+                              className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800"
+                              title={(p.branches ?? []).map((b) => `${b.code} ${b.name}`.trim()).join('\n')}
+                            >
+                              {branchScopeSummary(p.branches)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       {/* En escritorio, alineada a la derecha: se comparan de un vistazo. */}

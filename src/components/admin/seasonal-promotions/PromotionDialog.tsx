@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { ArtZoom } from './ArtZoom';
+import { PromotionBranchesSection } from './PromotionBranchesSection';
+import { useActiveBranches } from '@/hooks/useBranches';
 import { useProducts } from '@/hooks/useProducts';
 import {
   useCreateSeasonPromotion,
@@ -70,6 +72,7 @@ import {
   validatePromotionForm,
   windowLabel,
 } from '@/lib/seasonal-promotions';
+import { pruneBranchIdsByCountry } from '@/lib/seasonal-promotion-branches';
 
 interface PromotionDialogProps {
   open: boolean;
@@ -202,10 +205,26 @@ export function PromotionDialog({
 
   const toggleChannel = (ch: SeasonalPromoChannel, on: boolean) =>
     set({ channels: on ? [...new Set([...form.channels, ch])] : form.channels.filter((c) => c !== ch) });
-  const toggleCountry = (id: string, on: boolean) =>
-    set({
-      countryIds: on ? [...new Set([...form.countryIds, id])] : form.countryIds.filter((c) => c !== id),
-    });
+  // Sucursales (mig 212): catálogo de las activas para "Solo algunas".
+  const {
+    data: activeBranches,
+    isLoading: branchesLoading,
+    isError: branchesFailed,
+    refetch: refetchBranches,
+  } = useActiveBranches();
+  const toggleCountry = (id: string, on: boolean) => {
+    const countryIds = on ? [...new Set([...form.countryIds, id])] : form.countryIds.filter((c) => c !== id);
+    // Las sucursales elegidas que ya no son de los países de la promoción salen con el país.
+    const pruned = pruneBranchIdsByCountry(form.branchIds, activeBranches ?? [], season.countries, countryIds);
+    set({ countryIds, branchIds: pruned.kept });
+    if (pruned.removed.length > 0) {
+      toast.info(
+        pruned.removed.length === 1
+          ? 'Se quitó 1 sucursal elegida que ya no es de los países de la promoción.'
+          : `Se quitaron ${pruned.removed.length} sucursales elegidas que ya no son de los países de la promoción.`,
+      );
+    }
+  };
 
   // -------- arte (solo en edición) --------
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -240,7 +259,7 @@ export function PromotionDialog({
       setErrors(problems);
       return;
     }
-    const payload = toPromotionPayload(form, mode);
+    const payload = toPromotionPayload(form, mode, { hadBranches: (promotion?.branches?.length ?? 0) > 0 });
     try {
       if (promotion) {
         const saved = await update.mutateAsync({ id: promotion.id, dto: payload });
@@ -787,6 +806,22 @@ export function PromotionDialog({
               </div>
             </div>
 
+            {/* Sucursales: todas las de sus países o solo algunas */}
+            <PromotionBranchesSection
+              seasonCountries={season.countries}
+              countryIds={form.countryIds}
+              channels={form.channels}
+              mode={form.branchMode}
+              branchIds={form.branchIds}
+              savedBranches={promotion?.branches ?? []}
+              branches={activeBranches}
+              loading={branchesLoading}
+              failed={branchesFailed}
+              onRetry={() => void refetchBranches()}
+              readOnly={readOnly}
+              onChange={set}
+            />
+
             {/* Ventana propia */}
             <div className="space-y-3 rounded-lg border border-gray-200 p-4">
               <div className="flex items-center gap-3">
@@ -859,7 +894,8 @@ export function PromotionDialog({
                   Grupos (3x2), piezas (% / precio) o regalos por ticket.
                 </p>
               </div>
-              <div className="grid gap-1.5">
+              {/* min-w-0 + una columna que sí encoge: el texto largo del selector ensanchaba todo el diálogo. */}
+              <div className="grid min-w-0 grid-cols-1 gap-1.5">
                 <Label htmlFor={inputId('pointsMode')}>Puntos</Label>
                 <SearchableSelect
                   id={inputId('pointsMode')}
