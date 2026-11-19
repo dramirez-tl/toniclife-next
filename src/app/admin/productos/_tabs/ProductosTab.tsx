@@ -588,7 +588,7 @@ export function ProductosTab() {
 
   if (list.isError && !list.data) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6" role="alert">
             <p className="text-red-800">{productAdminErrorMessage(list.error, 'No se pudo cargar el catálogo de productos.')}</p>
@@ -608,7 +608,7 @@ export function ProductosTab() {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         {/* ---------- Indicadores (una sola llamada) ---------- */}
         <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
           {[

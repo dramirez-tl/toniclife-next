@@ -43,7 +43,7 @@ function SimulacionesContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white print:hidden">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-2">
             <ChartBarIcon className="h-9 w-9" />
             <h1 className="text-3xl font-bold sm:text-4xl">
@@ -58,7 +58,7 @@ function SimulacionesContent() {
       </div>
 
       {/* Form */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 print:hidden">
+      <div className="px-4 py-8 sm:px-6 lg:px-8 print:hidden">
         <Card>
           <CardContent className="p-0">
             <SimulationForm
@@ -71,7 +71,7 @@ function SimulacionesContent() {
 
       {/* Report */}
       {report && (
-        <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+        <div className="px-4 pb-12 sm:px-6 lg:px-8">
           <SimulationReport report={report} />
         </div>
       )}
@@ -83,7 +83,7 @@ function SimulacionesSkeleton() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] h-40" />
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
         <div className="h-32 bg-white rounded-2xl shadow-lg animate-pulse" />
       </div>
     </div>

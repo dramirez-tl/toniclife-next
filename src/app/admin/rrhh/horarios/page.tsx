@@ -238,7 +238,7 @@ export default function HorariosPage() {
   ];
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Horarios</h1>

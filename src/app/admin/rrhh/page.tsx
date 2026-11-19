@@ -33,7 +33,7 @@ export default function RrhhDashboardPage() {
   const vacations = data?.vacations;
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       {/* Encabezado */}
       <div className="mb-8">
         <div className="mb-2 flex items-center gap-3">

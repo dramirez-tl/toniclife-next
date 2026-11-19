@@ -355,7 +355,7 @@ export default function TransferDetailPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/admin/inventario/traspasos" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -454,7 +454,7 @@ export default function TransferDetailPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Status Timeline */}
         <StatusTimeline transfer={transfer} originTz={originTz} destTz={destTz} />
 

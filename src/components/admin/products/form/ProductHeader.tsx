@@ -76,7 +76,7 @@ export function ProductHeader({
       className="sticky z-20 border-b bg-white shadow-sm"
       style={{ top: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div className="px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <Button type="button" variant="ghost" size="icon" onClick={onBack} aria-label="Regresar al listado de productos">

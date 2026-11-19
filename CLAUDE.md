@@ -334,7 +334,7 @@ function ProductosContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header con gradient teal → azul */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-2">
             <ShoppingBagIcon className="h-9 w-9" />
             <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
@@ -343,8 +343,8 @@ function ProductosContent() {
         </div>
       </div>
 
-      {/* Contenido en Cards */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Contenido en Cards: todo el ancho, con la separación lateral estándar */}
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-6">
             <DataTable columns={cols} data={rows} />
@@ -356,11 +356,39 @@ function ProductosContent() {
 }
 ```
 
+### 📐 REGLA: separación lateral del admin (Diego, 19-nov-2026)
+
+El contenido de **toda pantalla del admin** usa el **ancho completo** del área de trabajo con la
+separación lateral estándar **`px-4 sm:px-6 lg:px-8`** = **16 px** (celular) / **24 px** (≥ 640 px) /
+**32 px** (≥ 1024 px) por lado. La pantalla de referencia es **Entregas a domicilio**
+(`src/app/admin/inventario/entregas/page.tsx`): Diego la midió con el inspector ("Padding 0px 32px 32px")
+y pidió que esa sea la separación de todos los módulos.
+
+- ❌ **No** poner `mx-auto max-w-7xl` (ni `max-w-[1600px]` u otro tope centrado) en el contenedor de la
+  página ni dentro de la banda del encabezado: en monitores anchos deja franjas vacías a los lados
+  (caso Sucursales: 101 px de margen por lado además de los 32 px).
+- ❌ **No** usar `p-6` / `p-8` como contenedor raíz (da 24 px o 32 px parejos y se sale del estándar).
+  Lo vertical es libre (`py-6`, `py-8`, `pb-8`…); lo lateral siempre `px-4 sm:px-6 lg:px-8`.
+- ✅ La banda del encabezado va a sangre y su contenedor interior lleva la misma separación lateral,
+  para que el título quede alineado con el contenido. Igual las barras fijas (guardar cambios).
+- ✅ Dentro de tarjetas, modales y paneles el padding es el del componente: la regla es solo para el
+  contenedor de la página.
+- Alcance: **solo el admin** (`src/app/admin`, `src/components/admin`, `src/components/inventory`). La
+  tienda pública y el panel del distribuidor conservan su ancho (`max-w-7xl`); por eso
+  `components/network/NetworkWorkspace.tsx`, que comparten, no se tocó.
+- Aplicado el 19-nov-2026 a las pantallas anchas (207 contenedores en 95 archivos). **Pendiente de
+  decisión de Diego:** las fichas y formularios angostos (`max-w-6xl` o menos: nuevo/editar/detalle de
+  distribuidores, temporadas, membresías, eventos, activos, empleados, datos fiscales, entradas/salidas…)
+  siguen centrados; no cambiarlos de ancho sin que él lo diga.
+- Para revisar que ninguna pantalla se salga: buscar `max-w-7xl` y contenedores raíz con `p-6` en
+  `src/app/admin` (deben salir cero).
+
 **Checklist para una página admin nueva:**
 - [ ] `'use client'` al inicio.
 - [ ] `Suspense` con un skeleton dedicado.
 - [ ] Header con `bg-gradient-to-r from-[#3E667D] to-[#0A4B94]` + icono heroicon + título `text-3xl font-bold`.
 - [ ] Contenido envuelto en `Card` / `CardContent`.
+- [ ] Contenedor de la página y del encabezado con `px-4 sm:px-6 lg:px-8`, **sin** `mx-auto max-w-*` (regla de arriba).
 - [ ] Data con hooks de React Query (no fetch manual).
 - [ ] Toasts con `import { toast } from 'sonner';`.
 - [ ] `PermissionGuard` en acciones que requieran rol específico.

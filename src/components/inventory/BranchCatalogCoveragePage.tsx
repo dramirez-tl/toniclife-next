@@ -51,7 +51,7 @@ const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 function PageHeader({ subtitle }: { subtitle: string }) {
   return (
     <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-2 flex items-center gap-3">
           <BuildingStorefrontIcon className="h-9 w-9" aria-hidden />
           <h1 className="text-3xl font-bold sm:text-4xl">Catálogo por sucursal</h1>
@@ -67,7 +67,7 @@ export function BranchCatalogCoverageSkeleton() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <PageHeader subtitle="Cargando cobertura…" />
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -222,7 +222,7 @@ export function BranchCatalogCoveragePage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <PageHeader subtitle="Qué productos ve el POS de cada sucursal y cuáles faltan por habilitar" />
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <Alert role="note">
           <Info aria-hidden />
           <AlertTitle>Cómo funciona</AlertTitle>

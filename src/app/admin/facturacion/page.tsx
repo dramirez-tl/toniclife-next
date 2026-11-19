@@ -42,7 +42,7 @@ export default function FacturacionPage() {
 
 function PageSkeleton() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-24 w-full" />
       <Skeleton className="h-64 w-full" />
@@ -95,7 +95,7 @@ function FacturacionContent() {
     <PermissionGuard permissions={['billing:read', 'billing:*']}>
       <div className="min-h-screen bg-gray-50">
         <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="mb-2 flex items-center gap-3">
@@ -120,7 +120,7 @@ function FacturacionContent() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <V2FlowsBanner status={status} />
           {flowDisabledByAction && status?.v2FlowsEnabled !== false && (
             <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">

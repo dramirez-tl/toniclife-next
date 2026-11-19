@@ -237,7 +237,7 @@ function EtiquetasContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <div className="px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <Link
             href="/admin/activos"
             className="mb-4 inline-flex items-center gap-2 text-sm text-white/80 hover:text-white"
@@ -255,7 +255,7 @@ function EtiquetasContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard label="Total impresas" value={stats?.total ?? 0} />
           <StatCard label="Disponibles" value={stats?.available ?? 0} tone="text-emerald-600" hint="listas para pegar" />

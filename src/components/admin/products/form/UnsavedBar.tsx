@@ -28,7 +28,7 @@ export function UnsavedBar({ dirtySections, isSavingAll, onSaveAll, onDiscardAll
       role="region"
       aria-label="Cambios sin guardar"
     >
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
         <p className="text-sm text-amber-900" aria-live="polite">
           <span className="font-semibold">Tienes cambios sin guardar en: </span>
           {dirtySections.map((id, i) => (

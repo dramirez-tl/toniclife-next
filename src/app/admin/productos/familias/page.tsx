@@ -93,7 +93,7 @@ function FamiliasContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 pb-6 pt-10 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-2 flex items-center gap-3">
@@ -145,7 +145,7 @@ function FamiliasContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         {active === 'familias' ? (
           <FamiliesTab
             onCreate={() => setFamilyDialog({ open: true, family: null })}

@@ -155,7 +155,7 @@ function NuevosInscritosContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-2">
             <UserPlusIcon className="h-9 w-9" />
             <h1 className="text-3xl font-bold sm:text-4xl">Nuevos Inscritos</h1>
@@ -168,7 +168,7 @@ function NuevosInscritosContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <div className="px-4 py-8 sm:px-6 lg:px-8 space-y-6">
         {/* Semana */}
         <div className="rounded-lg bg-white shadow p-4 sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

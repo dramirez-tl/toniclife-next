@@ -212,7 +212,7 @@ function UbicacionesContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="mb-2 flex items-center gap-3">
             <MapPinIcon className="h-9 w-9" />
             <h1 className="text-3xl font-bold sm:text-4xl">Ubicaciones</h1>
@@ -223,7 +223,7 @@ function UbicacionesContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">

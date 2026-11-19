@@ -111,7 +111,7 @@ function RedirectTo({ href }: { href: string }) {
 
 function SistemaSkeleton() {
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-4 py-8">
+    <div className="space-y-4 px-4 sm:px-6 lg:px-8 py-8">
       <Skeleton className="h-28 w-full" />
       <Skeleton className="h-16 w-full" />
       <Skeleton className="h-16 w-full" />
@@ -150,7 +150,7 @@ function SistemaContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {!tvMode && (
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <div className="mb-2 flex items-center gap-3">
               <WrenchScrewdriverIcon className="h-9 w-9" />
               <h1 className="text-3xl font-bold sm:text-4xl">Sistema</h1>
@@ -163,7 +163,7 @@ function SistemaContent() {
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         {isLoading && <SistemaSkeleton />}
         {isError && (
           <Card className="mb-6">

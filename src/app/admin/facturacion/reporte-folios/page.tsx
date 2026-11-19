@@ -193,7 +193,7 @@ function ReporteFoliosContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="mb-1 flex items-center gap-3">
@@ -222,7 +222,7 @@ function ReporteFoliosContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={(v) => setParams({ tab: v === 'conciliacion' ? null : v, page: null })}>
           <TabsList>
             <TabsTrigger value="conciliacion">Conciliación (sistema)</TabsTrigger>

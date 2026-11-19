@@ -849,7 +849,7 @@ function SucursalesContent() {
     return (
       <div className="min-h-screen">
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="px-4 py-7 sm:px-6 lg:px-8">
             <div className="mb-1 flex items-center gap-2.5">
               <BuildingOffice2Icon className="h-7 w-7" />
               <h1 className="text-2xl font-bold sm:text-3xl">Gestion de Sucursales</h1>
@@ -857,7 +857,7 @@ function SucursalesContent() {
             <p className="text-sm text-white/80 sm:text-base">Cargando sucursales...</p>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Card key={i} className="gap-0 p-5">
@@ -878,14 +878,14 @@ function SucursalesContent() {
     return (
       <div className="min-h-screen">
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="px-4 py-7 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2.5">
               <BuildingOffice2Icon className="h-7 w-7" />
               <h1 className="text-2xl font-bold sm:text-3xl">Gestion de Sucursales</h1>
             </div>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="p-6">
               <div className="flex items-center gap-3 text-destructive">
@@ -1088,7 +1088,7 @@ function SucursalesContent() {
     <div className="min-h-screen">
       {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+        <div className="px-4 py-7 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-1 flex items-center gap-2.5">
@@ -1120,7 +1120,7 @@ function SucursalesContent() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         {/* Stats Cards — un solo acento, compactas */}
         <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
           {[

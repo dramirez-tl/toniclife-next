@@ -112,7 +112,7 @@ export default function RutasEnvioPage() {
 
 function RutasEnvioSkeleton() {
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8" aria-busy="true" aria-label="Cargando almacenes y envíos">
+    <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8" aria-busy="true" aria-label="Cargando almacenes y envíos">
       <Skeleton className="h-32 w-full" />
       <div className="grid gap-4 lg:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
@@ -659,7 +659,7 @@ function Shell({
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <Link
             href="/admin/configuracion"
             className="mb-3 inline-flex items-center gap-1 rounded text-sm text-white/80 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-white"
@@ -688,7 +688,7 @@ function Shell({
           <p className="mt-3 max-w-3xl text-sm text-white/90">{PROPAGATION_NOTE}</p>
         </div>
       </div>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
+      <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
     </div>
   );
 }

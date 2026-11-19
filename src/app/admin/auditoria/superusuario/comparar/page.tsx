@@ -62,7 +62,7 @@ export default function CompareUsersPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
               <Link
@@ -85,7 +85,7 @@ export default function CompareUsersPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* User Selection */}
         <Card className="mb-8">
           <CardHeader>

@@ -58,7 +58,7 @@ export default function BonosRangoPage() {
 
 function PageSkeleton() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-20 w-full" />
       <Skeleton className="h-36 w-full" />
@@ -134,7 +134,7 @@ function BonosRangoContent() {
   };
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       <TreasuryHeader
         icon={TrophyIcon}
         title="Bonos de rango"

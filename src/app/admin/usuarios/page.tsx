@@ -796,7 +796,7 @@ function UsuariosContent() {
     <div className="min-h-screen">
       {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+        <div className="px-4 py-7 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-1 flex items-center gap-2.5">
@@ -827,7 +827,7 @@ function UsuariosContent() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         {/* Tabs — las pestañas de CUENTAS requieren users:read; con solo
             customers:read (matriz por departamento) queda únicamente
             "Distribuidores y clientes" en modo lectura. */}

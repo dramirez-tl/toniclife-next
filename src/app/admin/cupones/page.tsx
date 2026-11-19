@@ -286,7 +286,7 @@ function CuponesContent() {
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="mb-2 flex items-center gap-3">
@@ -309,7 +309,7 @@ function CuponesContent() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard icon={TicketIcon} label="Total" value={stats?.total ?? '—'} />

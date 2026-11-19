@@ -299,7 +299,7 @@ export default function OrganigramaPage() {
   );
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       {/* Impresión: se esconde TODO menos el área del organigrama (la barra
           lateral del admin y la barra de la pantalla viven fuera de este
           árbol, por eso el truco de visibility). */}

@@ -86,7 +86,7 @@ function ViaticosSkeleton() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="h-32 bg-gradient-to-r from-[#3E667D] to-[#0A4B94]" />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -325,7 +325,7 @@ function ViaticosContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-4 px-4 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <BanknotesIcon className="h-8 w-8" />
             <div>
@@ -342,7 +342,7 @@ function ViaticosContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="space-y-5 px-4 py-6 sm:px-6 lg:px-8">
         <ViaticosCutoffNotice />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

@@ -281,7 +281,7 @@ export default function CheckerLicensesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="mb-2 flex items-center gap-3">
             <FingerPrintIcon className="h-9 w-9" aria-hidden="true" />
             <h1 className="text-3xl font-bold sm:text-4xl">Checadores</h1>
@@ -293,7 +293,7 @@ export default function CheckerLicensesPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {stats.map((s) => (
             <Card key={s.label}>

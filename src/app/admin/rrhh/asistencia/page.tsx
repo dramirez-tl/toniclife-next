@@ -165,7 +165,7 @@ export default function AsistenciaPage() {
 
 function AsistenciaSkeleton() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-10 w-64" />
       <Skeleton className="h-28 w-full" />
       <Skeleton className="h-96 w-full" />
@@ -239,7 +239,7 @@ function AsistenciaContent() {
   };
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       {/* Encabezado */}
       <div className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-3">

@@ -328,7 +328,7 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
   if (isEdit && productQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 p-4 sm:p-8" role="status" aria-label="Cargando producto">
-        <div className="mx-auto max-w-7xl space-y-4">
+        <div className="space-y-4">
           <Skeleton className="h-20 w-full" />
           <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
             <Skeleton className="hidden h-96 lg:block" />
@@ -385,7 +385,7 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
           onGoToSection={goToSection}
         />
 
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
           {readOnly ? (
             <div className="mb-4">
               <ReadOnlyNotice />

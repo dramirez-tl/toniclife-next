@@ -288,7 +288,7 @@ function InventarioContent() {
       <PermissionGuard permissions={['inventory:read', 'inventory:*']}>
         <div className="min-h-screen bg-gray-50">
           <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className="px-4 sm:px-6 lg:px-8 py-10">
               <div className="flex items-center gap-3 mb-2">
                 <CubeIcon className="h-9 w-9" />
                 <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Inventario</h1>
@@ -296,7 +296,7 @@ function InventarioContent() {
               <p className="text-white/80 text-lg">Cargando inventario...</p>
             </div>
           </div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               {[...Array(4)].map((_, i) => (
                 <Card key={i}>
@@ -488,7 +488,7 @@ function InventarioContent() {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="px-4 py-10 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="mb-2 flex items-center gap-3">
@@ -526,7 +526,7 @@ function InventarioContent() {
         </div>
 
         {/* Main Content */}
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           {/* Stats Cards */}
           <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StockStatCard

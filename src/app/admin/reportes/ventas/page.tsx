@@ -1247,7 +1247,7 @@ function VentasReportesContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -1266,7 +1266,7 @@ function VentasReportesContent() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Resumen compacto (26-oct-2026): conteos y montos por moneda en una sola franja */}
         <Card className="mb-4">
           <CardContent className="p-0">

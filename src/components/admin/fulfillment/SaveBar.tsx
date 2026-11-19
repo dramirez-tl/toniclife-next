@@ -27,7 +27,7 @@ export function SaveBar({ changeCount, isSaving, blockedReason, onDiscard, onRev
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-ring"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:px-6 lg:px-8">
         <div className="min-w-0 flex-1">
           <p className="font-medium text-foreground">{changesLabel(changeCount)}</p>
           {blockedReason && <p className="text-sm text-destructive">{blockedReason}</p>}

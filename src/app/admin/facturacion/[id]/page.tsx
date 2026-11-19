@@ -196,7 +196,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
         <Skeleton className="h-10 w-72" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -339,7 +339,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
     <div className="min-h-screen bg-gray-50">
       {/* Cabecera */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-start gap-4">
               <Button asChild variant="ghost" size="icon" className="text-white hover:bg-white/10 hover:text-white">
@@ -389,7 +389,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Columna principal */}
           <div className="space-y-6 lg:col-span-2">

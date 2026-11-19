@@ -105,7 +105,7 @@ export default function ValidacionDatosPage() {
 
 function PageSkeleton() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-20 w-full" />
       <Skeleton className="h-24 w-full" />
@@ -372,7 +372,7 @@ function ValidacionDatosContent() {
   ];
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       <TreasuryHeader
         icon={ShieldCheckIcon}
         title="Validación de datos para pago"

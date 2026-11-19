@@ -170,7 +170,7 @@ function LogsContent() {
   if (isLoading) {
     return (
       <PermissionGuard permissions={['audit:read']}>
-      <div className="p-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Logs y Auditoría</h1>
@@ -210,7 +210,7 @@ function LogsContent() {
   if (error) {
     return (
       <PermissionGuard permissions={['audit:read']}>
-      <div className="p-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-12 text-center">
             <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
@@ -228,7 +228,7 @@ function LogsContent() {
 
   return (
     <PermissionGuard permissions={['audit:read']}>
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

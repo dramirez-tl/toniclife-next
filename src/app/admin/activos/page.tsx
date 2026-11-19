@@ -66,7 +66,7 @@ function ActivosSkeleton() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       <div className="h-40 bg-gradient-to-r from-[#3E667D] to-[#0A4B94]" />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-4 px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -264,7 +264,7 @@ function ActivosContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
           <div className="mb-2 flex items-center gap-3">
             <ComputerDesktopIcon className="h-7 w-7 sm:h-9 sm:w-9" />
             <h1 className="text-2xl font-bold sm:text-4xl">Activos de TI</h1>
@@ -275,7 +275,7 @@ function ActivosContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* Estadísticas */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-7">
           <StatCard label="Total de equipos" value={stats?.total ?? 0} />

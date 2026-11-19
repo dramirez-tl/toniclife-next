@@ -311,7 +311,7 @@ export function PromocionesTab() {
 
   if (isError && !promosData) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="flex items-center gap-3 text-red-700">
@@ -328,7 +328,7 @@ export function PromocionesTab() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">

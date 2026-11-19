@@ -281,7 +281,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <Link
             href="/admin/configuracion"
             className="mb-3 inline-flex items-center gap-1 rounded text-sm text-white/80 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-white"
@@ -298,7 +298,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </p>
         </div>
       </div>
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
+      <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
     </div>
   );
 }

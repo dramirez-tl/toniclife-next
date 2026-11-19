@@ -32,7 +32,7 @@ export default function AdminDistributorNetworkPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
-      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+      <div className="px-4 pt-6 sm:px-6 lg:px-8">
         <Link
           href={`/admin/distribuidores/${id}`}
           className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"

@@ -215,7 +215,7 @@ function EventoDetalleContent() {
         isPending={updateMutation.isPending}
       />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-3 flex justify-end">
           <Button
             type="button"
@@ -395,7 +395,7 @@ function EventHeader({
 
   return (
     <div className="border-b bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <Link

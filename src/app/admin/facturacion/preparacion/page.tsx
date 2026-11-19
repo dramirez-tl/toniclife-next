@@ -39,7 +39,7 @@ export default function PreparacionFiscalPage() {
 
 function PageSkeleton() {
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-24 w-full" />
       <Skeleton className="h-64 w-full" />
@@ -67,7 +67,7 @@ function PreparacionContent() {
     filters.setParams({ tab, search: null, page: null, limit: null, missing: null, issue: null });
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <ClipboardDocumentCheckIcon className="mt-1 h-8 w-8 text-[#3E667D]" aria-hidden />

@@ -146,7 +146,7 @@ function PageContent() {
     <PermissionGuard permissions={['products:read', 'products:*']}>
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="px-4 sm:px-6 lg:px-8">
             <div className="pt-10 pb-6 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="mb-2 flex items-center gap-3">
@@ -217,7 +217,7 @@ function PageSkeleton() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="pt-10 pb-6">
             <div className="flex items-center gap-3 mb-2">
               <ShoppingBagIcon className="h-9 w-9" />
@@ -228,7 +228,7 @@ function PageSkeleton() {
           <div className="h-12 border-b border-white/20" />
         </div>
       </div>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>

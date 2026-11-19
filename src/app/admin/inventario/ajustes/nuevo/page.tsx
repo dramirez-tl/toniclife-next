@@ -324,7 +324,7 @@ export default function NuevoAjustePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="sticky top-14 z-10 border-b bg-white/95 backdrop-blur-sm lg:top-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="px-4 sm:px-6 lg:px-8 py-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <Link
@@ -376,7 +376,7 @@ export default function NuevoAjustePage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-8">
       <form id="ajuste-form" onSubmit={handleSubmit} className="space-y-6">
         {/* Adjustment Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

@@ -269,7 +269,7 @@ function ComplementoPagoContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <Button asChild variant="ghost" size="icon" className="text-white hover:bg-white/10 hover:text-white">
               <Link href="/admin/facturacion" aria-label="Volver a facturas"><ArrowLeftIcon className="h-6 w-6" /></Link>
@@ -285,7 +285,7 @@ function ComplementoPagoContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <V2FlowsBanner status={status} />
         {flowDisabled && status?.v2FlowsEnabled !== false && (
           <Card className="border-amber-200 bg-amber-50" role="status">

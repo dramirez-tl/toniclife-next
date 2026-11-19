@@ -111,7 +111,7 @@ function DistribuidoresContent() {
           countryCodes={overview?.byCountry.map((c) => c.countryCode).filter((c): c is string => !!c) ?? []}
           onScope={onScope}
         />
-        <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
           <ReportOverview
             overview={overview}
             isLoading={overviewQuery.isLoading}
