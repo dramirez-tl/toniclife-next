@@ -14,6 +14,7 @@ import {
   BanknotesIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
+  ClipboardDocumentListIcon,
   CubeIcon,
   ExclamationTriangleIcon,
   ShoppingBagIcon,
@@ -64,6 +65,8 @@ export function ScopedReportsLanding({ title = 'Reportes de mis sucursales' }: {
   // Mi CEDEA (mig 180): ventas, ganancia estimada y promociones por periodo.
   const permissions = useAppSelector(selectUserPermissions);
   const showCedea = permissions.includes('reports:cedea_earnings');
+  // Existencias (Supervisión de zona, 20-nov-2026): solo con permiso de ver inventario.
+  const showStock = permissions.includes('inventory:read');
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -116,6 +119,24 @@ export function ScopedReportsLanding({ title = 'Reportes de mis sucursales' }: {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Ventas, IVA, ventas netas, ganancia estimada y promociones entregadas de tus sucursales por
                   periodo de comisiones, con el detalle por día.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      ) : null}
+
+      {showStock ? (
+        <Link href="/admin/inventario" className="group mb-4 block">
+          <Card className="transition-colors group-hover:border-primary/40">
+            <CardContent className="flex items-start gap-3 p-5">
+              <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                <ClipboardDocumentListIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Existencias</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Lo que hay de cada producto en tus sucursales: una por una o todas juntas. Solo consulta.
                 </p>
               </div>
             </CardContent>

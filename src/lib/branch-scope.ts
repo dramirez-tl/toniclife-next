@@ -16,6 +16,9 @@ export const BRANCH_SCOPED_ROLE_CODES: readonly string[] = [
   'cedeas_supervisor',
   // Dueño de CEDEA (mig 180, 31-oct-2026): mismo alcance; además ve "Mi CEDEA".
   'cedea_owner',
+  // Supervisión de zona (mig 215, 20-nov-2026): ventas y existencias de sus
+  // sucursales, solo consulta, además de sus viáticos.
+  'supervisor_zona',
 ];
 
 export function isBranchScopedRoleCode(code?: string | null): boolean {

@@ -83,20 +83,22 @@ const navigation: NavItem[] = [
     icon: CubeIcon,
     permissions: ['inventory', 'inventory.stock', 'inventory:read'],
     children: [
+      // Una sesión acotada por sucursal (Supervisión de zona, 20-nov-2026) solo
+      // consulta Existencias; el API le niega todo lo demás del módulo.
       { name: 'Existencias General', href: '/admin/inventario' },
-      { name: 'Entradas', href: '/admin/inventario/entradas' },
-      { name: 'Salidas', href: '/admin/inventario/salidas' },
-      { name: 'Traspasos', href: '/admin/inventario/traspasos' },
+      { name: 'Entradas', href: '/admin/inventario/entradas', hideWhenBranchScoped: true },
+      { name: 'Salidas', href: '/admin/inventario/salidas', hideWhenBranchScoped: true },
+      { name: 'Traspasos', href: '/admin/inventario/traspasos', hideWhenBranchScoped: true },
       // Pedidos a domicilio que Call Center cobra en el POS y Almacén surte
       // (listo → enviado con guía → entregado).
-      { name: 'Entregas a domicilio', href: '/admin/inventario/entregas' },
+      { name: 'Entregas a domicilio', href: '/admin/inventario/entregas', hideWhenBranchScoped: true },
       // Pedidos web con productos BAJO PEDIDO (mig 182): se elaboran aquí y
       // después pasan a Entregas a domicilio.
-      { name: 'Bajo pedido', href: '/admin/inventario/bajo-pedido' },
-      { name: 'Ajustes', href: '/admin/inventario/ajustes' },
+      { name: 'Bajo pedido', href: '/admin/inventario/bajo-pedido', hideWhenBranchScoped: true },
+      { name: 'Ajustes', href: '/admin/inventario/ajustes', hideWhenBranchScoped: true },
       // Qué productos ve el POS de cada sucursal (filas de stock_levels) y
       // habilitar los que faltan en sucursales nuevas.
-      { name: 'Catálogo por sucursal', href: '/admin/inventario/catalogo-sucursal' },
+      { name: 'Catálogo por sucursal', href: '/admin/inventario/catalogo-sucursal', hideWhenBranchScoped: true },
     ],
   },
   {

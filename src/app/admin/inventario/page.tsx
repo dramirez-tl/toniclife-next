@@ -32,6 +32,9 @@ import {
   useExportConsolidatedStock,
 } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { isBranchScopedUser } from '@/lib/branch-scope';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ProductThumb } from '@/components/admin/inventory/ProductThumb';
 import { ProductBranchesDialog } from '@/components/admin/inventory/ProductBranchesDialog';
@@ -130,6 +133,10 @@ function InventarioContent() {
 
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [skuInput, setSkuInput] = useState(skuQuery || '');
+
+  // Sesión acotada por sucursal (Supervisión de zona): solo consulta existencias. El API
+  // le niega traspasos, ajustes y kardex, así que aquí no se le ofrecen.
+  const branchScoped = isBranchScopedUser(useAppSelector(selectUser));
 
   // Fetch branches for the selector
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
@@ -470,14 +477,16 @@ function InventarioContent() {
             </button>
           )}
           {/* Con todas las sucursales el kardex se abre sin filtro: movimientos de todas. */}
-          <Link href={`/admin/inventario/kardex/${item.productId}${!isAll && selectedBranch ? `?branch=${selectedBranch}` : ''}`}>
-            <button
-              className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-              title={isAll ? 'Ver Kardex (todas las sucursales)' : 'Ver Kardex'}
-            >
-              <ChartBarIcon className="h-4 w-4 text-blue-600" />
-            </button>
-          </Link>
+          {!branchScoped && (
+            <Link href={`/admin/inventario/kardex/${item.productId}${!isAll && selectedBranch ? `?branch=${selectedBranch}` : ''}`}>
+              <button
+                className="rounded-lg p-2 transition-colors hover:bg-blue-50"
+                title={isAll ? 'Ver Kardex (todas las sucursales)' : 'Ver Kardex'}
+              >
+                <ChartBarIcon className="h-4 w-4 text-blue-600" />
+              </button>
+            </Link>
+          )}
         </div>
       ),
     },
@@ -496,30 +505,36 @@ function InventarioContent() {
                   <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Inventario</h1>
                 </div>
                 <p className="text-base text-white/80 sm:text-lg">
-                  Control de existencias, traspasos y ajustes de inventario
+                  {branchScoped
+                    ? 'Existencias de tus sucursales (solo consulta)'
+                    : 'Control de existencias, traspasos y ajustes de inventario'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href="/admin">
                   <Button variant="secondary">Volver al Panel Principal</Button>
                 </Link>
-                <Link href="/admin/inventario/traspasos">
-                  <Button
-                    variant="outline"
-                    className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
-                  >
-                    <ArrowsRightLeftIcon className="h-5 w-5" />
-                    Traspasos
-                  </Button>
-                </Link>
-                <Link href="/admin/inventario/ajustes">
-                  <Button
-                    variant="default"
-                  >
-                    <ClipboardDocumentCheckIcon className="h-5 w-5" />
-                    Ajustes
-                  </Button>
-                </Link>
+                {!branchScoped && (
+                  <>
+                    <Link href="/admin/inventario/traspasos">
+                      <Button
+                        variant="outline"
+                        className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                      >
+                        <ArrowsRightLeftIcon className="h-5 w-5" />
+                        Traspasos
+                      </Button>
+                    </Link>
+                    <Link href="/admin/inventario/ajustes">
+                      <Button
+                        variant="default"
+                      >
+                        <ClipboardDocumentCheckIcon className="h-5 w-5" />
+                        Ajustes
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

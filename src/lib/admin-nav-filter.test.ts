@@ -90,6 +90,33 @@ describe('filterNavigation', () => {
     expect(names(filterNavigation(nav, { isSuperAdmin: false, permissions: perms }))).toEqual(['Sucursales', 'Mi CEDEA']);
   });
 
+  it('Supervisión de zona (acotada): de Inventario solo ve Existencias; un rol normal ve todo el módulo', () => {
+    const nav: NavItem[] = [
+      {
+        name: 'Inventario',
+        href: '/admin/inventario',
+        icon: Icon,
+        permissions: ['inventory', 'inventory.stock', 'inventory:read'],
+        children: [
+          { name: 'Existencias General', href: '/admin/inventario' },
+          { name: 'Entradas', href: '/admin/inventario/entradas', hideWhenBranchScoped: true },
+          { name: 'Traspasos', href: '/admin/inventario/traspasos', hideWhenBranchScoped: true },
+          { name: 'Ajustes', href: '/admin/inventario/ajustes', hideWhenBranchScoped: true },
+        ],
+      },
+      { name: 'Viáticos', href: '/admin/viaticos', icon: Icon, permissions: ['viaticos', 'viaticos:request'] },
+    ];
+    const perms = ['viaticos', 'viaticos:request', 'reports', 'reports.sales', 'reports:read', 'inventory', 'inventory.stock', 'inventory:read'];
+    expect(names(filterNavigation(nav, { isSuperAdmin: false, permissions: perms, branchScoped: true }))).toEqual([
+      'Inventario[Existencias General]',
+      'Viáticos',
+    ]);
+    expect(names(filterNavigation(nav, { isSuperAdmin: false, permissions: perms }))).toEqual([
+      'Inventario[Existencias General,Entradas,Traspasos,Ajustes]',
+      'Viáticos',
+    ]);
+  });
+
   it('se conserva el filtrado por permisos de padres e hijos', () => {
     expect(
       names(filterNavigation(NAV, { isSuperAdmin: false, permissions: ['config'] })),
