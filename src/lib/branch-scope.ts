@@ -34,3 +34,47 @@ export function isBranchScopedUser(user?: Pick<UserResponse, 'scopedBranchIds'> 
 export function scopedBranchIdsOf(user?: Pick<UserResponse, 'scopedBranchIds'> | null): string[] | null {
   return Array.isArray(user?.scopedBranchIds) ? user.scopedBranchIds : null;
 }
+
+// ---------------------------------------------------------------------------
+// Lista "Sucursales que puede ver" del formulario de usuario (20-nov-2026):
+// son ~70 sucursales; se filtra con un buscador y se puede ver solo lo marcado.
+// ---------------------------------------------------------------------------
+
+export interface BranchChoice {
+  id: string;
+  code?: string | null;
+  name: string;
+}
+
+/** Sin acentos ni mayúsculas, para comparar lo tecleado con el nombre. */
+function foldText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/**
+ * Sucursales cuyo número o nombre contiene TODAS las palabras buscadas (sin
+ * importar acentos, mayúsculas ni el orden). Con `onlyIds`, además, solo las de
+ * esa lista (para "ver solo las marcadas"). Sin texto devuelve todas.
+ */
+export function filterBranchChoices<T extends BranchChoice>(
+  branches: readonly T[],
+  search: string,
+  onlyIds?: readonly string[] | null,
+): T[] {
+  const words = foldText(search).split(/\s+/).filter(Boolean);
+  return branches.filter((branch) => {
+    if (onlyIds && !onlyIds.includes(branch.id)) return false;
+    if (words.length === 0) return true;
+    const haystack = foldText(`${branch.code ?? ''} ${branch.name}`);
+    return words.every((word) => haystack.includes(word));
+  });
+}
+
+/** "Ninguna marcada" · "1 marcada" · "11 marcadas". */
+export function checkedBranchesLabel(count: number): string {
+  if (count <= 0) return 'Ninguna marcada';
+  return count === 1 ? '1 marcada' : `${count} marcadas`;
+}

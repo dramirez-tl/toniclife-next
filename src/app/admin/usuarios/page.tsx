@@ -48,6 +48,7 @@ import {
 import { toast } from 'sonner';
 import { usersService } from '@/services/users.service';
 import { DistribuidoresTab } from '@/components/admin/users/DistribuidoresTab';
+import { BranchChecklist } from '@/components/admin/users/BranchChecklist';
 import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
 import { getMlmTypeConfig } from '@/lib/mlmType';
 import { getUserTypeConfig, SELECTABLE_USER_TYPES } from '@/lib/userType';
@@ -1823,27 +1824,11 @@ function UserFormModal({
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Sucursales que puede ver <span className="text-destructive">*</span>
                   </label>
-                  <div className="max-h-48 overflow-y-auto rounded-lg border border-input p-2">
-                    {(activeBranches ?? []).length === 0 ? (
-                      <p className="px-2 py-1 text-xs text-muted-foreground">Cargando sucursales...</p>
-                    ) : (
-                      (activeBranches ?? []).map((b) => (
-                        <label
-                          key={b.id}
-                          className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-muted"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checkedBranchIds.includes(b.id)}
-                            onChange={() => toggleBranch(b.id)}
-                            className="h-4 w-4 rounded border-input accent-primary"
-                          />
-                          <span className="font-mono text-xs text-muted-foreground">{b.code}</span>
-                          <span>{b.name}</span>
-                        </label>
-                      ))
-                    )}
-                  </div>
+                  <BranchChecklist
+                    branches={activeBranches ?? []}
+                    checkedIds={checkedBranchIds}
+                    onToggle={toggleBranch}
+                  />
                   <p className="mt-1 text-xs text-muted-foreground">
                     Con este rol solo ve reportes (ventas, corte, inventario) de las sucursales
                     marcadas; sin ninguna no ve nada. Aplica al volver a iniciar sesión.
