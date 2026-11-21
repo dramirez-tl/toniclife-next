@@ -101,6 +101,7 @@ export default function VentasSucursalPage() {
   const [dateTo, setDateTo] = useState(() => daysAgo(0));
   const [downloadingXlsx, setDownloadingXlsx] = useState(false);
   const [downloadingDailyXlsx, setDownloadingDailyXlsx] = useState(false);
+  const [downloadingSummaryXlsx, setDownloadingSummaryXlsx] = useState(false);
 
   // Auto-select current period once loaded
   useEffect(() => {
@@ -204,6 +205,27 @@ export default function VentasSucursalPage() {
     }
   };
 
+  // Excel con SOLO el resumen por día (21-nov-2026, Dirección: "las ventas por día, solamente el
+  // resumen por día"): un renglón por día del rango aplicado, sin el desglose por sucursal.
+  const handleDownloadSummaryXlsx = async () => {
+    if (!appliedStart || !appliedEnd) {
+      toast.error('Aplica un periodo o un rango de fechas');
+      return;
+    }
+    setDownloadingSummaryXlsx(true);
+    try {
+      await reportsService.downloadSalesDailySummaryXlsx({
+        startDate: appliedStart,
+        endDate: appliedEnd,
+      });
+      toast.success('Resumen por día generado');
+    } catch {
+      toast.error('No se pudo generar el resumen por día');
+    } finally {
+      setDownloadingSummaryXlsx(false);
+    }
+  };
+
   const totals = useMemo(() => {
     if (!data?.branches) return { totalMxn: 0, totalUsd: 0, totalCop: 0, totalGtq: 0, orderCount: 0, onlineCount: 0 };
     return data.branches.reduce(
@@ -298,7 +320,22 @@ export default function VentasSucursalPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Botón nuevo, a la izquierda: los dos de siempre conservan su lugar. */}
+            {/* Botones nuevos, a la izquierda: los dos de siempre conservan su lugar. */}
+            <button
+              onClick={handleDownloadSummaryXlsx}
+              disabled={!appliedStart || !appliedEnd || isFetching || downloadingSummaryXlsx}
+              title="Solo el resumen: un renglón por cada día del rango aplicado con la venta total de ese día (una columna por moneda y el total en pesos), sin el desglose por sucursal."
+              className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {downloadingSummaryXlsx ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2f5165] border-t-transparent" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+                </svg>
+              )}
+              Resumen por día
+            </button>
             <button
               onClick={handleDownloadDailyXlsx}
               disabled={!appliedStart || !appliedEnd || isFetching || downloadingDailyXlsx}

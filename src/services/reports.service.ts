@@ -170,6 +170,30 @@ class ReportsService {
     );
   }
 
+  /**
+   * Excel "Resumen de ventas POR DÍA" (21-nov-2026): las mismas ventas del reporte sumadas por
+   * día, UN renglón por día con una columna por moneda, el total en pesos (si hay otra moneda)
+   * y el número de ventas. Hasta 366 días por archivo.
+   * Backend: GET /reports/sales/by-branch/daily-summary-xlsx
+   */
+  async downloadSalesDailySummaryXlsx(query: DateRangeQuery): Promise<void> {
+    const response = await api.get('/reports/sales/by-branch/daily-summary-xlsx', {
+      params: {
+        startDate: query.startDate,
+        endDate: query.endDate,
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+      },
+      responseType: 'blob',
+    });
+    // Content-Disposition no se expone por CORS: el nombre se arma aquí, igual que en el API.
+    const compact = (d: string) => d.slice(0, 10).replace(/-/g, '');
+    saveBlob(
+      response.data as BlobPart,
+      `VENTAS_RESUMEN_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+  }
+
   // ================================
   // INVENTORY REPORTS
   // ================================
