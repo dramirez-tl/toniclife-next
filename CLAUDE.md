@@ -555,6 +555,23 @@ npm run lint             # ESLint
 
 ## 🚢 Deploy (Vercel)
 
+### 🚦 REGLA INNEGOCIABLE: antes de subir a producción, revisar que no haya operaciones en curso
+
+Regla de Sistemas (Diego, 23-nov-2026): *"siempre revisar antes de subir a
+productivo"*. Antes de promover a `main` (www.toniclife.com) se corre la misma
+revisión que para el API, desde `toniclife-api`: `npm run predeploy:check`
+(solo lee; termina en 0 cuando no hay pedidos en línea a medio pago, facturas
+timbrándose ni cajas cobrando). Un despliegue de la web a media compra puede
+dejar al cliente con la pantalla de pago rota.
+
+- Publicar solo si terminó en 0, comprobando el código de salida (guardar la
+  salida en un archivo y usar `if [ $rc -eq 0 ]`; nunca `… | tail && git push`).
+- Si no hay calma: esperar y volver a revisar; si no se da, avisar a Sistemas.
+- Si el cambio depende de algo nuevo del API, **primero el API** (probado en
+  producción) y después la web: el API rechaza con 400 los parámetros que no
+  conoce.
+- Nunca un proceso en segundo plano que publique solo "cuando haya calma".
+
 - Producción: rama `main` → `toniclife.com` (actualmente sirve la landing
   "coming soon" — ver advertencia en `../CLAUDE.md`).
 - Staging: rama `staging` → preview URL de Vercel.
