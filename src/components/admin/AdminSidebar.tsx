@@ -263,6 +263,8 @@ const navigation: NavItem[] = [
     ],
     children: [
       { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
+      // IMPULSA: la ruta de los primeros 90 días (Victorias); mismo permiso que Capacitación.
+      { name: 'IMPULSA', href: '/admin/comercial/capacitacion/impulsa' },
       { name: 'Materiales', href: '/admin/comercial/materiales' },
       { name: 'Simulaciones', href: '/admin/comercial/simulaciones' },
       { name: 'Formularios', href: '/admin/comercial/formularios' },

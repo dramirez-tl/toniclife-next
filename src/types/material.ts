@@ -7,7 +7,14 @@ export type MaterialCategory =
   | 'guias'
   | 'branding'
   | 'capacitacion'
-  | 'otros';
+  | 'otros'
+  // IMPULSA: las guías de cada Victoria de la ruta de 90 días.
+  | 'impulsa_v1'
+  | 'impulsa_v2'
+  | 'impulsa_v3'
+  | 'impulsa_v4'
+  | 'impulsa_v5'
+  | 'impulsa_v6';
 export type MaterialStatus = 'draft' | 'published' | 'archived';
 
 export type MaterialAccessType = 'public' | 'restricted';

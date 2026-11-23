@@ -42,6 +42,12 @@ const CATEGORY_KEYS: MaterialCategory[] = [
   'branding',
   'capacitacion',
   'otros',
+  'impulsa_v1',
+  'impulsa_v2',
+  'impulsa_v3',
+  'impulsa_v4',
+  'impulsa_v5',
+  'impulsa_v6',
 ];
 
 const TYPE_KEYS: MaterialType[] = ['pdf', 'image', 'video', 'document', 'presentation'];

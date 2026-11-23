@@ -72,6 +72,13 @@ const categoryLabels: Record<MaterialCategory, string> = {
   branding: 'Branding',
   capacitacion: 'Capacitación',
   otros: 'Otros',
+  // IMPULSA: lo que se publique aquí sale como guía dentro de esa Victoria.
+  impulsa_v1: 'IMPULSA · Victoria 1',
+  impulsa_v2: 'IMPULSA · Victoria 2',
+  impulsa_v3: 'IMPULSA · Victoria 3',
+  impulsa_v4: 'IMPULSA · Victoria 4',
+  impulsa_v5: 'IMPULSA · Victoria 5',
+  impulsa_v6: 'IMPULSA · Victoria 6',
 };
 
 const typeLabels: Record<MaterialType, string> = {
