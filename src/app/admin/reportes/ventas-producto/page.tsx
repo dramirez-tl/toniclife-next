@@ -13,6 +13,12 @@
 // del renglón y el resumen por promoción. Al hacer clic en un renglón de ese
 // resumen se abre una ventana con sus ventas, folio por folio, para aclaraciones
 // (14-nov-2026).
+//
+// TIENDA EN LÍNEA (Sistemas, 23-nov-2026: "en ese reporte debe contar todo, también lo
+// que se vende en línea y en POS"): el reporte solo sumaba caja. Ahora trae también los
+// pedidos pagados de la tienda en línea (sucursal que los surte o donde se recogen, fecha
+// del pedido); sus piezas cuentan en Piezas y se ven aparte en la columna En línea. El
+// filtro Canal deja ver solo caja o solo la tienda (`lib/sales-channel`).
 
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -31,6 +37,16 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
+import {
+  ONLINE_TAG,
+  SALES_CHANNEL_OPTIONS,
+  channelCoverageText,
+  isOnlineLine,
+  linePaymentLabel,
+  onlineOrdersText,
+  salesChannelParam,
+  type SalesChannelFilter,
+} from '@/lib/sales-channel';
 import type { FreeByPromotionRow, ProductSalesSummary, SalesByProductDetailQuery } from '@/types/reports';
 import { FreePiecesDetailDialog } from './FreePiecesDetailDialog';
 import { PAYMENT_LABELS, formatAmount, formatDateDisplay, formatUnits } from './format';
@@ -55,6 +71,8 @@ export default function VentasProductoPage() {
   const [dateFrom, setDateFrom] = useState(() => daysAgo(1));
   const [dateTo, setDateTo] = useState(() => daysAgo(1));
   const [search, setSearch] = useState('');
+  // Por defecto TODO: caja + tienda en línea.
+  const [channel, setChannel] = useState<SalesChannelFilter>('all');
   const [applied, setApplied] = useState<SalesByProductDetailQuery>(() => ({
     startDate: daysAgo(1),
     endDate: daysAgo(1),
@@ -78,7 +96,7 @@ export default function VentasProductoPage() {
   const { data, isLoading, isFetching, error, refetch } = useSalesByProductDetail(applied);
 
   const applyFilter = useCallback(
-    (nextBranchId: string, from: string, to: string, nextSearch: string) => {
+    (nextBranchId: string, from: string, to: string, nextSearch: string, nextChannel: SalesChannelFilter) => {
       if (!from || !to) {
         toast.error('Captura las fechas De y Hasta');
         return;
@@ -94,6 +112,7 @@ export default function VentasProductoPage() {
       }
       setDateFrom(from);
       setDateTo(to);
+      setChannel(nextChannel);
       setExpanded(new Set());
       setFreeDetail(null);
       setApplied({
@@ -101,6 +120,7 @@ export default function VentasProductoPage() {
         endDate: to,
         ...(nextBranchId ? { branchId: nextBranchId } : {}),
         ...(nextSearch.trim() ? { search: nextSearch.trim() } : {}),
+        ...(salesChannelParam(nextChannel) ? { channel: salesChannelParam(nextChannel) } : {}),
       });
     },
     [],
@@ -134,6 +154,9 @@ export default function VentasProductoPage() {
   const totals = data?.totals;
   const freeByPromotion = data?.freeByPromotion ?? [];
   const totalFreeUnits = totals?.freeUnits ?? 0;
+  const totalOnlineUnits = totals?.onlineUnits ?? 0;
+  const totalOnlineSales = totals?.onlineSales ?? 0;
+  const appliedChannel: SalesChannelFilter = applied.channel ?? 'all';
   const hasData = products.length > 0;
   const allBranches = !applied.branchId;
   const rangeLabel =
@@ -152,14 +175,14 @@ export default function VentasProductoPage() {
             <div>
               <h1 className="text-2xl font-bold text-white">Ventas por Producto</h1>
               <p className="text-sm text-white/70 mt-1">
-                Cada producto vendido con el folio de su venta (como el reporte del sistema anterior), para resurtir
-                lo mismo que se vendió
+                Cada producto vendido con el folio de su venta, en caja y en la tienda en línea, para resurtir lo
+                mismo que se vendió
               </p>
             </div>
             <button
               onClick={handleDownload}
               disabled={!applied.startDate || isFetching || downloading}
-              title="VENTAS_POR_PRODUCTO: hoja POR PRODUCTO (un renglón por venta con subtotales por producto) + RESUMEN + GRATIS POR PROMOCIÓN (piezas que salieron gratis por promociones de temporada)"
+              title="VENTAS_POR_PRODUCTO: hoja POR PRODUCTO (un renglón por venta con subtotales por producto; la columna CANAL dice si fue en caja o en la tienda en línea) + RESUMEN + GRATIS POR PROMOCIÓN (piezas que salieron gratis por promociones de temporada)"
               className="inline-flex items-center gap-2 rounded-lg bg-white text-[#2f5165] px-4 py-2.5 text-sm font-semibold shadow-sm hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {downloading ? (
@@ -209,25 +232,25 @@ export default function VentasProductoPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') applyFilter(branchId, dateFrom, dateTo, search);
+                  if (e.key === 'Enter') applyFilter(branchId, dateFrom, dateTo, search, channel);
                 }}
                 placeholder="Clave o nombre (opcional)"
                 maxLength={100}
               />
             </div>
             <div className="flex flex-wrap items-center gap-2 pb-1">
-              <button type="button" onClick={() => applyFilter(branchId, daysAgo(1), daysAgo(1), search)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              <button type="button" onClick={() => applyFilter(branchId, daysAgo(1), daysAgo(1), search, channel)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Ayer
               </button>
-              <button type="button" onClick={() => applyFilter(branchId, daysAgo(0), daysAgo(0), search)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              <button type="button" onClick={() => applyFilter(branchId, daysAgo(0), daysAgo(0), search, channel)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Hoy
               </button>
-              <button type="button" onClick={() => applyFilter(branchId, daysAgo(6), daysAgo(0), search)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+              <button type="button" onClick={() => applyFilter(branchId, daysAgo(6), daysAgo(0), search, channel)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                 Últimos 7 días
               </button>
             </div>
             <button
-              onClick={() => applyFilter(branchId, dateFrom, dateTo, search)}
+              onClick={() => applyFilter(branchId, dateFrom, dateTo, search, channel)}
               disabled={isFetching || !dateFrom || !dateTo}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2f5165] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
@@ -241,10 +264,32 @@ export default function VentasProductoPage() {
               )}
             </button>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span id="vp-canal" className="text-xs font-medium text-gray-500">
+              Canal
+            </span>
+            <div role="radiogroup" aria-labelledby="vp-canal" className="flex flex-wrap gap-1.5 text-xs">
+              {SALES_CHANNEL_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={channel === o.value}
+                  disabled={isFetching}
+                  onClick={() => applyFilter(branchId, dateFrom, dateTo, search, o.value)}
+                  className={`min-h-8 rounded-full px-3 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                    channel === o.value ? 'bg-[#3E667D] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="mt-3 text-xs text-gray-400">
-            Ventas del POS completadas (no canceladas), día y hora locales de la sucursal. Las piezas que salieron
-            gratis por una promoción de temporada (3x2, compra 5 y llévate 1, regalos) cuentan en Piezas y se
-            muestran aparte en la columna Gratis.
+            {channelCoverageText(appliedChannel)} Las piezas que salieron gratis por una promoción de temporada (3x2,
+            compra 5 y llévate 1, regalos) cuentan en Piezas y se muestran aparte en la columna Gratis
+            {appliedChannel === 'pos' ? '.' : '; las de la tienda en línea también cuentan en Piezas y van en la columna En línea.'}
           </p>
         </div>
 
@@ -259,7 +304,12 @@ export default function VentasProductoPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Ventas (folios)</p>
               <p className="text-lg font-bold text-gray-900">{totals.sales}</p>
-              <p className="text-xs text-gray-400 mt-1">{totals.lines} renglones</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {totals.lines} renglones
+                {totalOnlineSales > 0 ? (
+                  <span className="font-medium text-sky-700"> · {onlineOrdersText(totalOnlineSales)}</span>
+                ) : null}
+              </p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Piezas</p>
@@ -268,6 +318,9 @@ export default function VentasProductoPage() {
                 {formatUnits(totals.points)} puntos
                 {totalFreeUnits > 0 ? (
                   <span className="font-medium text-emerald-700"> · {formatUnits(totalFreeUnits)} gratis por promoción</span>
+                ) : null}
+                {totalOnlineUnits > 0 ? (
+                  <span className="font-medium text-sky-700"> · {formatUnits(totalOnlineUnits)} de la tienda en línea</span>
                 ) : null}
               </p>
             </div>
@@ -363,10 +416,16 @@ export default function VentasProductoPage() {
                         {h}
                       </TableHead>
                     ))}
-                    {['Ventas', 'Piezas', 'Gratis', 'Importe', 'Puntos'].map((h) => (
+                    {['Ventas', 'Piezas', 'Gratis', 'En línea', 'Importe', 'Puntos'].map((h) => (
                       <TableHead
                         key={h}
-                        title={h === 'Gratis' ? 'Piezas que salieron gratis por una promoción de temporada (ya incluidas en Piezas)' : undefined}
+                        title={
+                          h === 'Gratis'
+                            ? 'Piezas que salieron gratis por una promoción de temporada (ya incluidas en Piezas)'
+                            : h === 'En línea'
+                              ? 'Piezas de pedidos de la tienda en línea (ya incluidas en Piezas)'
+                              : undefined
+                        }
                         className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                       >
                         {h}
@@ -397,6 +456,15 @@ export default function VentasProductoPage() {
                               <span className="text-gray-300">—</span>
                             )}
                           </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-right tabular-nums">
+                            {(p.onlineUnits ?? 0) > 0 ? (
+                              <span className="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                                {formatUnits(p.onlineUnits ?? 0)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right text-gray-900 tabular-nums">{formatAmount(p.amount)}</TableCell>
                           <TableCell className="px-4 py-3 text-sm text-right text-gray-600 tabular-nums">{formatUnits(p.points)}</TableCell>
                           <TableCell className="px-4 py-3 whitespace-nowrap text-right">
@@ -405,7 +473,7 @@ export default function VentasProductoPage() {
                         </TableRow>
                         {open && (
                           <TableRow className="bg-[#3E667D]/[0.03] hover:bg-[#3E667D]/[0.03]">
-                            <TableCell colSpan={8} className="px-6 py-2">
+                            <TableCell colSpan={9} className="px-6 py-2">
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="text-gray-500">
@@ -428,7 +496,14 @@ export default function VentasProductoPage() {
                                       key={`${l.saleId}-${i}`}
                                       className={`border-t border-gray-100 ${l.freeByPromotion ? 'bg-emerald-50' : ''}`}
                                     >
-                                      <td className="py-1 pr-3 font-mono text-gray-900 whitespace-nowrap">{l.saleNumber}</td>
+                                      <td className="py-1 pr-3 font-mono text-gray-900 whitespace-nowrap">
+                                        {l.saleNumber}
+                                        {isOnlineLine(l) ? (
+                                          <span className="ml-1.5 inline-flex items-center rounded-full bg-sky-100 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                                            {ONLINE_TAG}
+                                          </span>
+                                        ) : null}
+                                      </td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{formatDateDisplay(l.saleDate)}</td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{l.saleTime}</td>
                                       <td className="py-1 pr-3">
@@ -452,7 +527,7 @@ export default function VentasProductoPage() {
                                           <span className="text-gray-300">—</span>
                                         ) : null}
                                       </td>
-                                      <td className="py-1 pr-3 whitespace-nowrap">{PAYMENT_LABELS[l.paymentMethod] ?? l.paymentMethod ?? '—'}</td>
+                                      <td className="py-1 pr-3 whitespace-nowrap">{linePaymentLabel(l, PAYMENT_LABELS)}</td>
                                       <td className="py-1 pr-3 whitespace-nowrap">{l.sellerName || '—'}</td>
                                       {allBranches && <td className="py-1 whitespace-nowrap">{l.branchCode} {l.branchName}</td>}
                                     </tr>
@@ -476,6 +551,9 @@ export default function VentasProductoPage() {
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatUnits(totals.units)}</TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-emerald-700 tabular-nums">
                         {totalFreeUnits > 0 ? formatUnits(totalFreeUnits) : '—'}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-sm text-right font-bold text-sky-700 tabular-nums">
+                        {totalOnlineUnits > 0 ? formatUnits(totalOnlineUnits) : '—'}
                       </TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatAmount(totals.amount)}</TableCell>
                       <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">{formatUnits(totals.points)}</TableCell>

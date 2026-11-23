@@ -166,3 +166,24 @@ describe('orderFreePiecesSales: por hora o con las que más piezas gratis llevar
     expect(sales.map((s) => s.saleNumber.slice(-4))).toEqual(['0001', '0002', '0003']);
   });
 });
+
+describe('piezas gratis de pedidos de la tienda en línea (23-nov-2026)', () => {
+  it('la venta conserva su canal: en línea para el pedido, nada para la de caja', () => {
+    const detail = freePiecesDetail(
+      { promotionCode: PROMO, salesCount: 2, units: 2 },
+      {
+        lines: [
+          paid('TL2611140003', 2, { saleTime: '06:24', channel: 'online' }),
+          gift('TL2611140003', 1, { saleTime: '06:24', channel: 'online' }),
+          paid('164-20261114-0003', 2, { saleTime: '09:30' }),
+          gift('164-20261114-0003', 1, { saleTime: '09:30' }),
+        ],
+      },
+    );
+    expect(detail.matches).toBe(true);
+    expect(detail.sales.map((s) => [s.saleNumber, s.channel, s.paidUnits, s.freeUnits])).toEqual([
+      ['TL2611140003', 'online', 2, 1],
+      ['164-20261114-0003', undefined, 2, 1],
+    ]);
+  });
+});

@@ -27,6 +27,8 @@ export interface FreePiecesSale {
   giftedValue: number;
   paymentMethod: string;
   sellerName: string;
+  /** `online` = pedido de la tienda en línea; sin valor o `pos` = venta de caja. */
+  channel?: 'pos' | 'online';
 }
 
 export interface FreePiecesDetail {
@@ -69,6 +71,7 @@ export function freePiecesDetail(
       giftedValue: 0,
       paymentMethod: l.paymentMethod,
       sellerName: l.sellerName,
+      ...(l.channel ? { channel: l.channel } : {}),
     };
     sale.freeUnits = round2(sale.freeUnits + l.quantity);
     sale.giftedValue = round2(sale.giftedValue + (l.giftedValue || 0));

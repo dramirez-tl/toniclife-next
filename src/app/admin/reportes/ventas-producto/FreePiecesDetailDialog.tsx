@@ -25,6 +25,7 @@ import {
   freePiecesDetail,
   orderFreePiecesSales,
 } from '@/lib/free-pieces-detail';
+import { ONLINE_TAG, isOnlineLine, saleFolioHref } from '@/lib/sales-channel';
 import type { FreeByPromotionRow, ProductSalesSummary } from '@/types/reports';
 import { formatAmount, formatDateDisplay, formatUnits } from './format';
 
@@ -177,7 +178,7 @@ export function FreePiecesDetailDialog({ row, product, scopeLabel, showBranch, o
                     <td className="whitespace-nowrap px-3 py-1.5 font-mono text-gray-900">
                       <PermissionGuard permissions={SALES_REPORT_PERMISSIONS} fallback={<span>{s.saleNumber}</span>}>
                         <Link
-                          href={`/admin/reportes/ventas?search=${encodeURIComponent(s.saleNumber)}`}
+                          href={saleFolioHref(s)}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Abrir la venta completa en Reportes › Ventas (pestaña nueva)"
@@ -186,6 +187,11 @@ export function FreePiecesDetailDialog({ row, product, scopeLabel, showBranch, o
                           {s.saleNumber}
                         </Link>
                       </PermissionGuard>
+                      {isOnlineLine(s) ? (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-sky-100 px-1.5 py-0.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                          {ONLINE_TAG}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap px-3 py-1.5">
                       {formatDateDisplay(s.saleDate)} <span className="text-gray-500">{s.saleTime}</span>

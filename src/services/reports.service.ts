@@ -602,6 +602,8 @@ class ReportsService {
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.productId ? { productId: query.productId } : {}),
         ...(query.search ? { search: query.search } : {}),
+        // Sin `channel` el API trae caja + tienda en línea.
+        ...(query.channel ? { channel: query.channel } : {}),
       },
     });
     return response.data;
@@ -616,6 +618,7 @@ class ReportsService {
         ...(query.branchId ? { branchId: query.branchId } : {}),
         ...(query.productId ? { productId: query.productId } : {}),
         ...(query.search ? { search: query.search } : {}),
+        ...(query.channel ? { channel: query.channel } : {}),
       },
       responseType: 'blob',
     });

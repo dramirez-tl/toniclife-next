@@ -1215,9 +1215,14 @@ export interface SalesByProductDetailQuery extends DateRangeQuery {
   productId?: string;
   /** Clave o nombre del producto (contiene). */
   search?: string;
+  /** Canal: sin valor = caja y tienda en línea; `pos` = solo caja; `online` = solo tienda en línea. */
+  channel?: 'pos' | 'online';
 }
 
-/** Un renglón de venta POS completada (día y hora locales de la sucursal). */
+/**
+ * Un renglón de venta de caja completada (día y hora locales de la sucursal) o de un pedido de la
+ * tienda en línea pagado (sucursal que lo surte o donde se recoge, fecha del pedido).
+ */
 export interface ProductSaleLine {
   saleId: string;
   saleNumber: string;
@@ -1238,6 +1243,10 @@ export interface ProductSaleLine {
   points: number;
   paymentMethod: string;
   sellerName: string;
+  /** `online` = pedido de la tienda en línea; sin valor o `pos` = venta de caja. */
+  channel?: 'pos' | 'online';
+  /** Forma de pago en palabras; la traen los pedidos en línea ("Tarjeta en línea (Stripe)"). */
+  paymentLabel?: string;
   /**
    * true = las piezas del renglón salieron GRATIS por una promoción de temporada
    * (la 3.ª de un 3x2, la 6.ª de un "compra 5 y llévate 1", un regalo por compra);
@@ -1261,6 +1270,8 @@ export interface ProductSalesSummary {
   units: number;
   /** De esas piezas, las que salieron gratis por promociones de temporada. */
   freeUnits?: number;
+  /** De esas piezas, las de pedidos de la tienda en línea. */
+  onlineUnits?: number;
   amount: number;
   points: number;
   lines: ProductSaleLine[];
@@ -1272,6 +1283,10 @@ export interface SalesByProductTotals {
   units: number;
   /** Piezas gratis por promociones de temporada (incluidas en `units`). */
   freeUnits?: number;
+  /** Piezas de pedidos de la tienda en línea (incluidas en `units`). */
+  onlineUnits?: number;
+  /** Pedidos de la tienda en línea (incluidos en `sales`). */
+  onlineSales?: number;
   amount: number;
   points: number;
 }
@@ -1295,6 +1310,8 @@ export interface SalesByProductDetailResponse {
   endDate: string;
   branchId: string | null;
   branchLabel: string;
+  /** Canales que trae el reporte. */
+  channel?: 'all' | 'pos' | 'online';
   totals: SalesByProductTotals;
   /** Lo que regaló cada promoción de temporada en el rango, por producto. */
   freeByPromotion?: FreeByPromotionRow[];
