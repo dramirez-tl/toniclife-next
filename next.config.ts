@@ -61,30 +61,14 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // ── Staging retirado (decisión de Diego, 8-nov-2026) ──────────────────────
-  // Desde el 2-nov-2026 el equipo usa 100 % producción (www.toniclife.com).
-  // Quien todavía entre por el proyecto de staging en Vercel
-  // (toniclife-next-staging.vercel.app y sus alias de despliegue
-  // toniclife-next-staging-*.vercel.app) se va a producción conservando ruta y
-  // query. Se decide por el HOST, no por rama: staging y main comparten este
-  // archivo, y en www.toniclife.com, previews de otros nombres y localhost la
-  // regla no aplica. 307 (temporal) para que el navegador no lo cachee para
-  // siempre si algún día hay que volver a usar staging.
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'toniclife-next-staging(?:-[a-z0-9-]+)?[.]vercel[.]app',
-          },
-        ],
-        destination: 'https://www.toniclife.com/:path*',
-        permanent: false,
-      },
-    ];
-  },
+  // ── Staging de vuelta (Sistemas, 23-nov-2026) ─────────────────────────────
+  // Del 8 al 23-nov-2026 hubo aquí una regla que mandaba a www.toniclife.com
+  // todo lo que entraba por el proyecto de staging en Vercel
+  // (toniclife-next-staging.vercel.app), porque el equipo ya trabajaba 100 % en
+  // producción. Se quitó para volver a usar staging como vitrina: ahí se le
+  // muestra al equipo IMPULSA (RISE Academy por Victorias) antes de publicarlo.
+  // Si algún día se retira staging otra vez, la regla es un `redirects()` por
+  // HOST con 307 (ver el commit 92c9387).
 
   // Cabeceras de seguridad (dictamen SIWEB 3.2.3). La CSP arranca en
   // Report-Only para no romper Stripe/Analytics en producción: se endurece a
