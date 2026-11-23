@@ -7,6 +7,13 @@ import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { reportsService } from '@/services/reports.service';
 import { branchChannelSplit, channelSplitByCurrency } from '@/lib/sales-channel-split';
+import {
+  SALES_COUNTRIES,
+  salesCountriesLabel,
+  salesCountriesParam,
+  salesCountrySuffix,
+  toggleSalesCountry,
+} from '@/lib/sales-country-filter';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -102,6 +109,11 @@ export default function VentasSucursalPage() {
   const [downloadingXlsx, setDownloadingXlsx] = useState(false);
   const [downloadingDailyXlsx, setDownloadingDailyXlsx] = useState(false);
   const [downloadingSummaryXlsx, setDownloadingSummaryXlsx] = useState(false);
+  // Países de las sucursales a incluir (23-nov-2026). Vacío = todos. Aplica al instante a la pantalla,
+  // al CSV y a los tres Excel: así un archivo nunca sale con un filtro distinto al que se ve.
+  const [countries, setCountries] = useState<string[]>([]);
+  const countriesParam = salesCountriesParam(countries);
+  const countriesLabel = salesCountriesLabel(countries);
 
   // Auto-select current period once loaded
   useEffect(() => {
@@ -120,6 +132,7 @@ export default function VentasSucursalPage() {
   const { data, isLoading, error, isFetching } = useSalesByBranch({
     startDate: appliedStart,
     endDate: appliedEnd,
+    countries: countriesParam,
   });
 
   const applyDates = useCallback((from: string, to: string) => {
@@ -167,6 +180,7 @@ export default function VentasSucursalPage() {
       await reportsService.downloadSalesByBranchLegacyXlsx({
         startDate: appliedStart,
         endDate: appliedEnd,
+        countries: countriesParam,
       });
       toast.success('Excel generado');
     } catch {
@@ -196,6 +210,7 @@ export default function VentasSucursalPage() {
       await reportsService.downloadSalesByBranchDailyXlsx({
         startDate: appliedStart,
         endDate: appliedEnd,
+        countries: countriesParam,
       });
       toast.success('Excel por día generado');
     } catch {
@@ -217,6 +232,7 @@ export default function VentasSucursalPage() {
       await reportsService.downloadSalesDailySummaryXlsx({
         startDate: appliedStart,
         endDate: appliedEnd,
+        countries: countriesParam,
       });
       toast.success('Resumen por día generado');
     } catch {
@@ -291,7 +307,7 @@ export default function VentasSucursalPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ventas_sucursal_${appliedStart}_${appliedEnd}.csv`;
+    link.download = `ventas_sucursal_${appliedStart}_${appliedEnd}${salesCountrySuffix(countriesParam)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success('Reporte exportado exitosamente');
@@ -502,6 +518,44 @@ export default function VentasSucursalPage() {
               </>
             )}
           </button>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4" role="group" aria-label="País de la sucursal">
+          <span className="mr-1 text-xs font-medium text-gray-500">País de la sucursal</span>
+          <button
+            type="button"
+            aria-pressed={countries.length === 0}
+            onClick={() => setCountries([])}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              countries.length === 0
+                ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Todos
+          </button>
+          {SALES_COUNTRIES.map((c) => {
+            const picked = countries.includes(c.code);
+            return (
+              <button
+                key={c.code}
+                type="button"
+                aria-pressed={picked}
+                onClick={() => setCountries((prev) => toggleSalesCountry(prev, c.code))}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  picked
+                    ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+          <span className="text-xs text-gray-400">
+            {countries.length === 0
+              ? 'Puedes marcar uno o varios. Aplica a la pantalla, al CSV y a los Excel.'
+              : `Solo sucursales de ${countriesLabel}: así salen la pantalla, el CSV y los Excel.`}
+          </span>
         </div>
       </div>
 

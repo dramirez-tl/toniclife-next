@@ -3,8 +3,10 @@
 
 import api from '@/lib/api';
 import { saveBlob } from '@/lib/download';
+import { salesCountrySuffix } from '@/lib/sales-country-filter';
 import type {
-  DateRangeQuery,
+  SalesByBranchDownloadQuery,
+  SalesByBranchQuery,
   SalesReportQuery,
   SalesReportResponse,
   SalesByProductResponse,
@@ -101,12 +103,14 @@ class ReportsService {
     return response.data;
   }
 
-  async getSalesByBranch(query: SalesReportQuery): Promise<SalesByBranchResponse> {
+  async getSalesByBranch(query: SalesByBranchQuery): Promise<SalesByBranchResponse> {
     const params = new URLSearchParams();
 
     params.append('startDate', query.startDate);
     params.append('endDate', query.endDate);
     if (query.channel) params.append('channel', query.channel);
+    // Países de la sucursal ("MX,FN"); sin valor el API trae todos.
+    if (query.countries) params.append('countries', query.countries);
 
     const response = await api.get<SalesByBranchResponse>(
       `/reports/sales/by-branch?${params.toString()}`
@@ -123,12 +127,13 @@ class ReportsService {
    * el archivo; aquí solo se dispara el save-as.
    * Backend: GET /reports/sales/by-branch/legacy-xlsx
    */
-  async downloadSalesByBranchLegacyXlsx(query: DateRangeQuery): Promise<void> {
+  async downloadSalesByBranchLegacyXlsx(query: SalesByBranchDownloadQuery): Promise<void> {
     const response = await api.get('/reports/sales/by-branch/legacy-xlsx', {
       params: {
         startDate: query.startDate,
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.countries ? { countries: query.countries } : {}),
       },
       responseType: 'blob',
     });
@@ -141,7 +146,7 @@ class ReportsService {
       `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
     saveBlob(
       response.data as BlobPart,
-      `REPORTE_VENTAS_POR_SUCURSAL_${stamp}.xlsx`,
+      `REPORTE_VENTAS_POR_SUCURSAL_${stamp}${salesCountrySuffix(query.countries)}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
   }
@@ -152,12 +157,13 @@ class ReportsService {
    * reporte aparte del "formato anterior". Hasta 92 días por archivo.
    * Backend: GET /reports/sales/by-branch/daily-xlsx
    */
-  async downloadSalesByBranchDailyXlsx(query: DateRangeQuery): Promise<void> {
+  async downloadSalesByBranchDailyXlsx(query: SalesByBranchDownloadQuery): Promise<void> {
     const response = await api.get('/reports/sales/by-branch/daily-xlsx', {
       params: {
         startDate: query.startDate,
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.countries ? { countries: query.countries } : {}),
       },
       responseType: 'blob',
     });
@@ -165,7 +171,7 @@ class ReportsService {
     const compact = (d: string) => d.slice(0, 10).replace(/-/g, '');
     saveBlob(
       response.data as BlobPart,
-      `VENTAS_POR_SUCURSAL_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}.xlsx`,
+      `VENTAS_POR_SUCURSAL_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}${salesCountrySuffix(query.countries)}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
   }
@@ -176,12 +182,13 @@ class ReportsService {
    * y el número de ventas. Hasta 366 días por archivo.
    * Backend: GET /reports/sales/by-branch/daily-summary-xlsx
    */
-  async downloadSalesDailySummaryXlsx(query: DateRangeQuery): Promise<void> {
+  async downloadSalesDailySummaryXlsx(query: SalesByBranchDownloadQuery): Promise<void> {
     const response = await api.get('/reports/sales/by-branch/daily-summary-xlsx', {
       params: {
         startDate: query.startDate,
         endDate: query.endDate,
         ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.countries ? { countries: query.countries } : {}),
       },
       responseType: 'blob',
     });
@@ -189,7 +196,7 @@ class ReportsService {
     const compact = (d: string) => d.slice(0, 10).replace(/-/g, '');
     saveBlob(
       response.data as BlobPart,
-      `VENTAS_RESUMEN_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}.xlsx`,
+      `VENTAS_RESUMEN_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}${salesCountrySuffix(query.countries)}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
   }

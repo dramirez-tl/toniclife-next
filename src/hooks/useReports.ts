@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportsService } from '@/services/reports.service';
 import type {
+  SalesByBranchQuery,
   SalesReportQuery,
   InventoryReportQuery,
   CommissionsReportQuery,
@@ -72,7 +73,7 @@ export function useSalesByProduct(query: SalesReportQuery) {
   });
 }
 
-export function useSalesByBranch(query: SalesReportQuery) {
+export function useSalesByBranch(query: SalesByBranchQuery) {
   return useQuery({
     queryKey: ['reports', 'sales', 'by-branch', query],
     queryFn: () => reportsService.getSalesByBranch(query),

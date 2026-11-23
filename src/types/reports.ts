@@ -18,6 +18,16 @@ export interface SalesReportQuery extends DateRangeQuery {
   channel?: string;
 }
 
+/** Ventas por sucursal (pantalla): además acepta países de la sucursal, "MX,FN" (sin valor = todos). */
+export interface SalesByBranchQuery extends SalesReportQuery {
+  countries?: string;
+}
+
+/** Los tres Excel de Ventas por sucursal: rango + países de la sucursal, "MX,FN" (sin valor = todos). */
+export interface SalesByBranchDownloadQuery extends DateRangeQuery {
+  countries?: string;
+}
+
 export interface InventoryReportQuery {
   branchId?: string;
   categoryId?: string;
