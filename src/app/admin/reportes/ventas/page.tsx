@@ -19,6 +19,9 @@ import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, Po
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import { saleTotalsPresentation, ticketLineAmount } from '@/lib/pos-ticket-totals';
+import { STRIPE_FILTER_LABEL, STRIPE_FILTER_VALUE, isStripeFilter } from '@/lib/stripe-payments';
+import { reportsService } from '@/services/reports.service';
+import { StripePaymentsSection } from '@/components/admin/reports/StripePaymentsSection';
 import { toast } from 'sonner';
 import {
   ShoppingCartIcon,
@@ -201,7 +204,10 @@ const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pendiente' },
 ];
 
-const PAYMENT_OPTIONS = PAYMENT_METHOD_OPTIONS;
+// "Stripe" es una opción SOLO de este filtro (23-nov-2026, Contabilidad): lista los cobros de la tienda en
+// línea para conciliar. No es una forma de pago del POS, así que no entra a PAYMENT_METHOD_OPTIONS (el
+// diálogo de corregir el método de una venta) ni se manda a GET pos/sales.
+const PAYMENT_OPTIONS = [...PAYMENT_METHOD_OPTIONS, { value: STRIPE_FILTER_VALUE, label: STRIPE_FILTER_LABEL }];
 
 // ================================
 // CSV Export
@@ -907,6 +913,10 @@ function VentasReportesContent() {
   const selectedBranch = get('branch');
   const selectedStatus = get('status');
   const selectedPaymentMethod = get('paymentMethod');
+  // Modo Stripe: cobros de la tienda en línea en lugar de ventas de caja.
+  const isStripe = isStripeFilter(selectedPaymentMethod);
+  const posPaymentMethod =
+    selectedPaymentMethod !== 'all' && !isStripe ? (selectedPaymentMethod as PosPaymentMethod) : undefined;
   const selectedCustomerNumber = get('customerNumber');
   const selectedSearch = get('search');
   // Fechas OPCIONALES (Contabilidad, 26-oct-2026): sin fechas se listan todas
@@ -957,7 +967,7 @@ function VentasReportesContent() {
         branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
         ...terminalFilter,
         status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
-        paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+        paymentMethod: posPaymentMethod,
         customerNumber: selectedCustomerNumber || undefined,
         search: selectedSearch || undefined,
         fromDate: dateFrom || undefined,
@@ -990,7 +1000,27 @@ function VentasReportesContent() {
       setIsExporting(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
+  }, [selectedBranch, terminalFilter, selectedStatus, posPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
+
+  // En modo Stripe el mismo botón baja los cobros de Stripe (todos los del filtro, con su PaymentIntent).
+  const handleExportStripeCsv = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const exported = await reportsService.downloadStripePaymentsCsv({
+        branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+        customerNumber: selectedCustomerNumber || undefined,
+        search: selectedSearch || undefined,
+        fromDate: dateFrom || undefined,
+        toDate: dateTo || undefined,
+      });
+      if (exported === 0) toast.info('No hay cobros de Stripe para exportar con los filtros actuales');
+      else toast.success(`${exported.toLocaleString()} cobros de Stripe exportados`);
+    } catch {
+      toast.error('Error al exportar los cobros de Stripe');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [selectedBranch, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
     (paymentMethod: string) => {
@@ -1027,7 +1057,7 @@ function VentasReportesContent() {
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
     ...terminalFilter,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
-    paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+    paymentMethod: posPaymentMethod,
     customerNumber: selectedCustomerNumber || undefined,
     search: selectedSearch || undefined,
     fromDate: dateFrom || undefined,
@@ -1036,7 +1066,7 @@ function VentasReportesContent() {
     limit: pageSize,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-  }), [selectedBranch, terminalFilter, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo, currentPage, pageSize]);
+  }), [selectedBranch, terminalFilter, selectedStatus, posPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo, currentPage, pageSize]);
 
   // Stats server-side (dictamen 3.3.1): SUM/COUNT por moneda y estado con los
   // MISMOS filtros — antes se bajaban hasta 5000 filas y se sumaban en el
@@ -1046,20 +1076,20 @@ function VentasReportesContent() {
   const breakdownParams = useMemo<SaleQueryParams>(() => ({
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
-    paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+    paymentMethod: posPaymentMethod,
     customerNumber: selectedCustomerNumber || undefined,
     search: selectedSearch || undefined,
     fromDate: dateFrom || undefined,
     toDate: dateTo || undefined,
-  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
+  }), [selectedBranch, selectedStatus, posPaymentMethod, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
   const statsQueryParams = useMemo<SaleQueryParams>(
     () => ({ ...breakdownParams, ...terminalFilter }),
     [breakdownParams, terminalFilter],
   );
 
-  const { data: salesData, isLoading, isFetching } = useSales(queryParams);
-  const { data: statsData, isLoading: isStatsLoading } = useSalesStats(statsQueryParams);
-  const { data: breakdownData } = useSalesStats(breakdownParams, selectedBranch !== 'all');
+  const { data: salesData, isLoading, isFetching } = useSales(queryParams, !isStripe);
+  const { data: statsData, isLoading: isStatsLoading } = useSalesStats(statsQueryParams, !isStripe);
+  const { data: breakdownData } = useSalesStats(breakdownParams, selectedBranch !== 'all' && !isStripe);
   const terminalRows = useMemo(
     () => mergeTerminalRows(breakdownData?.byTerminal ?? []),
     [breakdownData],
@@ -1268,6 +1298,7 @@ function VentasReportesContent() {
       {/* Main Content */}
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Resumen compacto (26-oct-2026): conteos y montos por moneda en una sola franja */}
+        {!isStripe && (
         <Card className="mb-4">
           <CardContent className="p-0">
             <div className="grid grid-cols-2 md:grid-cols-4">
@@ -1323,6 +1354,7 @@ function VentasReportesContent() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Filters */}
         <Card className="mb-6">
@@ -1337,8 +1369,12 @@ function VentasReportesContent() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') applySearch(searchInput);
                   }}
-                  placeholder="Buscar por folio (ej. 102-20260928-0006 o 0006)…"
-                  aria-label="Buscar por folio"
+                  placeholder={
+                    isStripe
+                      ? 'Pega el id de Stripe (pi_…, ch_… o cs_…) o el folio del pedido (TL…)'
+                      : 'Buscar por folio (ej. 102-20260928-0006 o 0006)…'
+                  }
+                  aria-label={isStripe ? 'Buscar por id de Stripe o folio del pedido' : 'Buscar por folio'}
                   className="pr-8 font-mono"
                 />
                 {searchInput && (
@@ -1353,10 +1389,10 @@ function VentasReportesContent() {
                 )}
               </div>
               <Button onClick={() => applySearch(searchInput)} className="sm:w-auto">
-                Buscar folio
+                {isStripe ? 'Buscar cobro' : 'Buscar folio'}
               </Button>
             </div>
-            {selectedSearch && (
+            {selectedSearch && !isStripe && (
               <p className="-mt-2 text-xs text-gray-500">
                 Mostrando folios que contienen <span className="font-mono font-semibold text-gray-700">{selectedSearch}</span>
               </p>
@@ -1377,7 +1413,7 @@ function VentasReportesContent() {
               </FilterField>
 
               {/* Terminal (licencia POS) — solo con una sucursal elegida */}
-              {selectedBranch !== 'all' && (
+              {selectedBranch !== 'all' && !isStripe && (
                 <FilterField label="Terminal">
                   <SearchableSelect
                     options={terminalOptions}
@@ -1391,6 +1427,7 @@ function VentasReportesContent() {
                 </FilterField>
               )}
 
+              {!isStripe && (
               <FilterField label="Estado">
                 <SearchableSelect
                   options={STATUS_OPTIONS}
@@ -1401,12 +1438,13 @@ function VentasReportesContent() {
                   className="w-full"
                 />
               </FilterField>
+              )}
 
               <FilterField label="Método de pago">
                 <SearchableSelect
                   options={PAYMENT_OPTIONS}
                   value={selectedPaymentMethod}
-                  onChange={(val) => setParams({ paymentMethod: val })}
+                  onChange={(val) => setParams({ paymentMethod: val, page: '1' })}
                   allLabel="Todos los métodos"
                   allValue="all"
                   className="w-full"
@@ -1440,7 +1478,9 @@ function VentasReportesContent() {
                   Limpiar fechas
                 </Button>
               ) : (
-                <span className="pb-2 text-xs text-gray-400">Sin fechas se muestran todas las ventas</span>
+                <span className="pb-2 text-xs text-gray-400">
+                  {isStripe ? 'Sin fechas se muestran todos los cobros (día del cobro, hora Centro)' : 'Sin fechas se muestran todas las ventas'}
+                </span>
               )}
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end lg:ml-auto">
@@ -1473,7 +1513,7 @@ function VentasReportesContent() {
                   <Button onClick={() => setParams({ customerNumber: customerNumberInput.trim(), page: '1' })}>
                     Buscar
                   </Button>
-                  <Button variant="outline" onClick={handleExportCsv} disabled={isExporting}>
+                  <Button variant="outline" onClick={isStripe ? handleExportStripeCsv : handleExportCsv} disabled={isExporting}>
                     <ArrowDownTrayIcon className="h-4 w-4" />
                     {isExporting ? 'Exportando...' : 'Exportar CSV'}
                   </Button>
@@ -1484,7 +1524,7 @@ function VentasReportesContent() {
         </Card>
 
         {/* Ventas por terminal: sucursales con varias cajas separan sus ventas */}
-        {selectedBranch !== 'all' && terminalRows.length >= 2 && (
+        {!isStripe && selectedBranch !== 'all' && terminalRows.length >= 2 && (
           <Card className="mb-6">
             <CardContent className="p-0">
               <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
@@ -1534,6 +1574,20 @@ function VentasReportesContent() {
           </Card>
         )}
 
+        {isStripe ? (
+          <StripePaymentsSection
+            branchId={selectedBranch !== 'all' ? selectedBranch : undefined}
+            fromDate={dateFrom || undefined}
+            toDate={dateTo || undefined}
+            customerNumber={selectedCustomerNumber || undefined}
+            search={selectedSearch || undefined}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={(p) => setParams({ page: String(p) })}
+            onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+          />
+        ) : (
+        <>
         {/* Sales Table */}
         <Card>
           <CardContent className="p-0">
@@ -1586,6 +1640,8 @@ function VentasReportesContent() {
           onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
           pageSizeOptions={[10, 20, 50, 100]}
         />
+        </>
+        )}
       </div>
     </div>
     </>

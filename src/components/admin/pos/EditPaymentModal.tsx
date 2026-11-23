@@ -10,18 +10,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
-export const PAYMENT_METHOD_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'card', label: 'Tarjeta' },
-  { value: 'transfer', label: 'Transferencia' },
-  { value: 'credit', label: 'Crédito' },
-  { value: 'mixed', label: 'Mixto' },
-  { value: 'cashback', label: 'Cashback' },
-  { value: 'promotion', label: 'Promoción' },
-  { value: 'mercado_pago', label: 'Mercado Pago' },
-  { value: 'usd_cash', label: 'Pago en Dólares' },
-  { value: 'undefined', label: 'Por definir' },
-];
+import { PAYMENT_METHOD_OPTIONS } from './payment-method-options';
+
+// Se sigue exportando desde aquí para quien ya lo importaba del modal.
+export { PAYMENT_METHOD_OPTIONS };
 
 export interface EditPaymentSale {
   id: string;

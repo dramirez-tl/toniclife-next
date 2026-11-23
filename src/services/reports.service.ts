@@ -4,6 +4,13 @@
 import api from '@/lib/api';
 import { saveBlob } from '@/lib/download';
 import { salesCountrySuffix } from '@/lib/sales-country-filter';
+import {
+  buildStripePaymentsCsv,
+  stripeCsvFilename,
+  type StripePaymentRow,
+  type StripePaymentsQuery,
+  type StripePaymentsResponse,
+} from '@/lib/stripe-payments';
 import type {
   SalesByBranchDownloadQuery,
   SalesByBranchQuery,
@@ -199,6 +206,47 @@ class ReportsService {
       `VENTAS_RESUMEN_POR_DIA_${compact(query.startDate)}_${compact(query.endDate)}${salesCountrySuffix(query.countries)}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
+  }
+
+  /**
+   * Cobros de Stripe de la tienda en línea (Reportes › Ventas › "Stripe"), para que Contabilidad concilie
+   * contra el archivo de Stripe. Solo lectura. Backend: GET /reports/stripe-payments
+   */
+  async getStripePayments(query: StripePaymentsQuery = {}): Promise<StripePaymentsResponse> {
+    const response = await api.get<StripePaymentsResponse>('/reports/stripe-payments', {
+      params: {
+        ...(query.fromDate ? { fromDate: query.fromDate } : {}),
+        ...(query.toDate ? { toDate: query.toDate } : {}),
+        ...(query.branchId ? { branchId: query.branchId } : {}),
+        ...(query.customerNumber ? { customerNumber: query.customerNumber } : {}),
+        ...(query.search ? { search: query.search } : {}),
+        ...(query.page ? { page: query.page } : {}),
+        ...(query.limit ? { limit: query.limit } : {}),
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Baja a CSV TODOS los cobros de Stripe que cumplen el filtro (no solo la página visible), con el
+   * PaymentIntent y la hora en UTC para cruzarlos con el archivo de Stripe. Devuelve cuántos exportó.
+   */
+  async downloadStripePaymentsCsv(query: StripePaymentsQuery = {}): Promise<number> {
+    const PAGE_SIZE = 500;
+    const MAX_PAGES = 200; // tope de seguridad: 100 mil cobros
+    const first = await this.getStripePayments({ ...query, page: 1, limit: PAGE_SIZE });
+    const all: StripePaymentRow[] = [...first.data];
+    for (let page = 2; page <= Math.min(first.totalPages, MAX_PAGES); page++) {
+      const next = await this.getStripePayments({ ...query, page, limit: PAGE_SIZE });
+      all.push(...next.data);
+    }
+    if (all.length === 0) return 0;
+    saveBlob(
+      buildStripePaymentsCsv(all),
+      stripeCsvFilename(query.fromDate, query.toDate),
+      'text/csv;charset=utf-8;',
+    );
+    return all.length;
   }
 
   // ================================

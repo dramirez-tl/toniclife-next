@@ -3,6 +3,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { reportsService } from '@/services/reports.service';
+import type { StripePaymentsQuery } from '@/lib/stripe-payments';
 import type {
   SalesByBranchQuery,
   SalesReportQuery,
@@ -78,6 +79,15 @@ export function useSalesByBranch(query: SalesByBranchQuery) {
     queryKey: ['reports', 'sales', 'by-branch', query],
     queryFn: () => reportsService.getSalesByBranch(query),
     enabled: !!query.startDate && !!query.endDate,
+  });
+}
+
+/** Cobros de Stripe de la tienda en línea (Reportes › Ventas › "Stripe"). */
+export function useStripePayments(query: StripePaymentsQuery, enabled = true) {
+  return useQuery({
+    queryKey: ['reports', 'stripe-payments', query],
+    queryFn: () => reportsService.getStripePayments(query),
+    enabled,
   });
 }
 
