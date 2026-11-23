@@ -55,14 +55,20 @@ function StatTile({ label, value, hint, strong }: { label: string; value: number
   );
 }
 
-/** Mover a mano el Día 0 de una cuenta (demostración o corrección). */
-function DayZeroDialog({ participant, today, onClose }: { participant: ImpulsaAdminParticipant; today: string; onClose: () => void }) {
+/**
+ * Mover a mano el Día 0 de una cuenta (demostración o corrección). Con `participant` se abre desde su
+ * renglón; sin él se captura el número: así se puede usar una cuenta de prueba inscrita hace años, que
+ * no sale en la lista de nuevos distribuidores.
+ */
+function DayZeroDialog({ participant, today, onClose }: { participant: ImpulsaAdminParticipant | null; today: string; onClose: () => void }) {
+  const [number, setNumber] = useState(participant?.customerNumber ?? '');
   const [date, setDate] = useState(today);
   const [note, setNote] = useState('');
   const setDayZero = useImpulsaSetDayZero();
+  const customerNumber = number.trim();
   const save = (value: string | null) =>
     setDayZero.mutate(
-      { customerNumber: participant.customerNumber, date: value, note: note.trim() || null },
+      { customerNumber, date: value, note: note.trim() || null },
       {
         onSuccess: (result) => {
           toast.success(
@@ -72,20 +78,37 @@ function DayZeroDialog({ participant, today, onClose }: { participant: ImpulsaAd
           );
           onClose();
         },
-        onError: () => toast.error('No se pudo mover el Día 0'),
+        onError: () => toast.error('No se pudo mover el Día 0. Revisa el número de distribuidor.'),
       },
     );
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Día 0 de #{participant.customerNumber}</DialogTitle>
+          <DialogTitle>{participant ? `Día 0 de #${participant.customerNumber}` : 'Mover el Día 0 de una cuenta'}</DialogTitle>
           <DialogDescription>
-            {participant.name}. Hoy va en su Día {participant.day} (Día 0: {formatDateOnly(participant.dayZero)}
-            {participant.dayZeroSource === 'manual' ? ', puesto a mano' : ', su inscripción'}).
+            {participant
+              ? `${participant.name}. Hoy va en su Día ${participant.day} (Día 0: ${formatDateOnly(participant.dayZero)}${
+                  participant.dayZeroSource === 'manual' ? ', puesto a mano' : ', su inscripción'
+                }).`
+              : 'Para enseñar la ruta con una cuenta de prueba, o para corregir una fecha de inscripción mal capturada.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          {!participant && (
+            <div>
+              <Label htmlFor="impulsa-dz-number">Número de distribuidor</Label>
+              <Input
+                id="impulsa-dz-number"
+                value={number}
+                maxLength={20}
+                inputMode="numeric"
+                placeholder="Ej.: 132681"
+                onChange={(e) => setNumber(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          )}
           <div>
             <Label htmlFor="impulsa-dz-date">Nuevo Día 0</Label>
             <Input id="impulsa-dz-date" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} className="mt-1" />
@@ -109,13 +132,13 @@ function DayZeroDialog({ participant, today, onClose }: { participant: ImpulsaAd
           <Button
             type="button"
             variant="outline"
-            disabled={setDayZero.isPending || participant.dayZeroSource !== 'manual'}
+            disabled={setDayZero.isPending || !customerNumber || (participant !== null && participant.dayZeroSource !== 'manual')}
             onClick={() => save(null)}
             title="Quita la fecha puesta a mano"
           >
             Regresar a su inscripción
           </Button>
-          <Button type="button" disabled={setDayZero.isPending || !date} onClick={() => save(date)}>
+          <Button type="button" disabled={setDayZero.isPending || !date || !customerNumber} onClick={() => save(date)}>
             Guardar
           </Button>
         </DialogFooter>
@@ -132,7 +155,8 @@ function TrackingTab() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [victory, setVictory] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<ImpulsaAdminParticipant | null>(null);
+  // undefined = cerrado; null = se captura el número; un renglón = esa persona.
+  const [editing, setEditing] = useState<ImpulsaAdminParticipant | null | undefined>(undefined);
 
   const summary = useImpulsaAdminSummary(range);
   const list = useImpulsaAdminParticipants({ ...range, search: appliedSearch, victory, page, limit: PAGE_SIZE });
@@ -186,6 +210,18 @@ function TrackingTab() {
           <Button type="button" onClick={apply} disabled={summary.isFetching || list.isFetching}>
             Aplicar
           </Button>
+          <PermissionGuard permissions={MANAGE_PERMISSIONS}>
+            <Button
+              type="button"
+              variant="outline"
+              className="lg:ml-auto"
+              disabled={!today || s?.ready === false}
+              onClick={() => setEditing(null)}
+              title="Para una demostración con una cuenta de prueba, o para corregir una fecha"
+            >
+              Mover el Día 0 de una cuenta
+            </Button>
+          </PermissionGuard>
         </div>
         <p className="mt-3 text-xs text-gray-400">
           Día 0 = fecha de inscripción. Sin fechas se toman los inscritos de los últimos 90 días (los que van en su ruta).
@@ -328,7 +364,14 @@ function TrackingTab() {
         </div>
       </div>
 
-      {editing && today && <DayZeroDialog participant={editing} today={today} onClose={() => setEditing(null)} />}
+      {editing !== undefined && today && (
+        <DayZeroDialog
+          key={editing?.customerId ?? 'manual'}
+          participant={editing}
+          today={today}
+          onClose={() => setEditing(undefined)}
+        />
+      )}
     </div>
   );
 }
