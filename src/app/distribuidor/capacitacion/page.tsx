@@ -18,7 +18,8 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useMyCourses } from '@/hooks/useCourses';
-import { toast } from 'sonner';
+import { ImpulsaRouteSection } from '@/components/distributor/impulsa/ImpulsaRouteSection';
+import { victoryLevelLabel } from '@/lib/impulsa';
 import type { Course } from '@/types/course';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
@@ -43,10 +44,12 @@ export default function CapacitacionPage() {
 
 function CapacitacionContent() {
   const t = useTranslations('distributor.training');
+  const ti = useTranslations('distributor.impulsa');
   const categoryLabel = (cat: string) =>
     CATEGORY_KEYS.includes(cat) ? t(`categories.${cat}`) : cat;
+  // Aquí los niveles se manejan por Victorias: un curso de la ruta dice V1 … V6.
   const difficultyLabel = (level: string) =>
-    DIFFICULTY_KEYS.includes(level) ? t(`difficulty.${level}`) : level;
+    victoryLevelLabel(level) ?? (DIFFICULTY_KEYS.includes(level) ? t(`difficulty.${level}`) : level);
   const { get, setParams } = useQueryFilters({
     category: 'all',
     level: 'all',
@@ -121,6 +124,11 @@ function CapacitacionContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* IMPULSA: la ruta de los primeros 90 días, por Victorias */}
+        <ImpulsaRouteSection />
+
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">{ti('coursesTitle')}</h2>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
@@ -231,7 +239,7 @@ function CapacitacionContent() {
                     {/* Course Info */}
                     <div className="flex-1 p-4 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${difficultyColors[course.difficulty] || 'bg-gray-100 text-gray-800'}`}>
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${difficultyColors[course.difficulty] || (victoryLevelLabel(course.difficulty) ? 'bg-[#3E667D] text-white' : 'bg-gray-100 text-gray-800')}`}>
                           {difficultyLabel(course.difficulty)}
                         </span>
                         <span className="text-xs text-gray-500">{categoryLabel(course.category)}</span>
