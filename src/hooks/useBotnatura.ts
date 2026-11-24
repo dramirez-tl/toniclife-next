@@ -36,6 +36,11 @@ export function useBotnaturaInvoices(page: number) {
   });
 }
 
+/** Captura por lote: los productos de una lista de claves exactas. Solo lee. */
+export function useLookupBotnaturaProducts() {
+  return useMutation({ mutationFn: (codes: string[]) => botnaturaService.lookupProducts(codes) });
+}
+
 /** Alta (sin id) o corrección (con id) de un producto del catálogo de Botnatura. */
 export function useSaveBotnaturaProduct() {
   const queryClient = useQueryClient();

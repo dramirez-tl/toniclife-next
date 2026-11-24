@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import {
   ArrowPathIcon,
   CheckCircleIcon,
+  ClipboardDocumentListIcon,
   DocumentPlusIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { BotnaturaBatchDialog } from './BotnaturaBatchDialog';
 import { useActiveBranches } from '@/hooks/useBranches';
 import {
   useBotnaturaProducts,
@@ -49,6 +51,7 @@ import {
   type BotnaturaInvoiceMode,
   type BotnaturaLineDraft,
 } from '@/lib/billing/botnatura';
+import { addBatchToLines, type BatchRow } from '@/lib/billing/botnatura-batch';
 import { moneyMx as money } from '@/lib/billing/manual-free';
 import { downloadInvoiceFile } from '@/lib/invoice-download';
 import { getPaymentFormName } from '@/types/billing';
@@ -125,6 +128,9 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
     setSearch('');
     searchRef.current?.focus();
   };
+  // Captura por lote: renglones "clave,cantidad" pegados de una vez.
+  const [batchOpen, setBatchOpen] = useState(false);
+  const addBatch = (rows: BatchRow[]) => setLines((prev) => addBatchToLines(prev, rows));
   const updateLine = (index: number, patch: Partial<BotnaturaLineDraft>) =>
     setLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
   const removeLine = (index: number) => setLines((prev) => prev.filter((_, i) => i !== index));
@@ -329,6 +335,17 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
                   </button>
                 ))}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={() => setBatchOpen(true)}
+                title="Pega renglones clave,cantidad (por ejemplo 1020,100) y agrégalos de una vez"
+              >
+                <ClipboardDocumentListIcon className="h-4 w-4" />
+                Agregar por lote
+              </Button>
             </div>
             <div className="relative">
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -380,7 +397,8 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
 
             {lines.length === 0 ? (
               <p className="mt-4 rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">
-                Busca un producto de Botnatura y elígelo para agregarlo a la factura.
+                Busca un producto de Botnatura y elígelo para agregarlo a la factura, o usa «Agregar por lote» para pegar
+                varios renglones clave,cantidad.
               </p>
             ) : (
               <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200">
@@ -410,6 +428,9 @@ export function BotnaturaInvoiceForm({ onViewList, onEditSettings, onEditCatalog
               </div>
             )}
             <p className="mt-2 text-xs text-gray-400">Los precios y los importes ya incluyen IVA (16 %).</p>
+            {batchOpen && (
+              <BotnaturaBatchDialog defaultLine={searchLine} onAdd={addBatch} onClose={() => setBatchOpen(false)} />
+            )}
           </CardContent>
         </Card>
 

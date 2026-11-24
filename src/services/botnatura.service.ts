@@ -20,6 +20,10 @@ export const botnaturaService = {
   async listProducts(params: BotnaturaProductsQuery): Promise<BotnaturaProductsResponse> {
     return (await apiClient.get<BotnaturaProductsResponse>(`${BASE_URL}/products`, { params })).data;
   },
+  /** Productos activos de una lista de claves exactas (captura por lote). Una clave puede venir en las dos líneas. */
+  async lookupProducts(codes: string[]): Promise<{ data: BotnaturaProduct[] }> {
+    return (await apiClient.post<{ data: BotnaturaProduct[] }>(`${BASE_URL}/products/lookup`, { codes })).data;
+  },
   async createProduct(dto: SaveBotnaturaProduct): Promise<BotnaturaProduct> {
     return (await apiClient.post<BotnaturaProduct>(`${BASE_URL}/products`, dto)).data;
   },
