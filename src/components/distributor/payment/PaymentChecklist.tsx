@@ -43,8 +43,10 @@ export function PaymentChecklist({ rows, completed, total, className }: PaymentC
 
   const itemLabel = (row: ChecklistRow) => {
     if (row.label) return row.label;
-    const key = `items.${row.key}`;
-    return t.has(key) ? t(key) : row.key;
+    // El API manda los documentos como "doc:ine"; los textos están por "ine".
+    const bare = row.key.replace(/^doc:/, '');
+    const key = `items.${bare}`;
+    return t.has(key) ? t(key) : bare;
   };
 
   return (

@@ -37,10 +37,27 @@ export function useSectionSave() {
       setStatus(null);
       try {
         const result = await mutation.mutateAsync(input);
+        const warnings = result?.warnings ?? [];
+        // El servidor omite (sin error) un documento que no se pide en tu caso:
+        // no se anuncia como "documento subido".
+        const skipped = warnings.some((w) => w.startsWith('DOCUMENT_NOT_REQUIRED'));
         const message = opts.successMessage ?? t('toast.saved');
-        setStatus({ message, tone: 'success' });
-        if (!opts.silent) toast.success(message);
-        for (const w of result?.warnings ?? []) toast.warning(w);
+        if (skipped) {
+          setStatus({ message: t('toast.warnings.DOCUMENT_NOT_REQUIRED'), tone: 'error' });
+        } else {
+          setStatus({ message, tone: 'success' });
+          if (!opts.silent) toast.success(message);
+        }
+        // Los avisos llegan como claves ("DOCUMENT_NOT_REQUIRED:ine"): se dicen
+        // en palabras; una clave sin texto no se le enseña al distribuidor.
+        const shown = new Set<string>();
+        for (const w of warnings) {
+          const base = w.startsWith('DUPLICATE_') ? 'DUPLICATE' : w.split(':')[0];
+          const key = `toast.warnings.${base}`;
+          if (shown.has(base) || !t.has(key)) continue;
+          shown.add(base);
+          toast.warning(t(key));
+        }
         opts.onSuccess?.(result);
         return result;
       } catch (err) {

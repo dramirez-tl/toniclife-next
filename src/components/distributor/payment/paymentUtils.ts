@@ -296,6 +296,23 @@ export function regionName(code: string | null | undefined, lang: LanguageCode):
 }
 
 /** Enfoca y desplaza a un ancla `#id` (campo o tarjeta de documento). */
+/** Tope por documento (el mismo que acepta el API). */
+export const PAYMENT_DOCUMENT_MAX_MB = 10;
+
+/**
+ * Lleva al aviso de privacidad y lo resalta un momento: para quien intenta
+ * subir un documento sin haber marcado la casilla (antes solo veía la zona gris).
+ */
+export function goToConsent(): void {
+  if (typeof document === 'undefined') return;
+  const card = document.getElementById('consent');
+  if (!card) return;
+  scrollToAnchor('consent');
+  const highlight = ['ring-2', 'ring-amber-400', 'ring-offset-2'];
+  card.classList.add(...highlight);
+  window.setTimeout(() => card.classList.remove(...highlight), 2600);
+}
+
 export function scrollToAnchor(id: string): void {
   if (typeof document === 'undefined') return;
   const el = document.getElementById(id);

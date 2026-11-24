@@ -5,6 +5,10 @@
 // por tipo/tamaño/contenido, vista previa en Dialog con URL firmada (15 min),
 // Reemplazar (si está validado, pasa por "Solicitar cambio") y Eliminar
 // (solo `pending`).
+//
+// La mayoría sube desde el celular (24-nov-2026): la foto se reduce y se pasa a
+// JPG antes de subir (prepare-upload), el selector ofrece cámara y galería, y
+// si falta aceptar el aviso de privacidad la zona lo dice y lleva al aviso.
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -31,6 +35,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { localeLanguage } from '@/i18n/config';
+import { prepareUploadFile } from '@/lib/files/prepare-upload';
 import {
   useDeleteDistributorDocument,
   useDistributorDocumentUrl,
@@ -39,7 +44,7 @@ import type { PaymentDocumentKey, PaymentDocumentState } from '@/types/distribut
 import { RequestChangeDialog } from './RequestChangeDialog';
 import { useSectionSave } from './useSectionSave';
 import { usePaymentErrors } from './usePaymentErrors';
-import { formatDateTime } from './paymentUtils';
+import { PAYMENT_DOCUMENT_MAX_MB, formatDateTime, goToConsent } from './paymentUtils';
 
 interface DocumentCardProps {
   docKey: PaymentDocumentKey;
@@ -121,6 +126,12 @@ export function DocumentCard({
   // reemplazo" o al elegir archivo); después la subida lleva requestChange.
   const [unlocked, setUnlocked] = useState(false);
   if (unlocked && !doc.locked) setUnlocked(false);
+
+  /** Falta aceptar el aviso de privacidad: se dice y se lleva a la persona ahí. */
+  const askConsent = () => {
+    toast.info(t('consent.acceptFirst'));
+    goToConsent();
+  };
 
   const handleFile = (file: File | null) => {
     if (!file) return;
@@ -277,6 +288,12 @@ export function DocumentCard({
           aria-describedby={hintId}
           onChange={handleFile}
           disabled={isSaving || consentBlocked}
+          onDisabledClick={consentBlocked && !isSaving ? askConsent : undefined}
+          // El selector ofrece cámara, galería y archivos; la foto se reduce y
+          // se pasa a JPG antes de validar (lo que se sube sigue siendo JPG, PNG o PDF).
+          inputAccept="image/*,application/pdf"
+          prepare={prepareUploadFile}
+          maxSizeMB={PAYMENT_DOCUMENT_MAX_MB}
           progress={progress}
           hideStatus
           texts={uploadTexts}
@@ -284,7 +301,14 @@ export function DocumentCard({
         />
       )}
       {consentBlocked && showUpload && (
-        <p className="mt-1 text-xs text-muted-foreground">{t('consent.blocked')}</p>
+        <button
+          type="button"
+          onClick={askConsent}
+          className="mt-2 flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-medium text-amber-900 hover:bg-amber-100"
+        >
+          <LockClosedIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {t('consent.blocked')}
+        </button>
       )}
 
       <div aria-live="polite" aria-atomic="true">
