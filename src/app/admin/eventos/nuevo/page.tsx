@@ -1,7 +1,8 @@
 'use client';
 
-// Alta de evento. Al crearlo el API da de alta el producto de tipo 'event';
-// la venta arranca cuando se asignan sucursales y se activa el evento.
+// Alta de evento. De venta: el API da de alta el producto de tipo 'event' y la
+// venta arranca cuando se asignan sucursales y se activa. Privado (por
+// invitación): no hay producto; sigue cargar su lista de invitados.
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,6 +20,11 @@ export default function NuevoEventoPage() {
   const handleSubmit = async (values: EventFormValues) => {
     try {
       const ev = await createMutation.mutateAsync(toCreateInput(values));
+      if (values.source === 'private') {
+        toast.success('Evento privado creado; ahora carga su lista de invitados');
+        router.push(`/admin/eventos/${ev.id}?tab=invitados`);
+        return;
+      }
       toast.success('Evento creado; agrega la clave de Invitado si aplica y revisa sucursales');
       router.push(`/admin/eventos/${ev.id}?tab=claves`);
     } catch (e) {
@@ -43,7 +49,8 @@ export default function NuevoEventoPage() {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Nuevo evento</h1>
                 <p className="text-sm text-gray-500">
-                  Se crea en borrador; después asigna sucursales y actívalo para vender.
+                  Se crea en borrador. De venta: asigna sucursales y actívalo. Privado: carga su lista de
+                  invitados.
                 </p>
               </div>
             </div>

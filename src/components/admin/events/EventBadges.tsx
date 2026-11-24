@@ -2,6 +2,7 @@
 import { Badge } from '@/components/ui/badge';
 import {
   EVENT_STATUS_LABEL,
+  PRIVATE_EVENT_STATUS_LABEL,
   TICKET_STATUS_LABEL,
   type EventStatus,
   type TicketStatus,
@@ -20,10 +21,33 @@ const TICKET_STATUS_CLASS: Record<TicketStatus, string> = {
   cancelled: 'border-red-200 bg-red-50 text-red-700',
 };
 
-export function EventStatusBadge({ status, className = '' }: { status: EventStatus; className?: string }) {
+export function EventStatusBadge({
+  status,
+  className = '',
+  privateEvent = false,
+}: {
+  status: EventStatus;
+  className?: string;
+  /** Evento privado: no se vende, así que "En venta" se dice "Activo". */
+  privateEvent?: boolean;
+}) {
+  const labels = privateEvent ? PRIVATE_EVENT_STATUS_LABEL : EVENT_STATUS_LABEL;
   return (
     <Badge variant="outline" className={`${EVENT_STATUS_CLASS[status] ?? ''} ${className}`}>
-      {EVENT_STATUS_LABEL[status] ?? status}
+      {labels[status] ?? status}
+    </Badge>
+  );
+}
+
+/** Insignia "Privado": evento por invitación (no se vende). */
+export function PrivateEventBadge({ className = '' }: { className?: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className={`border-violet-200 bg-violet-50 text-violet-700 ${className}`}
+      title="Evento por invitación: no se vende en el POS; lleva lista de invitados"
+    >
+      Privado
     </Badge>
   );
 }

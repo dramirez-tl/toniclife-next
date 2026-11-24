@@ -2,6 +2,8 @@
 
 // Ficha del evento: encabezado con estado y cifras, acciones de estado
 // (activar / cerrar / cancelar) y pestañas Datos · Sucursales · Boletos · Entrada.
+// Un evento PRIVADO (por invitación) no se vende: sus pestañas son Datos e
+// Invitados, y sus cifras son las de su lista.
 
 import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -16,18 +18,20 @@ import {
   MapPinIcon,
   PencilSquareIcon,
   TicketIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { EventStatusBadge } from '@/components/admin/events/EventBadges';
+import { EventStatusBadge, PrivateEventBadge } from '@/components/admin/events/EventBadges';
 import { EventForm } from '@/components/admin/events/EventForm';
 import { EventImageCard } from '@/components/admin/events/EventImageCard';
 import { EventProductsTab } from '@/components/admin/events/EventProductsTab';
 import { EventBranchesTab } from '@/components/admin/events/EventBranchesTab';
 import { EventTicketsTab } from '@/components/admin/events/EventTicketsTab';
 import { EventCheckInTab } from '@/components/admin/events/EventCheckInTab';
+import { EventGuestsTab } from '@/components/admin/events/EventGuestsTab';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useEvent, useUpdateEvent } from '@/hooks/useEvents';
 import { eventsService } from '@/services/events.service';
@@ -43,12 +47,14 @@ import { eventToForm, toUpdateInput, type EventFormValues } from '@/lib/events/f
 import {
   EVENT_STATUS_HELP,
   EVENT_STATUS_LABEL,
+  PRIVATE_EVENT_STATUS_HELP,
+  PRIVATE_EVENT_STATUS_LABEL,
   UNLIMITED_ALLOTMENT,
   type EventDto,
   type EventStatus,
 } from '@/types/events';
 
-const TABS = ['datos', 'claves', 'sucursales', 'boletos', 'entrada'] as const;
+const TABS = ['datos', 'claves', 'sucursales', 'boletos', 'entrada', 'invitados'] as const;
 type TabId = (typeof TABS)[number];
 const isTab = (v: string): v is TabId => (TABS as readonly string[]).includes(v);
 
@@ -115,6 +121,59 @@ const STATUS_ACTIONS: Record<EventStatus, StatusAction[]> = {
   ],
 };
 
+/** Los mismos cambios de estado, dichos para un evento privado (no hay venta). */
+const PRIVATE_STATUS_ACTIONS: Record<EventStatus, StatusAction[]> = {
+  draft: [
+    {
+      to: 'active',
+      label: 'Activar evento',
+      description: 'El evento queda activo: su lista de invitados está en uso.',
+    },
+    {
+      to: 'cancelled',
+      label: 'Cancelar evento',
+      destructive: true,
+      description: 'Úsalo solo si el evento no se va a realizar. La lista de invitados se conserva.',
+      confirmText: 'CANCELAR',
+    },
+  ],
+  active: [
+    {
+      to: 'closed',
+      label: 'Cerrar evento',
+      description: 'El evento se marca como cerrado. La lista de invitados se conserva.',
+    },
+    {
+      to: 'cancelled',
+      label: 'Cancelar evento',
+      destructive: true,
+      description: 'Úsalo solo si el evento no se va a realizar. La lista de invitados se conserva.',
+      confirmText: 'CANCELAR',
+    },
+  ],
+  closed: [
+    {
+      to: 'active',
+      label: 'Reabrir evento',
+      description: 'El evento vuelve a estar activo.',
+    },
+    {
+      to: 'cancelled',
+      label: 'Cancelar evento',
+      destructive: true,
+      description: 'Úsalo solo si el evento no se va a realizar.',
+      confirmText: 'CANCELAR',
+    },
+  ],
+  cancelled: [
+    {
+      to: 'draft',
+      label: 'Volver a borrador',
+      description: 'El evento regresa a borrador.',
+    },
+  ],
+};
+
 export default function EventoDetallePage() {
   return (
     <Suspense fallback={<Skeleton className="m-8 h-96" />}>
@@ -128,9 +187,17 @@ function EventoDetalleContent() {
   const id = (params?.id as string) || '';
   const { get, setParams } = useQueryFilters({ tab: 'datos' });
   const tabParam = get('tab');
-  const tab: TabId = isTab(tabParam) ? tabParam : 'datos';
 
   const { data: event, isLoading, isError, error } = useEvent(id);
+  const isPrivate = event?.accessMode === 'invitation';
+  // Un privado solo tiene Datos e Invitados; uno de venta no tiene Invitados.
+  const tab: TabId = isPrivate
+    ? tabParam === 'invitados'
+      ? 'invitados'
+      : 'datos'
+    : isTab(tabParam) && tabParam !== 'invitados'
+      ? tabParam
+      : 'datos';
   const updateMutation = useUpdateEvent();
   const [pendingAction, setPendingAction] = useState<StatusAction | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -171,7 +238,8 @@ function EventoDetalleContent() {
     if (!pendingAction) return;
     try {
       await updateMutation.mutateAsync({ id, input: { status: pendingAction.to } });
-      toast.success(`Evento ${EVENT_STATUS_LABEL[pendingAction.to].toLowerCase()}`);
+      const labels = isPrivate ? PRIVATE_EVENT_STATUS_LABEL : EVENT_STATUS_LABEL;
+      toast.success(`Evento ${labels[pendingAction.to].toLowerCase()}`);
       setPendingAction(null);
     } catch (e) {
       toast.error(eventErrorMessage(e, 'No se pudo cambiar el estado.'));
@@ -210,31 +278,39 @@ function EventoDetalleContent() {
     <div className="min-h-screen bg-gray-50">
       <EventHeader
         event={event}
-        actions={STATUS_ACTIONS[event.status] ?? []}
+        actions={(isPrivate ? PRIVATE_STATUS_ACTIONS : STATUS_ACTIONS)[event.status] ?? []}
         onAction={setPendingAction}
         isPending={updateMutation.isPending}
       />
 
       <div className="px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-3 flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleDownloadReport}
-            disabled={downloading}
-            title="Excel con el resumen por sucursal, las ventas de las claves y los boletos del evento"
-          >
-            <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-            {downloading ? 'Generando…' : 'Descargar reporte (Excel)'}
-          </Button>
-        </div>
+        {!isPrivate && (
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadReport}
+              disabled={downloading}
+              title="Excel con el resumen por sucursal, las ventas de las claves y los boletos del evento"
+            >
+              <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+              {downloading ? 'Generando…' : 'Descargar reporte (Excel)'}
+            </Button>
+          </div>
+        )}
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })} className="gap-4">
           <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="datos" className="px-4">Datos</TabsTrigger>
-            <TabsTrigger value="claves" className="px-4">Claves</TabsTrigger>
-            <TabsTrigger value="sucursales" className="px-4">Sucursales</TabsTrigger>
-            <TabsTrigger value="boletos" className="px-4">Boletos</TabsTrigger>
-            <TabsTrigger value="entrada" className="px-4">Entrada</TabsTrigger>
+            {isPrivate ? (
+              <TabsTrigger value="invitados" className="px-4">Invitados</TabsTrigger>
+            ) : (
+              <>
+                <TabsTrigger value="claves" className="px-4">Claves</TabsTrigger>
+                <TabsTrigger value="sucursales" className="px-4">Sucursales</TabsTrigger>
+                <TabsTrigger value="boletos" className="px-4">Boletos</TabsTrigger>
+                <TabsTrigger value="entrada" className="px-4">Entrada</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="datos">
@@ -248,18 +324,26 @@ function EventoDetalleContent() {
               />
             </div>
           </TabsContent>
-          <TabsContent value="claves">
-            <EventProductsTab event={event} />
-          </TabsContent>
-          <TabsContent value="sucursales">
-            <EventBranchesTab event={event} />
-          </TabsContent>
-          <TabsContent value="boletos">
-            <EventTicketsTab event={event} />
-          </TabsContent>
-          <TabsContent value="entrada">
-            <EventCheckInTab event={event} />
-          </TabsContent>
+          {isPrivate ? (
+            <TabsContent value="invitados">
+              <EventGuestsTab event={event} />
+            </TabsContent>
+          ) : (
+            <>
+              <TabsContent value="claves">
+                <EventProductsTab event={event} />
+              </TabsContent>
+              <TabsContent value="sucursales">
+                <EventBranchesTab event={event} />
+              </TabsContent>
+              <TabsContent value="boletos">
+                <EventTicketsTab event={event} />
+              </TabsContent>
+              <TabsContent value="entrada">
+                <EventCheckInTab event={event} />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </div>
 
@@ -295,6 +379,8 @@ function EventHeader({
   isPending: boolean;
 }) {
   const s = event.stats;
+  const isPrivate = event.accessMode === 'invitation';
+  const g = event.guestStats ?? { guests: 0, seats: 0, confirmed: 0, declined: 0 };
   const place = [event.venueName, event.city, event.state].filter(Boolean).join(' · ');
   const schedule = formatEventSchedule(event);
   // Cada tarjeta explica qué cuenta y da un ejemplo con los números reales del
@@ -314,7 +400,43 @@ function EventHeader({
     : null;
   const emitidosSuma = claves.reduce((acc, p) => acc + p.soldUnits * p.ticketsPerUnit, 0);
   const pctIngresados = s.ticketsIssued > 0 ? Math.round((s.ticketsCheckedIn / s.ticketsIssued) * 100) : 0;
-  const chips: { label: string; value: string; accent?: string; hint: string; example?: string }[] = [
+  const privateChips: { label: string; value: string; accent?: string; hint: string; example?: string }[] = [
+    {
+      label: 'Invitados',
+      value: n(g.guests),
+      hint: 'Personas en la lista del evento (sin contar a las que se quitaron).',
+    },
+    {
+      label: 'Lugares',
+      value: n(g.seats),
+      accent: event.capacity && g.seats > event.capacity ? 'text-red-700' : undefined,
+      hint: 'Lugares que suman los invitados (alguien puede traer más de un lugar).',
+      example:
+        event.capacity && g.seats > event.capacity
+          ? `Sobran ${n(g.seats - event.capacity)} para el aforo de ${n(event.capacity)}.`
+          : undefined,
+    },
+    {
+      label: 'Aforo',
+      value: event.capacity ? n(event.capacity) : 'Abierto',
+      hint: event.capacity
+        ? `Tope de lugares del evento. Quedan ${n(Math.max(0, event.capacity - g.seats))}.`
+        : 'Sin tope de lugares por ahora; se captura en la pestaña Datos.',
+    },
+    {
+      label: 'Confirmaron',
+      value: n(g.confirmed),
+      accent: g.confirmed > 0 ? 'text-emerald-700' : undefined,
+      hint: 'Invitados marcados como “Confirmó” en la lista.',
+    },
+    {
+      label: 'No asistirán',
+      value: n(g.declined),
+      accent: g.declined > 0 ? 'text-red-700' : undefined,
+      hint: 'Invitados marcados como “No asistirá”.',
+    },
+  ];
+  const saleChips: { label: string; value: string; accent?: string; hint: string; example?: string }[] = [
     {
       label: 'Sucursales',
       value: n(s.branches),
@@ -392,6 +514,7 @@ function EventHeader({
       example: `Ej.: ${n(s.ticketsCancelled)} boletos cancelados${s.ticketsCancelled > 0 ? '; en la entrada su QR sale como "cancelado"' : ''}.`,
     },
   ];
+  const chips = isPrivate ? privateChips : saleChips;
 
   return (
     <div className="border-b bg-white">
@@ -407,12 +530,17 @@ function EventHeader({
             </Link>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <TicketIcon className="h-7 w-7 shrink-0 text-[#3E667D]" />
+                {isPrivate ? (
+                  <UserGroupIcon className="h-7 w-7 shrink-0 text-[#3E667D]" />
+                ) : (
+                  <TicketIcon className="h-7 w-7 shrink-0 text-[#3E667D]" />
+                )}
                 <h1 className="text-2xl font-bold text-gray-900">{event.name}</h1>
                 <span className="rounded-lg bg-[#3E667D]/5 px-2 py-0.5 font-mono text-sm font-semibold text-[#3E667D] ring-1 ring-[#3E667D]/10">
                   {event.code}
                 </span>
-                <EventStatusBadge status={event.status} />
+                {isPrivate && <PrivateEventBadge />}
+                <EventStatusBadge status={event.status} privateEvent={isPrivate} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                 <span className="inline-flex items-center gap-1.5">
@@ -426,10 +554,14 @@ function EventHeader({
                     {place}
                   </span>
                 )}
-                <span>
-                  {formatEventMoney(event.ticketPrice, event.currencyCode)}
-                  {event.ticketsPerUnit > 1 ? ` · ${event.ticketsPerUnit} boletos por unidad` : ''}
-                </span>
+                {isPrivate ? (
+                  <span>Por invitación · no se vende en el POS</span>
+                ) : (
+                  <span>
+                    {formatEventMoney(event.ticketPrice, event.currencyCode)}
+                    {event.ticketsPerUnit > 1 ? ` · ${event.ticketsPerUnit} boletos por unidad` : ''}
+                  </span>
+                )}
               </div>
               {event.linkedProduct && (
                 <p className="mt-1.5 inline-flex flex-wrap items-center gap-1.5 text-sm text-gray-700">
@@ -470,7 +602,9 @@ function EventHeader({
                   ))}
                 </div>
               )}
-              <p className="mt-1 text-xs text-gray-400">{EVENT_STATUS_HELP[event.status]}</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {(isPrivate ? PRIVATE_EVENT_STATUS_HELP : EVENT_STATUS_HELP)[event.status]}
+              </p>
             </div>
           </div>
 
@@ -492,7 +626,9 @@ function EventHeader({
           )}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div
+          className={`mt-5 grid grid-cols-2 gap-2 ${isPrivate ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-4 lg:grid-cols-7'}`}
+        >
           {chips.map((c) => (
             <div
               key={c.label}
