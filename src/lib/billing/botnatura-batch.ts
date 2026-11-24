@@ -4,6 +4,9 @@
 // sumar lo que sí se encontró a la captura. Lo que no se pudo casar se queda a la vista con su
 // motivo: nunca se agrega "lo más parecido".
 //
+// Un renglón con solo la clave (sin coma ni cantidad) vale 1 pieza (Diego, 24-nov-2026: pegan la
+// columna de claves y la mayoría es de una pieza); se dice cuántos renglones se tomaron así.
+//
 // Ojo con las dos líneas: la misma clave existe en la Regular y en la Línea 2 con otro producto y
 // otro precio (69 claves al 23-nov-2026). Por eso el lote se resuelve contra la línea que eligió
 // quien captura; con "las dos líneas", una clave repetida solo se toma sola cuando una de las dos
@@ -35,11 +38,15 @@ export interface BatchParse {
   errors: BatchParseError[];
   /** Renglones cuya clave ya venía arriba: su cantidad se sumó a la primera. */
   merged: number;
+  /** Renglones que venían solo con la clave: se tomaron como 1 pieza. */
+  defaulted: number;
   /** true = el primer renglón era un encabezado ("clave,cantidad") y se ignoró. */
   skippedHeader: boolean;
 }
 
 const HEADER_WORDS = /clave|c[oó]digo|code|sku|producto|cantidad|piezas/i;
+/** Encabezado de una sola columna (se pegó solo la de claves): la palabra completa, no una clave que la contenga. */
+const HEADER_ALONE = /^(clave|c[oó]digo|code|sku|producto)s?$/i;
 
 /**
  * Parte un renglón en clave y cantidad: por tabulador o punto y coma, por la primera coma o, si no
@@ -59,14 +66,15 @@ function splitRow(line: string): { code: string; quantity: string } {
 
 /**
  * Lee el texto pegado: un producto por renglón, "clave,cantidad". También acepta punto y coma,
- * tabulador (pegado desde Excel) o espacios. Renglones vacíos se ignoran; una clave repetida suma
- * su cantidad a la primera vez que apareció.
+ * tabulador (pegado desde Excel) o espacios. Solo la clave = 1 pieza. Renglones vacíos se ignoran;
+ * una clave repetida suma su cantidad a la primera vez que apareció.
  */
 export function parseBatch(text: string): BatchParse {
   const entries: BatchEntry[] = [];
   const errors: BatchParseError[] = [];
   const byCode = new Map<string, BatchEntry>();
   let merged = 0;
+  let defaulted = 0;
   let skippedHeader = false;
   let seenContent = false;
 
@@ -77,9 +85,10 @@ export function parseBatch(text: string): BatchParse {
     const first = !seenContent;
     seenContent = true;
     const { code, quantity: quantityText } = splitRow(line);
-    const quantity = parseAmount(quantityText);
+    // Sin cantidad (solo la clave, o "clave,"): una pieza.
+    const quantity = quantityText ? parseAmount(quantityText) : 1;
 
-    if (first && quantity === null && HEADER_WORDS.test(line)) {
+    if (first && (quantityText ? quantity === null && HEADER_WORDS.test(line) : HEADER_ALONE.test(code))) {
       skippedHeader = true;
       return;
     }
@@ -87,10 +96,7 @@ export function parseBatch(text: string): BatchParse {
       errors.push({ row, text: line, problem: 'Falta la clave' });
       return;
     }
-    if (!quantityText) {
-      errors.push({ row, text: line, problem: 'Falta la cantidad (clave,cantidad)' });
-      return;
-    }
+    if (!quantityText) defaulted++;
     if (quantity === null || quantity <= 0) {
       errors.push({ row, text: line, problem: 'La cantidad debe ser un número mayor que cero' });
       return;
@@ -111,7 +117,7 @@ export function parseBatch(text: string): BatchParse {
     entries.push(entry);
   });
 
-  return { entries, errors, merged, skippedHeader };
+  return { entries, errors, merged, defaulted, skippedHeader };
 }
 
 /**

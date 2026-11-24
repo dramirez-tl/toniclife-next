@@ -46,8 +46,44 @@ describe('captura por lote de Botnatura: leer el texto pegado', () => {
       ],
       errors: [],
       merged: 0,
+      defaulted: 0,
       skippedHeader: false,
     });
+  });
+
+  it('solo la clave (sin coma ni cantidad) vale 1 pieza', () => {
+    const parsed = parseBatch('2416\n5359\n0566,3\n0627,\n 0719 \n2416\n3284;');
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.entries).toEqual([
+      { row: 1, code: '2416', quantity: 2 },
+      { row: 2, code: '5359', quantity: 1 },
+      { row: 3, code: '0566', quantity: 3 },
+      { row: 4, code: '0627', quantity: 1 },
+      { row: 5, code: '0719', quantity: 1 },
+      { row: 7, code: '3284', quantity: 1 },
+    ]);
+    // Cinco renglones venían sin cantidad (uno de ellos, repetido, se sumó al primero).
+    expect(parsed.defaulted).toBe(6);
+    expect(parsed.merged).toBe(1);
+    // Mezclado con el formato completo no cambia nada de lo que ya traía cantidad.
+    expect(parseBatch('1020,100\n5618').entries).toEqual([
+      { row: 1, code: '1020', quantity: 100 },
+      { row: 2, code: '5618', quantity: 1 },
+    ]);
+  });
+
+  it('el encabezado de una sola columna se ignora; una clave que lo contiene no', () => {
+    const header = parseBatch('Clave\n2416\n5359');
+    expect(header.skippedHeader).toBe(true);
+    expect(header.entries.map((e) => [e.code, e.quantity])).toEqual([
+      ['2416', 1],
+      ['5359', 1],
+    ]);
+    expect(parseBatch('Códigos\n2416').skippedHeader).toBe(true);
+    // "SKU160" es una clave, no un encabezado.
+    const code = parseBatch('SKU160\n2416');
+    expect(code.skippedHeader).toBe(false);
+    expect(code.entries.map((e) => e.code)).toEqual(['SKU160', '2416']);
   });
 
   it('acepta espacios, punto y coma, tabulador (Excel), renglones vacíos y saltos de Windows', () => {
@@ -80,13 +116,13 @@ describe('captura por lote de Botnatura: leer el texto pegado', () => {
   });
 
   it('dice qué renglón está mal y por qué, sin tirar los buenos', () => {
-    const parsed = parseBatch('1020,100\n5618\n,30\n1303,cien\n1303,0\n1303,-4\n1303,12');
+    const parsed = parseBatch('1020,100\n5618 x\n,30\n1303,cien\n1303,0\n1303,-4\n1303,12');
     expect(parsed.entries).toEqual([
       { row: 1, code: '1020', quantity: 100 },
       { row: 7, code: '1303', quantity: 12 },
     ]);
     expect(parsed.errors).toEqual([
-      { row: 2, text: '5618', problem: 'Falta la cantidad (clave,cantidad)' },
+      { row: 2, text: '5618 x', problem: 'La cantidad debe ser un número mayor que cero' },
       { row: 3, text: ',30', problem: 'Falta la clave' },
       { row: 4, text: '1303,cien', problem: 'La cantidad debe ser un número mayor que cero' },
       { row: 5, text: '1303,0', problem: 'La cantidad debe ser un número mayor que cero' },
@@ -96,7 +132,7 @@ describe('captura por lote de Botnatura: leer el texto pegado', () => {
   });
 
   it('vacío no trae nada y hay un tope de renglones', () => {
-    expect(parseBatch('')).toEqual({ entries: [], errors: [], merged: 0, skippedHeader: false });
+    expect(parseBatch('')).toEqual({ entries: [], errors: [], merged: 0, defaulted: 0, skippedHeader: false });
     expect(parseBatch('  \n\n ').entries).toEqual([]);
     const many = Array.from({ length: BATCH_MAX_ROWS + 2 }, (_, i) => `${5000 + i},1`).join('\n');
     const parsed = parseBatch(many);
@@ -186,9 +222,9 @@ describe('captura por lote de Botnatura: sumar a la factura', () => {
   });
 
   it('lo que no se pudo agregar regresa como texto para corregirlo', () => {
-    const parsed = parseBatch('1020,100\n9999,5\n1303,3\nmal');
+    const parsed = parseBatch('1020,100\n9999,5\n1303,3\nmal,x');
     const rows = resolveBatch(parsed.entries, CATALOG, 'line2');
-    expect(pendingBatchText(rows, parsed.errors)).toBe('9999,5\n1303,3\nmal');
+    expect(pendingBatchText(rows, parsed.errors)).toBe('9999,5\n1303,3\nmal,x');
     expect(pendingBatchText(resolveBatch(parseBatch('1020,1').entries, CATALOG, 'line2'))).toBe('');
   });
 });
