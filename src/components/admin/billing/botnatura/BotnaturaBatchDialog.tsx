@@ -89,7 +89,8 @@ export function BotnaturaBatchDialog({ defaultLine, onAdd, onClose }: BotnaturaB
         <DialogHeader>
           <DialogTitle>Agregar productos por lote</DialogTitle>
           <DialogDescription>
-            Un producto por renglón: la clave, una coma y la cantidad. También puedes pegar dos columnas de Excel. Máximo{' '}
+            Un producto por renglón: la clave, una coma y la cantidad (solo la clave = 1 pieza). También puedes pegar
+            dos columnas de Excel. Máximo{' '}
             {BATCH_MAX_ROWS} renglones.
           </DialogDescription>
         </DialogHeader>
@@ -150,6 +151,7 @@ export function BotnaturaBatchDialog({ defaultLine, onAdd, onClose }: BotnaturaB
                 </span>
               )}
               {reviewed.parse.merged > 0 ? ` · ${reviewed.parse.merged} con clave repetida (se sumaron)` : ''}
+              {reviewed.parse.defaulted > 0 ? ` · ${reviewed.parse.defaulted} sin cantidad (se tomó 1 pieza)` : ''}
               {reviewed.parse.skippedHeader ? ' · se ignoró el encabezado' : ''}
             </p>
             {(rows.length > 0 || errors.length > 0) && (
