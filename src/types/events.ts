@@ -15,6 +15,15 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const EVENT_TAX_MODES = ['iva_16', 'exempt'] as const;
 export type EventTaxMode = (typeof EVENT_TAX_MODES)[number];
 
+/**
+ * sale = se vende en el POS con su clave (como siempre) · invitation = evento
+ * PRIVADO: no se vende, lleva lista de invitados.
+ */
+export const EVENT_ACCESS_MODES = ['sale', 'invitation'] as const;
+export type EventAccessMode = (typeof EVENT_ACCESS_MODES)[number];
+/** Filtro del listado: sin él, el API solo regresa los de venta. */
+export type EventAccessFilter = EventAccessMode | 'all';
+
 /** Asignación "sin límite" de boletos para una sucursal (mismo valor que el API). */
 export const UNLIMITED_ALLOTMENT = 100000;
 
@@ -40,6 +49,21 @@ export const EVENT_STATUS_HELP: Record<EventStatus, string> = {
   cancelled: 'Cancelado: ya no se vende.',
 };
 
+/** Los mismos estados, dichos para un evento privado (no se vende). */
+export const PRIVATE_EVENT_STATUS_LABEL: Record<EventStatus, string> = {
+  draft: 'Borrador',
+  active: 'Activo',
+  closed: 'Cerrado',
+  cancelled: 'Cancelado',
+};
+
+export const PRIVATE_EVENT_STATUS_HELP: Record<EventStatus, string> = {
+  draft: 'En preparación: se está armando la lista de invitados.',
+  active: 'Activo: la lista de invitados está en uso.',
+  closed: 'Cerrado: la lista ya no se mueve.',
+  cancelled: 'Cancelado: el evento no se realiza.',
+};
+
 export const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
   issued: 'Vigente',
   checked_in: 'Ya ingresó',
@@ -56,6 +80,11 @@ export const EVENT_TAX_MODE_LABEL: Record<EventTaxMode, string> = {
 // ================================
 
 export interface CreateEventInput {
+  /**
+   * 'invitation' = evento PRIVADO: el API no crea producto ni lo vende; solo
+   * pide clave, nombre y fecha. Sin él (o 'sale') es un evento de venta.
+   */
+  accessMode?: EventAccessMode;
   /**
    * Producto EXISTENTE del catálogo que será el boleto (uuid). Si viene, el
    * API usa ese producto (conserva tipo, precios por tipo de precio y
@@ -117,7 +146,7 @@ type Nullable<T> = { [K in keyof T]?: T[K] | null };
  * producto se cambian; con producto vinculado, `ticketPrice` responde 400
  * EVENT_LINKED_PRODUCT (el precio se edita en Productos).
  */
-export type UpdateEventInput = Nullable<Omit<CreateEventInput, 'code' | 'productId'>> & {
+export type UpdateEventInput = Nullable<Omit<CreateEventInput, 'code' | 'productId' | 'accessMode'>> & {
   status?: EventStatus;
 };
 
@@ -133,6 +162,8 @@ export interface SetEventBranchesInput {
 
 export interface EventQuery {
   status?: EventStatus;
+  /** Sin él el API solo regresa los de venta; 'all' = también los privados. */
+  accessMode?: EventAccessFilter;
   search?: string;
   page?: number;
   limit?: number;
@@ -209,8 +240,18 @@ export interface EventProductDto {
   soldUnits: number;
 }
 
+/** Lista de invitados de un evento privado, en cifras. */
+export interface EventGuestStatsDto {
+  guests: number;
+  seats: number;
+  confirmed: number;
+  declined: number;
+}
+
 export interface EventDto {
   id: string;
+  /** Puede faltar mientras el API viejo sigue arriba: se toma como 'sale'. */
+  accessMode?: EventAccessMode;
   code: string;
   name: string;
   description: string | null;
@@ -244,9 +285,12 @@ export interface EventDto {
   saleStartsOn: string | null;
   saleEndsOn: string | null;
   status: EventStatus;
-  productId: string;
-  productCode: string;
-  productName: string;
+  /** null en un evento privado (no tiene clave en el catálogo). */
+  productId: string | null;
+  productCode: string | null;
+  productName: string | null;
+  /** Solo eventos privados. */
+  guestStats?: EventGuestStatsDto | null;
   /**
    * true = el evento usa un producto existente del catálogo: se vende donde
    * haya existencia del producto (sin asignación por sucursal) y el precio se

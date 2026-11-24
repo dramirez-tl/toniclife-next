@@ -42,6 +42,7 @@ class EventsService {
   async list(query: EventQuery = {}): Promise<EventListResponseDto> {
     const params: Record<string, string> = {};
     if (query.status) params.status = query.status;
+    if (query.accessMode) params.accessMode = query.accessMode;
     if (query.search) params.search = query.search;
     if (query.page) params.page = String(query.page);
     if (query.limit) params.limit = String(query.limit);

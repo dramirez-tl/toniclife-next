@@ -153,3 +153,63 @@ describe('formulario → DTO', () => {
     });
   });
 });
+
+describe('evento privado (por invitación): sin producto, precio ni venta', () => {
+  const base: EventFormValues = {
+    ...EMPTY_EVENT_FORM,
+    source: 'private',
+    code: 'elevate26',
+    name: ' Elevate 2026 ',
+    description: 'Las llaves de tu próximo auto te están esperando.',
+    eventDate: '2027-02-20',
+    city: 'Cancún',
+    emailNotes: 'Lleva tu identificación.',
+    ticketNotes: 'no aplica',
+    saleStartsOn: '2027-03-01',
+    saleEndsOn: '2027-01-01',
+  };
+
+  it('solo pide clave, nombre y fecha', () => {
+    expect(validateEventForm(base, 'create')).toBeNull();
+    expect(validateEventForm({ ...base, code: '' }, 'create')).toMatch(/clave/);
+    expect(validateEventForm({ ...base, eventDate: '' }, 'create')).toMatch(/fecha/);
+    expect(validateEventForm({ ...base, capacity: '0' }, 'create')).toMatch(/aforo/i);
+    // Precio, boletos por unidad, claves SAT y ventana de venta no aplican.
+    expect(
+      validateEventForm({ ...base, ticketPrice: '', ticketsPerUnit: '', satProductCode: 'x' }, 'create'),
+    ).toBeNull();
+  });
+
+  it('alta: marca el evento como privado y no manda nada de venta', () => {
+    expect(toCreateInput(base)).toEqual({
+      accessMode: 'invitation',
+      code: 'ELEVATE26',
+      name: 'Elevate 2026',
+      description: 'Las llaves de tu próximo auto te están esperando.',
+      speaker: undefined,
+      eventDate: '2027-02-20',
+      startTime: undefined,
+      doorsTime: undefined,
+      endTime: undefined,
+      timezone: 'America/Mexico_City',
+      venueName: undefined,
+      venueAddress: undefined,
+      city: 'Cancún',
+      state: undefined,
+      countryId: undefined,
+      capacity: undefined,
+      imageUrl: undefined,
+      emailNotes: 'Lleva tu identificación.',
+    });
+  });
+
+  it('edición: el aforo vacío va en null (abierto) y no viajan precio ni impuesto', () => {
+    const input = toUpdateInput({ ...base, capacity: '' });
+    expect(input.capacity).toBeNull();
+    expect(input).not.toHaveProperty('ticketPrice');
+    expect(input).not.toHaveProperty('taxMode');
+    expect(input).not.toHaveProperty('ticketsPerUnit');
+    expect(input).not.toHaveProperty('saleStartsOn');
+    expect(toUpdateInput({ ...base, capacity: '700' }).capacity).toBe(700);
+  });
+});

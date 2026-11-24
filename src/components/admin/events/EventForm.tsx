@@ -11,6 +11,9 @@
 //  - "Usar un producto existente": el boleto se cobra con ese producto (clave,
 //    precios por tipo y existencias por sucursal); se ocultan clave, nombre en
 //    el POS, precio, claves SAT y producto incluido.
+//  - "Evento privado (por invitación)": no se vende; solo se capturan los datos
+//    del evento (se ocultan boletos, fiscal y ventana de venta) y después se
+//    carga su lista de invitados.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -133,6 +136,7 @@ export function EventForm({
   );
 
   const linked = form.source === 'linked';
+  const isPrivate = form.source === 'private';
   const linkedCode = form.productLabel.split(' — ')[0] || '';
 
   return (
@@ -140,13 +144,15 @@ export function EventForm({
       {/* ── Producto del boleto ── */}
       <Card>
         <CardHeader>
-          <CardTitle>Producto del boleto</CardTitle>
+          <CardTitle>{isPrivate ? 'Tipo de evento' : 'Producto del boleto'}</CardTitle>
           <CardDescription>
             {mode === 'create'
-              ? 'El POS cobra el boleto como un producto: puede crearse uno nuevo o usarse uno que ya está en el catálogo.'
-              : linked
-                ? 'Este evento usa un producto existente del catálogo.'
-                : 'Este evento tiene su propio producto de tipo Evento.'}
+              ? 'Un evento de venta se cobra en el POS como un producto (nuevo o uno del catálogo). Un evento privado no se vende: se invita a una lista de personas.'
+              : isPrivate
+                ? 'Este evento es privado (por invitación): no se vende en el POS; lleva su lista de invitados.'
+                : linked
+                  ? 'Este evento usa un producto existente del catálogo.'
+                  : 'Este evento tiene su propio producto de tipo Evento.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -154,12 +160,12 @@ export function EventForm({
             <RadioGroup
               value={form.source}
               onValueChange={(v) => set({ source: v as EventProductSource })}
-              className="grid gap-3 sm:grid-cols-2"
+              className="grid gap-3 lg:grid-cols-3"
             >
               <label
                 htmlFor="ev-source-new"
                 className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
-                  !linked ? 'border-[#3E667D] bg-[#C8DDF2]/20' : 'border-gray-200 hover:bg-gray-50'
+                  form.source === 'new' ? 'border-[#3E667D] bg-[#C8DDF2]/20' : 'border-gray-200 hover:bg-gray-50'
                 }`}
               >
                 <RadioGroupItem value="new" id="ev-source-new" className="mt-0.5" />
@@ -183,6 +189,21 @@ export function EventForm({
                   <span className="mt-0.5 block text-xs text-gray-500">
                     El boleto se cobra con ese producto: conserva su clave, sus precios por tipo y sus
                     existencias por sucursal.
+                  </span>
+                </span>
+              </label>
+              <label
+                htmlFor="ev-source-private"
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                  isPrivate ? 'border-[#3E667D] bg-[#C8DDF2]/20' : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <RadioGroupItem value="private" id="ev-source-private" className="mt-0.5" />
+                <span>
+                  <span className="block font-medium text-gray-900">Evento privado (por invitación)</span>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    No se vende en el POS. Tú decides quién va: después de crearlo cargas su lista de
+                    invitados (de forma masiva o uno por uno).
                   </span>
                 </span>
               </label>
@@ -252,7 +273,9 @@ export function EventForm({
           <CardDescription>
             {linked
               ? 'Nombre, ponente y descripción que ven el equipo y el asistente.'
-              : 'La clave es la que se teclea en el POS para cobrar el boleto (como cualquier producto).'}
+              : isPrivate
+                ? 'La clave identifica al evento (no se cobra en el POS). Nombre y descripción van en la invitación.'
+                : 'La clave es la que se teclea en el POS para cobrar el boleto (como cualquier producto).'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -263,7 +286,7 @@ export function EventForm({
                 id="ev-code"
                 value={form.code}
                 onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
-                placeholder="FOCADE26"
+                placeholder={isPrivate ? 'ELEVATE26' : 'FOCADE26'}
                 className="font-mono uppercase"
                 maxLength={30}
                 disabled={mode === 'edit'}
@@ -286,7 +309,7 @@ export function EventForm({
               maxLength={200}
             />
           </div>
-          {!linked && (
+          {!linked && !isPrivate && (
             <div className="grid gap-2">
               <Label htmlFor="ev-product-name">Nombre del producto en el POS (opcional)</Label>
               <Input
@@ -327,7 +350,11 @@ export function EventForm({
       <Card>
         <CardHeader>
           <CardTitle>Fecha y horario</CardTitle>
-          <CardDescription>Las horas se imprimen en el boleto tal cual se capturan.</CardDescription>
+          <CardDescription>
+            {isPrivate
+              ? 'La fecha y las horas van en la invitación tal cual se capturan.'
+              : 'Las horas se imprimen en el boleto tal cual se capturan.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="grid gap-2">
@@ -384,7 +411,11 @@ export function EventForm({
       <Card>
         <CardHeader>
           <CardTitle>Sede</CardTitle>
-          <CardDescription>Solo las sucursales del país del evento pueden venderlo.</CardDescription>
+          <CardDescription>
+            {isPrivate
+              ? 'Dónde será el evento (va en la invitación).'
+              : 'Solo las sucursales del país del evento pueden venderlo.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
@@ -437,7 +468,7 @@ export function EventForm({
               showAllOption={false}
               placeholder="Selecciona el país"
             />
-            {mode === 'edit' && !linked && (
+            {mode === 'edit' && !linked && !isPrivate && (
               <p className="text-xs text-gray-400">
                 Si cambias el país, revisa la asignación de sucursales.
               </p>
@@ -446,7 +477,35 @@ export function EventForm({
         </CardContent>
       </Card>
 
+      {/* ── Aforo (evento privado) ── */}
+      {isPrivate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Aforo</CardTitle>
+            <CardDescription>
+              Cuántos lugares tiene el evento. Déjalo vacío mientras no se sepa: la lista de invitados
+              avisa cuando los lugares rebasan el aforo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label htmlFor="ev-capacity-private">Aforo (opcional)</Label>
+              <Input
+                id="ev-capacity-private"
+                type="number"
+                min={1}
+                step={1}
+                value={form.capacity}
+                onChange={(e) => set({ capacity: e.target.value })}
+                placeholder="Abierto"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Boletos ── */}
+      {!isPrivate && (
       <Card>
         <CardHeader>
           <CardTitle>Boletos</CardTitle>
@@ -540,8 +599,10 @@ export function EventForm({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* ── Fiscal ── */}
+      {!isPrivate && (
       <Card>
         <CardHeader>
           <CardTitle>Fiscal</CardTitle>
@@ -589,15 +650,20 @@ export function EventForm({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* ── Textos ── */}
       <Card>
         <CardHeader>
           <CardTitle>Textos</CardTitle>
-          <CardDescription>Lo que lee el asistente en su boleto y en el correo.</CardDescription>
+          <CardDescription>
+            {isPrivate
+              ? 'Lo que leerá el invitado en su invitación.'
+              : 'Lo que lee el asistente en su boleto y en el correo.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="grid gap-2">
+          <div className={`grid gap-2 ${isPrivate ? 'hidden' : ''}`}>
             <Label htmlFor="ev-ticket-notes">Notas del boleto</Label>
             <Textarea
               id="ev-ticket-notes"
@@ -609,14 +675,18 @@ export function EventForm({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="ev-email-notes">Notas del correo</Label>
+            <Label htmlFor="ev-email-notes">{isPrivate ? 'Texto adicional de la invitación' : 'Notas del correo'}</Label>
             <Textarea
               id="ev-email-notes"
               value={form.emailNotes}
               onChange={(e) => set({ emailNotes: e.target.value })}
               rows={3}
               maxLength={4000}
-              placeholder="Texto adicional que va en el correo con los boletos."
+              placeholder={
+                isPrivate
+                  ? 'Indicaciones para el invitado: código de vestimenta, hora de registro, qué llevar…'
+                  : 'Texto adicional que va en el correo con los boletos.'
+              }
             />
           </div>
           <div className="grid gap-2">
@@ -639,6 +709,7 @@ export function EventForm({
       </Card>
 
       {/* ── Ventana de venta ── */}
+      {!isPrivate && (
       <Card>
         <CardHeader>
           <CardTitle>Ventana de venta</CardTitle>
@@ -668,6 +739,7 @@ export function EventForm({
           </div>
         </CardContent>
       </Card>
+      )}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         {onCancel && (

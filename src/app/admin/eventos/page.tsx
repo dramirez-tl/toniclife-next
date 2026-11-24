@@ -1,8 +1,9 @@
 'use client';
 
-// Eventos con venta de boletos — listado.
-// Backend: GET /events. Cada evento es un producto de tipo 'event' que las
-// sucursales asignadas cobran en el POS; al cobrar se emiten los boletos.
+// Eventos — listado. Backend: GET /events.
+// De venta: cada evento es un producto de tipo 'event' que las sucursales
+// asignadas cobran en el POS; al cobrar se emiten los boletos.
+// Privados (por invitación): no se venden; llevan su lista de invitados.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -19,7 +20,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useEvents } from '@/hooks/useEvents';
-import { EventStatusBadge } from '@/components/admin/events/EventBadges';
+import { EventStatusBadge, PrivateEventBadge } from '@/components/admin/events/EventBadges';
 import {
   eventErrorMessage,
   formatAllotment,
@@ -30,15 +31,24 @@ import {
   EVENT_STATUS_LABEL,
   EVENT_STATUSES,
   UNLIMITED_ALLOTMENT,
+  type EventAccessFilter,
   type EventDto,
   type EventStatus,
 } from '@/types/events';
 
 const PAGE_SIZE = 25;
 
+const ACCESS_OPTIONS: { value: EventAccessFilter; label: string }[] = [
+  { value: 'sale', label: 'De venta (boletos en el POS)' },
+  { value: 'invitation', label: 'Privados (por invitación)' },
+];
+
+const isPrivate = (ev: EventDto) => ev.accessMode === 'invitation';
+
 export default function EventosPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [access, setAccess] = useState('');
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
 
@@ -46,10 +56,12 @@ export default function EventosPage() {
     () => ({
       search: debouncedSearch || undefined,
       status: (status || undefined) as EventStatus | undefined,
+      // Sin filtro el API solo regresa los de venta: aquí se piden todos.
+      accessMode: (access || 'all') as EventAccessFilter,
       page,
       limit: PAGE_SIZE,
     }),
-    [debouncedSearch, status, page],
+    [debouncedSearch, status, access, page],
   );
   const { data, isLoading, isFetching, isError, error } = useEvents(query);
 
@@ -67,6 +79,7 @@ export default function EventosPage() {
           </Link>
           <p className="mt-0.5 font-mono text-xs text-gray-400">
             {ev.code}
+            {isPrivate(ev) && <PrivateEventBadge className="ml-1.5 font-sans" />}
             {ev.linkedProduct && (
               <span className="ml-1.5 font-sans text-[11px] text-[#3E667D]">· producto del catálogo</span>
             )}
@@ -100,42 +113,54 @@ export default function EventosPage() {
     {
       key: 'status',
       header: 'Estado',
-      render: (ev) => <EventStatusBadge status={ev.status} />,
+      render: (ev) => <EventStatusBadge status={ev.status} privateEvent={isPrivate(ev)} />,
     },
     {
       key: 'branches',
       header: 'Sucursales',
       headerClassName: 'text-right',
       cellClassName: 'text-right tabular-nums',
-      render: (ev) => <span className="text-sm text-gray-700">{ev.stats.branches}</span>,
+      render: (ev) => (
+        <span className="text-sm text-gray-700">{isPrivate(ev) ? '—' : ev.stats.branches}</span>
+      ),
     },
     {
       key: 'allotted',
       header: 'Asignados / Vendidos',
       headerClassName: 'text-right',
       cellClassName: 'text-right tabular-nums',
-      render: (ev) => (
-        <span className="text-sm text-gray-700">
-          {formatAllotment(ev.stats.allotted, UNLIMITED_ALLOTMENT)}
-          <span className="text-gray-400"> / </span>
-          {ev.stats.soldUnits.toLocaleString('es-MX')}
-        </span>
-      ),
+      render: (ev) =>
+        isPrivate(ev) ? (
+          <span className="text-sm text-gray-400">No se vende</span>
+        ) : (
+          <span className="text-sm text-gray-700">
+            {formatAllotment(ev.stats.allotted, UNLIMITED_ALLOTMENT)}
+            <span className="text-gray-400"> / </span>
+            {ev.stats.soldUnits.toLocaleString('es-MX')}
+          </span>
+        ),
     },
     {
       key: 'tickets',
       header: 'Boletos emitidos / Ingresados',
       headerClassName: 'text-right',
       cellClassName: 'text-right tabular-nums',
-      render: (ev) => (
-        <span className="text-sm text-gray-700">
-          {ev.stats.ticketsIssued.toLocaleString('es-MX')}
-          <span className="text-gray-400"> / </span>
-          <span className={ev.stats.ticketsCheckedIn > 0 ? 'text-emerald-700' : ''}>
-            {ev.stats.ticketsCheckedIn.toLocaleString('es-MX')}
+      render: (ev) =>
+        isPrivate(ev) ? (
+          <span className="text-sm text-gray-700" title="Invitados en la lista y lugares que suman">
+            {(ev.guestStats?.guests ?? 0).toLocaleString('es-MX')} invitados
+            <span className="text-gray-400"> · </span>
+            {(ev.guestStats?.seats ?? 0).toLocaleString('es-MX')} lugares
           </span>
-        </span>
-      ),
+        ) : (
+          <span className="text-sm text-gray-700">
+            {ev.stats.ticketsIssued.toLocaleString('es-MX')}
+            <span className="text-gray-400"> / </span>
+            <span className={ev.stats.ticketsCheckedIn > 0 ? 'text-emerald-700' : ''}>
+              {ev.stats.ticketsCheckedIn.toLocaleString('es-MX')}
+            </span>
+          </span>
+        ),
     },
     {
       key: 'actions',
@@ -143,7 +168,7 @@ export default function EventosPage() {
       cellClassName: 'text-right',
       render: (ev) => (
         <Button asChild variant="outline" size="sm">
-          <Link href={`/admin/eventos/${ev.id}`}>
+          <Link href={`/admin/eventos/${ev.id}${isPrivate(ev) ? '?tab=invitados' : ''}`}>
             Ver
             <ArrowRightIcon className="ml-1 h-4 w-4" />
           </Link>
@@ -166,7 +191,7 @@ export default function EventosPage() {
                 <h1 className="text-3xl font-bold sm:text-4xl">Eventos</h1>
               </div>
               <p className="text-base text-white/80 sm:text-lg">
-                Venta de boletos en el POS, asignación por sucursal y entrada con QR
+                Venta de boletos en el POS con entrada por QR, y eventos privados por invitación
               </p>
             </div>
             <Button
@@ -187,7 +212,7 @@ export default function EventosPage() {
         {/* Filtros */}
         <Card>
           <CardContent className="p-4">
-            <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+            <div className="grid gap-3 md:grid-cols-[1fr_240px_220px]">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
@@ -200,6 +225,15 @@ export default function EventosPage() {
                   className="pl-9"
                 />
               </div>
+              <SearchableSelect
+                options={ACCESS_OPTIONS}
+                value={access}
+                onChange={(v) => {
+                  setAccess(v);
+                  setPage(1);
+                }}
+                allLabel="De venta y privados"
+              />
               <SearchableSelect
                 options={EVENT_STATUSES.map((s) => ({ value: s, label: EVENT_STATUS_LABEL[s] }))}
                 value={status}
@@ -234,7 +268,7 @@ export default function EventosPage() {
                     <TicketIcon className="mx-auto mb-3 h-10 w-10 text-gray-300" />
                     <p className="font-medium text-gray-600">No hay eventos</p>
                     <p className="mt-1 text-sm text-gray-400">
-                      {debouncedSearch || status
+                      {debouncedSearch || status || access
                         ? 'Ningún evento coincide con los filtros.'
                         : 'Crea el primero con “Nuevo evento”.'}
                     </p>

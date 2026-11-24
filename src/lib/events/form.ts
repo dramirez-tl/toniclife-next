@@ -10,6 +10,9 @@
 //  - 'linked': se usa un producto EXISTENTE del catálogo (productId). El API
 //    toma su clave y su precio público; no se mandan clave, precio, nombre en
 //    el POS ni claves SAT, y el precio se edita en Productos.
+//  - 'private': evento PRIVADO (por invitación). No se vende: no hay producto,
+//    precio, impuesto ni ventana de venta; solo los datos del evento. Después
+//    lleva su lista de invitados.
 
 import {
   EVENT_DEFAULT_TIMEZONE,
@@ -20,10 +23,10 @@ import {
 } from '@/types/events';
 import { formatEventMoney } from './format';
 
-export type EventProductSource = 'new' | 'linked';
+export type EventProductSource = 'new' | 'linked' | 'private';
 
 export interface EventFormValues {
-  /** 'new' = el API crea el producto del boleto; 'linked' = usa un producto existente. */
+  /** 'new' = el API crea el producto del boleto; 'linked' = usa un producto existente; 'private' = por invitación (no se vende). */
   source: EventProductSource;
   /** Producto existente (modo 'linked'). */
   productId: string;
@@ -101,10 +104,11 @@ export const EMPTY_EVENT_FORM: EventFormValues = {
 
 /** Ficha del API → formulario (edición). */
 export function eventToForm(ev: EventDto): EventFormValues {
-  const linked = !!ev.linkedProduct;
+  const isPrivate = ev.accessMode === 'invitation';
+  const linked = !isPrivate && !!ev.linkedProduct;
   const productCode = ev.productCode || ev.code;
   return {
-    source: linked ? 'linked' : 'new',
+    source: isPrivate ? 'private' : linked ? 'linked' : 'new',
     productId: ev.productId ?? '',
     productLabel: [productCode, ev.productName].filter(Boolean).join(' — '),
     productPriceLabel: formatEventMoney(ev.ticketPrice, ev.currencyCode),
@@ -112,7 +116,8 @@ export function eventToForm(ev: EventDto): EventFormValues {
     name: ev.name,
     // El API devuelve el nombre del producto aunque sea el del evento: solo se
     // muestra como "nombre distinto" cuando de verdad difiere.
-    productName: !linked && ev.productName && ev.productName !== ev.name ? ev.productName : '',
+    productName:
+      !linked && !isPrivate && ev.productName && ev.productName !== ev.name ? ev.productName : '',
     speaker: ev.speaker ?? '',
     description: ev.description ?? '',
     eventDate: ev.eventDate,
@@ -158,6 +163,7 @@ const isBlank = (s: string) => s.trim() === '';
  */
 export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): string | null {
   const linked = v.source === 'linked';
+  const isPrivate = v.source === 'private';
   if (mode === 'create') {
     if (linked) {
       if (isBlank(v.productId)) return 'Elige el producto del catálogo que será el boleto.';
@@ -178,20 +184,20 @@ export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): 
   ] as const) {
     if (!isBlank(value) && !TIME_RE.test(value)) return `La hora de ${label} debe ser HH:MM.`;
   }
-  if (!linked) {
+  if (!linked && !isPrivate) {
     if (isBlank(v.ticketPrice)) return 'Captura el precio del boleto.';
     const price = Number(v.ticketPrice);
     if (!Number.isFinite(price) || price < 0) return 'El precio del boleto no es válido.';
     if (Math.round(price * 100) !== price * 100) return 'El precio admite máximo 2 decimales.';
   }
   const perUnit = Number(v.ticketsPerUnit);
-  if (!Number.isInteger(perUnit) || perUnit < 1 || perUnit > 20)
+  if (!isPrivate && (!Number.isInteger(perUnit) || perUnit < 1 || perUnit > 20))
     return 'Los boletos por unidad deben ser un entero entre 1 y 20.';
   if (!isBlank(v.capacity)) {
     const cap = Number(v.capacity);
     if (!Number.isInteger(cap) || cap < 1) return 'El aforo debe ser un entero mayor que cero.';
   }
-  if (!linked) {
+  if (!linked && !isPrivate) {
     if (!isBlank(v.satProductCode) && !SAT_PRODUCT_RE.test(v.satProductCode.trim()))
       return 'La clave SAT de producto debe tener 8 dígitos.';
     if (!isBlank(v.satUnitCode) && !SAT_UNIT_RE.test(v.satUnitCode.trim()))
@@ -202,10 +208,12 @@ export function validateEventForm(v: EventFormValues, mode: 'create' | 'edit'): 
     }
   }
   if (v.imageUrl.trim().length > 500) return 'La URL de la imagen es demasiado larga (máximo 500).';
-  if (!isBlank(v.saleStartsOn) && !DATE_RE.test(v.saleStartsOn)) return 'La fecha de inicio de venta no es válida.';
-  if (!isBlank(v.saleEndsOn) && !DATE_RE.test(v.saleEndsOn)) return 'La fecha de fin de venta no es válida.';
-  if (!isBlank(v.saleStartsOn) && !isBlank(v.saleEndsOn) && v.saleStartsOn > v.saleEndsOn)
-    return 'El fin de venta no puede ser antes del inicio de venta.';
+  if (!isPrivate) {
+    if (!isBlank(v.saleStartsOn) && !DATE_RE.test(v.saleStartsOn)) return 'La fecha de inicio de venta no es válida.';
+    if (!isBlank(v.saleEndsOn) && !DATE_RE.test(v.saleEndsOn)) return 'La fecha de fin de venta no es válida.';
+    if (!isBlank(v.saleStartsOn) && !isBlank(v.saleEndsOn) && v.saleStartsOn > v.saleEndsOn)
+      return 'El fin de venta no puede ser antes del inicio de venta.';
+  }
   if (v.ticketNotes.length > 2000) return 'Las notas del boleto son demasiado largas (máximo 2000).';
   if (v.emailNotes.length > 4000) return 'Las notas del correo son demasiado largas (máximo 4000).';
   if (v.description.length > 4000) return 'La descripción es demasiado larga (máximo 4000).';
@@ -249,6 +257,29 @@ function commonCreateFields(v: EventFormValues) {
  */
 export function toCreateInput(v: EventFormValues): CreateEventInput {
   const common = commonCreateFields(v);
+  if (v.source === 'private') {
+    // Privado: sin producto, precio, impuesto ni ventana de venta.
+    return {
+      accessMode: 'invitation',
+      code: v.code.trim().toUpperCase(),
+      name: common.name,
+      description: common.description,
+      speaker: common.speaker,
+      eventDate: common.eventDate,
+      startTime: common.startTime,
+      doorsTime: common.doorsTime,
+      endTime: common.endTime,
+      timezone: common.timezone,
+      venueName: common.venueName,
+      venueAddress: common.venueAddress,
+      city: common.city,
+      state: common.state,
+      countryId: common.countryId,
+      capacity: common.capacity,
+      imageUrl: common.imageUrl,
+      emailNotes: common.emailNotes,
+    };
+  }
   if (v.source === 'linked') {
     return { productId: v.productId.trim(), ...common };
   }
@@ -274,6 +305,26 @@ export function toCreateInput(v: EventFormValues): CreateEventInput {
 export function toUpdateInput(v: EventFormValues): UpdateEventInput {
   const c = commonCreateFields(v);
   const orNull = <T>(x: T | undefined): T | null => (x === undefined ? null : x);
+  if (v.source === 'private') {
+    return {
+      name: c.name,
+      description: orNull(c.description),
+      speaker: orNull(c.speaker),
+      eventDate: c.eventDate,
+      startTime: orNull(c.startTime),
+      doorsTime: orNull(c.doorsTime),
+      endTime: orNull(c.endTime),
+      timezone: c.timezone,
+      venueName: orNull(c.venueName),
+      venueAddress: orNull(c.venueAddress),
+      city: orNull(c.city),
+      state: orNull(c.state),
+      countryId: c.countryId,
+      capacity: orNull(c.capacity),
+      imageUrl: orNull(c.imageUrl),
+      emailNotes: orNull(c.emailNotes),
+    };
+  }
   const common: UpdateEventInput = {
     name: c.name,
     description: orNull(c.description),
