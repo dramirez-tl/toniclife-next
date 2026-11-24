@@ -6,13 +6,14 @@
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
 import type { FileUploadTexts } from '@/components/ui/FileUpload';
 import { localeLanguage } from '@/i18n/config';
 import type { PaymentCatalogs, PaymentDataResponse, PaymentDocumentKey } from '@/types/distributor-payment';
 import { PAYMENT_DOCUMENT_KEYS } from '@/types/distributor-payment';
 import { SectionCard } from './SectionCard';
 import { DocumentCard } from './DocumentCard';
-import { rejectionReasonLabel, requiredDocuments } from './paymentUtils';
+import { goToConsent, rejectionReasonLabel, requiredDocuments } from './paymentUtils';
 
 interface DocumentsSectionProps {
   data: PaymentDataResponse;
@@ -40,6 +41,8 @@ export function DocumentsSection({ data, catalogs, consentBlocked, privacyConsen
       errorType: t('documents.upload.errorType'),
       removeFile: t('documents.upload.removeFile'),
       uploading: t('documents.upload.uploading'),
+      preparing: t('documents.upload.preparing'),
+      errorUnreadable: t('documents.upload.errorUnreadable'),
     }),
     [t],
   );
@@ -66,6 +69,19 @@ export function DocumentsSection({ data, catalogs, consentBlocked, privacyConsen
         <p className="text-sm text-muted-foreground">{t('documents.none')}</p>
       ) : (
         <div className="grid grid-cols-1 gap-4">
+          {consentBlocked && (
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+              role="status"
+            >
+              <p className="min-w-0 flex-1 text-sm text-amber-900">
+                <span className="font-semibold">{t('consent.gateTitle')}</span> {t('consent.gateBody')}
+              </p>
+              <Button type="button" size="sm" onClick={goToConsent}>
+                {t('consent.goToNotice')}
+              </Button>
+            </div>
+          )}
           {keys.map((key) => {
             const doc = data.documents[key];
             return (

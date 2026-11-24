@@ -2756,7 +2756,11 @@
         "accepted": "Aceptado el {date} (versión {version}).",
         "outdated": "El aviso de privacidad cambió (versión {version}). Vuelve a aceptarlo para continuar.",
         "required": "Debes aceptar el aviso de privacidad.",
-        "blocked": "Acepta el aviso de privacidad para poder guardar",
+        "blocked": "Para subir este documento primero acepta el aviso de privacidad. Toca aquí para ir al aviso.",
+        "acceptFirst": "Marca la casilla del aviso de privacidad para poder subir tus documentos.",
+        "gateTitle": "Falta un paso:",
+        "gateBody": "para subir tus documentos primero marca la casilla del aviso de privacidad.",
+        "goToNotice": "Ir al aviso",
         "save": "Aceptar y continuar",
         "saving": "Guardando…",
         "saved": "Aviso de privacidad aceptado"
@@ -2925,13 +2929,15 @@
         },
         "upload": {
           "reasonPrefix": "Motivo:",
-          "dropHint": "Arrastra y suelta tu archivo aquí",
+          "dropHint": "Toca aquí para tomar la foto o elegir tu archivo",
           "selectFile": "Seleccionar archivo",
-          "allowedHint": "JPG, PNG o PDF (máx. {max} MB)",
-          "errorTooLarge": "El archivo excede {max} MB.",
-          "errorType": "Tipo de archivo no permitido. Usa JPG, PNG o PDF.",
+          "allowedHint": "Foto (JPG o PNG) o PDF, hasta {max} MB. Las fotos del celular se ajustan solas.",
+          "errorTooLarge": "El archivo pesa más de {max} MB. Si es un PDF escaneado, súbelo como foto o con menos calidad.",
+          "errorType": "Ese tipo de archivo no se acepta. Sube una foto (JPG o PNG) o un PDF.",
           "removeFile": "Quitar archivo",
-          "uploading": "Subiendo…"
+          "uploading": "Subiendo…",
+          "preparing": "Preparando tu archivo…",
+          "errorUnreadable": "No pudimos abrir esta foto. Tómala de nuevo con la cámara o guárdala como JPG; también puedes subir un PDF."
         },
         "ine": {
           "title": "INE (credencial para votar)",
@@ -2959,7 +2965,7 @@
         "loadTitle": "No pudimos cargar esta sección",
         "retry": "Reintentar",
         "forbidden": "Tu sesión expiró o no tienes permiso. Vuelve a iniciar sesión.",
-        "tooLarge": "El archivo es demasiado grande (máximo 5 MB).",
+        "tooLarge": "El archivo es demasiado grande (máximo 10 MB).",
         "server": "Ocurrió un error en el servidor. Intenta de nuevo en unos minutos.",
         "network": "Sin conexión con el servidor. Revisa tu internet e intenta de nuevo.",
         "TRS_MIGRATION_PENDING": "Esta función se está habilitando. Intenta más tarde.",
@@ -2984,7 +2990,13 @@
         "savedSection": "{section}: cambios guardados",
         "saveError": "No se pudieron guardar los datos",
         "docUploaded": "{document}: documento subido, pendiente de revisión",
-        "docDeleted": "{document}: documento eliminado"
+        "docDeleted": "{document}: documento eliminado",
+        "warnings": {
+          "DOCUMENT_NOT_REQUIRED": "Ese documento no se pide en tu caso, así que no se guardó.",
+          "FIELD_NOT_APPLICABLE": "Un dato que capturaste no aplica en tu país y no se guardó.",
+          "DUPLICATE": "Uno de tus datos ya está registrado en otra cuenta. Tesorería lo revisará.",
+          "REQUEST_CHANGE_IGNORED": "Ese documento no estaba validado: se guardó sin solicitud de cambio."
+        }
       },
       "status": {
         "completed": "Pagado",

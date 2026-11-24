@@ -2756,7 +2756,11 @@
         "accepted": "Accepted on {date} (version {version}).",
         "outdated": "The privacy notice changed (version {version}). Please accept it again to continue.",
         "required": "You must accept the privacy notice.",
-        "blocked": "Accept the privacy notice to be able to save",
+        "blocked": "To upload this document, first accept the privacy notice. Tap here to go to the notice.",
+        "acceptFirst": "Check the privacy notice box to be able to upload your documents.",
+        "gateTitle": "One step left:",
+        "gateBody": "to upload your documents, first check the privacy notice box.",
+        "goToNotice": "Go to the notice",
         "save": "Accept and continue",
         "saving": "Saving…",
         "saved": "Privacy notice accepted"
@@ -2925,13 +2929,15 @@
         },
         "upload": {
           "reasonPrefix": "Reason:",
-          "dropHint": "Drag and drop your file here",
+          "dropHint": "Tap here to take the photo or choose your file",
           "selectFile": "Select file",
-          "allowedHint": "JPG, PNG or PDF (max. {max} MB)",
-          "errorTooLarge": "The file exceeds {max} MB.",
-          "errorType": "File type not allowed. Use JPG, PNG or PDF.",
+          "allowedHint": "Photo (JPG or PNG) or PDF, up to {max} MB. Phone photos are resized automatically.",
+          "errorTooLarge": "The file is larger than {max} MB. If it is a scanned PDF, upload it as a photo or at a lower quality.",
+          "errorType": "That file type is not accepted. Upload a photo (JPG or PNG) or a PDF.",
           "removeFile": "Remove file",
-          "uploading": "Uploading…"
+          "uploading": "Uploading…",
+          "preparing": "Preparing your file…",
+          "errorUnreadable": "We could not open this photo. Take it again with the camera or save it as JPG; you can also upload a PDF."
         },
         "ine": {
           "title": "INE (voter ID card)",
@@ -2959,7 +2965,7 @@
         "loadTitle": "We could not load this section",
         "retry": "Retry",
         "forbidden": "Your session expired or you do not have permission. Please sign in again.",
-        "tooLarge": "The file is too large (5 MB maximum).",
+        "tooLarge": "The file is too large (10 MB maximum).",
         "server": "A server error occurred. Please try again in a few minutes.",
         "network": "No connection to the server. Check your internet and try again.",
         "TRS_MIGRATION_PENDING": "This feature is being enabled. Please try again later.",
@@ -2984,7 +2990,13 @@
         "savedSection": "{section}: changes saved",
         "saveError": "The details could not be saved",
         "docUploaded": "{document}: document uploaded, pending review",
-        "docDeleted": "{document}: document deleted"
+        "docDeleted": "{document}: document deleted",
+        "warnings": {
+          "DOCUMENT_NOT_REQUIRED": "That document is not required in your case, so it was not saved.",
+          "FIELD_NOT_APPLICABLE": "One of the fields you entered does not apply in your country and was not saved.",
+          "DUPLICATE": "One of your details is already registered on another account. Treasury will review it.",
+          "REQUEST_CHANGE_IGNORED": "That document was not validated: it was saved without a change request."
+        }
       },
       "status": {
         "completed": "Paid",

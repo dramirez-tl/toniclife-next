@@ -25,6 +25,10 @@ export interface FileUploadTexts {
   errorType: string;
   removeFile: string;
   uploading: string;
+  /** Mientras `prepare` deja listo el archivo (p. ej. reduce una foto). */
+  preparing: string;
+  /** `prepare` no pudo abrir el archivo (p. ej. una foto HEIC en Android). */
+  errorUnreadable: string;
 }
 
 const DEFAULT_TEXTS: FileUploadTexts = {
@@ -41,13 +45,33 @@ const DEFAULT_TEXTS: FileUploadTexts = {
   errorType: 'Tipo de archivo no permitido. Usa JPG, PNG o PDF.',
   removeFile: 'Eliminar archivo',
   uploading: 'Subiendo…',
+  preparing: 'Preparando el archivo…',
+  errorUnreadable: 'No se pudo abrir este archivo. Intenta con una foto JPG o un PDF.',
 };
 
 interface FileUploadProps {
   label: string;
   name: string;
+  /** Tipos que se aceptan DESPUÉS de `prepare` (lista separada por comas). */
   accept?: string;
+  /**
+   * `accept` del selector nativo cuando debe ser más amplio que lo que se sube
+   * (p. ej. 'image/*,application/pdf' para ofrecer cámara y galería y convertir
+   * la foto después). Por defecto, el mismo `accept`.
+   */
+  inputAccept?: string;
   maxSizeMB?: number;
+  /**
+   * Deja listo el archivo antes de validarlo (p. ej. reduce una foto y la pasa
+   * a JPG). Si lanza un error con `code: 'unsupported'` se muestra el aviso de
+   * tipo no permitido; con cualquier otro, el de "no se pudo abrir".
+   */
+  prepare?: (file: File) => Promise<File>;
+  /**
+   * Se llama al tocar la zona estando deshabilitada (p. ej. para llevar a la
+   * persona a lo que falta). Con él, la zona deshabilitada sigue siendo tocable.
+   */
+  onDisabledClick?: () => void;
   existingUrl?: string | null;
   status?: 'pending' | 'validated' | 'rejected' | 'expired' | null;
   rejectionReason?: string | null;
@@ -87,7 +111,10 @@ export function FileUpload({
   label,
   name,
   accept = 'image/jpeg,image/png,application/pdf',
+  inputAccept,
   maxSizeMB = 5,
+  prepare,
+  onDisabledClick,
   existingUrl,
   status,
   rejectionReason,
@@ -111,6 +138,9 @@ export function FileUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  // Deshabilitada pero con algo que decir: se puede tocar para saber qué falta.
+  const blocked = disabled && !!onDisabledClick;
 
   // Generate (and clean up) an object URL for image previews
   useEffect(() => {
@@ -135,8 +165,21 @@ export function FileUpload({
   }, [resetKey]);
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (picked: File) => {
       setError(null);
+      let file = picked;
+      if (prepare) {
+        setPreparing(true);
+        try {
+          file = await prepare(picked);
+        } catch (err) {
+          const code = (err as { code?: string } | null)?.code;
+          setError(code === 'unsupported' ? t.errorType : t.errorUnreadable);
+          return;
+        } finally {
+          setPreparing(false);
+        }
+      }
       if (file.size > maxSizeMB * 1024 * 1024) {
         setError(fill(t.errorTooLarge));
         return;
@@ -150,23 +193,38 @@ export function FileUpload({
       onChange(file);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [accept, maxSizeMB, onChange, t.errorTooLarge, t.errorType],
+    [accept, maxSizeMB, onChange, prepare, t.errorTooLarge, t.errorType, t.errorUnreadable],
   );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
-      if (disabled) return;
+      if (disabled) {
+        onDisabledClick?.();
+        return;
+      }
       const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      if (file) void handleFile(file);
     },
-    [disabled, handleFile],
+    [disabled, handleFile, onDisabledClick],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    // Se limpia el selector: si el archivo se rechaza y eligen el MISMO otra
+    // vez, el navegador vuelve a avisar (antes "no pasaba nada").
+    e.target.value = '';
+    if (file) void handleFile(file);
+  };
+
+  /** Abre el selector; si está deshabilitada, avisa qué falta. */
+  const openPicker = () => {
+    if (disabled) {
+      onDisabledClick?.();
+      return;
+    }
+    if (!preparing) inputRef.current?.click();
   };
 
   const removeFile = () => {
@@ -295,6 +353,8 @@ export function FileUpload({
 
       {/* Drop zone */}
       {!selectedFile && (
+        // Toda la zona abre el selector (en celular se toca el recuadro, no el
+        // botón). El botón sigue siendo el control accesible por teclado.
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -302,24 +362,31 @@ export function FileUpload({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
+          onClick={(e) => {
+            // El clic del botón ya abrió el selector: no se abre dos veces.
+            if ((e.target as HTMLElement).closest('button')) return;
+            openPicker();
+          }}
           className={cn(
-            'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors',
+            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors',
             dragOver
               ? 'border-ring bg-accent ring-2 ring-ring/30'
               : 'border-input hover:bg-accent/50',
-            disabled && 'cursor-not-allowed bg-muted opacity-50',
+            disabled && 'bg-muted opacity-50',
+            disabled && !blocked && 'cursor-not-allowed',
           )}
         >
           <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-          <p className="text-xs text-muted-foreground">{t.dropHint}</p>
+          <p className="text-xs text-muted-foreground">{preparing ? t.preparing : t.dropHint}</p>
           <Button
             id={buttonId}
             type="button"
             variant="outline"
             size="sm"
-            disabled={disabled}
+            disabled={(disabled && !blocked) || preparing}
+            aria-disabled={disabled || preparing}
             aria-describedby={describedBy}
-            onClick={() => !disabled && inputRef.current?.click()}
+            onClick={openPicker}
           >
             {t.selectFile}
           </Button>
@@ -337,7 +404,7 @@ export function FileUpload({
         ref={inputRef}
         type="file"
         name={name}
-        accept={accept}
+        accept={inputAccept ?? accept}
         onChange={handleInputChange}
         className="hidden"
         disabled={disabled}
