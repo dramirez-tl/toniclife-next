@@ -222,6 +222,10 @@ const navigation: NavItem[] = [
       { name: 'Piezas por Producto', href: '/admin/reportes/piezas-producto', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:product_sales'] },
       // CEDEAS (21-oct-2026): cada producto vendido con el folio de su venta, para resurtir.
       { name: 'Ventas por Producto', href: '/admin/reportes/ventas-producto', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:product_sales'] },
+      // Operaciones México (24-nov-2026): inventario inicial, entradas a almacén, ventas e
+      // inventario al cierre de los más vendidos, en piezas. Es de toda la operación (almacén +
+      // todas las sucursales): el API se lo niega a los roles acotados por sucursal.
+      { name: 'Inventario y Ventas', href: '/admin/reportes/inventario-ventas', permissions: ['reports:read', 'reports', 'reports.sales', 'reports:product_sales'], hideWhenBranchScoped: true },
       // Formato del sistema anterior: corte de caja (el bono por suscrito vive
       // en Tesorería desde el 26-oct-2026).
       { name: 'Corte de Caja', href: '/admin/reportes/corte-caja', permissions: ['reports:read', 'reports', 'reports.sales'] },
