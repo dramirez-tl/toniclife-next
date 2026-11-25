@@ -938,6 +938,20 @@ export interface ManualAttendanceInput {
   notes?: string;
 }
 
+/**
+ * Corrección de una checada ya registrada (PATCH /hr/attendance/:id, permiso
+ * hr:manage). El API rechaza cualquier campo extra: se manda SOLO lo que
+ * cambió más el motivo (ver lib/attendance/correction.ts).
+ */
+export interface CorrectAttendanceInput {
+  /** Solo si cambió el tipo. */
+  eventType?: AttendanceEventType;
+  /** ISO 8601 con zona; solo si cambió la fecha/hora. */
+  occurredAt?: string;
+  /** Motivo de la corrección, de 5 a 500 caracteres. */
+  reason: string;
+}
+
 // ================================
 // VACACIONES
 // ================================
