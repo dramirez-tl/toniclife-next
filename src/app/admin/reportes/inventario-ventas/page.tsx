@@ -18,6 +18,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ClipboardDocumentListIcon,
+  DocumentTextIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { PermissionGuard } from '@/components/auth';
@@ -60,6 +61,19 @@ const TH = 'px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-muted
 const TH_NUM =
   'h-auto w-[5.5rem] px-2.5 py-2 text-right align-bottom text-xs font-semibold uppercase leading-tight tracking-wide text-muted-foreground whitespace-normal';
 const TD_NUM = 'px-2.5 py-2.5 text-right text-sm tabular-nums whitespace-nowrap';
+// Encabezados fijos (Diego, 25-nov-2026): el contenedor de cada tabla es el que se desplaza (tiene alto
+// máximo) y cada celda del encabezado se queda pegada arriba, con fondo sólido para que no se
+// transparente lo que pasa por debajo. La tabla principal tiene dos renglones de encabezado: el de
+// grupos mide 2.25rem exactos y el de columnas se pega justo debajo.
+const STICKY_LINE = 'shadow-[inset_0_-1px_0_0_var(--border)]';
+const TH_GROUP = `${TH} sticky top-0 z-20 h-9 py-0 bg-slate-100 ${STICKY_LINE}`;
+const TH_HEAD = `${TH} sticky top-9 z-20 bg-slate-100 ${STICKY_LINE}`;
+const TH_HEAD_NUM = `${TH_NUM} sticky top-9 z-20 bg-slate-100 ${STICKY_LINE}`;
+const TH_DETAIL = `${TH} sticky top-0 z-10 bg-slate-50 ${STICKY_LINE}`;
+const TH_DETAIL_NUM = `${TH_NUM} sticky top-0 z-10 bg-slate-50 ${STICKY_LINE}`;
+// El componente Table envuelve la tabla en un contenedor con desplazamiento horizontal propio; se le
+// quita para que el desplazamiento (y lo fijo del encabezado) sea el del contenedor de aquí.
+const SCROLL_BOX = '[&_[data-slot=table-container]]:overflow-visible overflow-auto';
 /** Columnas de la tabla principal (para el renglón del desglose). */
 const COLUMNS = 16;
 
@@ -91,6 +105,7 @@ function InventarioVentasContent() {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [makingPdf, setMakingPdf] = useState(false);
 
   const { data, isLoading, isFetching, error, refetch } = useInventoryFlow({ periodId, currency, top });
 
@@ -116,6 +131,21 @@ function InventarioVentasContent() {
       toast.error('No se pudo descargar el Excel');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Informe membretado de lo que se ve en la tabla (zona, periodo y productos filtrados). Se arma en
+  // el navegador; jsPDF se carga hasta que se pide.
+  const handlePdf = async () => {
+    if (!data || rows.length === 0) return;
+    setMakingPdf(true);
+    try {
+      const { downloadInventoryFlowPdf } = await import('@/lib/reports/inventory-flow-pdf');
+      await downloadInventoryFlowPdf(data, rows);
+    } catch {
+      toast.error('No se pudo generar el informe PDF');
+    } finally {
+      setMakingPdf(false);
     }
   };
 
@@ -222,6 +252,16 @@ function InventarioVentasContent() {
                 </Button>
                 <Button
                   type="button"
+                  variant="outline"
+                  onClick={handlePdf}
+                  disabled={!data || rows.length === 0 || makingPdf}
+                  title="Informe membretado de los productos que se ven en la tabla, con lo que debe haber en cada sucursal para el conteo"
+                >
+                  <DocumentTextIcon className="h-4 w-4" />
+                  {makingPdf ? 'Generando…' : 'Informe PDF'}
+                </Button>
+                <Button
+                  type="button"
                   onClick={handleDownload}
                   disabled={!data || data.rows.length === 0 || downloading}
                 >
@@ -287,41 +327,41 @@ function InventarioVentasContent() {
                     Ningún producto del reporte coincide con “{search}”.
                   </p>
                 ) : (
-                  <div className={`overflow-x-auto ${isFetching ? 'opacity-60' : ''}`}>
+                  <div className={`max-h-[calc(100vh-5rem)] ${SCROLL_BOX} ${isFetching ? 'opacity-60' : ''}`}>
                     <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/40 hover:bg-muted/40">
-                          <TableHead className={TH} colSpan={4} />
-                          <TableHead className={`${TH} border-l text-center`} colSpan={4}>
+                      <TableHeader className="[&_tr]:border-b-0">
+                        <TableRow className="bg-slate-100 hover:bg-slate-100">
+                          <TableHead className={TH_GROUP} colSpan={4} />
+                          <TableHead className={`${TH_GROUP} border-l text-center`} colSpan={4}>
                             {openingTitle(data)}
                           </TableHead>
-                          <TableHead className={`${TH} border-l text-center`} colSpan={3}>
+                          <TableHead className={`${TH_GROUP} border-l text-center`} colSpan={3}>
                             Durante el periodo
                           </TableHead>
-                          <TableHead className={`${TH} border-l text-center`} colSpan={4}>
+                          <TableHead className={`${TH_GROUP} border-l text-center`} colSpan={4}>
                             {closingTitle(data)}
                           </TableHead>
-                          <TableHead className={`${TH} border-l`} />
+                          <TableHead className={`${TH_GROUP} border-l`} />
                         </TableRow>
-                        <TableRow className="bg-muted/40 hover:bg-muted/40">
-                          <TableHead className={`${TH} w-8`}>
+                        <TableRow className="bg-slate-100 hover:bg-slate-100">
+                          <TableHead className={`${TH_HEAD} w-8`}>
                             <span className="sr-only">Ver sucursales</span>
                           </TableHead>
-                          <TableHead className={TH}>#</TableHead>
-                          <TableHead className={TH}>Clave</TableHead>
-                          <TableHead className={TH}>Producto</TableHead>
-                          <TableHead className={`${TH_NUM} border-l`}>Almacén general</TableHead>
-                          <TableHead className={TH_NUM}>Otros almacenes</TableHead>
-                          <TableHead className={TH_NUM}>Tiendas</TableHead>
-                          <TableHead className={TH_NUM}>En camino</TableHead>
-                          <TableHead className={`${TH_NUM} border-l`}>Entró a almacén</TableHead>
-                          <TableHead className={TH_NUM}>Ventas</TableHead>
-                          <TableHead className={TH_NUM}>Otros mov.</TableHead>
-                          <TableHead className={`${TH_NUM} border-l`}>Almacén general</TableHead>
-                          <TableHead className={TH_NUM}>Otros almacenes</TableHead>
-                          <TableHead className={TH_NUM}>Tiendas</TableHead>
-                          <TableHead className={TH_NUM}>En camino</TableHead>
-                          <TableHead className={`${TH_NUM} border-l`}>Total al cierre</TableHead>
+                          <TableHead className={TH_HEAD}>#</TableHead>
+                          <TableHead className={TH_HEAD}>Clave</TableHead>
+                          <TableHead className={TH_HEAD}>Producto</TableHead>
+                          <TableHead className={`${TH_HEAD_NUM} border-l`}>Almacén general</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Otros almacenes</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Tiendas</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>En camino</TableHead>
+                          <TableHead className={`${TH_HEAD_NUM} border-l`}>Entró a almacén</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Ventas</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Otros mov.</TableHead>
+                          <TableHead className={`${TH_HEAD_NUM} border-l`}>Almacén general</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Otros almacenes</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>Tiendas</TableHead>
+                          <TableHead className={TH_HEAD_NUM}>En camino</TableHead>
+                          <TableHead className={`${TH_HEAD_NUM} border-l`}>Total al cierre</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -480,19 +520,19 @@ function BranchDetail({ row, report }: { row: InventoryFlowProductRow; report: I
           </span>
         )}
       </p>
-      <div className="max-h-[28rem] overflow-auto rounded-md border bg-background">
+      <div className={`max-h-[28rem] ${SCROLL_BOX} rounded-md border bg-background`}>
         <Table>
-          <TableHeader>
+          <TableHeader className="[&_tr]:border-b-0">
             <TableRow className="hover:bg-transparent">
-              <TableHead className={TH}>Tipo</TableHead>
-              <TableHead className={TH}>Sucursal</TableHead>
-              <TableHead className={TH_NUM}>Inicial</TableHead>
-              <TableHead className={TH_NUM}>Entradas</TableHead>
-              <TableHead className={TH_NUM}>Traspasos recibidos</TableHead>
-              <TableHead className={TH_NUM}>Traspasos enviados</TableHead>
-              <TableHead className={TH_NUM}>Ventas</TableHead>
-              <TableHead className={TH_NUM}>Otros mov.</TableHead>
-              <TableHead className={TH_NUM}>{report.inProgress ? 'Actual' : 'Cierre'}</TableHead>
+              <TableHead className={TH_DETAIL}>Tipo</TableHead>
+              <TableHead className={TH_DETAIL}>Sucursal</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Inicial</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Entradas</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Traspasos recibidos</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Traspasos enviados</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Ventas</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>Otros mov.</TableHead>
+              <TableHead className={TH_DETAIL_NUM}>{report.inProgress ? 'Actual' : 'Cierre'}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
