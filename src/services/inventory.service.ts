@@ -20,6 +20,8 @@ import type {
   BranchStockResponseDto,
   BranchStockQueryDto,
   ProductStockDto,
+  MovementProductDto,
+  MovementScope,
   KardexResponseDto,
   KardexQueryDto,
   TransferDto,
@@ -82,6 +84,7 @@ class InventoryService {
     if (query.categoryId) params.append('categoryId', query.categoryId);
     if (query.lowStock !== undefined) params.append('lowStock', String(query.lowStock));
     if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
+    if (query.forMovement) params.append('forMovement', query.forMovement);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
     if (query.sortBy) params.append('sortBy', query.sortBy);
@@ -94,10 +97,30 @@ class InventoryService {
   }
 
   /**
+   * Busca UNA clave para capturarla en un movimiento de la sucursal. Una clave de otro país
+   * responde 400 PRODUCT_NOT_IN_BRANCH_COUNTRY con el motivo (lib/inventory/foreign-product),
+   * salvo en salidas mientras la sucursal tenga piezas de ella.
+   */
+  async getMovementProduct(
+    branchId: string,
+    code: string,
+    forMovement: MovementScope,
+  ): Promise<MovementProductDto> {
+    const response = await api.get<MovementProductDto>(
+      `/inventory/branches/${branchId}/movement-product`,
+      { params: { code, forMovement } },
+    );
+    return response.data;
+  }
+
+  /**
    * Trae TODO el stock de una sucursal (todas las páginas), para iniciar un
    * conteo físico completo. Pagina en bloques hasta reunir todos los productos.
    */
-  async getAllBranchStock(branchId: string): Promise<ProductStockDto[]> {
+  async getAllBranchStock(
+    branchId: string,
+    forMovement?: MovementScope,
+  ): Promise<ProductStockDto[]> {
     const pageSize = 100;
     const rows: ProductStockDto[] = [];
     let page = 1;
@@ -108,6 +131,7 @@ class InventoryService {
         limit: pageSize,
         sortBy: 'productName',
         sortOrder: 'asc',
+        forMovement,
       });
       total = res.total;
       if (!res.data.length) break;

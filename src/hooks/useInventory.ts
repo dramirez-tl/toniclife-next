@@ -6,6 +6,7 @@ import { inventoryService } from '@/services/inventory.service';
 import { kitAvailabilityKeys } from './useKitAvailability';
 import type {
   BranchStockQueryDto,
+  MovementScope,
   KardexQueryDto,
   TransferQueryDto,
   CreateTransferDto,
@@ -117,10 +118,10 @@ export function useBranchStock(branchId: string | null, query: BranchStockQueryD
  * Trae TODOS los productos con stock de una sucursal (todas las páginas).
  * Para iniciar un conteo físico completo en Ajustes › Nuevo.
  */
-export function useAllBranchStock(branchId: string | null) {
+export function useAllBranchStock(branchId: string | null, forMovement?: MovementScope) {
   return useQuery({
-    queryKey: [...inventoryKeys.stock(), 'branch-all', branchId || ''] as const,
-    queryFn: () => inventoryService.getAllBranchStock(branchId!),
+    queryKey: [...inventoryKeys.stock(), 'branch-all', branchId || '', forMovement ?? 'all'] as const,
+    queryFn: () => inventoryService.getAllBranchStock(branchId!, forMovement),
     enabled: !!branchId,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

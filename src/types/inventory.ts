@@ -162,6 +162,27 @@ export interface ProductStockDto {
   maxStockLevelEffective?: number;
   reorderPointEffective?: number;
   reorderQuantityEffective?: number;
+  /**
+   * true = clave de otro país: no tiene precio activo en el país de la sucursal (México y
+   * Frontera cuentan como uno). Ahí solo puede salir lo que ya hay. AUSENTE = API anterior.
+   */
+  foreignToBranch?: boolean;
+}
+
+/** Pantalla de movimientos que pide los productos de una sucursal. */
+export type MovementScope = 'entry' | 'transfer' | 'exit' | 'count';
+
+/** Una clave buscada para capturarla en un movimiento (GET /inventory/branches/:id/movement-product). */
+export interface MovementProductDto {
+  id: string;
+  code: string;
+  name: string;
+  productType?: string | null;
+  /** Piezas disponibles en la sucursal (existencia menos reservado). */
+  stock: number;
+  quantityOnHand: number;
+  /** true = clave de otro país con piezas en la sucursal: solo puede salir. */
+  foreignToBranch: boolean;
 }
 
 export interface UpdateStockSettingsDto {
@@ -213,6 +234,11 @@ export interface BranchStockQueryDto {
   categoryId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
+  /**
+   * Pantalla que pide la lista. Entradas y traspasos: solo claves del país de la sucursal.
+   * Salidas y conteo: además las de otro país que aún tienen piezas. Sin él no se filtra.
+   */
+  forMovement?: MovementScope;
   page?: number;
   limit?: number;
   sortBy?: 'productName' | 'quantityOnHand' | 'quantityAvailable' | 'lastMovementAt';
