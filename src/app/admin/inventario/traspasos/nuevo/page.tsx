@@ -25,7 +25,13 @@ import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCreateTransfer, useBranchStock } from '@/hooks/useInventory';
-import api from '@/lib/axios';
+import { inventoryService } from '@/services/inventory.service';
+import {
+  foreignBulkMessage,
+  splitLookupFailures,
+  toProductLookupFailure,
+  type ProductLookupFailure,
+} from '@/lib/inventory/foreign-product';
 import { useActiveBranches } from '@/hooks/useBranches';
 import type { CreateTransferDto, TransferDto } from '@/types/inventory';
 import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
@@ -75,6 +81,8 @@ export default function NuevoTraspasoPage() {
     {
       search: searchTerm || undefined,
       limit: 20,
+      // Solo claves del país de la sucursal: las de otro país no se traspasan.
+      forMovement: 'transfer',
     }
   );
 
@@ -105,10 +113,7 @@ export default function NuevoTraspasoPage() {
     if (!sku) return;
     setSkuSearching(true);
     try {
-      const response = await api.get(`/products/code/${sku}`, {
-        params: { branchId: formData.fromBranchId },
-      });
-      const p = response.data;
+      const p = await inventoryService.getMovementProduct(formData.fromBranchId, sku, 'transfer');
       if (!p || !p.id) {
         toast.error(`Producto no encontrado: ${sku}`);
         return;
@@ -138,13 +143,14 @@ export default function NuevoTraspasoPage() {
           quantity,
           currentStock: stock,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
         },
       ]);
       toast.success(`${p.name}${quantity > 1 ? ` x${quantity}` : ''} agregado`);
       setSkuCode('');
-    } catch {
-      toast.error(`Producto no encontrado: ${sku}`);
+    } catch (error) {
+      // Una clave de otro país trae el motivo del servidor (en qué países sí tiene precio).
+      toast.error(toProductLookupFailure(error, sku).message);
     } finally {
       setSkuSearching(false);
     }
@@ -170,32 +176,32 @@ export default function NuevoTraspasoPage() {
     if (bulkLines.length === 0) return;
     setBulkProcessing(true);
 
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       bulkLines.map(async ({ sku, quantity }) => {
-        const response = await api.get(`/products/code/${sku}`, {
-          params: { branchId: formData.fromBranchId },
-        });
-        const p = response.data;
-        if (!p || !p.id) throw new Error(sku);
-        return { product: p, quantity, sku };
+        try {
+          const product = await inventoryService.getMovementProduct(formData.fromBranchId, sku, 'transfer');
+          return { ok: true as const, product, quantity, sku };
+        } catch (error) {
+          return { ok: false as const, failure: toProductLookupFailure(error, sku) };
+        }
       })
     );
 
     let added = 0;
-    const notFound: string[] = [];
+    const failures: ProductLookupFailure[] = [];
     const outOfStock: string[] = [];
     const adjusted: string[] = [];
     const newItems = [...items];
 
     for (const result of results) {
-      if (result.status === 'rejected') {
-        notFound.push(result.reason?.message || 'desconocido');
+      if (!result.ok) {
+        failures.push(result.failure);
         continue;
       }
-      const { product: p, quantity } = result.value;
+      const { product: p, quantity } = result;
       const stock = p.stock ?? 0;
       if (stock <= 0) {
-        outOfStock.push(p.code || result.value.sku);
+        outOfStock.push(p.code || result.sku);
         continue;
       }
       const existing = newItems.find((item) => item.productId === p.id);
@@ -208,12 +214,12 @@ export default function NuevoTraspasoPage() {
       } else {
         newItems.push({
           productId: p.id,
-          productCode: p.code || result.value.sku,
+          productCode: p.code || result.sku,
           productName: p.name,
           quantity: effectiveQty,
           currentStock: stock,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
         });
         added++;
       }
@@ -224,8 +230,12 @@ export default function NuevoTraspasoPage() {
     if (added > 0) {
       toast.success(`${added} producto${added > 1 ? 's' : ''} agregado${added > 1 ? 's' : ''}`);
     }
+    const { notFound, foreign } = splitLookupFailures(failures);
     if (notFound.length > 0) {
       toast.error(`SKU no encontrados: ${notFound.join(', ')}`);
+    }
+    if (foreign.length > 0) {
+      toast.error(foreignBulkMessage(foreign));
     }
     if (outOfStock.length > 0) {
       toast.error(`Sin existencias: ${outOfStock.join(', ')}`);

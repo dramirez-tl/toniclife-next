@@ -24,7 +24,13 @@ import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCreateMovement, useBranchStock } from '@/hooks/useInventory';
-import api from '@/lib/axios';
+import { inventoryService } from '@/services/inventory.service';
+import {
+  foreignBulkMessage,
+  splitLookupFailures,
+  toProductLookupFailure,
+  type ProductLookupFailure,
+} from '@/lib/inventory/foreign-product';
 import { useActiveBranches } from '@/hooks/useBranches';
 import {
   MovementType,
@@ -86,7 +92,8 @@ export default function NuevaEntradaPage() {
 
   const { data: branchStockData, isLoading: isLoadingStock } = useBranchStock(
     formData.branchId,
-    { search: searchTerm || undefined, limit: 20 }
+    // Solo claves del país de la sucursal (México y Frontera cuentan como uno).
+    { search: searchTerm || undefined, limit: 20, forMovement: 'entry' }
   );
 
   const filteredProducts = useMemo(() => {
@@ -115,10 +122,7 @@ export default function NuevaEntradaPage() {
     if (!sku) return;
     setSkuSearching(true);
     try {
-      const response = await api.get(`/products/code/${sku}`, {
-        params: { branchId: formData.branchId },
-      });
-      const p = response.data;
+      const p = await inventoryService.getMovementProduct(formData.branchId, sku, 'entry');
       if (!p || !p.id) {
         toast.error(`Producto no encontrado: ${sku}`);
         return;
@@ -142,13 +146,14 @@ export default function NuevaEntradaPage() {
           quantity: quantity || 1,
           currentStock: p.stock ?? 0,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
         },
       ]);
       toast.success(`${p.name}${quantity ? ` x${quantity}` : ''} agregado`);
       setSkuCode('');
-    } catch {
-      toast.error(`Producto no encontrado: ${sku}`);
+    } catch (error) {
+      // Una clave de otro país trae el motivo del servidor (en qué países sí tiene precio).
+      toast.error(toProductLookupFailure(error, sku).message);
     } finally {
       setSkuSearching(false);
     }
@@ -174,39 +179,39 @@ export default function NuevaEntradaPage() {
     if (bulkLines.length === 0) return;
     setBulkProcessing(true);
 
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       bulkLines.map(async ({ sku, quantity }) => {
-        const response = await api.get(`/products/code/${sku}`, {
-          params: { branchId: formData.branchId },
-        });
-        const p = response.data;
-        if (!p || !p.id) throw new Error(sku);
-        return { product: p, quantity, sku };
+        try {
+          const product = await inventoryService.getMovementProduct(formData.branchId, sku, 'entry');
+          return { ok: true as const, product, quantity, sku };
+        } catch (error) {
+          return { ok: false as const, failure: toProductLookupFailure(error, sku) };
+        }
       })
     );
 
     let added = 0;
-    const notFound: string[] = [];
+    const failures: ProductLookupFailure[] = [];
     const newItems = [...items];
 
     for (const result of results) {
-      if (result.status === 'rejected') {
-        notFound.push(result.reason?.message || 'desconocido');
+      if (!result.ok) {
+        failures.push(result.failure);
         continue;
       }
-      const { product: p, quantity } = result.value;
+      const { product: p, quantity } = result;
       const existing = newItems.find((item) => item.productId === p.id);
       if (existing) {
         existing.quantity = quantity;
       } else {
         newItems.push({
           productId: p.id,
-          productCode: p.code || result.value.sku,
+          productCode: p.code || result.sku,
           productName: p.name,
           quantity,
           currentStock: p.stock ?? 0,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
         });
         added++;
       }
@@ -217,8 +222,12 @@ export default function NuevaEntradaPage() {
     if (added > 0) {
       toast.success(`${added} producto${added > 1 ? 's' : ''} agregado${added > 1 ? 's' : ''}`);
     }
+    const { notFound, foreign } = splitLookupFailures(failures);
     if (notFound.length > 0) {
       toast.error(`SKU no encontrados: ${notFound.join(', ')}`);
+    }
+    if (foreign.length > 0) {
+      toast.error(foreignBulkMessage(foreign));
     }
 
     setBulkProcessing(false);

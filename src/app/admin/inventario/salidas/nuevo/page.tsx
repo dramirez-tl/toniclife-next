@@ -24,7 +24,16 @@ import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCreateMovement, useBranchStock } from '@/hooks/useInventory';
-import api from '@/lib/axios';
+import { inventoryService } from '@/services/inventory.service';
+import {
+  FOREIGN_KEY_EXIT_BADGE,
+  FOREIGN_KEY_HELP,
+  foreignBulkMessage,
+  isForeignStockRow,
+  splitLookupFailures,
+  toProductLookupFailure,
+  type ProductLookupFailure,
+} from '@/lib/inventory/foreign-product';
 import { useActiveBranches } from '@/hooks/useBranches';
 import {
   MovementType,
@@ -59,6 +68,21 @@ interface ExitItem {
   currentStock: number;
   lots: LotEntry[];
   productType?: string;
+  /** Clave de otro país: aquí solo puede salir lo que ya hay. */
+  foreignToBranch?: boolean;
+}
+
+/** Etiqueta de una clave de otro país (en la lista del buscador y en el renglón agregado). */
+function ForeignKeyBadge() {
+  return (
+    <span
+      title={FOREIGN_KEY_HELP}
+      className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+    >
+      <ExclamationTriangleIcon className="h-3.5 w-3.5 flex-shrink-0" aria-hidden />
+      {FOREIGN_KEY_EXIT_BADGE}
+    </span>
+  );
 }
 
 export default function NuevaSalidaPage() {
@@ -89,7 +113,8 @@ export default function NuevaSalidaPage() {
 
   const { data: branchStockData, isLoading: isLoadingStock } = useBranchStock(
     formData.branchId,
-    { search: searchTerm || undefined, limit: 20 }
+    // Claves del país de la sucursal y, de las de otro país, solo las que aún tienen piezas.
+    { search: searchTerm || undefined, limit: 20, forMovement: 'exit' }
   );
 
   const filteredProducts = useMemo(() => {
@@ -100,6 +125,7 @@ export default function NuevaSalidaPage() {
       name: stock.productName,
       currentStock: stock.quantityAvailable,
       productType: stock.productType,
+      foreignToBranch: isForeignStockRow(stock),
     }));
   }, [branchStockData]);
 
@@ -117,10 +143,7 @@ export default function NuevaSalidaPage() {
     if (!sku) return;
     setSkuSearching(true);
     try {
-      const response = await api.get(`/products/code/${sku}`, {
-        params: { branchId: formData.branchId },
-      });
-      const p = response.data;
+      const p = await inventoryService.getMovementProduct(formData.branchId, sku, 'exit');
       if (!p || !p.id) {
         toast.error(`Producto no encontrado: ${sku}`);
         return;
@@ -150,13 +173,15 @@ export default function NuevaSalidaPage() {
           quantity,
           currentStock: stock,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
+          foreignToBranch: p.foreignToBranch,
         },
       ]);
       toast.success(`${p.name}${quantity > 1 ? ` x${quantity}` : ''} agregado`);
       setSkuCode('');
-    } catch {
-      toast.error(`Producto no encontrado: ${sku}`);
+    } catch (error) {
+      // Una clave de otro país sin piezas trae el motivo del servidor.
+      toast.error(toProductLookupFailure(error, sku).message);
     } finally {
       setSkuSearching(false);
     }
@@ -182,32 +207,32 @@ export default function NuevaSalidaPage() {
     if (bulkLines.length === 0) return;
     setBulkProcessing(true);
 
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       bulkLines.map(async ({ sku, quantity }) => {
-        const response = await api.get(`/products/code/${sku}`, {
-          params: { branchId: formData.branchId },
-        });
-        const p = response.data;
-        if (!p || !p.id) throw new Error(sku);
-        return { product: p, quantity, sku };
+        try {
+          const product = await inventoryService.getMovementProduct(formData.branchId, sku, 'exit');
+          return { ok: true as const, product, quantity, sku };
+        } catch (error) {
+          return { ok: false as const, failure: toProductLookupFailure(error, sku) };
+        }
       })
     );
 
     let added = 0;
-    const notFound: string[] = [];
+    const failures: ProductLookupFailure[] = [];
     const outOfStock: string[] = [];
     const adjusted: string[] = [];
     const newItems = [...items];
 
     for (const result of results) {
-      if (result.status === 'rejected') {
-        notFound.push(result.reason?.message || 'desconocido');
+      if (!result.ok) {
+        failures.push(result.failure);
         continue;
       }
-      const { product: p, quantity } = result.value;
+      const { product: p, quantity } = result;
       const stock = p.stock ?? 0;
       if (stock <= 0) {
-        outOfStock.push(p.code || result.value.sku);
+        outOfStock.push(p.code || result.sku);
         continue;
       }
       const existing = newItems.find((item) => item.productId === p.id);
@@ -220,12 +245,13 @@ export default function NuevaSalidaPage() {
       } else {
         newItems.push({
           productId: p.id,
-          productCode: p.code || result.value.sku,
+          productCode: p.code || result.sku,
           productName: p.name,
           quantity: effectiveQty,
           currentStock: stock,
           lots: [],
-          productType: p.productType,
+          productType: p.productType ?? undefined,
+          foreignToBranch: p.foreignToBranch,
         });
         added++;
       }
@@ -236,8 +262,12 @@ export default function NuevaSalidaPage() {
     if (added > 0) {
       toast.success(`${added} producto${added > 1 ? 's' : ''} agregado${added > 1 ? 's' : ''}`);
     }
+    const { notFound, foreign } = splitLookupFailures(failures);
     if (notFound.length > 0) {
       toast.error(`SKU no encontrados: ${notFound.join(', ')}`);
+    }
+    if (foreign.length > 0) {
+      toast.error(foreignBulkMessage(foreign));
     }
     if (outOfStock.length > 0) {
       toast.error(`Sin existencias: ${outOfStock.join(', ')}`);
@@ -254,7 +284,14 @@ export default function NuevaSalidaPage() {
   const selectedBranch = branches?.find((b) => b.id === formData.branchId);
   const selectedReasonLabel = EXIT_REASONS.find((r) => r.value === formData.reason)?.label || '';
 
-  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number; productType?: string }) => {
+  const handleAddProduct = (product: {
+    id: string;
+    code: string;
+    name: string;
+    currentStock: number;
+    productType?: string;
+    foreignToBranch?: boolean;
+  }) => {
     if (items.some((item) => item.productId === product.id)) return;
     setItems([
       ...items,
@@ -266,6 +303,7 @@ export default function NuevaSalidaPage() {
         currentStock: product.currentStock,
         lots: [],
         productType: product.productType,
+        foreignToBranch: product.foreignToBranch,
       },
     ]);
     setShowProductSearch(false);
@@ -512,6 +550,7 @@ export default function NuevaSalidaPage() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 truncate">{item.productName}</p>
                               <p className="text-sm text-gray-500 font-mono">{item.productCode}</p>
+                              {item.foreignToBranch && <ForeignKeyBadge />}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-xs text-gray-500">Disponible</p>
@@ -926,6 +965,7 @@ export default function NuevaSalidaPage() {
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-gray-900 text-sm truncate">{product.name}</p>
                                 <p className="text-xs text-gray-500 mt-0.5 font-mono">{product.code}</p>
+                                {product.foreignToBranch && <ForeignKeyBadge />}
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${

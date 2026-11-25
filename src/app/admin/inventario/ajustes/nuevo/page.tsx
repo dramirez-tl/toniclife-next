@@ -32,6 +32,13 @@ import { CountType } from '@/types/inventory';
 import type { CreateAdjustmentDto } from '@/types/inventory';
 import { inventoryService } from '@/services/inventory.service';
 import { exportInventoryCountPdf } from './exportCountPdf';
+import {
+  clampCountQuantity,
+  countUpperLimit,
+  FOREIGN_KEY_COUNT_BADGE,
+  FOREIGN_KEY_HELP,
+  isForeignStockRow,
+} from '@/lib/inventory/foreign-product';
 
 interface AdjustmentItem {
   productId: string;
@@ -41,6 +48,8 @@ interface AdjustmentItem {
   newQuantity: number;
   difference: number;
   reason?: string;
+  /** Clave de otro país: en el conteo solo se confirma o se baja. */
+  foreign?: boolean;
 }
 
 export default function NuevoAjustePage() {
@@ -54,18 +63,21 @@ export default function NuevoAjustePage() {
   });
   const [items, setItems] = useState<AdjustmentItem[]>([]);
   const [filter, setFilter] = useState('');
+  const [onlyForeign, setOnlyForeign] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Sucursales para el selector
   const { data: branches } = useActiveBranches();
 
-  // Al seleccionar sucursal se cargan TODOS sus productos (todas las páginas)
+  // Al seleccionar sucursal se cargan TODOS sus productos (todas las páginas).
+  // 'count' = claves del país de la sucursal y, de las de otro país, solo las
+  // que aún tienen piezas: las demás ya no salen en la hoja de conteo.
   const {
     data: allStock,
     isLoading: stockLoading,
     isError: stockError,
     refetch: refetchStock,
-  } = useAllBranchStock(formData.branchId || null);
+  } = useAllBranchStock(formData.branchId || null, 'count');
 
   // Bloqueo del POS de la sucursal (manual + automático por conteo)
   const { data: lockState } = useBranchPosLock(formData.branchId || null);
@@ -105,10 +117,12 @@ export default function NuevoAjustePage() {
   useEffect(() => {
     if (!formData.branchId) {
       setItems([]);
+      setOnlyForeign(false);
       loadedBranchRef.current = '';
       return;
     }
     if (loadedBranchRef.current === formData.branchId) return;
+    setOnlyForeign(false);
 
     if (allStock) {
       loadedBranchRef.current = formData.branchId;
@@ -120,6 +134,7 @@ export default function NuevoAjustePage() {
           currentQuantity: stock.quantityOnHand,
           newQuantity: stock.quantityOnHand,
           difference: 0,
+          foreign: isForeignStockRow(stock),
         })),
       );
       setFilter('');
@@ -130,26 +145,25 @@ export default function NuevoAjustePage() {
   }, [formData.branchId, allStock]);
 
   const visibleItems = useMemo(() => {
+    // "Ver solo esas claves" (aviso de claves de otro país).
+    const base = onlyForeign ? items.filter((i) => i.foreign) : items;
     const q = filter.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    if (!q) return base;
+    return base.filter(
       (i) =>
         i.productName.toLowerCase().includes(q) ||
         i.productCode.toLowerCase().includes(q),
     );
-  }, [items, filter]);
+  }, [items, filter, onlyForeign]);
 
   const handleNewQuantityChange = (productId: string, newQuantity: number) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.productId === productId
-          ? {
-              ...item,
-              newQuantity: Math.max(0, newQuantity),
-              difference: Math.max(0, newQuantity) - item.currentQuantity,
-            }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.productId !== productId) return item;
+        // Una clave de otro país nunca sube: como mucho, lo que ya hay.
+        const next = clampCountQuantity(newQuantity, item.foreign, item.currentQuantity);
+        return { ...item, newQuantity: next, difference: next - item.currentQuantity };
+      }),
     );
   };
 
@@ -170,6 +184,14 @@ export default function NuevoAjustePage() {
           <>
             <div className="font-medium">{item.productName}</div>
             <div className="text-sm text-gray-500">{item.productCode}</div>
+            {item.foreign && (
+              <span
+                title={FOREIGN_KEY_HELP}
+                className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+              >
+                {FOREIGN_KEY_COUNT_BADGE}
+              </span>
+            )}
           </>
         ),
       },
@@ -189,6 +211,7 @@ export default function NuevoAjustePage() {
           <input
             type="number"
             min="0"
+            max={countUpperLimit(item.foreign, item.currentQuantity)}
             value={item.newQuantity}
             onChange={(e) =>
               handleNewQuantityChange(item.productId, parseInt(e.target.value) || 0)
@@ -319,6 +342,7 @@ export default function NuevoAjustePage() {
     .filter((item) => item.difference < 0)
     .reduce((sum, item) => sum + Math.abs(item.difference), 0);
   const diffCount = items.filter((item) => item.difference !== 0).length;
+  const foreignCount = items.filter((item) => item.foreign).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -513,6 +537,35 @@ export default function NuevoAjustePage() {
                 La columna «Existencias en Sistema» es la lectura de cuando cargaste la sucursal.
                 Si hubo ventas o movimientos mientras contabas, el servidor calcula la diferencia
                 con la existencia real en el momento de crear el conteo, no con la que ves aquí.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {formData.branchId && foreignCount > 0 && (
+            <Alert className="mb-4 border-amber-200 bg-amber-50 text-amber-900">
+              <InformationCircleIcon className="h-4 w-4" />
+              <AlertTitle>
+                {foreignCount === 1
+                  ? 'Hay 1 clave de otro país con piezas en esta sucursal'
+                  : `Hay ${foreignCount} claves de otro país con piezas en esta sucursal`}
+              </AlertTitle>
+              <AlertDescription className="text-amber-900">
+                <p>
+                  {foreignCount === 1
+                    ? 'No tiene precio en el país de esta sucursal, así que aquí no se maneja. En el conteo solo puedes confirmar lo que hay o bajarlo; para sacarla usa una salida.'
+                    : 'No tienen precio en el país de esta sucursal, así que aquí no se manejan. En el conteo solo puedes confirmar lo que hay o bajarlo; para sacarlas usa una salida.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOnlyForeign((v) => !v)}
+                  className="mt-2 inline-flex items-center rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                >
+                  {onlyForeign
+                    ? 'Ver todos los productos'
+                    : foreignCount === 1
+                      ? 'Ver solo esa clave'
+                      : 'Ver solo esas claves'}
+                </button>
               </AlertDescription>
             </Alert>
           )}
