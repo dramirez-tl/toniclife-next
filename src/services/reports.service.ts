@@ -56,6 +56,8 @@ import type {
   CashCutQuery,
   CashCutResponse,
   OnlineSalesByCountryResponse,
+  InventoryFlowQuery,
+  InventoryFlowResponse,
 } from '@/types/reports';
 import { normalizeOnlineSales } from '@/lib/store-country/online-sales';
 
@@ -664,6 +666,40 @@ class ReportsService {
     if (!data) throw new Error('El servidor respondió los ingresos en línea en un formato que no se pudo leer.');
     return data;
   }
+
+  // ================================
+  // INVENTARIO Y VENTAS (Operaciones México, 24-nov-2026)
+  // ================================
+
+  /**
+   * Inventario inicial, entradas a almacén, ventas e inventario al cierre de los más
+   * vendidos del periodo, en piezas. Backend: GET /reports/inventory-flow.
+   */
+  async getInventoryFlow(query: InventoryFlowQuery): Promise<InventoryFlowResponse> {
+    const response = await api.get<InventoryFlowResponse>('/reports/inventory-flow', {
+      params: inventoryFlowParams(query),
+    });
+    return response.data;
+  }
+
+  /** Backend: GET /reports/inventory-flow/xlsx — descarga `filename` (el nombre lo arma la página). */
+  async downloadInventoryFlowXlsx(query: InventoryFlowQuery, filename: string): Promise<void> {
+    const response = await api.get('/reports/inventory-flow/xlsx', {
+      params: inventoryFlowParams(query),
+      responseType: 'blob',
+    });
+    // Content-Disposition no se expone por CORS: el nombre se arma aquí.
+    saveBlob(response.data as BlobPart, filename, XLSX_MIME);
+  }
+}
+
+/** Solo viajan los filtros que la persona eligió; lo demás lo decide el servidor. */
+function inventoryFlowParams(query: InventoryFlowQuery): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  if (query.periodId) params.periodId = query.periodId;
+  if (query.currency) params.currency = query.currency;
+  if (query.top) params.top = query.top;
+  return params;
 }
 
 export const reportsService = new ReportsService();

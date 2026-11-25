@@ -1365,3 +1365,108 @@ export interface OnlineSalesByCountryResponse {
   /** Siempre vienen los cuatro países con tienda, en ceros si no hubo pedidos. */
   countries: OnlineSalesCountry[];
 }
+
+// ================================
+// INVENTARIO Y VENTAS (Operaciones México, 24-nov-2026)
+// ================================
+// Backend: GET /reports/inventory-flow. Todo en piezas.
+
+/** Zona del reporte: la moneda de la sucursal (México incluye Frontera). */
+export type InventoryFlowCurrency = 'MXN' | 'USD' | 'COP' | 'GTQ';
+export type InventoryFlowGroup = 'general' | 'warehouse' | 'store';
+
+export interface InventoryFlowQuery {
+  /** Periodo de comisiones; sin él, el que está en curso. */
+  periodId?: string;
+  currency?: InventoryFlowCurrency;
+  /** Cuántos productos (los más vendidos). Default 15. */
+  top?: number;
+}
+
+export interface InventoryFlowPeriod {
+  id: string;
+  number: number;
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  isClosed: boolean;
+}
+
+export interface InventoryFlowBranchRef {
+  code: string;
+  name: string;
+}
+
+export interface InventoryFlowStock {
+  /** Almacén general. */
+  general: number;
+  /** Otros almacenes. */
+  warehouses: number;
+  /** Tiendas (sucursales y CEDEAS). */
+  stores: number;
+  /** Traspasos enviados y aún no recibidos. */
+  transit: number;
+  total: number;
+}
+
+export interface InventoryFlowBranchRow {
+  branchId: string;
+  code: string;
+  name: string;
+  group: InventoryFlowGroup;
+  opening: number;
+  /** Producción y compras recibidas en esta sucursal. */
+  entries: number;
+  received: number;
+  sent: number;
+  sales: number;
+  other: number;
+  closing: number;
+}
+
+export interface InventoryFlowProductRow {
+  rank: number;
+  productId: string;
+  code: string;
+  name: string;
+  opening: InventoryFlowStock;
+  /** Producción y compras recibidas en almacén. */
+  entries: number;
+  salesGross: number;
+  saleReturns: number;
+  /** Piezas vendidas, netas de cancelaciones. */
+  sales: number;
+  /** Ajustes, mermas, devoluciones, conteos y faltantes de traspaso. */
+  other: number;
+  closing: InventoryFlowStock;
+  branches: InventoryFlowBranchRow[];
+}
+
+export interface InventoryFlowTotals {
+  products: number;
+  opening: InventoryFlowStock;
+  entries: number;
+  sales: number;
+  other: number;
+  closing: InventoryFlowStock;
+}
+
+export interface InventoryFlowResponse {
+  period: InventoryFlowPeriod;
+  currency: InventoryFlowCurrency;
+  region: string;
+  top: number;
+  /** true = el periodo sigue en curso y el cierre es la existencia de este momento. */
+  inProgress: boolean;
+  /** Día de negocio del cierre: YYYY-MM-DD. */
+  closingDate: string;
+  generatedAt: string;
+  groups: Record<InventoryFlowGroup, InventoryFlowBranchRef[]>;
+  excluded: InventoryFlowBranchRef[];
+  /** Periodos que se pueden consultar, del más reciente al más antiguo. */
+  periods: InventoryFlowPeriod[];
+  totals: InventoryFlowTotals;
+  rows: InventoryFlowProductRow[];
+}

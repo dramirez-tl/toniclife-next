@@ -20,6 +20,7 @@ import type {
   ImportKitBonusPaymentsPayload,
   CashCutQuery,
   SalesByProductDetailQuery,
+  InventoryFlowQuery,
 } from '@/types/reports';
 
 // ================================
@@ -336,6 +337,33 @@ export function useOnlineSalesByCountry(
     retry: false,
     staleTime: 1000 * 60,
     // Al cambiar de fechas se conserva lo anterior a la vista hasta que llega lo nuevo.
+    placeholderData: (prev) => prev,
+  });
+}
+
+// ================================
+// INVENTARIO Y VENTAS (Operaciones México, 24-nov-2026)
+// ================================
+
+/**
+ * Inventario inicial, entradas a almacén, ventas e inventario al cierre de los más
+ * vendidos del periodo. Sin reintentos: un 403 (sesión acotada a sus sucursales) o un
+ * 400 (periodo sin historial) se muestran con su motivo en vez de insistir.
+ */
+export function useInventoryFlow(query: InventoryFlowQuery) {
+  return useQuery({
+    queryKey: [
+      'reports',
+      'inventory-flow',
+      query.periodId ?? 'current',
+      query.currency ?? 'MXN',
+      query.top ?? 15,
+    ],
+    queryFn: () => reportsService.getInventoryFlow(query),
+    retry: false,
+    // Las existencias cambian con cada venta: caché corta.
+    staleTime: 1000 * 60,
+    // Al cambiar de periodo o de zona se conserva lo anterior hasta que llega lo nuevo.
     placeholderData: (prev) => prev,
   });
 }
