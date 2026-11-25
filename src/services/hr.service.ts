@@ -28,6 +28,7 @@ import type {
   AttendanceDayQuery,
   AttendanceDaySummary,
   ManualAttendanceInput,
+  CorrectAttendanceInput,
   Vacation,
   VacationStatus,
   VacationListResponse,
@@ -383,6 +384,15 @@ class HrService {
   /** Captura manual de RRHH (requiere hr:manage); queda marcada como 'manual'. */
   async registerManualAttendance(input: ManualAttendanceInput): Promise<AttendanceEvent> {
     const { data } = await api.post<AttendanceEvent>('/hr/attendance/manual', input);
+    return data;
+  }
+
+  /**
+   * Corrige una checada ya registrada (permiso hr:manage). `input` trae solo
+   * lo que cambió más el motivo; regresa el evento ya corregido.
+   */
+  async correctAttendance(id: string, input: CorrectAttendanceInput): Promise<AttendanceEvent> {
+    const { data } = await api.patch<AttendanceEvent>(`/hr/attendance/${id}`, input);
     return data;
   }
 

@@ -15,6 +15,7 @@ import type {
   AttendanceQuery,
   AttendanceDayQuery,
   ManualAttendanceInput,
+  CorrectAttendanceInput,
   VacationQuery,
   CreateVacationDto,
   ReviewVacationDto,
@@ -371,6 +372,30 @@ export function useManualAttendance() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
       void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
+    },
+  });
+}
+
+/**
+ * Corrección de una checada ya registrada (hr:manage). Los toasts se disparan
+ * en la página.
+ */
+export function useCorrectAttendance() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CorrectAttendanceInput }) =>
+      hrApi.correctAttendance(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
+      void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
+      // La pestaña Asistencia del expediente usa otra llave (employeeAttendance,
+      // cuelga de employees()): se refrescan las de cualquier empleado, sin
+      // depender de lo que traiga la respuesta.
+      void queryClient.invalidateQueries({
+        queryKey: hrKeys.employees(),
+        predicate: (query) => query.queryKey[3] === 'attendance',
+      });
     },
   });
 }

@@ -6,7 +6,7 @@
 // número, la webcam toma la foto y el API guarda el toque con la sucursal de
 // la TERMINAL. Aquí solo se consulta (pestañas "Eventos" y "Resumen del día")
 // y, con permiso hr:manage, se captura a mano lo que el checador no alcanzó a
-// registrar.
+// registrar y se corrige (tipo u hora, con motivo) una checada mal registrada.
 //
 // Los cuatro tipos replican el checador viejo (v1): Entrada, Salida a comer,
 // Regreso de comer y Salida.
@@ -21,6 +21,7 @@ import {
   ArrowDownTrayIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  PencilIcon,
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
@@ -47,6 +48,7 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import {
   useAttendance,
   useAttendanceDay,
+  useCorrectAttendance,
   useEmployee,
   useEmployees,
   useManualAttendance,
@@ -57,6 +59,14 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import { csvDateStamp, exportToCsv } from '@/lib/csv-export';
 import { DEFAULT_TIMEZONE, formatTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
+import {
+  CORRECTION_REASON_MAX,
+  CORRECTION_REASON_MIN,
+  buildAttendanceCorrection,
+  correctionReason,
+  localInputToIso,
+  timeInputValue,
+} from '@/lib/attendance/correction';
 import {
   addDays,
   apiErrorMessage,
@@ -95,46 +105,9 @@ const CSV_PAGE_SIZE = 200;
 // ---------------------------------------------------------------------------
 //
 // todayCdmx, addDays, apiErrorMessage, csvSafe y hasManagePermission viven en
-// ../hr-utils (las comparten todas las pantallas de RRHH).
-
-/** Desfase (ms) de una zona respecto a UTC en ese instante. */
-function timezoneOffsetMs(instant: Date, timezone: string): number {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: resolveTimeZone(timezone),
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(instant);
-  const p: Record<string, string> = {};
-  for (const part of parts) p[part.type] = part.value;
-  const hour = p.hour === '24' ? '00' : p.hour;
-  const asUtc = Date.UTC(
-    Number(p.year),
-    Number(p.month) - 1,
-    Number(p.day),
-    Number(hour),
-    Number(p.minute),
-    Number(p.second),
-  );
-  return asUtc - instant.getTime();
-}
-
-/**
- * Convierte la fecha y hora tecleadas (hora LOCAL de la sucursal) al instante
- * ISO que espera el API. RRHH puede estar en CDMX capturando un evento de
- * Tijuana o Cancún, así que se usa el desfase real de esa zona y no el del
- * navegador.
- */
-function localInputToIso(date: string, time: string, timezone: string): string | null {
-  if (!date || !time) return null;
-  const naive = new Date(`${date}T${time}:00Z`);
-  if (Number.isNaN(naive.getTime())) return null;
-  return new Date(naive.getTime() - timezoneOffsetMs(naive, timezone)).toISOString();
-}
+// ../hr-utils (las comparten todas las pantallas de RRHH). localInputToIso
+// (hora local de la sucursal → ISO) y la regla de la corrección viven en
+// @/lib/attendance/correction, con su prueba.
 
 function isEventType(value: string): value is AttendanceEventType {
   return (ATTENDANCE_EVENT_TYPES as readonly string[]).includes(value);
@@ -201,6 +174,7 @@ function AsistenciaContent() {
   const [searchDraft, setSearchDraft] = useState(search);
   const [photo, setPhoto] = useState<PhotoTarget | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [correcting, setCorrecting] = useState<AttendanceEvent | null>(null);
 
   const permissions = useAppSelector(selectUserPermissions);
   const roles = useAppSelector(selectUserRoles);
@@ -393,6 +367,7 @@ function AsistenciaContent() {
             onPageChange={(p) => setParams({ page: String(p) })}
             onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
             onPhoto={setPhoto}
+            onCorrect={canManage ? setCorrecting : undefined}
           />
         </TabsContent>
 
@@ -421,6 +396,14 @@ function AsistenciaContent() {
           defaultDate={from}
         />
       )}
+
+      {/* Igual que la captura manual: se monta al abrir, con la checada elegida. */}
+      {canManage && correcting && (
+        <CorregirChecadaDialog
+          event={correcting}
+          onOpenChange={(open) => !open && setCorrecting(null)}
+        />
+      )}
     </div>
   );
 }
@@ -434,11 +417,14 @@ function EventosTab({
   onPageChange,
   onPageSizeChange,
   onPhoto,
+  onCorrect,
 }: {
   query: AttendanceQuery;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onPhoto: (target: PhotoTarget) => void;
+  /** Solo llega con permiso hr:manage; sin él no se pinta la acción «Corregir». */
+  onCorrect?: (event: AttendanceEvent) => void;
 }) {
   const { data, isLoading, isFetching, error } = useAttendance(query);
   const [exporting, setExporting] = useState(false);
@@ -586,6 +572,26 @@ function EventosTab({
     },
   ];
 
+  if (onCorrect) {
+    columns.push({
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (ev) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          title="Corregir el tipo o la hora de esta checada"
+          onClick={() => onCorrect(ev)}
+        >
+          <PencilIcon className="mr-1 h-4 w-4" />
+          Corregir
+        </Button>
+      ),
+    });
+  }
+
   if (error) {
     return <ErrorCard message="No se pudieron cargar los eventos del checador." />;
   }
@@ -649,6 +655,17 @@ function EventosTab({
                   <p className="mt-1 text-xs text-muted-foreground">
                     {ev.localDate} · {eventTime(ev)} · {ev.branchName ?? '—'}
                   </p>
+                  {onCorrect && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => onCorrect(ev)}
+                    >
+                      <PencilIcon className="mr-1 h-4 w-4" />
+                      Corregir
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -674,7 +691,7 @@ function EventosTab({
             data={events}
             isLoading={isLoading && !data}
             getRowKey={(ev) => ev.id}
-            minWidthClassName="min-w-[900px]"
+            minWidthClassName={onCorrect ? 'min-w-[1000px]' : 'min-w-[900px]'}
             emptyState={
               <div className="py-8 text-center">
                 <ClockIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -1393,6 +1410,172 @@ function CapturaManualDialog({
           <Button onClick={submit} disabled={manual.isPending}>
             {manual.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Corregir una checada (hr:manage)
+// ---------------------------------------------------------------------------
+//
+// En el checador cada paso del día se registra UNA sola vez; lo que quedó mal
+// (tipo equivocado, hora que no es) se corrige aquí. Qué se manda al API lo
+// decide buildAttendanceCorrection: solo lo que cambió más el motivo.
+
+function CorregirChecadaDialog({
+  event,
+  onOpenChange,
+}: {
+  event: AttendanceEvent;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [eventType, setEventType] = useState<AttendanceEventType>(event.eventType);
+  const [date, setDate] = useState(event.localDate);
+  const [time, setTime] = useState(() => timeInputValue(event.localTime));
+  const [reason, setReason] = useState('');
+  // Reloj contra el que se revisa que la hora no sea futura: se toma al abrir
+  // y se refresca cada vez que se toca la fecha o la hora.
+  const [now, setNow] = useState(() => new Date());
+  const correct = useCorrectAttendance();
+
+  const check = buildAttendanceCorrection(event, { eventType, date, time, reason }, now);
+  const reasonLength = correctionReason(reason).length;
+  // La hora se teclea como hora LOCAL de la sucursal donde se checó.
+  const timezone = resolveTimeZone(event.timezone);
+  const maxDate = now.toLocaleDateString('en-CA', { timeZone: timezone });
+  const timeIssue =
+    !check.ok && (check.issue === 'invalid_datetime' || check.issue === 'future_time')
+      ? check.message
+      : null;
+  // Por qué sigue apagado «Guardar corrección» cuando el motivo no es la causa.
+  const pendingHint =
+    !check.ok && (check.issue === 'nothing_changed' || check.issue === 'invalid_type')
+      ? check.message
+      : null;
+
+  const submit = async () => {
+    if (!check.ok) return;
+    try {
+      await correct.mutateAsync({ id: event.id, input: check.input });
+      toast.success('Checada corregida');
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo corregir la checada'));
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Corregir checada</DialogTitle>
+          <DialogDescription>
+            Cambia el tipo o la hora de una checada que quedó mal registrada.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-sm font-medium">
+              <span className="font-mono">{event.employeeNumber}</span> ·{' '}
+              {event.employeeName ?? 'Sin nombre'}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>Registrado:</span>
+              <Badge variant={EVENT_TYPE_VARIANTS[event.eventType] ?? 'secondary'}>
+                {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
+              </Badge>
+              <span className="tabular-nums">
+                {event.localDate} · {eventTime(event)}
+              </span>
+              {event.branchName && <span>· {event.branchName}</span>}
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Tipo de evento</Label>
+            <SearchableSelect
+              options={ATTENDANCE_EVENT_TYPES.map((t) => ({
+                value: t,
+                label: EVENT_TYPE_LABELS[t],
+              }))}
+              value={eventType}
+              onChange={(v) => isEventType(v) && setEventType(v)}
+              showAllOption={false}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="correccion-fecha">Fecha</Label>
+              <Input
+                id="correccion-fecha"
+                type="date"
+                value={date}
+                max={maxDate}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setNow(new Date());
+                }}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="correccion-hora">Hora</Label>
+              <Input
+                id="correccion-hora"
+                type="time"
+                value={time}
+                onChange={(e) => {
+                  setTime(e.target.value);
+                  setNow(new Date());
+                }}
+              />
+            </div>
+          </div>
+          {timeIssue && (
+            <p role="alert" className="text-xs text-red-600">
+              {timeIssue}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            La hora se guarda como hora local de la sucursal ({timezone}).
+          </p>
+
+          <div className="grid gap-2">
+            <Label htmlFor="correccion-motivo">Motivo de la corrección</Label>
+            <Textarea
+              id="correccion-motivo"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Qué pasó (marcó salida en vez de comida, checó a otra hora...)"
+              rows={3}
+              maxLength={CORRECTION_REASON_MAX}
+            />
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>Obligatorio, mínimo {CORRECTION_REASON_MIN} caracteres.</span>
+              <span className="tabular-nums">
+                {reasonLength}/{CORRECTION_REASON_MAX}
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            La checada original queda en la bitácora de auditoría y el motivo se agrega a las
+            notas del registro.
+          </p>
+          {pendingHint && <p className="text-xs text-muted-foreground">{pendingHint}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={!check.ok || correct.isPending}>
+            {correct.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar corrección
           </Button>
         </DialogFooter>
       </DialogContent>
