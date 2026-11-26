@@ -333,7 +333,8 @@ function CorteCajaContent() {
                   <span className="font-semibold text-gray-700">Pedido en linea</span> son pedidos de la tienda en
                   línea que esta sucursal surte o entrega: se cobraron en la tienda, con tarjeta o con ficha de OXXO
                   por Stripe, no en la caja ni en la terminal de la sucursal. Las demás formas de pago son lo que sí
-                  pasó por la caja.
+                  pasó por la caja. Cada pedido en línea cuenta el día en que se pagó, que es el mismo de su
+                  factura; si se pidió otro día (una ficha de OXXO pagada después), su renglón lo dice.
                 </p>
               )}
             </div>
