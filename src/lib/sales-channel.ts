@@ -58,7 +58,7 @@ export function saleFolioHref(line: { saleNumber: string; channel?: string | nul
 
 const POS_COVERAGE = 'Ventas de caja completadas (no canceladas), día y hora locales de la sucursal.';
 const ONLINE_COVERAGE =
-  'Pedidos de la tienda en línea pagados, en la sucursal que los surte o donde se recogen y en la fecha del pedido.';
+  'Pedidos de la tienda en línea pagados, en la sucursal que los surte o donde se recogen y en el día en que se pagaron (el mismo de su factura).';
 
 /** Qué cuenta el reporte según el canal elegido (la nota bajo los filtros). */
 export function channelCoverageText(filter: SalesChannelFilter | null | undefined): string {
