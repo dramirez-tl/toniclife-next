@@ -57,7 +57,7 @@ import type {
 } from '@/types/reports';
 
 const TH = 'px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap';
-// Los títulos numéricos se parten en dos renglones para que las 12 columnas quepan sin desplazar.
+// Los títulos numéricos se parten en dos renglones para que las 12 columnas de cifras quepan sin desplazar.
 const TH_NUM =
   'h-auto w-[5.5rem] px-2.5 py-2 text-right align-bottom text-xs font-semibold uppercase leading-tight tracking-wide text-muted-foreground whitespace-normal';
 const TD_NUM = 'px-2.5 py-2.5 text-right text-sm tabular-nums whitespace-nowrap';
@@ -74,8 +74,8 @@ const TH_DETAIL_NUM = `${TH_NUM} sticky top-0 z-10 bg-slate-50 ${STICKY_LINE}`;
 // El componente Table envuelve la tabla en un contenedor con desplazamiento horizontal propio; se le
 // quita para que el desplazamiento (y lo fijo del encabezado) sea el del contenedor de aquí.
 const SCROLL_BOX = '[&_[data-slot=table-container]]:overflow-visible overflow-auto';
-/** Columnas de la tabla principal (para el renglón del desglose). */
-const COLUMNS = 16;
+/** Columnas de la tabla principal (para el renglón del desglose). La última es la del informe PDF. */
+const COLUMNS = 17;
 
 export default function InventarioVentasPage() {
   return (
@@ -105,7 +105,8 @@ function InventarioVentasContent() {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
-  const [makingPdf, setMakingPdf] = useState(false);
+  // Producto del que se está generando el informe PDF (uno a la vez).
+  const [pdfFor, setPdfFor] = useState<string | null>(null);
 
   const { data, isLoading, isFetching, error, refetch } = useInventoryFlow({ periodId, currency, top });
 
@@ -134,18 +135,19 @@ function InventarioVentasContent() {
     }
   };
 
-  // Informe membretado de lo que se ve en la tabla (zona, periodo y productos filtrados). Se arma en
-  // el navegador; jsPDF se carga hasta que se pide.
-  const handlePdf = async () => {
-    if (!data || rows.length === 0) return;
-    setMakingPdf(true);
+  // Informe membretado de UN producto, el del renglón donde se pide (Diego, 25-nov-2026: "que sea en
+  // cada producto… para yo elegir de cuál quiero el informe y no de todos"). Lleva la zona y el periodo
+  // que se ven. Se arma en el navegador; jsPDF se carga hasta que se pide.
+  const handlePdf = async (row: InventoryFlowProductRow) => {
+    if (!data || pdfFor) return;
+    setPdfFor(row.productId);
     try {
       const { downloadInventoryFlowPdf } = await import('@/lib/reports/inventory-flow-pdf');
-      await downloadInventoryFlowPdf(data, rows);
+      await downloadInventoryFlowPdf(data, [row]);
     } catch {
-      toast.error('No se pudo generar el informe PDF');
+      toast.error(`No se pudo generar el informe PDF de ${row.code}`);
     } finally {
-      setMakingPdf(false);
+      setPdfFor(null);
     }
   };
 
@@ -252,16 +254,6 @@ function InventarioVentasContent() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={handlePdf}
-                  disabled={!data || rows.length === 0 || makingPdf}
-                  title="Informe membretado de los productos que se ven en la tabla, con lo que debe haber en cada sucursal para el conteo"
-                >
-                  <DocumentTextIcon className="h-4 w-4" />
-                  {makingPdf ? 'Generando…' : 'Informe PDF'}
-                </Button>
-                <Button
-                  type="button"
                   onClick={handleDownload}
                   disabled={!data || data.rows.length === 0 || downloading}
                 >
@@ -342,6 +334,7 @@ function InventarioVentasContent() {
                             {closingTitle(data)}
                           </TableHead>
                           <TableHead className={`${TH_GROUP} border-l`} />
+                          <TableHead className={`${TH_GROUP} border-l`} />
                         </TableRow>
                         <TableRow className="bg-slate-100 hover:bg-slate-100">
                           <TableHead className={`${TH_HEAD} w-8`}>
@@ -362,6 +355,7 @@ function InventarioVentasContent() {
                           <TableHead className={TH_HEAD_NUM}>Tiendas</TableHead>
                           <TableHead className={TH_HEAD_NUM}>En camino</TableHead>
                           <TableHead className={`${TH_HEAD_NUM} border-l`}>Total al cierre</TableHead>
+                          <TableHead className={`${TH_HEAD} w-[4.75rem] border-l text-center align-bottom`}>Informe</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -372,6 +366,8 @@ function InventarioVentasContent() {
                             report={data}
                             isOpen={open.has(row.productId)}
                             onToggle={() => toggle(row.productId)}
+                            pdfState={pdfFor === row.productId ? 'making' : pdfFor ? 'busy' : 'idle'}
+                            onPdf={() => handlePdf(row)}
                           />
                         ))}
                         {rows.length === data.rows.length && data.rows.length > 1 && (
@@ -391,6 +387,7 @@ function InventarioVentasContent() {
                             <TableCell className={TD_NUM}>{pieces(data.totals.closing.stores)}</TableCell>
                             <TableCell className={TD_NUM}>{pieces(data.totals.closing.transit)}</TableCell>
                             <TableCell className={`${TD_NUM} border-l`}>{pieces(data.totals.closing.total)}</TableCell>
+                            <TableCell className="border-l" />
                           </TableRow>
                         )}
                       </TableBody>
@@ -450,11 +447,16 @@ function ProductRows({
   report,
   isOpen,
   onToggle,
+  pdfState,
+  onPdf,
 }: {
   row: InventoryFlowProductRow;
   report: InventoryFlowResponse;
   isOpen: boolean;
   onToggle: () => void;
+  /** making = se genera el de este producto · busy = se genera el de otro. */
+  pdfState: 'idle' | 'making' | 'busy';
+  onPdf: () => void;
 }) {
   const detailId = `inventory-flow-detail-${row.productId}`;
   return (
@@ -494,6 +496,26 @@ function ProductRows({
         <TableCell className={`${TD_NUM} font-medium`}>{pieces(row.closing.stores)}</TableCell>
         <TableCell className={`${TD_NUM} text-muted-foreground`}>{pieces(row.closing.transit)}</TableCell>
         <TableCell className={`${TD_NUM} border-l font-semibold`}>{pieces(row.closing.total)}</TableCell>
+        {/* El clic en esta celda no abre el desglose: aquí solo se pide el informe. */}
+        <TableCell className="border-l px-2.5 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            disabled={pdfState !== 'idle'}
+            title={`Descargar el informe PDF de ${row.code}: sus cifras del periodo y lo que debe haber en cada sucursal para el conteo`}
+            aria-label={`Descargar el informe PDF de ${row.code} ${row.name}`}
+            onClick={onPdf}
+          >
+            {pdfState === 'making' ? (
+              <ArrowPathIcon className="size-3.5 animate-spin" />
+            ) : (
+              <DocumentTextIcon className="size-3.5" />
+            )}
+            PDF
+          </Button>
+        </TableCell>
       </TableRow>
       {isOpen && (
         <TableRow className="bg-muted/30 hover:bg-muted/30">

@@ -7,12 +7,16 @@
 // 9019, yo pida hacer el conteo final y debo tener eso 75".
 //
 // Se arma en el navegador (jsPDF) con lo que ya está en pantalla en Reportes ›
-// Inventario y Ventas: la zona, el periodo y los productos que se estén viendo.
-//   - Hoja 1: el resumen de todos los productos juntos y la tabla producto por
-//     producto (empezamos con, entraron, se vendieron, otros, quedan).
-//   - Una hoja por producto: las mismas cinco cifras y dónde deben estar las
-//     piezas que quedaron, sucursal por sucursal, con un recuadro para anotar el
-//     conteo físico.
+// Inventario y Ventas: la zona y el periodo que se estén viendo.
+//
+// El informe se pide POR PRODUCTO, desde su renglón (Diego, 25-nov-2026: "que sea
+// en cada producto… para yo elegir de cuál quiero el informe y no de todos"):
+//   - La hoja del producto: sus cinco cifras (empezamos con, entraron, se
+//     vendieron, otros, quedan) y dónde deben estar las piezas que quedaron,
+//     sucursal por sucursal, con un recuadro para anotar el conteo físico.
+//   - "Cómo leerlo" al pie de esa hoja si cabe; si no, en una hoja aparte.
+// Con varios productos (la pantalla ya no lo pide) sale primero una hoja con el
+// resumen de todos juntos y después una hoja por producto.
 //
 // Solo usa letras de la fuente estándar del PDF (Latin-1): nada de "−", "→" ni
 // comillas tipográficas, que saldrían como símbolos raros.
@@ -51,7 +55,7 @@ export interface InventoryFlowPdfLogo {
 }
 
 export interface InventoryFlowPdfOptions {
-  /** Productos a incluir (los que se ven en pantalla). Sin él, todos los del reporte. */
+  /** Productos a incluir. Uno solo = el informe de ese producto. Sin él, todos los del reporte. */
   products?: readonly InventoryFlowProductRow[];
   logo?: InventoryFlowPdfLogo | null;
 }
@@ -171,17 +175,51 @@ export function flowFigures(
   ];
 }
 
-/** "INFORME_INVENTARIO_NOVIEMBRE_2026_MXN_20261130.pdf" */
-export function inventoryFlowPdfFilename(
-  report: Pick<InventoryFlowResponse, 'period' | 'currency' | 'closingDate'>,
+/**
+ * Cómo se lee el informe. En el de un solo producto la tabla del conteo va en su
+ * misma hoja (o en la anterior, si las notas no cupieron): se nombra por su
+ * título. En el de varios está en las hojas que siguen al resumen.
+ */
+export function howToReadNotes(inProgress: boolean, singleProduct: boolean): string[] {
+  const where = singleProduct ? 'tabla "Dónde deben estar las piezas"' : 'hojas siguientes';
+  return [
+    'Empezamos con: las piezas que había al iniciar el primer día del periodo, sumando almacenes, tiendas y lo que iba en camino.',
+    'Entraron: producción y compras recibidas en almacén durante el periodo.',
+    'Se vendieron: piezas que salieron por venta en caja y en la tienda en línea, menos las que regresaron por cancelación. Cuenta también las que salieron dentro de un kit o como regalo de una promoción.',
+    'Otros movimientos: ajustes, mermas, caducidad, devoluciones al almacén, conteos físicos y faltantes de traspaso. Con signo + suman y con signo - restan.',
+    `${inProgress ? 'Quedan' : 'Quedaron'} = Empezamos con + Entraron - Se vendieron +/- Otros movimientos. Es lo que debe aparecer en el conteo físico, sucursal por sucursal (${where}).`,
+  ];
+}
+
+/** Renglón bajo el título de la hoja de un producto: su lugar en ventas, las fechas y de cuándo es la existencia. */
+export function productPeriodLine(
+  report: Pick<InventoryFlowResponse, 'period' | 'inProgress' | 'closingDate'>,
+  product: Pick<InventoryFlowProductRow, 'rank'>,
 ): string {
-  const period = report.period.name
+  const state = report.inProgress
+    ? `Periodo en curso: existencia al momento del informe (${shortDate(report.closingDate)})`
+    : `Periodo terminado: existencia al final del ${shortDate(report.closingDate)}`;
+  return `Número ${product.rank} en ventas del periodo · Del ${shortDate(report.period.startDate)} al ${shortDate(report.period.endDate)} · ${state}`;
+}
+
+const fileToken = (text: string) =>
+  text
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .toUpperCase();
-  return `INFORME_INVENTARIO_${period}_${report.currency}_${report.closingDate.replace(/-/g, '')}.pdf`;
+
+/**
+ * "INFORME_INVENTARIO_9019_NOVIEMBRE_2026_MXN_20261130.pdf" (de un producto) ·
+ * "INFORME_INVENTARIO_NOVIEMBRE_2026_MXN_20261130.pdf" (de varios).
+ */
+export function inventoryFlowPdfFilename(
+  report: Pick<InventoryFlowResponse, 'period' | 'currency' | 'closingDate'>,
+  product?: Pick<InventoryFlowProductRow, 'code'> | null,
+): string {
+  const code = product ? fileToken(product.code) : '';
+  return `INFORME_INVENTARIO_${code ? `${code}_` : ''}${fileToken(report.period.name)}_${report.currency}_${report.closingDate.replace(/-/g, '')}.pdf`;
 }
 
 /**
@@ -431,30 +469,54 @@ function countRow(doc: jsPDF, x: number, y: number, row: InventoryFlowCountRow, 
   doc.line(x, y + h, x + HALF_W - COUNT_COLS.box, y + h);
 }
 
+/** Título de las hojas de un producto: en el informe de varios lleva su lugar en ventas por delante. */
+function productTitle(product: InventoryFlowProductRow, standalone: boolean): string {
+  return standalone ? `${product.code} · ${product.name}` : `${product.rank}. ${product.code} · ${product.name}`;
+}
+
+function productHeading(doc: jsPDF, text: string): void {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...TEXT);
+  doc.text(fit(doc, text, CONTENT_W), MARGIN, BODY_TOP + 2);
+}
+
+/**
+ * Hojas de un producto. `standalone` = es el informe de ese producto: empieza en
+ * la primera hoja del documento y lleva las fechas del periodo bajo el título.
+ * Devuelve la y donde terminó la tabla del conteo en su última hoja.
+ */
 function productPage(
   doc: jsPDF,
   report: InventoryFlowResponse,
   product: InventoryFlowProductRow,
   logo: InventoryFlowPdfLogo | null | undefined,
-): void {
+  standalone = false,
+): number {
   const rows = countRows(product);
   const closingWord = report.inProgress ? 'hoy' : 'al cierre';
   const rowH = countRowHeight(rows.length);
   const perFirst = Math.floor((COUNT_BOTTOM - COUNT_TOP_FIRST - COUNT_HEAD_H + 0.01) / rowH);
   const perNext = Math.floor((COUNT_BOTTOM - COUNT_TOP_NEXT - COUNT_HEAD_H + 0.01) / rowH);
   const pages = paginateCountRows(rows, perFirst, perNext, (row) => row.kind === 'group');
+  let tableEnd = BODY_TOP;
 
   pages.forEach((columns, pageIndex) => {
-    doc.addPage();
+    // El documento nace con una hoja: el informe de un solo producto empieza en ella.
+    if (!(standalone && pageIndex === 0)) doc.addPage();
     letterhead(doc, report, logo);
     let y = BODY_TOP;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(...TEXT);
-    const title = `${product.rank}. ${product.code} · ${product.name}`;
-    doc.text(fit(doc, pageIndex === 0 ? title : `${title} (continúa)`, CONTENT_W), MARGIN, y + 2);
+    const title = productTitle(product, standalone);
+    productHeading(doc, pageIndex === 0 ? title : `${title} (continúa)`);
     y += 7;
     if (pageIndex === 0) {
+      if (standalone) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...MUTED);
+        doc.text(fit(doc, productPeriodLine(report, product), CONTENT_W), MARGIN, y + 0.8);
+        y += 4;
+      }
       y = figures(
         doc,
         y,
@@ -492,6 +554,8 @@ function productPage(
       countHeader(doc, x, y);
       column.forEach((row, i) => countRow(doc, x, y + COUNT_HEAD_H + i * rowH, row, rowH));
     });
+    const longest = Math.max(0, ...columns.map((column) => column.length));
+    tableEnd = longest > 0 ? y + COUNT_HEAD_H + longest * rowH : y + 6;
     if (pageIndex === pages.length - 1) {
       const by = BODY_BOTTOM - 13;
       doc.setFillColor(...SKY);
@@ -516,18 +580,81 @@ function productPage(
       );
     }
   });
+  return tableEnd;
 }
 
-/** Arma el informe. `options.products` = los productos que se ven en pantalla. */
+/** Renglones de "Cómo leerlo", ya partidos al ancho de la hoja. */
+const NOTE_LINE_H = 3.7;
+const NOTE_GAP = 1.2;
+
+function noteLines(doc: jsPDF, notes: readonly string[]): string[][] {
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  return notes.map((note) => doc.splitTextToSize(note, CONTENT_W - 4) as string[]);
+}
+
+/** Alto que ocupa el bloque "Cómo leerlo" contando su título. */
+function notesHeight(doc: jsPDF, notes: readonly string[]): number {
+  return 13 + noteLines(doc, notes).reduce((sum, lines) => sum + lines.length * NOTE_LINE_H + NOTE_GAP, 0);
+}
+
+/** Dibuja "Cómo leerlo" a partir de `y` (deja 8 mm de aire arriba). Devuelve la y donde termina. */
+function notesBlock(doc: jsPDF, y: number, notes: readonly string[]): number {
+  let cursor = sectionTitle(doc, 'Cómo leerlo', y + 8) + 2;
+  for (const lines of noteLines(doc, notes)) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...TEXT);
+    doc.text('·', MARGIN, cursor);
+    doc.text(lines, MARGIN + 3, cursor);
+    cursor += lines.length * NOTE_LINE_H + NOTE_GAP;
+  }
+  return cursor;
+}
+
+/** El informe de un solo producto: su hoja y, donde quepa, cómo leerlo. */
+function singleProductPdf(
+  doc: jsPDF,
+  report: InventoryFlowResponse,
+  product: InventoryFlowProductRow,
+  logo: InventoryFlowPdfLogo | null,
+): void {
+  const tableEnd = productPage(doc, report, product, logo, true);
+  const notes = howToReadNotes(report.inProgress, true);
+  // Al pie de la hoja van el recuadro de totales y la línea de "Contó": las notas caben solo si no los pisan.
+  const limit = BODY_BOTTOM - 13 - 3;
+  if (tableEnd + notesHeight(doc, notes) <= limit) {
+    notesBlock(doc, tableEnd, notes);
+    return;
+  }
+  doc.addPage();
+  letterhead(doc, report, logo);
+  productHeading(doc, productTitle(product, true));
+  notesBlock(doc, BODY_TOP + 1, notes);
+}
+
+/**
+ * Arma el informe. Con un solo producto en `options.products` es el informe de
+ * ese producto; con varios, un resumen de todos y una hoja por producto.
+ */
 export function buildInventoryFlowPdf(report: InventoryFlowResponse, options: InventoryFlowPdfOptions = {}): jsPDF {
   const products = [...(options.products ?? report.rows)];
   const logo = options.logo ?? null;
   const totals = pdfTotals(products);
   const doc = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true });
+  const only = products.length === 1 ? products[0] : null;
   doc.setProperties({
-    title: `Informe de inventario · ${report.region} · ${report.period.name}`,
+    title: only
+      ? `Informe de inventario · ${only.code} ${only.name} · ${report.region} · ${report.period.name}`
+      : `Informe de inventario · ${report.region} · ${report.period.name}`,
     author: 'Tonic Life',
   });
+
+  if (only) {
+    singleProductPdf(doc, report, only, logo);
+    footers(doc, report);
+    return doc;
+  }
 
   // ---- Hoja 1: resumen ----
   letterhead(doc, report, logo);
@@ -611,30 +738,13 @@ export function buildInventoryFlowPdf(report: InventoryFlowResponse, options: In
     );
   }
 
-  const notes = [
-    'Empezamos con: las piezas que había al iniciar el primer día del periodo, sumando almacenes, tiendas y lo que iba en camino.',
-    'Entraron: producción y compras recibidas en almacén durante el periodo.',
-    'Se vendieron: piezas que salieron por venta en caja y en la tienda en línea, menos las que regresaron por cancelación. Cuenta también las que salieron dentro de un kit o como regalo de una promoción.',
-    'Otros movimientos: ajustes, mermas, caducidad, devoluciones al almacén, conteos físicos y faltantes de traspaso. Con signo + suman y con signo - restan.',
-    `${report.inProgress ? 'Quedan' : 'Quedaron'} = Empezamos con + Entraron - Se vendieron +/- Otros movimientos. Es lo que debe aparecer en el conteo físico, sucursal por sucursal (hojas siguientes).`,
-  ];
-  const notesHeight = 9 + notes.length * 9;
-  if (y + notesHeight > BODY_BOTTOM) {
+  const notes = howToReadNotes(report.inProgress, false);
+  if (y + notesHeight(doc, notes) > BODY_BOTTOM) {
     doc.addPage();
     letterhead(doc, report, logo);
     y = BODY_TOP;
   }
-  y = sectionTitle(doc, 'Cómo leerlo', y + 8);
-  y += 2;
-  for (const note of notes) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(...TEXT);
-    const lines = doc.splitTextToSize(note, CONTENT_W - 4) as string[];
-    doc.text('·', MARGIN, y);
-    doc.text(lines, MARGIN + 3, y);
-    y += lines.length * 3.7 + 1.2;
-  }
+  notesBlock(doc, y, notes);
 
   // ---- Una hoja por producto ----
   for (const p of products) productPage(doc, report, p, logo);
@@ -681,12 +791,12 @@ export async function loadLetterheadLogo(): Promise<InventoryFlowPdfLogo | null>
   }
 }
 
-/** Genera y descarga el informe de lo que se ve en pantalla. */
+/** Genera y descarga el informe. Con un solo producto, el archivo lleva su clave. */
 export async function downloadInventoryFlowPdf(
   report: InventoryFlowResponse,
   products?: readonly InventoryFlowProductRow[],
 ): Promise<void> {
   const logo = await loadLetterheadLogo();
   const doc = buildInventoryFlowPdf(report, { products, logo });
-  doc.save(inventoryFlowPdfFilename(report));
+  doc.save(inventoryFlowPdfFilename(report, products?.length === 1 ? products[0] : null));
 }
