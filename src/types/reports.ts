@@ -1172,7 +1172,7 @@ export interface CashCutRow {
   currencyCode: string;
   paymentLabel: string;
   paymentMethod: string;
-  /** ISO 8601 UTC */
+  /** ISO 8601 UTC. En un pedido en línea es el momento de su PAGO (el día en que cuenta en el corte). */
   saleDateTime: string;
   /**
    * true = pedido de la tienda en línea asignado a la sucursal: se cobró en línea,
@@ -1180,7 +1180,10 @@ export interface CashCutRow {
    * "Stripe (OXXO)" o "Pedido en linea" si no se sabe.
    */
   isOnline?: boolean;
-  /** Solo pedidos en línea: dato extra del cobro, hoy la referencia de OXXO ("Referencia 9300…"). */
+  /**
+   * Solo pedidos en línea: dato extra del cobro. La referencia de OXXO ("Referencia 9300…") y,
+   * si se pidió otro día del que se pagó, cuándo ("Pedido del 15/11/2026").
+   */
   onlinePaymentLabel?: string | null;
 }
 
