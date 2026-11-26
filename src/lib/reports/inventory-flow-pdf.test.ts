@@ -6,11 +6,13 @@ import {
   countRowHeight,
   countRows,
   flowFigures,
+  howToReadNotes,
   inventoryFlowPdfFilename,
   paginateCountRows,
   pdfPieces,
   pdfSigned,
   pdfTotals,
+  productPeriodLine,
 } from './inventory-flow-pdf';
 
 function branch(over: Partial<InventoryFlowBranchRow> = {}): InventoryFlowBranchRow {
@@ -202,9 +204,9 @@ describe('el PDF', () => {
     expect(new TextDecoder('latin1').decode(bytes.slice(0, 5))).toBe('%PDF-');
   });
 
-  it('con un filtro en pantalla solo van los productos que se ven', () => {
+  it('solo van los productos que se piden; sin productos queda la hoja del resumen', () => {
     const rows = [product(), product({ rank: 2, productId: 'p2', code: '9316' }), product({ rank: 3, productId: 'p3', code: '8050' })];
-    expect(buildInventoryFlowPdf(report(rows), { products: [rows[1]] }).getNumberOfPages()).toBe(2);
+    expect(buildInventoryFlowPdf(report(rows), { products: [rows[0], rows[2]] }).getNumberOfPages()).toBe(3);
     expect(buildInventoryFlowPdf(report(rows), { products: [] }).getNumberOfPages()).toBe(1);
   });
 
@@ -212,8 +214,9 @@ describe('el PDF', () => {
     const many = Array.from({ length: 260 }, (_, i) =>
       branch({ branchId: `b${i}`, code: String(100 + i), name: `Sucursal ${i}`, group: 'store', closing: i + 1 }),
     );
-    const doc = buildInventoryFlowPdf(report([product({ branches: many })]));
-    expect(doc.getNumberOfPages()).toBeGreaterThan(2);
+    const rows = [product({ branches: many }), product({ rank: 2, productId: 'p2', code: '9316' })];
+    // Resumen + más de una hoja del primero + la del segundo.
+    expect(buildInventoryFlowPdf(report(rows)).getNumberOfPages()).toBeGreaterThan(3);
   });
 
   it('cien productos: la tabla del resumen salta de hoja con su encabezado', () => {
@@ -226,5 +229,65 @@ describe('el PDF', () => {
 
   it('nombre del archivo con periodo, zona y día del cierre', () => {
     expect(inventoryFlowPdfFilename(report([]))).toBe('INFORME_INVENTARIO_NOVIEMBRE_2026_MXN_20261130.pdf');
+  });
+});
+
+// Diego, 25-nov-2026: "el Informe en PDF quiero que sea en cada producto… para yo elegir de cuál
+// quiero el informe y no de todos".
+describe('el informe de un solo producto (se pide desde su renglón)', () => {
+  const stores = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      branch({ branchId: `b${i}`, code: String(100 + i), name: `Sucursal ${i}`, group: 'store', closing: i + 1 }),
+    );
+
+  it('es una sola hoja: la del producto, sin la hoja de resumen', () => {
+    const rows = [product(), product({ rank: 2, productId: 'p2', code: '9316' }), product({ rank: 3, productId: 'p3', code: '8050' })];
+    expect(buildInventoryFlowPdf(report(rows), { products: [rows[1]] }).getNumberOfPages()).toBe(1);
+    // Aunque el reporte solo traiga ese producto.
+    expect(buildInventoryFlowPdf(report([rows[0]])).getNumberOfPages()).toBe(1);
+  });
+
+  it('con las sucursales de México la tabla llena la hoja y "Cómo leerlo" pasa a la siguiente', () => {
+    const doc = buildInventoryFlowPdf(report([product({ branches: stores(70) })]));
+    expect(doc.getNumberOfPages()).toBe(2);
+  });
+
+  it('con muchísimas sucursales la tabla sigue en otra hoja en vez de salirse', () => {
+    const doc = buildInventoryFlowPdf(report([product({ branches: stores(260) })]));
+    expect(doc.getNumberOfPages()).toBeGreaterThan(2);
+  });
+
+  it('sin piezas en ninguna sucursal también sale en una hoja', () => {
+    const empty = product({ branches: [], closing: { general: 0, warehouses: 0, stores: 0, transit: 0, total: 0 } });
+    expect(buildInventoryFlowPdf(report([empty])).getNumberOfPages()).toBe(1);
+  });
+
+  it('el archivo lleva la clave del producto', () => {
+    const r = report([]);
+    expect(inventoryFlowPdfFilename(r, { code: '9019' })).toBe('INFORME_INVENTARIO_9019_NOVIEMBRE_2026_MXN_20261130.pdf');
+    expect(inventoryFlowPdfFilename(r, { code: '8012-R' })).toBe('INFORME_INVENTARIO_8012_R_NOVIEMBRE_2026_MXN_20261130.pdf');
+    expect(inventoryFlowPdfFilename(r, { code: '9570m' })).toBe('INFORME_INVENTARIO_9570M_NOVIEMBRE_2026_MXN_20261130.pdf');
+    expect(inventoryFlowPdfFilename(r, null)).toBe('INFORME_INVENTARIO_NOVIEMBRE_2026_MXN_20261130.pdf');
+  });
+
+  it('bajo el título dice su lugar en ventas, las fechas del periodo y de cuándo es la existencia', () => {
+    expect(productPeriodLine(report([]), { rank: 4 })).toBe(
+      'Número 4 en ventas del periodo · Del 1 nov 2026 al 30 nov 2026 · Periodo terminado: existencia al final del 30 nov 2026',
+    );
+    expect(productPeriodLine(report([], { inProgress: true, closingDate: '2026-11-25' }), { rank: 1 })).toBe(
+      'Número 1 en ventas del periodo · Del 1 nov 2026 al 30 nov 2026 · Periodo en curso: existencia al momento del informe (25 nov 2026)',
+    );
+  });
+
+  it('"Cómo leerlo" nombra la tabla del conteo, que va en el mismo informe', () => {
+    const single = howToReadNotes(true, true);
+    expect(single).toHaveLength(5);
+    expect(single[4]).toContain('Quedan = Empezamos con + Entraron - Se vendieron +/- Otros movimientos');
+    expect(single[4]).toContain('tabla "Dónde deben estar las piezas"');
+    expect(howToReadNotes(false, false)[4]).toContain('Quedaron = ');
+    expect(howToReadNotes(false, false)[4]).toContain('hojas siguientes');
+    // La fuente estándar del PDF solo trae Latin-1.
+    const latin1 = /^[\x20-\xff]+$/;
+    for (const note of [...single, ...howToReadNotes(false, false)]) expect(note).toMatch(latin1);
   });
 });
