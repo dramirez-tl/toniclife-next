@@ -656,8 +656,9 @@ export default function VentasSucursalPage() {
               <span className="font-semibold text-gray-700">Cómo leer el total:</span> el total de cada sucursal es
               lo que cobró en su caja <span className="font-semibold text-gray-700">más</span> los pedidos de la
               tienda en línea que surte o entrega. Esos pedidos se pagan en la tienda (tarjeta u OXXO), no en la
-              caja: por eso el total puede ser mayor que el corte de la sucursal. En «Ver corte» cada pedido aparece
-              con su folio.
+              caja: por eso el total puede ser mayor que el corte de la sucursal. Cada pedido cuenta el día en que
+              se pagó, el mismo de su factura (una ficha de OXXO pagada después cuenta el día del pago). En «Ver
+              corte» cada pedido aparece con su folio.
             </p>
             <Table className="min-w-full">
               <TableHeader>

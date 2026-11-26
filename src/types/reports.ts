@@ -1224,7 +1224,7 @@ export interface SalesByProductDetailQuery extends DateRangeQuery {
 
 /**
  * Un renglón de venta de caja completada (día y hora locales de la sucursal) o de un pedido de la
- * tienda en línea pagado (sucursal que lo surte o donde se recoge, fecha del pedido).
+ * tienda en línea pagado (sucursal que lo surte o donde se recoge; día y hora en que se pagó).
  */
 export interface ProductSaleLine {
   saleId: string;
