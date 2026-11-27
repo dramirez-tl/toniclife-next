@@ -12,9 +12,11 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useSalesStats, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
-import { selectUserRoles } from '@/store';
-import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
+import { selectUserPermissions, selectUserRoles } from '@/store';
+import { apiErrorMessage } from '@/lib/branches/branch-cash-register';
 import { EditPaymentModal, PAYMENT_METHOD_OPTIONS } from '@/components/admin/pos/EditPaymentModal';
+import { PaymentChangesDialog } from '@/components/admin/pos/PaymentChangesDialog';
+import { canCorrectPaymentMethod } from '@/lib/pos/payment-changes';
 import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
@@ -906,9 +908,11 @@ function VentasReportesContent() {
   });
 
   const userRoles = useAppSelector(selectUserRoles);
-  // Contabilidad también define el método de un cobro "Por definir" (3-nov-2026):
-  // espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
-  const canEditPayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
+  // Corregir el método de pago (27-nov-2026): por el permiso pos:payment_method
+  // (Operaciones, Contabilidad) o por los roles que ya lo hacían. El API valida igual.
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const canEditPayment = canCorrectPaymentMethod(userRoles, userPermissions);
+  const [showPaymentChanges, setShowPaymentChanges] = useState(false);
 
   const selectedBranch = get('branch');
   const selectedStatus = get('status');
@@ -1023,10 +1027,10 @@ function VentasReportesContent() {
   }, [selectedBranch, selectedCustomerNumber, selectedSearch, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
-    (paymentMethod: string) => {
+    (paymentMethod: string, reason: string) => {
       if (!editingSale) return;
       updatePaymentMethod(
-        { id: editingSale.id, paymentMethod },
+        { id: editingSale.id, paymentMethod, reason },
         {
           onSuccess: (updated) => {
             // El API devuelve la venta ya guardada: en pago mixto solo define el
@@ -1266,6 +1270,7 @@ function VentasReportesContent() {
 
   return (
     <>
+    <PaymentChangesDialog open={showPaymentChanges} onOpenChange={setShowPaymentChanges} />
     {editingSale && (
       <EditPaymentModal
         sale={editingSale}
@@ -1517,6 +1522,16 @@ function VentasReportesContent() {
                     <ArrowDownTrayIcon className="h-4 w-4" />
                     {isExporting ? 'Exportando...' : 'Exportar CSV'}
                   </Button>
+                  {canEditPayment && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPaymentChanges(true)}
+                      title="Historial de correcciones del método de pago, con su motivo y el estado de su factura"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                      Cambios de método
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

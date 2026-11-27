@@ -1,7 +1,7 @@
 // hooks/usePos.ts - React Query hooks for POS module
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { posService } from '@/services/pos.service';
 import { customersService } from '@/services/customers.service';
 import { fetchAllCashRegisters } from '@/lib/branches/branch-cash-register';
@@ -22,6 +22,7 @@ import type {
   CreateCashMovementInput,
   CashMovementQueryParams,
 } from '@/types/pos';
+import type { PaymentChangesQuery } from '@/types/payment-changes';
 
 // ================================
 // QUERY KEYS
@@ -44,6 +45,10 @@ export const posKeys = {
   sales: () => [...posKeys.all, 'sales'] as const,
   saleList: (params?: SaleQueryParams) => [...posKeys.sales(), 'list', params] as const,
   saleDetail: (id: string) => [...posKeys.sales(), 'detail', id] as const,
+  // Corrección del método de pago: revisión previa e historial.
+  paymentPreview: (id: string, method: string) => [...posKeys.all, 'payment-preview', id, method] as const,
+  paymentChanges: () => [...posKeys.all, 'payment-changes'] as const,
+  paymentChangeList: (query?: PaymentChangesQuery) => [...posKeys.paymentChanges(), query] as const,
   saleSummary: (branchId: string, date?: string) => [...posKeys.sales(), 'summary', branchId, date] as const,
   // Movements
   movements: () => [...posKeys.all, 'movements'] as const,
@@ -257,17 +262,19 @@ export const useProcessPayment = () => {
 };
 
 /**
- * Update sale payment method mutation (admin/super_admin only)
+ * Corregir el método de pago de una venta, con motivo (permiso pos:payment_method
+ * o administración / Contabilidad).
  */
 export const useUpdateSalePaymentMethod = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, paymentMethod }: { id: string; paymentMethod: string }) =>
-      posService.updateSalePaymentMethod(id, paymentMethod),
+    mutationFn: ({ id, paymentMethod, reason }: { id: string; paymentMethod: string; reason: string }) =>
+      posService.updateSalePaymentMethod(id, paymentMethod, reason),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: posKeys.sales() });
       queryClient.invalidateQueries({ queryKey: posKeys.saleDetail(id) });
+      queryClient.invalidateQueries({ queryKey: posKeys.paymentChanges() });
       // El método de pago decide PUE/PPD, la forma SAT y si el ticket entra a
       // la global: Facturación (ventas por facturar, días y vista previa de la
       // global, cuadre) no debe seguir sirviendo su caché (3-nov-2026).
@@ -275,6 +282,31 @@ export const useUpdateSalePaymentMethod = () => {
     },
   });
 };
+
+/**
+ * Qué pasaría al corregir el método de pago de una venta (no cambia nada). Se
+ * pide al elegir un método distinto al actual; siempre fresco: la venta pudo
+ * facturarse mientras el diálogo estaba abierto.
+ */
+export const useSalePaymentPreview = (id: string, paymentMethod: string, enabled = true) =>
+  useQuery({
+    queryKey: posKeys.paymentPreview(id, paymentMethod),
+    queryFn: () => posService.previewSalePaymentMethod(id, paymentMethod),
+    enabled: enabled && !!id && !!paymentMethod,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+
+/** Historial de correcciones del método de pago. */
+export const usePaymentChanges = (query: PaymentChangesQuery = {}, enabled = true) =>
+  useQuery({
+    queryKey: posKeys.paymentChangeList(query),
+    queryFn: () => posService.listPaymentChanges(query),
+    enabled,
+    staleTime: 15 * 1000,
+    placeholderData: keepPreviousData,
+  });
 
 /**
  * Cancel sale mutation

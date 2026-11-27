@@ -4,6 +4,12 @@
 import api from '@/lib/axios';
 import type { PilotLiveResponse } from '@/types/pilotLive';
 import type {
+  PaymentBulkResult,
+  PaymentChangePreview,
+  PaymentChangesList,
+  PaymentChangesQuery,
+} from '@/types/payment-changes';
+import type {
   // Cash Register
   CashRegister,
   CreateCashRegisterInput,
@@ -236,10 +242,42 @@ class PosService {
   }
 
   /**
-   * Update the payment method of a sale (admin/super_admin only)
+   * Corrige el método de pago de una venta. Motivo obligatorio (mig 222): queda en el historial y avisa a
+   * Sistemas y Contabilidad. Permiso pos:payment_method o administración / Contabilidad.
    */
-  async updateSalePaymentMethod(id: string, paymentMethod: string): Promise<Sale> {
-    const response = await api.patch<Sale>(`/pos/sales/${id}/payment-method`, { paymentMethod });
+  async updateSalePaymentMethod(id: string, paymentMethod: string, reason: string): Promise<Sale> {
+    const response = await api.patch<Sale>(`/pos/sales/${id}/payment-method`, { paymentMethod, reason });
+    return response.data;
+  }
+
+  /** Qué pasaría al corregir el método (no cambia nada): permitido o no, efectos, factura y correcciones anteriores. */
+  async previewSalePaymentMethod(id: string, paymentMethod: string): Promise<PaymentChangePreview> {
+    const response = await api.get<PaymentChangePreview>(`/pos/sales/${id}/payment-method/preview`, {
+      params: { paymentMethod },
+    });
+    return response.data;
+  }
+
+  /** Varias ventas al mismo método con un solo motivo (vista previa de la global). Un solo aviso por el bloque. */
+  async bulkSalePaymentMethod(saleIds: string[], paymentMethod: string, reason: string): Promise<PaymentBulkResult> {
+    const response = await api.post<PaymentBulkResult>('/pos/payment-method-changes/bulk', {
+      saleIds,
+      paymentMethod,
+      reason,
+    });
+    return response.data;
+  }
+
+  /** Historial de correcciones del método de pago. */
+  async listPaymentChanges(query: PaymentChangesQuery = {}): Promise<PaymentChangesList> {
+    const params: Record<string, string> = {};
+    if (query.saleId) params.saleId = query.saleId;
+    if (query.pending) params.pending = 'true';
+    if (query.from) params.from = query.from;
+    if (query.to) params.to = query.to;
+    if (query.page) params.page = String(query.page);
+    if (query.limit) params.limit = String(query.limit);
+    const response = await api.get<PaymentChangesList>('/pos/payment-method-changes', { params });
     return response.data;
   }
 

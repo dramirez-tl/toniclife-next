@@ -21,8 +21,10 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useCreateGlobalInvoice } from '@/hooks/useBilling';
 import { posKeys, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { posService } from '@/services/pos.service';
-import { useAppSelector, selectUserRoles } from '@/store';
-import { apiErrorMessage, hasApiRole } from '@/lib/branches/branch-cash-register';
+import { useAppSelector, selectUserPermissions, selectUserRoles } from '@/store';
+import { Input } from '@/components/ui/input';
+import { bulkFailures, canCorrectPaymentMethod, cleanReason, reasonIsEnough } from '@/lib/pos/payment-changes';
+import { apiErrorMessage } from '@/lib/branches/branch-cash-register';
 import { EditPaymentModal } from '@/components/admin/pos/EditPaymentModal';
 import { isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
 import { formatCurrency, getPaymentFormName, type GlobalConceptMode, type GlobalPreview, type GlobalPreviewGroup } from '@/types/billing';
@@ -92,6 +94,8 @@ export function GlobalPaymentGroups({
   const [moveSel, setMoveSel] = useState<string[]>([]);
   const [moveTarget, setMoveTarget] = useState<string>('cash');
   const [moving, setMoving] = useState(false);
+  // Motivo del cambio (obligatorio desde el 27-nov-2026): uno solo para todo el bloque.
+  const [moveReason, setMoveReason] = useState('');
   const folioOf = useMemo(() => {
     const m = new Map<string, string>();
     for (const g of preview.groups) for (const r of g.included) m.set(r.id, r.folio);
@@ -117,29 +121,32 @@ export function GlobalPaymentGroups({
   const exitMoveMode = () => {
     setMoveMode(false);
     setMoveSel([]);
+    setMoveReason('');
   };
   const applyMove = async () => {
     const target = MOVE_TARGETS.find((t) => t.method === moveTarget);
     const ids = moveSelLive;
-    if (!target || ids.length === 0) return;
+    if (!target || ids.length === 0 || !reasonIsEnough(moveReason)) return;
     setMoving(true);
-    const failed: string[] = [];
-    const failedIds: string[] = [];
+    let failed: string[] = [];
+    let failedIds: string[] = [];
     let ok = 0;
     let mixed = 0;
-    // Una por una: el API valida cada ticket (facturado, pago mixto...) y aquí
-    // se reporta lo que no se pudo mover sin detener el resto. En pago mixto el
-    // API solo redefine el componente "Por definir" y la cabecera queda mixed:
-    // su grupo lo decide el cobro mayor, no el destino elegido.
-    for (const id of ids) {
-      try {
-        const updated = await posService.updateSalePaymentMethod(id, target.method);
-        ok += 1;
-        if (updated?.paymentMethod === 'mixed' && target.method !== 'mixed') mixed += 1;
-      } catch (err) {
-        failed.push(`${folioOf.get(id) ?? id}: ${apiErrorMessage(err, 'no se pudo mover')}`);
-        failedIds.push(id);
-      }
+    // Un solo envío con un solo motivo (y un solo aviso a Sistemas y Contabilidad).
+    // El API valida cada ticket por separado (facturado, pago mixto...) y regresa
+    // lo que no se pudo mover sin detener el resto. En pago mixto solo redefine la
+    // parte "Por definir" y la cabecera queda mixed: su grupo lo decide el cobro
+    // mayor, no el destino elegido.
+    try {
+      const result = await posService.bulkSalePaymentMethod(ids, target.method, cleanReason(moveReason));
+      ok = result.changed;
+      mixed = result.results.filter((r) => r.ok && r.paymentMethod === 'mixed' && target.method !== 'mixed').length;
+      failed = bulkFailures(result, (id) => folioOf.get(id) ?? id);
+      failedIds = result.results.filter((r) => !r.ok).map((r) => r.saleId);
+    } catch (err) {
+      setMoving(false);
+      toast.error(apiErrorMessage(err, 'No se pudieron mover los tickets'), { duration: 10000 });
+      return;
     }
     setMoving(false);
     void queryClient.invalidateQueries({ queryKey: posKeys.sales() });
@@ -189,7 +196,20 @@ export function GlobalPaymentGroups({
               {t.label}{t.method === 'undefined' ? '' : ` · ${t.form}`}
             </Button>
           ))}
-          <Button size="sm" disabled={moveSelLive.length === 0 || moving} onClick={() => void applyMove()}>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={moveReason}
+            onChange={(e) => setMoveReason(e.target.value.slice(0, 500))}
+            placeholder="Motivo del cambio (obligatorio, mínimo 10 caracteres)"
+            aria-label="Motivo del cambio"
+            className="h-9 min-w-[260px] flex-1 bg-white"
+          />
+          <Button
+            size="sm"
+            disabled={moveSelLive.length === 0 || moving || !reasonIsEnough(moveReason)}
+            onClick={() => void applyMove()}
+          >
             {moving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
             Mover {moveSelLive.length > 0 ? moveSelLive.length : ''}
           </Button>
@@ -198,17 +218,18 @@ export function GlobalPaymentGroups({
     </Card>
   ) : null;
   const userRoles = useAppSelector(selectUserRoles);
-  // Espejo de @Roles('super_admin', 'admin', 'contabilidad') del PATCH del API.
-  const canDefinePayment = hasApiRole(userRoles, ['admin', 'super_admin', 'contabilidad']);
+  // Por el permiso pos:payment_method o los roles que ya lo hacían (el API valida igual).
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const canDefinePayment = canCorrectPaymentMethod(userRoles, userPermissions);
   const definingModal = defining ? (
     <EditPaymentModal
       sale={{ id: defining.id, saleNumber: defining.folio, paymentMethod: 'undefined' }}
       hint="Al guardar, el ticket entra al grupo de la forma de pago elegida."
       isPending={updatePayment.isPending}
       onClose={() => setDefining(null)}
-      onConfirm={(paymentMethod) =>
+      onConfirm={(paymentMethod, reason) =>
         updatePayment.mutate(
-          { id: defining.id, paymentMethod },
+          { id: defining.id, paymentMethod, reason },
           {
             onSuccess: () => {
               toast.success(`${defining.folio}: cobro definido; ya aparece en su forma de pago`);
