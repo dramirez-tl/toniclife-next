@@ -24,6 +24,9 @@ export type GuestFlag = (typeof GUEST_FLAGS)[number];
 
 export type GuestContactFilter = 'none' | 'no_email' | 'no_phone' | 'with_email' | 'with_phone';
 
+/** sent = la invitación ya salió por correo o WhatsApp · not_sent = por ninguno · failed = falló por alguno. */
+export type GuestInvitationFilter = 'sent' | 'not_sent' | 'failed';
+
 export const GUEST_STATUS_LABEL: Record<GuestStatus, string> = {
   invited: 'En la lista',
   confirmed: 'Confirmó',
@@ -95,10 +98,14 @@ export interface EventGuestDto {
   emailedAt: string | null;
   emailedTo: string | null;
   emailCount: number;
+  /** Por qué falló el correo de la invitación. */
+  emailError?: string | null;
   whatsappStatus: string;
   whatsappSentAt: string | null;
   whatsappTo: string | null;
   whatsappCount: number;
+  /** Por qué falló el WhatsApp de la invitación. */
+  whatsappError?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,6 +134,11 @@ export interface EventGuestsSummary {
   withPhone: number;
   /** Quitados de la lista. */
   removed: number;
+  /** Invitaciones enviadas / fallidas por canal (un servidor anterior no las manda). */
+  emailSent?: number;
+  emailFailed?: number;
+  whatsappSent?: number;
+  whatsappFailed?: number;
   byAccess: GuestAccessCount[];
 }
 
@@ -146,6 +158,7 @@ export interface EventGuestsQuery {
   /** 'any' = con cualquier aviso. */
   flag?: GuestFlag | 'any';
   contact?: GuestContactFilter;
+  invitation?: GuestInvitationFilter;
   /** true = los que se quitaron de la lista. */
   removed?: boolean;
   page?: number;

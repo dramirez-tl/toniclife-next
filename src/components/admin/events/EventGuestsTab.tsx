@@ -2,7 +2,8 @@
 
 // EventGuestsTab - Lista de invitados de un evento privado: resumen, filtros,
 // tabla paginada, alta / edición / baja de un invitado, baja de varios, carga
-// masiva (Excel o lista pegada) y descarga de la lista en Excel.
+// masiva (Excel o lista pegada), descarga de la lista en Excel y envío de las
+// invitaciones (correo y/o WhatsApp) con el estado de cada una.
 //
 // Quitar no borra: el invitado queda fuera de la lista y se puede regresar
 // desde "Ver los quitados".
@@ -15,6 +16,7 @@ import {
   ArrowUturnLeftIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
+  PaperAirplaneIcon,
   PencilSquareIcon,
   PlusIcon,
   TrashIcon,
@@ -39,6 +41,7 @@ import { eventGuestsService } from '@/services/event-guests.service';
 import { saveBlob } from '@/lib/download';
 import { eventErrorMessage } from '@/lib/events/format';
 import { capacityNote, formatGuestPhone, guestFlagLabel } from '@/lib/events/guests';
+import { INVITATION_STATUS_LABEL } from '@/lib/events/invitations';
 import type { EventDto } from '@/types/events';
 import {
   GUEST_FLAG_HELP,
@@ -52,11 +55,13 @@ import {
   type EventGuestsQuery,
   type GuestContactFilter,
   type GuestFlag,
+  type GuestInvitationFilter,
   type GuestKind,
   type GuestStatus,
 } from '@/types/event-guests';
 import { EventGuestDialog } from './EventGuestDialog';
 import { EventGuestsImportDialog } from './EventGuestsImportDialog';
+import { EventInvitationsDialog } from './EventInvitationsDialog';
 
 const PAGE_SIZE = 50;
 
@@ -74,6 +79,20 @@ const CONTACT_OPTIONS: { value: GuestContactFilter; label: string }[] = [
   { value: 'with_email', label: 'Con correo' },
 ];
 
+const INVITATION_OPTIONS: { value: GuestInvitationFilter; label: string }[] = [
+  { value: 'not_sent', label: 'Invitación sin enviar' },
+  { value: 'sent', label: 'Invitación enviada' },
+  { value: 'failed', label: 'Invitación: falló' },
+];
+
+/** Color del estado de una invitación por canal. */
+const INVITATION_CLASS: Record<string, string> = {
+  sent: 'text-emerald-700',
+  failed: 'text-red-700',
+  pending: 'text-gray-400',
+  skipped: 'text-gray-400',
+};
+
 const FLAG_OPTIONS = [
   { value: 'any', label: 'Con cualquier aviso' },
   ...GUEST_FLAGS.map((f) => ({ value: f, label: GUEST_FLAG_LABEL[f] })),
@@ -88,6 +107,7 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
   const [status, setStatus] = useState('');
   const [flag, setFlag] = useState('');
   const [contact, setContact] = useState('');
+  const [invitation, setInvitation] = useState('');
   const [removed, setRemoved] = useState(false);
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
@@ -96,6 +116,7 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
   const [editing, setEditing] = useState<EventGuestDto | null>(null);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [toRemove, setToRemove] = useState<EventGuestDto | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -108,11 +129,12 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
       status: (status || undefined) as GuestStatus | undefined,
       flag: (flag || undefined) as GuestFlag | 'any' | undefined,
       contact: (contact || undefined) as GuestContactFilter | undefined,
+      invitation: (invitation || undefined) as GuestInvitationFilter | undefined,
       removed: removed || undefined,
       page,
       limit: PAGE_SIZE,
     }),
-    [debouncedSearch, accessType, kind, status, flag, contact, removed, page],
+    [debouncedSearch, accessType, kind, status, flag, contact, invitation, removed, page],
   );
   const { data, isLoading, isFetching, isError, error } = useEventGuests(event.id, query);
   const removeMutation = useRemoveEventGuest(event.id);
@@ -126,7 +148,9 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
     () => (summary?.byAccess ?? []).map((a) => a.accessType).filter((a) => a !== 'Sin tipo de acceso'),
     [summary],
   );
-  const hasFilters = !!(debouncedSearch || accessType || kind || status || flag || contact);
+  const hasFilters = !!(debouncedSearch || accessType || kind || status || flag || contact || invitation);
+  // Arreglo estable para el diálogo de invitaciones (su revisión depende de él).
+  const selectedIds = useMemo(() => [...selected], [selected]);
 
   // Cualquier cambio de filtro regresa a la primera página y suelta la selección.
   const filter = (apply: () => void) => {
@@ -142,6 +166,7 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
       setStatus('');
       setFlag('');
       setContact('');
+      setInvitation('');
     });
 
   const pageIds = items.map((g) => g.id);
@@ -288,6 +313,28 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
         ),
     },
     {
+      key: 'invitation',
+      header: 'Invitación',
+      render: (g) => (
+        <div className="text-xs leading-relaxed">
+          <p className={INVITATION_CLASS[g.emailStatus] ?? 'text-gray-400'} title={g.emailError ?? g.emailedTo ?? undefined}>
+            Correo: {INVITATION_STATUS_LABEL[g.emailStatus] ?? g.emailStatus}
+          </p>
+          <p
+            className={INVITATION_CLASS[g.whatsappStatus] ?? 'text-gray-400'}
+            title={g.whatsappError ?? g.whatsappTo ?? undefined}
+          >
+            WhatsApp: {INVITATION_STATUS_LABEL[g.whatsappStatus] ?? g.whatsappStatus}
+          </p>
+          {(g.emailStatus === 'failed' || g.whatsappStatus === 'failed') && (
+            <p className="mt-0.5 max-w-[220px] text-[11px] leading-snug text-red-600">
+              {(g.emailStatus === 'failed' ? g.emailError : null) ?? g.whatsappError}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'status',
       header: 'Estado',
       render: (g) => (
@@ -427,6 +474,22 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
           ))}
         </div>
       )}
+      {summary && (summary.emailSent ?? 0) + (summary.whatsappSent ?? 0) + (summary.emailFailed ?? 0) + (summary.whatsappFailed ?? 0) > 0 && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+          <span className="font-medium text-gray-700">Invitaciones enviadas:</span>
+          <span>por correo {n(summary.emailSent ?? 0)}</span>
+          <span>por WhatsApp {n(summary.whatsappSent ?? 0)}</span>
+          {(summary.emailFailed ?? 0) + (summary.whatsappFailed ?? 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => filter(() => setInvitation('failed'))}
+              className="text-red-700 hover:underline"
+            >
+              fallaron {n((summary.emailFailed ?? 0) + (summary.whatsappFailed ?? 0))} (ver)
+            </button>
+          )}
+        </p>
+      )}
       {capacity?.over && (
         <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
@@ -446,6 +509,16 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
               <Button type="button" variant="outline" onClick={() => setAdding(true)}>
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Agregar invitado
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setInviting(true)}
+                disabled={!summary || summary.guests === 0}
+                title="Mandar la invitación con los datos del evento y la liga del boleto, por correo y/o WhatsApp"
+              >
+                <PaperAirplaneIcon className="mr-2 h-4 w-4" />
+                Enviar invitaciones
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -470,7 +543,7 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr_1fr]">
             <div className="relative">
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
@@ -509,6 +582,12 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
               value={contact}
               onChange={(v) => filter(() => setContact(v))}
               allLabel="Con o sin contacto"
+            />
+            <SearchableSelect
+              options={INVITATION_OPTIONS}
+              value={invitation}
+              onChange={(v) => filter(() => setInvitation(v))}
+              allLabel="Invitación: todas"
             />
           </div>
           {(hasFilters || selected.size > 0) && (
@@ -567,7 +646,7 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
                 data={items}
                 getRowKey={(g) => g.id}
                 isLoading={isLoading}
-                minWidthClassName="min-w-[1000px]"
+                minWidthClassName="min-w-[1160px]"
                 emptyState={
                   <div className="py-6 text-center">
                     <UserGroupIcon className="mx-auto mb-3 h-10 w-10 text-gray-300" />
@@ -615,6 +694,14 @@ export function EventGuestsTab({ event }: { event: EventDto }) {
         accessTypes={accessTypes}
         open={importing}
         onOpenChange={setImporting}
+      />
+      <EventInvitationsDialog
+        event={event}
+        selectedIds={selectedIds}
+        accessTypes={accessTypes}
+        totalGuests={summary?.guests ?? 0}
+        open={inviting}
+        onOpenChange={setInviting}
       />
       <ConfirmDialog
         open={!!toRemove}
