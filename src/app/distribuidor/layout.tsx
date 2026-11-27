@@ -24,7 +24,6 @@ const COMING_SOON_ROUTES: Record<string, string> = {
   '/distribuidor/actividad': 'actividad',
   '/distribuidor/clientes': 'clientes',
   '/distribuidor/comunicacion': 'comunicacion',
-  '/distribuidor/eventos': 'eventos',
   '/distribuidor/integraciones': 'integraciones',
   '/distribuidor/inventario': 'inventario',
   '/distribuidor/metas': 'metas',

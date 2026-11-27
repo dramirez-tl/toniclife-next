@@ -70,6 +70,8 @@ export const MORE_GROUPS: NavGroup[] = [
       // IMPULSA (la ruta de los primeros 90 días) es una sección aparte de RISE Academy
       // ("Capacitación"): son dos cosas separadas (Comercial, 26-nov-2026).
       { key: 'impulsa', name: 'IMPULSA', href: '/distribuidor/impulsa', icon: RocketLaunchIcon },
+      // Eventos a los que está invitado, con su boleto (eventos privados).
+      { key: 'events', name: 'Eventos', href: '/distribuidor/eventos', icon: CalendarIcon },
     ],
   },
   {
@@ -92,7 +94,6 @@ export const COMING_SOON: { key: string; name: string; icon: React.ComponentType
   { key: 'activity', name: 'Actividad', icon: ClockIcon },
   { key: 'prospects', name: 'Prospectos', icon: UserGroupIcon },
   { key: 'salesScripts', name: 'Scripts de Venta', icon: DocumentDuplicateIcon },
-  { key: 'events', name: 'Eventos', icon: CalendarIcon },
   { key: 'communication', name: 'Comunicación', icon: ChatBubbleLeftRightIcon },
   { key: 'support', name: 'Soporte', icon: PhoneIcon },
 ];

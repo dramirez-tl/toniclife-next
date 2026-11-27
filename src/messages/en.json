@@ -1223,6 +1223,7 @@
   },
   "distributor": {
     "nav": {
+      "events": "Events",
       "home": "Home",
       "network": "My Network",
       "commissions": "Commissions",
@@ -2673,6 +2674,29 @@
         "bodyDone": "Guide your new distributors along their route.",
         "cta": "See my route"
       }
+    },
+    "events": {
+      "title": "Events",
+      "subtitle": "The events you are invited to and your ticket to get in.",
+      "loading": "Loading your events…",
+      "error": "We could not load your events.",
+      "retry": "Try again",
+      "emptyTitle": "You have no invitations right now",
+      "emptyText": "When you are invited to an event, your ticket and its QR code will show up here.",
+      "myTicket": "Your ticket",
+      "companionTicket": "Your guest's ticket",
+      "access": "Access",
+      "seatsOne": "1 seat",
+      "seatsMany": "{count} seats",
+      "showQr": "Show this QR code at the entrance",
+      "openTicket": "Open ticket",
+      "qrAlt": "QR code of the ticket for {name}",
+      "companions": "Your guests",
+      "stateOk": "Valid",
+      "statePartial": "{done} of {total} checked in",
+      "stateUsed": "Checked in",
+      "stateVoid": "No longer valid",
+      "stateCancelled": "Event cancelled"
     },
     "payments": {
       "title": "Commission Payment Details",

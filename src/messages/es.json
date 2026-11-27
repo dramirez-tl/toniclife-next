@@ -1223,6 +1223,7 @@
   },
   "distributor": {
     "nav": {
+      "events": "Eventos",
       "home": "Inicio",
       "network": "Mi Red",
       "commissions": "Comisiones",
@@ -2673,6 +2674,29 @@
         "bodyDone": "Acompaña a tus nuevos distribuidores en su ruta.",
         "cta": "Ver mi ruta"
       }
+    },
+    "events": {
+      "title": "Eventos",
+      "subtitle": "Los eventos a los que estás invitado y tu boleto para entrar.",
+      "loading": "Cargando tus eventos…",
+      "error": "No se pudieron cargar tus eventos.",
+      "retry": "Reintentar",
+      "emptyTitle": "Por ahora no tienes invitaciones",
+      "emptyText": "Cuando te inviten a un evento, aquí vas a encontrar tu boleto con su código QR.",
+      "myTicket": "Tu boleto",
+      "companionTicket": "Boleto de tu acompañante",
+      "access": "Acceso",
+      "seatsOne": "1 lugar",
+      "seatsMany": "{count} lugares",
+      "showQr": "Presenta este código QR en la entrada",
+      "openTicket": "Abrir boleto",
+      "qrAlt": "Código QR del boleto de {name}",
+      "companions": "Tus acompañantes",
+      "stateOk": "Vigente",
+      "statePartial": "Ingresaron {done} de {total}",
+      "stateUsed": "Ya ingresó",
+      "stateVoid": "Ya no vigente",
+      "stateCancelled": "Evento cancelado"
     },
     "payments": {
       "title": "Datos para Comisiones",

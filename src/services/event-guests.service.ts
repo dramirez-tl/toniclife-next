@@ -21,6 +21,7 @@ class EventGuestsService {
     if (query.kind) params.kind = query.kind;
     if (query.flag) params.flag = query.flag;
     if (query.contact) params.contact = query.contact;
+    if (query.invitation) params.invitation = query.invitation;
     if (query.removed) params.removed = 'true';
     if (query.page) params.page = String(query.page);
     if (query.limit) params.limit = String(query.limit);
