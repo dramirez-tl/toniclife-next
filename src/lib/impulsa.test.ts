@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { ImpulsaMessagePart } from '@/types/impulsa';
 import {
   IMPULSA_LEVELS,
+  IMPULSA_PATH,
+  IMPULSA_TEAM_PATH,
   boxClickDelta,
   counterBoxes,
   daysAgoLabel,
   formatDateOnly,
   formatPhone,
+  isImpulsaCourse,
   messageText,
   phoneDigits,
   routePercent,
@@ -17,8 +20,38 @@ import {
   victoryLevelLabel,
   victoryMaterialCategory,
   victoryOptionLabel,
+  victoryPath,
   whatsappUrl,
 } from './impulsa';
+
+describe('IMPULSA: sección aparte de RISE Academy', () => {
+  it('tiene sus propias rutas en el panel, fuera de /capacitacion', () => {
+    expect(IMPULSA_PATH).toBe('/distribuidor/impulsa');
+    expect(IMPULSA_TEAM_PATH).toBe('/distribuidor/impulsa/equipo');
+    expect(victoryPath(1)).toBe('/distribuidor/impulsa/1');
+    expect(victoryPath(6)).toBe('/distribuidor/impulsa/6');
+    expect(IMPULSA_PATH.includes('capacitacion')).toBe(false);
+  });
+
+  it('un curso con nivel de Victoria es contenido de IMPULSA, no de RISE Academy', () => {
+    expect(isImpulsaCourse({ difficulty: 'v1' })).toBe(true);
+    expect(isImpulsaCourse({ difficulty: ' V6 ' })).toBe(true);
+    expect(isImpulsaCourse({ difficulty: 'intermedio' })).toBe(false);
+    expect(isImpulsaCourse({ difficulty: 'v7' })).toBe(false);
+    expect(isImpulsaCourse({ difficulty: null })).toBe(false);
+    expect(isImpulsaCourse({})).toBe(false);
+  });
+
+  it('el catálogo de RISE Academy se queda sin los cursos de IMPULSA', () => {
+    const courses = [
+      { id: 'a', difficulty: 'principiante' },
+      { id: 'b', difficulty: 'v1' },
+      { id: 'c', difficulty: 'avanzado' },
+      { id: 'd', difficulty: 'V3' },
+    ];
+    expect(courses.filter((c) => !isImpulsaCourse(c)).map((c) => c.id)).toEqual(['a', 'c']);
+  });
+});
 
 describe('IMPULSA: los niveles se manejan por Victorias', () => {
   it('el nivel de un curso es la Victoria (v1 … v6)', () => {

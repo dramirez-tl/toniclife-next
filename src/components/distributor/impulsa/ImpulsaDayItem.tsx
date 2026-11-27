@@ -1,8 +1,8 @@
 'use client';
 
 // Un día de la Victoria: su mensaje (el aprobado, con el nombre, el ID y el Patrocinador ya puestos)
-// y su microvideo. El video es una lección de RISE Academy: se pide su liga firmada al abrirlo y se
-// registra lo que la persona vio, igual que en cualquier curso.
+// y su microvideo. El video se guarda como la lección de un curso (nivel V1 … V6): se pide su liga
+// firmada al abrirlo y se registra lo que la persona vio.
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -71,7 +71,7 @@ export function ImpulsaDayItem({ day, open, onToggle, onOpenGuides }: ImpulsaDay
     <div
       className={cn(
         'overflow-hidden rounded-xl border bg-card',
-        today ? 'border-primary shadow-sm' : 'border-border',
+        today ? 'border-impulsa-blue shadow-sm' : 'border-border',
       )}
     >
       <button
@@ -85,7 +85,8 @@ export function ImpulsaDayItem({ day, open, onToggle, onOpenGuides }: ImpulsaDay
           className={cn(
             'grid size-10 shrink-0 place-content-center rounded-full text-sm font-bold',
             today && 'bg-primary text-primary-foreground',
-            day.moment === 'past' && 'bg-emerald-100 text-emerald-800',
+            // Como los puntos del logo: lo recorrido se enciende en amarillo, hoy va en azul.
+            day.moment === 'past' && 'bg-impulsa-yellow/40 text-foreground',
             day.moment === 'upcoming' && 'bg-muted text-muted-foreground',
           )}
         >
@@ -130,7 +131,7 @@ export function ImpulsaDayItem({ day, open, onToggle, onOpenGuides }: ImpulsaDay
                     key={index}
                     type="button"
                     onClick={onOpenGuides}
-                    className="mx-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 hover:bg-amber-200 align-baseline"
+                    className="mx-1 inline-flex items-center gap-1 rounded-full bg-impulsa-yellow/30 px-2.5 py-0.5 text-xs font-semibold text-foreground hover:bg-impulsa-yellow/50 align-baseline"
                   >
                     <DocumentTextIcon className="h-3.5 w-3.5" />
                     {t('openGuides')}

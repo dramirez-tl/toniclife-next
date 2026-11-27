@@ -12,7 +12,6 @@ import { toast } from 'sonner';
 import {
   AcademicCapIcon,
   ArrowDownTrayIcon,
-  ArrowLeftIcon,
   ClockIcon,
   DocumentTextIcon,
   PhoneIcon,
@@ -21,14 +20,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ImpulsaDayItem } from '@/components/distributor/impulsa/ImpulsaDayItem';
+import { ImpulsaHeader } from '@/components/distributor/impulsa/ImpulsaHeader';
 import { ImpulsaRouteCard } from '@/components/distributor/impulsa/ImpulsaRouteCard';
 import { useImpulsaVictory } from '@/hooks/useImpulsa';
-import { formatPhone, telUrl, whatsappUrl } from '@/lib/impulsa';
+import { IMPULSA_PATH, formatPhone, telUrl, whatsappUrl } from '@/lib/impulsa';
 import { materialsService } from '@/services/materials.service';
 import { cn } from '@/lib/utils';
 import type { ImpulsaVictoryDetail } from '@/types/impulsa';
 
-const RISE_ACADEMY_PATH = '/distribuidor/capacitacion';
+// El reproductor de un curso completo es el mismo de la plataforma; ahí un curso de IMPULSA se
+// presenta como de IMPULSA y regresa a su Victoria.
+const COURSE_PLAYER_PATH = '/distribuidor/capacitacion';
 
 function SponsorBox({ detail }: { detail: ImpulsaVictoryDetail }) {
   const t = useTranslations('distributor.impulsa.victoryPage');
@@ -75,13 +77,13 @@ function SponsorBox({ detail }: { detail: ImpulsaVictoryDetail }) {
             <p className="mt-1 text-sm text-muted-foreground">{t('noSponsor')}</p>
           )}
         </div>
-        <div className="rounded-lg bg-[#1f3a4a] p-4 text-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">{t('helpTitle')}</p>
-          <p className="mt-1 text-sm text-white/90">{helpText}</p>
+        <div className="rounded-lg bg-impulsa-blue p-4 text-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-impulsa-yellow">{t('helpTitle')}</p>
+          <p className="mt-1 text-sm text-white">{helpText}</p>
           <p className="mt-2 text-sm">
-            <span className="text-white/70">{t('callCenter')} </span>
+            <span className="text-white/80">{t('callCenter')} </span>
             <span className="font-semibold">{callCenter.phones.join(' · ')}</span>
-            <span className="text-white/70"> · WhatsApp </span>
+            <span className="text-white/80"> · WhatsApp </span>
             <span className="font-semibold">{callCenter.whatsapp}</span>
           </p>
         </div>
@@ -144,11 +146,12 @@ function GuidesBox({ detail }: { detail: ImpulsaVictoryDetail }) {
 function VictorySkeleton() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#2f5165]">
+      <div className="bg-white">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <Skeleton className="h-5 w-48 bg-white/20" />
-          <Skeleton className="mt-3 h-10 w-96 max-w-full bg-white/20" />
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="mt-3 h-10 w-96 max-w-full" />
         </div>
+        <div className="h-1.5 bg-gradient-to-r from-impulsa-yellow to-impulsa-orange" aria-hidden />
       </div>
       <div className="mx-auto max-w-7xl space-y-4 px-4 py-8 sm:px-6 lg:px-8">
         <Skeleton className="h-28 rounded-xl" />
@@ -183,7 +186,7 @@ export default function ImpulsaVictoryPage() {
             </Button>
           )}
           <Button asChild>
-            <Link href={RISE_ACADEMY_PATH}>{t('back')}</Link>
+            <Link href={IMPULSA_PATH}>{t('back')}</Link>
           </Button>
         </div>
       </div>
@@ -196,29 +199,20 @@ export default function ImpulsaVictoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-[#1f3a4a] via-[#2f5165] to-[#3E667D] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <Link href={RISE_ACADEMY_PATH} className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white">
-            <ArrowLeftIcon className="h-4 w-4" />
-            {t('back')}
-          </Link>
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                IMPULSA · {t('victory', { number: victory.number })} · {t('days', { from: victory.dayFrom, to: victory.dayTo })}
-              </p>
-              <h1 className="mt-1 font-serif text-3xl font-bold italic sm:text-4xl">{victory.title}</h1>
-              {victory.tagline && <p className="mt-1 text-base text-white/80">{victory.tagline}</p>}
-            </div>
-            {participant.inRoute && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold">
-                <ClockIcon className="h-4 w-4" />
-                {tv('today', { day: participant.day })}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      <ImpulsaHeader
+        backHref={IMPULSA_PATH}
+        backLabel={t('back')}
+        eyebrow={`${t('victory', { number: victory.number })} · ${t('days', { from: victory.dayFrom, to: victory.dayTo })}`}
+        title={victory.title}
+        subtitle={victory.tagline || undefined}
+      >
+        {participant.inRoute && (
+          <span className="inline-flex items-center gap-2 rounded-full bg-impulsa-yellow px-4 py-2 text-sm font-bold text-foreground">
+            <ClockIcon className="h-4 w-4" aria-hidden />
+            {tv('today', { day: participant.day })}
+          </span>
+        )}
+      </ImpulsaHeader>
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {!available && (
@@ -240,10 +234,15 @@ export default function ImpulsaVictoryPage() {
                   key={stage.key}
                   className={cn(
                     'rounded-xl border-t-4 bg-card p-4 shadow-sm',
-                    stage.moment === 'today' ? 'border-primary' : stage.moment === 'past' ? 'border-emerald-500' : 'border-amber-400',
+                    // Como los puntos del logo: lo recorrido en amarillo, hoy en azul, lo que viene en gris.
+                    stage.moment === 'today'
+                      ? 'border-impulsa-blue'
+                      : stage.moment === 'past'
+                        ? 'border-impulsa-yellow'
+                        : 'border-gray-200',
                   )}
                 >
-                  <p className="text-xs font-bold uppercase tracking-wide text-amber-700">{stage.label}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-impulsa-blue">{stage.label}</p>
                   <p className="mt-1 text-lg font-bold text-foreground">{stage.title}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">{tv('stageYou')}: </span>
@@ -290,7 +289,9 @@ export default function ImpulsaVictoryPage() {
             )}
 
             {data.principle && (
-              <p className="rounded-xl border border-border bg-card p-4 text-sm italic text-muted-foreground">{data.principle}</p>
+              <p className="rounded-xl border-l-4 border-impulsa-orange bg-card p-4 text-sm text-muted-foreground shadow-sm">
+                {data.principle}
+              </p>
             )}
           </div>
 
@@ -309,7 +310,7 @@ export default function ImpulsaVictoryPage() {
                           <span className="block text-xs text-muted-foreground">{tv('lessons', { count: course.lessonsCount })}</span>
                         </span>
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`${RISE_ACADEMY_PATH}/${course.id}`}>{tv('openCourse')}</Link>
+                          <Link href={`${COURSE_PLAYER_PATH}/${course.id}`}>{tv('openCourse')}</Link>
                         </Button>
                       </li>
                     ))}

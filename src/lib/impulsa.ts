@@ -4,7 +4,25 @@
 
 import type { ImpulsaMessagePart, ImpulsaVictory } from '@/types/impulsa';
 
-/** Aquí los niveles se manejan por Victorias (Sistemas, 23-nov-2026): el nivel de un curso es 'v1' … 'v6'. */
+/**
+ * IMPULSA es una sección aparte del panel del distribuidor, separada de RISE Academy (Comercial,
+ * 26-nov-2026): tiene su propia entrada en el menú, sus rutas y su marca.
+ */
+export const IMPULSA_PATH = '/distribuidor/impulsa';
+export const IMPULSA_TEAM_PATH = `${IMPULSA_PATH}/equipo`;
+
+/** Pantalla de una Victoria: '/distribuidor/impulsa/1'. */
+export function victoryPath(number: number): string {
+  return `${IMPULSA_PATH}/${number}`;
+}
+
+/**
+ * Logo de IMPULSA (el que entregó Comercial, recortado). Es azul con puntos amarillos y naranjas:
+ * va sobre blanco o fondos muy claros, nunca sobre un fondo oscuro.
+ */
+export const IMPULSA_LOGO = { src: '/images/impulsa/impulsa-logo.png', width: 1200, height: 585 } as const;
+
+/** El nivel de un curso que guarda los microvideos de una Victoria es 'v1' … 'v6'. */
 export const IMPULSA_LEVELS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6'] as const;
 
 /** Nombre de cada Victoria (el mismo del catálogo del API), para los selectores del admin. */
@@ -21,6 +39,14 @@ export const IMPULSA_VICTORY_TITLES: Readonly<Record<number, string>> = {
 export function victoryFromLevel(level: string | null | undefined): number | null {
   const match = /^v([1-6])$/i.exec((level ?? '').trim());
   return match ? Number(match[1]) : null;
+}
+
+/**
+ * true si el curso guarda contenido de IMPULSA (su nivel es una Victoria). Esos cursos no son de
+ * RISE Academy: no salen en su catálogo; se ven dentro de su Victoria.
+ */
+export function isImpulsaCourse(course: { difficulty?: string | null }): boolean {
+  return victoryFromLevel(course.difficulty) !== null;
 }
 
 /** Etiqueta corta del nivel: 'V1' para una Victoria; null si no es una Victoria. */

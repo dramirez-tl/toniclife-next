@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { coursesService } from '@/services/courses.service';
+import { isImpulsaCourse } from '@/lib/impulsa';
 import type {
+  Course,
   CourseQueryParams,
   CreateCourseDto,
   UpdateCourseDto,
@@ -41,10 +43,17 @@ export function usePublishedCourses() {
   });
 }
 
+// RISE Academy e IMPULSA son dos cosas separadas (Comercial, 26-nov-2026). Los microvideos de
+// IMPULSA se guardan como cursos con nivel V1 … V6, pero no son cursos de RISE Academy: aquí se
+// quitan y se ven solo dentro de su Victoria (/distribuidor/impulsa).
+const riseAcademyCourses = (courses: Course[]): Course[] => courses.filter((course) => !isImpulsaCourse(course));
+
+/** Mis cursos de RISE Academy (sin el contenido de IMPULSA). */
 export function useMyCourses() {
   return useQuery({
     queryKey: ['courses', 'my-courses'],
     queryFn: () => coursesService.getMyCourses(),
+    select: riseAcademyCourses,
     staleTime: 1000 * 60 * 5,
   });
 }

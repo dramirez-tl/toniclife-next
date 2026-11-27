@@ -53,6 +53,11 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* IMPULSA (la ruta de los primeros 90 días): sus tres colores de marca (Comercial, 26-nov-2026).
+     El amarillo y el naranja son de relleno (puntos, barras, franjas); para texto, el azul. */
+  --color-impulsa-blue: #046192;
+  --color-impulsa-yellow: #fdc526;
+  --color-impulsa-orange: #f7a72d;
 }
 
 :root {
@@ -124,6 +129,17 @@
   --sidebar-accent-foreground: #e6eef3;
   --sidebar-border: #2a3a43;
   --sidebar-ring: #4d7a8f;
+}
+
+/* IMPULSA es una sección aparte, con marca propia (no es RISE Academy ni el teal del sitio). Dentro
+   de `.impulsa` los componentes (botones, casillas, barras, enlaces) toman su azul como color
+   principal y un amarillo suave al pasar el cursor. La tipografía es la del resto del sitio. */
+.impulsa {
+  --primary: #046192;
+  --primary-foreground: #ffffff;
+  --accent: color-mix(in srgb, #fdc526 22%, #ffffff);
+  --accent-foreground: #046192;
+  --ring: #046192;
 }
 
 @layer base {

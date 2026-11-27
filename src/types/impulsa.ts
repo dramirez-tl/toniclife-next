@@ -1,6 +1,6 @@
 // IMPULSA: la ruta de los primeros 90 días de cada nuevo Distribuidor, en 6 Victorias (V1 … V6).
-// Vive en la plataforma donde vive RISE Academy. Tipos de lo que entrega el API (`/impulsa/*`).
-// Aquí los niveles se manejan por Victorias (Sistemas, 23-nov-2026).
+// Es una sección aparte del panel, separada de RISE Academy (Comercial, 26-nov-2026). Tipos de lo
+// que entrega el API (`/impulsa/*`). Sus niveles son las Victorias.
 
 export type ImpulsaAvailability = 'available' | 'coming_soon';
 /** Por calendario: sus días ya pasaron, es la de hoy o todavía no llega. */
@@ -330,7 +330,7 @@ export interface ImpulsaAdminCatalog {
   routeLastDay: number;
   victories: (Omit<ImpulsaVictory, 'moment'> & {
     productionStatus: string;
-    /** Cursos de RISE Academy asignados a la Victoria y videos ya subidos por día. */
+    /** Cursos con el nivel de la Victoria (guardan sus microvideos) y videos ya subidos por día. */
     courses: number;
     videos: number;
     guides: number;

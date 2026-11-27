@@ -1232,6 +1232,7 @@
       "shareCart": "Share cart",
       "materials": "Materials",
       "training": "Training",
+      "impulsa": "IMPULSA",
       "payments": "Payments",
       "notifications": "Notifications",
       "settings": "Settings"
@@ -2549,7 +2550,7 @@
       }
     },
     "impulsa": {
-      "eyebrow": "IMPULSA · Your first 90 days",
+      "eyebrow": "Your first 90 days",
       "routeTitle": "Your route by Victories",
       "routeSubtitle": "Every day you know what you need to know, what to do now and where to find help.",
       "dayToday": "Today is your Day {day}",
@@ -2572,8 +2573,11 @@
       "notReady": "Your progress is not being saved yet: Systems is about to turn it on.",
       "loadError": "Your route could not be loaded.",
       "retry": "Try again",
-      "back": "Back to RISE Academy",
-      "coursesTitle": "RISE Academy courses",
+      "back": "Back to IMPULSA",
+      "backToPanel": "Back to Main Panel",
+      "logoAlt": "IMPULSA: every step, a Victory",
+      "victoriesTitle": "Your 6 Victories",
+      "courseEyebrow": "IMPULSA · Victory {number}",
       "victoryPage": {
         "today": "Today: Day {day}",
         "notFound": "That Victory does not exist.",
@@ -2640,7 +2644,6 @@
       "teamPage": {
         "title": "My team in IMPULSA",
         "subtitle": "The new distributors you guide through their first 90 days.",
-        "back": "Back to RISE Academy",
         "emptyTitle": "You are not guiding any new distributor yet",
         "emptyBody": "When you enroll someone, here you will see which day they are on, what you should do today and the message you can send them.",
         "viaUpline": "You guide them as their upline",

@@ -21,6 +21,8 @@ import {
 } from '@/hooks/useCourses';
 import { coursesService } from '@/services/courses.service';
 import { VideoPlayer } from '@/components/video/VideoPlayer';
+import { victoryFromLevel, victoryPath } from '@/lib/impulsa';
+import { cn } from '@/lib/utils';
 import type { CourseLesson, LessonProgress } from '@/types/course';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
@@ -42,6 +44,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 
 function CourseDetailContent({ courseId }: { courseId: string }) {
   const t = useTranslations('distributor.training.course');
+  const ti = useTranslations('distributor.impulsa');
   const router = useRouter();
 
   const { data: course, isLoading: loadingCourse } = useCourse(courseId);
@@ -156,22 +159,29 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
     ? (completedCount / lessons.length) * 100
     : 0;
 
+  // RISE Academy e IMPULSA son dos cosas separadas: un curso con nivel V1 … V6 guarda los videos de
+  // esa Victoria de IMPULSA. Se presenta como de IMPULSA (su azul, su nombre) y regresa a su Victoria.
+  const impulsaVictory = victoryFromLevel(course.difficulty);
+  const backHref = impulsaVictory ? victoryPath(impulsaVictory) : '/distribuidor/capacitacion';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#2f5165] text-white">
+      <div className={cn('text-white', impulsaVictory ? 'bg-impulsa-blue' : 'bg-gradient-to-r from-[#3E667D] to-[#2f5165]')}>
         <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 flex items-center gap-4">
           <button
             type="button"
-            onClick={() => router.push('/distribuidor/capacitacion')}
+            onClick={() => router.push(backHref)}
             aria-label={t('back')}
             className="rounded-full p-2 hover:bg-white/10 transition-colors"
           >
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-white/60 truncate">
-              {t('academy')} · {course.instructorName || t('noInstructor')}
+            <p className={cn('text-xs truncate', impulsaVictory ? 'font-semibold text-impulsa-yellow' : 'text-white/60')}>
+              {impulsaVictory
+                ? ti('courseEyebrow', { number: impulsaVictory })
+                : `${t('academy')} · ${course.instructorName || t('noInstructor')}`}
             </p>
             <h1 className="text-xl sm:text-2xl font-bold truncate">{course.title}</h1>
           </div>

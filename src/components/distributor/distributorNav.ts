@@ -23,6 +23,7 @@ import {
   DocumentDuplicateIcon,
   ClipboardDocumentListIcon,
   DocumentCheckIcon,
+  RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 
 export interface NavLink {
@@ -66,6 +67,9 @@ export const MORE_GROUPS: NavGroup[] = [
     items: [
       { key: 'materials', name: 'Materiales', href: '/distribuidor/materiales', icon: FolderIcon },
       { key: 'training', name: 'Capacitación', href: '/distribuidor/capacitacion', icon: AcademicCapIcon },
+      // IMPULSA (la ruta de los primeros 90 días) es una sección aparte de RISE Academy
+      // ("Capacitación"): son dos cosas separadas (Comercial, 26-nov-2026).
+      { key: 'impulsa', name: 'IMPULSA', href: '/distribuidor/impulsa', icon: RocketLaunchIcon },
     ],
   },
   {

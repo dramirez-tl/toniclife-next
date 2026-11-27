@@ -66,9 +66,23 @@ const nextConfig: NextConfig = {
   // todo lo que entraba por el proyecto de staging en Vercel
   // (toniclife-next-staging.vercel.app), porque el equipo ya trabajaba 100 % en
   // producción. Se quitó para volver a usar staging como vitrina: ahí se le
-  // muestra al equipo IMPULSA (RISE Academy por Victorias) antes de publicarlo.
+  // muestra al equipo IMPULSA (la ruta de los primeros 90 días) antes de publicarlo.
   // Si algún día se retira staging otra vez, la regla es un `redirects()` por
   // HOST con 307 (ver el commit 92c9387).
+
+  // IMPULSA dejó de colgar de RISE Academy (Comercial, 26-nov-2026): es una
+  // sección aparte en /distribuidor/impulsa. Las ligas de la primera
+  // demostración en staging (/distribuidor/capacitacion/impulsa/…) llegan a la
+  // nueva; sin esto caerían en "/capacitacion/[id]" como un curso que no existe.
+  async redirects() {
+    return [
+      {
+        source: '/distribuidor/capacitacion/impulsa/:path*',
+        destination: '/distribuidor/impulsa/:path*',
+        permanent: false,
+      },
+    ];
+  },
 
   // Cabeceras de seguridad (dictamen SIWEB 3.2.3). La CSP arranca en
   // Report-Only para no romper Stripe/Analytics en producción: se endurece a

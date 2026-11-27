@@ -208,16 +208,16 @@ export function ImpulsaRouteCard({ victoryNumber, card, ready }: ImpulsaRouteCar
   const accepted = card.commitment.acceptedAt !== null;
 
   return (
-    <Card id="tarjeta-de-ruta" className="overflow-hidden scroll-mt-24" data-testid="impulsa-route-card">
+    <Card id="tarjeta-de-ruta" className="overflow-hidden scroll-mt-24 py-0" data-testid="impulsa-route-card">
       <CardContent className="p-0">
-        <div className="bg-gradient-to-r from-[#1f3a4a] to-[#3E667D] px-6 py-5 text-white">
+        <div className="bg-impulsa-blue px-6 py-5 text-white">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-serif text-2xl font-bold italic">{card.title}</h2>
-              <p className="mt-1 text-sm text-white/80">{card.subtitle}</p>
+              <h2 className="text-2xl font-bold">{card.title}</h2>
+              <p className="mt-1 text-sm text-white/90">{card.subtitle}</p>
             </div>
             <div className="w-full max-w-[220px]">
-              <p className="mb-1 text-right text-xs text-white/80">
+              <p className="mb-1 text-right text-xs font-semibold text-white">
                 {t('progress', { done: summary.checksDone, total: summary.checksTotal })}
               </p>
               <div
@@ -228,7 +228,10 @@ export function ImpulsaRouteCard({ victoryNumber, card, ready }: ImpulsaRouteCar
                 aria-valuenow={summary.percent}
                 aria-label={card.title}
               >
-                <div className="h-full rounded-full bg-amber-300 transition-all" style={{ width: `${summary.percent}%` }} />
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-impulsa-yellow to-impulsa-orange transition-all"
+                  style={{ width: `${summary.percent}%` }}
+                />
               </div>
             </div>
           </div>
@@ -255,7 +258,7 @@ export function ImpulsaRouteCard({ victoryNumber, card, ready }: ImpulsaRouteCar
           </section>
 
           {/* Día 1 (máximo Día 2): Sesión de Arranque */}
-          <section className="rounded-xl border-2 border-primary/40 p-4">
+          <section className="rounded-xl border-2 border-impulsa-blue/40 p-4">
             <h3 className="text-base font-bold text-foreground">
               {card.sessionTitle} <span className="text-sm font-normal text-muted-foreground">· {card.sessionNote}</span>
             </h3>
@@ -318,11 +321,11 @@ export function ImpulsaRouteCard({ victoryNumber, card, ready }: ImpulsaRouteCar
           </section>
 
           {/* Mi meta de arranque */}
-          <section className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
-            <StarIcon className="mt-0.5 h-7 w-7 shrink-0 text-amber-500" aria-hidden />
+          <section className="flex items-start gap-3 rounded-xl border border-impulsa-yellow bg-impulsa-yellow/15 p-4">
+            <StarIcon className="mt-0.5 h-7 w-7 shrink-0 text-impulsa-orange" aria-hidden />
             <div>
-              <p className="text-base font-bold text-[#1f3a4a]">{card.goalTitle}</p>
-              <p className="text-sm text-[#1f3a4a]/90">{card.goalText}</p>
+              <p className="text-base font-bold text-impulsa-blue">{card.goalTitle}</p>
+              <p className="text-sm text-foreground/90">{card.goalText}</p>
             </div>
           </section>
 

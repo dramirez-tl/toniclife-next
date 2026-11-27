@@ -2,12 +2,11 @@
 
 import { useState, Suspense } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectItem, SelectLabel } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useCourses, useCreateCourse, useUpdateCourse, useUploadCourseImage, useDeleteCourse } from '@/hooks/useCourses';
@@ -56,9 +55,10 @@ const categoryColors: Record<string, string> = {
   fundamentos: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
-// Aquí los niveles se manejan por VICTORIAS (IMPULSA, 23-nov-2026): un curso con nivel V1 … V6
-// pertenece a esa Victoria de la ruta de 90 días y sus lecciones tituladas «Día N · …» salen en su
-// día. Los niveles de antes siguen para los cursos que no son de la ruta.
+// Un curso con nivel V1 … V6 guarda los microvideos de esa Victoria de IMPULSA (la ruta de 90 días):
+// sus lecciones tituladas «Día N · …» salen en su día, dentro de IMPULSA, y el curso NO aparece en
+// el catálogo de RISE Academy (son dos cosas separadas; Comercial, 26-nov-2026). Los demás niveles
+// son los de los cursos de RISE Academy.
 const difficultyLabels: Record<string, string> = {
   ...Object.fromEntries(IMPULSA_LEVELS.map((level, index) => [level, victoryOptionLabel(index + 1)])),
   principiante: 'Principiante',
@@ -224,20 +224,26 @@ function CourseModal({
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nivel (Victoria)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nivel</label>
               <Select value={difficulty} onValueChange={(v) => setDifficulty(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Nivel" />
                 </SelectTrigger>
                 <SelectContent>
-                  {IMPULSA_LEVELS.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {difficultyLabels[level]}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="principiante">Principiante</SelectItem>
-                  <SelectItem value="intermedio">Intermedio</SelectItem>
-                  <SelectItem value="avanzado">Avanzado</SelectItem>
+                  <SelectGroup>
+                    <SelectLabel>RISE Academy</SelectLabel>
+                    <SelectItem value="principiante">Principiante</SelectItem>
+                    <SelectItem value="intermedio">Intermedio</SelectItem>
+                    <SelectItem value="avanzado">Avanzado</SelectItem>
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel>IMPULSA (no sale en RISE Academy)</SelectLabel>
+                    {IMPULSA_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {difficultyLabels[level]}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -420,23 +426,14 @@ function CapacitacionContent() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 self-start lg:self-auto flex-shrink-0">
-            <Button
-              asChild
-              variant="ghost"
-              className="bg-amber-300 text-[#1f3a4a] font-semibold hover:bg-amber-200 hover:text-[#1f3a4a]"
-            >
-              <Link href="/admin/comercial/capacitacion/impulsa">IMPULSA · Ruta de 90 días</Link>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}
-              className="bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Nuevo Curso
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}
+            className="bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white self-start lg:self-auto flex-shrink-0"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Nuevo Curso
+          </Button>
         </div>
       </div>
 

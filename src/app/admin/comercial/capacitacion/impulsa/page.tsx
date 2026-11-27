@@ -1,7 +1,8 @@
 'use client';
 
-// Comercial › Capacitación › IMPULSA: la ruta de los primeros 90 días de cada nuevo Distribuidor, en
-// 6 Victorias. Tres pestañas:
+// Comercial › IMPULSA: la ruta de los primeros 90 días de cada nuevo Distribuidor, en 6 Victorias.
+// Es una sección con marca propia, separada de RISE Academy (Comercial, 26-nov-2026): su logo, sus
+// tres colores (ver `.impulsa` en globals.css) y la tipografía del sitio. Tres pestañas:
 //   * Seguimiento: lo que se mide (Día 0 recibido, Sesiones de Arranque hechas, quién llega al Día 7
 //     y pasa a la V2) y la lista de nuevos distribuidores con el avance de su Tarjeta de Ruta.
 //   * Victorias y contenido: qué Victorias hay, cómo va su producción y qué videos y guías ya están
@@ -10,9 +11,10 @@
 // Pantalla del admin: en español, como el resto de Comercial.
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeftIcon, CheckCircleIcon, ClipboardDocumentIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClipboardDocumentIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { PermissionGuard } from '@/components/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,7 +29,7 @@ import {
   useImpulsaAdminSummary,
   useImpulsaSetDayZero,
 } from '@/hooks/useImpulsa';
-import { daysAgoLabel, formatDateOnly, victoryDaysLabel } from '@/lib/impulsa';
+import { IMPULSA_LOGO, daysAgoLabel, formatDateOnly, victoryDaysLabel } from '@/lib/impulsa';
 import { cn } from '@/lib/utils';
 import type { ImpulsaAdminParticipant } from '@/types/impulsa';
 
@@ -83,7 +85,7 @@ function DayZeroDialog({ participant, today, onClose }: { participant: ImpulsaAd
     );
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="impulsa sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{participant ? `Día 0 de #${participant.customerNumber}` : 'Mover el Día 0 de una cuenta'}</DialogTitle>
           <DialogDescription>
@@ -265,7 +267,7 @@ function TrackingTab() {
                     victory === v.number ? 'border-primary bg-primary/10' : 'border-gray-200 hover:border-primary/50',
                   )}
                 >
-                  <p className="text-lg font-bold text-[#3E667D]">{v.code}</p>
+                  <p className="text-lg font-bold text-impulsa-blue">{v.code}</p>
                   <p className="text-xs text-gray-500">{v.title}</p>
                   <p className="mt-1 text-xl font-bold tabular-nums text-gray-900">{v.count.toLocaleString('es-MX')}</p>
                 </button>
@@ -320,7 +322,7 @@ function TrackingTab() {
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full bg-[#3E667D]" style={{ width: `${p.card.percent}%` }} />
+                          <div className="h-full rounded-full bg-impulsa-blue" style={{ width: `${p.card.percent}%` }} />
                         </div>
                         <span className="tabular-nums text-xs text-gray-500">
                           {p.card.checksDone}/{p.card.checksTotal}
@@ -334,7 +336,7 @@ function TrackingTab() {
                     <td className="px-4 py-2.5 text-gray-600">{p.lastActivityAt ? daysAgoLabel(p.lastActivityAt, today) : '—'}</td>
                     <td className="px-4 py-2.5 text-right">
                       <PermissionGuard permissions={MANAGE_PERMISSIONS}>
-                        <button type="button" onClick={() => setEditing(p)} className="text-xs text-[#3E667D] hover:underline">
+                        <button type="button" onClick={() => setEditing(p)} className="text-xs text-impulsa-blue hover:underline">
                           Mover Día 0
                         </button>
                       </PermissionGuard>
@@ -388,7 +390,7 @@ function ContentTab() {
           <Card key={v.number} className={cn(v.availability === 'available' && 'border-primary')}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-serif text-2xl font-bold text-[#3E667D]">{v.code}</span>
+                <span className="text-2xl font-bold text-impulsa-blue">{v.code}</span>
                 <span
                   className={cn(
                     'rounded-full px-2.5 py-0.5 text-xs font-semibold',
@@ -459,15 +461,16 @@ function ContentTab() {
               <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-700">
                 <li>
                   <strong>Microvideos:</strong> en{' '}
-                  <Link href="/admin/comercial/capacitacion" className="text-[#3E667D] underline">
+                  <Link href="/admin/comercial/capacitacion" className="text-impulsa-blue underline">
                     Capacitación
                   </Link>{' '}
-                  crea un curso con <strong>Nivel = la Victoria</strong> (V1 … V6), público y publicado. Cada lección se titula como
-                  su día, por ejemplo «Día 3 · Sigo invitando»: así el video sale en ese día de la ruta.
+                  crea un curso con <strong>Nivel de IMPULSA</strong> (V1 … V6), público y publicado. Cada lección se titula como
+                  su día, por ejemplo «Día 3 · Sigo invitando»: así el video sale en ese día de la ruta. Ese curso no aparece
+                  en RISE Academy: solo se ve dentro de su Victoria.
                 </li>
                 <li>
                   <strong>Guías:</strong> en{' '}
-                  <Link href="/admin/comercial/materiales" className="text-[#3E667D] underline">
+                  <Link href="/admin/comercial/materiales" className="text-impulsa-blue underline">
                     Materiales
                   </Link>{' '}
                   sube el PDF con la categoría <strong>IMPULSA · Victoria N</strong> y publícalo. Si se llama igual que en la lista de
@@ -493,7 +496,7 @@ function CopyButton({ text }: { text: string }) {
     }
   };
   return (
-    <button type="button" onClick={() => void copy()} className="inline-flex items-center gap-1 text-xs text-[#3E667D] hover:underline">
+    <button type="button" onClick={() => void copy()} className="inline-flex items-center gap-1 text-xs text-impulsa-blue hover:underline">
       <ClipboardDocumentIcon className="h-3.5 w-3.5" />
       Copiar
     </button>
@@ -522,7 +525,7 @@ function MessagesTab() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-700">A · Mensaje diario al nuevo Distribuidor ({data.v1.messages.length})</h2>
         <div className="space-y-3">
           {data.v1.messages.map((m) => (
-            <div key={m.code} className="rounded-xl border border-l-4 border-gray-200 border-l-amber-400 bg-white p-4 shadow-sm">
+            <div key={m.code} className="rounded-xl border border-l-4 border-gray-200 border-l-impulsa-yellow bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-bold text-gray-900">{m.title}</p>
                 <span className="text-xs text-gray-500">
@@ -542,7 +545,7 @@ function MessagesTab() {
         </p>
         <div className="space-y-3">
           {data.v1.notices.map((n) => (
-            <div key={n.code} className="rounded-xl border border-l-4 border-gray-200 border-l-[#3E667D] bg-white p-4 shadow-sm">
+            <div key={n.code} className="rounded-xl border border-l-4 border-gray-200 border-l-impulsa-blue bg-white p-4 shadow-sm">
               <p className="text-sm font-bold text-gray-900">
                 Día {n.day} del Distribuidor · {n.action}
               </p>
@@ -564,17 +567,25 @@ function MessagesTab() {
 
 export default function ImpulsaAdminPage() {
   return (
-    <div className="space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#1f3a4a] to-[#3E667D] px-6 py-6 shadow-lg">
-        <Link href="/admin/comercial/capacitacion" className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white">
-          <ArrowLeftIcon className="h-4 w-4" />
-          Capacitación
-        </Link>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.25em] text-amber-300">Rise Academy · IMPULSA</p>
-        <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">La ruta de los primeros 90 días</h1>
-        <p className="mt-1 text-sm text-white/70">
-          6 Victorias. Cada día el nuevo Distribuidor sabe qué necesita saber, qué hace ahora y dónde encuentra ayuda.
-        </p>
+    <div className="impulsa space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 px-6 py-5">
+          <Image
+            src={IMPULSA_LOGO.src}
+            alt="IMPULSA: cada paso, una Victoria"
+            width={IMPULSA_LOGO.width}
+            height={IMPULSA_LOGO.height}
+            priority
+            className="h-20 w-auto shrink-0"
+          />
+          <div className="min-w-0 flex-1 basis-72">
+            <h1 className="text-2xl font-bold text-impulsa-blue sm:text-3xl">La ruta de los primeros 90 días</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              6 Victorias. Cada día el nuevo Distribuidor sabe qué necesita saber, qué hace ahora y dónde encuentra ayuda.
+            </p>
+          </div>
+        </div>
+        <div className="h-1.5 bg-gradient-to-r from-impulsa-yellow to-impulsa-orange" aria-hidden />
       </div>
 
       <Tabs defaultValue="seguimiento">

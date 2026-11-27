@@ -1232,6 +1232,7 @@
       "shareCart": "Compartir carrito",
       "materials": "Materiales",
       "training": "Capacitación",
+      "impulsa": "IMPULSA",
       "payments": "Pagos",
       "notifications": "Notificaciones",
       "settings": "Configuración"
@@ -2549,7 +2550,7 @@
       }
     },
     "impulsa": {
-      "eyebrow": "IMPULSA · La ruta de tus primeros 90 días",
+      "eyebrow": "La ruta de tus primeros 90 días",
       "routeTitle": "Tu ruta por Victorias",
       "routeSubtitle": "Cada día sabes qué necesitas saber, qué haces ahora y dónde encuentras ayuda.",
       "dayToday": "Hoy es tu Día {day}",
@@ -2572,8 +2573,11 @@
       "notReady": "Tu avance todavía no se guarda: Sistemas está por activarlo.",
       "loadError": "No se pudo cargar tu ruta.",
       "retry": "Reintentar",
-      "back": "Volver a RISE Academy",
-      "coursesTitle": "Cursos de RISE Academy",
+      "back": "Volver a IMPULSA",
+      "backToPanel": "Volver al Panel Principal",
+      "logoAlt": "IMPULSA: cada paso, una Victoria",
+      "victoriesTitle": "Tus 6 Victorias",
+      "courseEyebrow": "IMPULSA · Victoria {number}",
       "victoryPage": {
         "today": "Hoy: Día {day}",
         "notFound": "Esa Victoria no existe.",
@@ -2640,7 +2644,6 @@
       "teamPage": {
         "title": "Mi equipo en IMPULSA",
         "subtitle": "Los nuevos distribuidores que acompañas en sus primeros 90 días.",
-        "back": "Volver a RISE Academy",
         "emptyTitle": "Aún no acompañas a ningún nuevo distribuidor",
         "emptyBody": "Cuando inscribas a alguien, aquí verás en qué día va, qué te toca hacer hoy y el mensaje que puedes mandarle.",
         "viaUpline": "Lo acompañas como su línea ascendente",

@@ -6,19 +6,17 @@
 // del sistema. Si su Patrocinador no está activo, lo acompaña su línea ascendente.
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { ArrowLeftIcon, CheckCircleIcon, ClipboardDocumentIcon, PhoneIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ClipboardDocumentIcon, PhoneIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { ImpulsaHeader } from '@/components/distributor/impulsa/ImpulsaHeader';
 import { useImpulsaTeam } from '@/hooks/useImpulsa';
-import { daysAgoLabel, formatPhone, telUrl, whatsappUrl } from '@/lib/impulsa';
+import { IMPULSA_PATH, daysAgoLabel, formatPhone, telUrl, whatsappUrl } from '@/lib/impulsa';
 import type { ImpulsaTeamMember } from '@/types/impulsa';
-
-const RISE_ACADEMY_PATH = '/distribuidor/capacitacion';
 
 function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: string }) {
   const t = useTranslations('distributor.impulsa.teamPage');
@@ -46,7 +44,7 @@ function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: strin
               #{member.customerNumber}
               {member.phone ? ` · ${formatPhone(member.phone)}` : ` · ${t('noPhone')}`}
             </p>
-            {member.viaUpline && <p className="mt-1 text-xs font-medium text-amber-700">{t('viaUpline')}</p>}
+            {member.viaUpline && <p className="mt-1 text-xs font-semibold text-impulsa-blue">{t('viaUpline')}</p>}
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">
@@ -76,14 +74,17 @@ function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: strin
               </span>
             </div>
             <div
-              className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted"
+              className="mt-1 h-2 w-full overflow-hidden rounded-full bg-impulsa-blue/15"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={card.percent}
               aria-label={t('card', { done: card.checksDone, total: card.checksTotal })}
             >
-              <div className="h-full rounded-full bg-primary" style={{ width: `${card.percent}%` }} />
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-impulsa-yellow to-impulsa-orange"
+                style={{ width: `${card.percent}%` }}
+              />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {member.lastActivityAt
@@ -94,14 +95,14 @@ function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: strin
         )}
 
         {member.notice ? (
-          <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+          <div className="space-y-3 rounded-xl border border-impulsa-yellow bg-impulsa-yellow/15 p-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">{t('noticeTitle')}</p>
-              <p className="mt-1 text-sm font-semibold text-[#1f3a4a]">{member.notice.action}</p>
-              <p className="mt-1 text-sm text-[#1f3a4a]/90">{member.notice.notice}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-impulsa-blue">{t('noticeTitle')}</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">{member.notice.action}</p>
+              <p className="mt-1 text-sm text-foreground/90">{member.notice.notice}</p>
             </div>
             <div>
-              <label htmlFor={`msg-${member.customerNumber}`} className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+              <label htmlFor={`msg-${member.customerNumber}`} className="text-xs font-semibold uppercase tracking-wide text-impulsa-blue">
                 {t('suggestedTitle')}
               </label>
               <Textarea
@@ -111,7 +112,7 @@ function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: strin
                 rows={4}
                 className="mt-1 bg-white"
               />
-              <p className="mt-1 text-xs text-muted-foreground">{t('suggestedHint')}</p>
+              <p className="mt-1 text-xs text-foreground/80">{t('suggestedHint')}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {whatsapp && (
@@ -121,12 +122,12 @@ function MemberCard({ member, today }: { member: ImpulsaTeamMember; today: strin
                   </a>
                 </Button>
               )}
-              <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
+              <Button type="button" variant="outline" size="sm" className="bg-white" onClick={() => void copy()}>
                 <ClipboardDocumentIcon className="h-4 w-4" />
                 {t('copy')}
               </Button>
               {call && (
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="bg-white">
                   <a href={call}>
                     <PhoneIcon className="h-4 w-4" />
                     {t('call')}
@@ -150,17 +151,7 @@ export default function ImpulsaTeamPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-[#1f3a4a] via-[#2f5165] to-[#3E667D] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <Link href={RISE_ACADEMY_PATH} className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white">
-            <ArrowLeftIcon className="h-4 w-4" />
-            {t('back')}
-          </Link>
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{ti('eyebrow')}</p>
-          <h1 className="mt-1 font-serif text-3xl font-bold italic sm:text-4xl">{t('title')}</h1>
-          <p className="mt-1 text-base text-white/80">{t('subtitle')}</p>
-        </div>
-      </div>
+      <ImpulsaHeader backHref={IMPULSA_PATH} backLabel={ti('back')} title={t('title')} subtitle={t('subtitle')} />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading ? (
