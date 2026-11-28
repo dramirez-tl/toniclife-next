@@ -41,6 +41,7 @@ import {
   hasChanges,
   readReceiverSaveError,
   rfcMatchesCurp,
+  satRejectionHint,
   type PayrollReceiverDraft,
 } from '@/lib/treasury/payroll-receiver';
 import type { PayrollReceiver, PayrollReceiverField } from '@/types/payroll-receiver';
@@ -255,15 +256,23 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
           </div>
         )}
 
-        {stamp?.lastError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-            <p className="mb-1 font-medium">El último intento de timbrado fue rechazado</p>
-            <p className="break-words">{stamp.lastError}</p>
-            <p className="mt-2 text-xs text-red-800">
-              Si es por el código postal o el RFC, corrígelo aquí contra su constancia y vuelve a intentar. Si es por el nombre, se corrige en su ficha.
-            </p>
-          </div>
-        )}
+        {stamp?.lastError &&
+          (() => {
+            const hint = satRejectionHint(stamp.lastError);
+            return (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                <p className="mb-1 font-medium">El SAT rechazó el último intento de timbrado</p>
+                {hint ? (
+                  <>
+                    <p>{hint.text}</p>
+                    <p className="mt-2 break-words text-xs text-red-800/80">Mensaje del SAT: {stamp.lastError}</p>
+                  </>
+                ) : (
+                  <p className="break-words">{stamp.lastError}</p>
+                )}
+              </div>
+            );
+          })()}
 
         <Card title="Datos con los que sale su recibo">
           <p className="mb-3 text-sm text-gray-600">
