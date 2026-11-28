@@ -1,6 +1,6 @@
 // external-settlement.ts - Asentar como pagadas las comisiones ya depositadas
 // fuera de los lotes de dispersión. Espejo del API
-// (POST /mlm/commissions/external-settlement, permiso mlm:pay).
+// (GET = vista previa, POST = aplicar: /mlm/commissions/external-settlement, permiso mlm:pay).
 
 /** Por qué una comisión con pago registrado NO se asienta. */
 export type ExternalSettlementCode =

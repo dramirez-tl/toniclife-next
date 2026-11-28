@@ -6,7 +6,7 @@ import { commissionReceiptKeys } from '@/hooks/useCommissionReceipts';
 import { treasuryKeys } from '@/hooks/useTreasury';
 import { externalSettlementService } from '@/services/external-settlement.service';
 
-/** Vista previa: no escribe nada (es un POST porque así lo expone el API). */
+/** Vista previa: no escribe nada. Se pide al abrir la ventana, por eso es una mutación y no una consulta en caché. */
 export function usePreviewExternalSettlement() {
   return useMutation({
     mutationFn: (periodId: string) => externalSettlementService.preview(periodId),
