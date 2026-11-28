@@ -16,7 +16,9 @@ import { selectUserPermissions, selectUserRoles } from '@/store';
 import { apiErrorMessage } from '@/lib/branches/branch-cash-register';
 import { EditPaymentModal, PAYMENT_METHOD_OPTIONS } from '@/components/admin/pos/EditPaymentModal';
 import { PaymentChangesDialog } from '@/components/admin/pos/PaymentChangesDialog';
+import { CancelSaleDialog } from '@/components/admin/pos/CancelSaleDialog';
 import { canCorrectPaymentMethod } from '@/lib/pos/payment-changes';
+import { canCancelSales, saleCanBeCancelled } from '@/lib/pos/cancel-sale';
 import type { Sale, SaleEnrollment, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
@@ -46,6 +48,7 @@ import {
   SparklesIcon,
   PrinterIcon,
   ComputerDesktopIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 import type { SalesStatsTerminalRow } from '@/types/pos';
 
@@ -569,7 +572,18 @@ function SaleEnrollmentCard({ enrollment, saleDate }: { enrollment: SaleEnrollme
   );
 }
 
-function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale; onClose: () => void; branchTz?: string }) {
+function SaleDetailPanel({
+  sale,
+  onClose,
+  branchTz = DEFAULT_TIMEZONE,
+  onCancelSale,
+}: {
+  sale: Sale;
+  onClose: () => void;
+  branchTz?: string;
+  /** Solo se pasa a quien puede cancelar ventas (permiso pos:manage). */
+  onCancelSale?: (sale: Sale) => void;
+}) {
   // El row de la lista no trae items ni puntos; al desplegar, traemos el
   // detalle completo (GET /pos/sales/:id). Mientras carga se usa el row.
   const { data: detail } = useSale(sale.id, !!sale.id);
@@ -870,6 +884,17 @@ function SaleDetailPanel({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             <PrinterIcon className="h-4 w-4" />
             Imprimir / guardar PDF
           </Button>
+          {onCancelSale && saleCanBeCancelled(view.status) && (
+            <Button
+              variant="outline"
+              className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              onClick={() => onCancelSale(view)}
+              title="Cancela la venta: regresa el producto a existencias y revierte puntos y caja"
+            >
+              <NoSymbolIcon className="h-4 w-4" />
+              Cancelar venta
+            </Button>
+          )}
           <Button variant="ghost" className="w-full" onClick={onClose}>
             Plegar detalle
           </Button>
@@ -913,6 +938,10 @@ function VentasReportesContent() {
   const userPermissions = useAppSelector(selectUserPermissions);
   const canEditPayment = canCorrectPaymentMethod(userRoles, userPermissions);
   const [showPaymentChanges, setShowPaymentChanges] = useState(false);
+  // Cancelar la venta desde su detalle (Sistemas, 27-nov-2026): mismo permiso
+  // que en Punto de Venta (pos:manage); el API lo vuelve a validar.
+  const canCancelSale = canCancelSales(userRoles, userPermissions);
+  const [cancellingSale, setCancellingSale] = useState<Sale | null>(null);
 
   const selectedBranch = get('branch');
   const selectedStatus = get('status');
@@ -1271,6 +1300,9 @@ function VentasReportesContent() {
   return (
     <>
     <PaymentChangesDialog open={showPaymentChanges} onOpenChange={setShowPaymentChanges} />
+    {cancellingSale && (
+      <CancelSaleDialog key={cancellingSale.id} sale={cancellingSale} onClose={() => setCancellingSale(null)} />
+    )}
     {editingSale && (
       <EditPaymentModal
         sale={editingSale}
@@ -1627,6 +1659,7 @@ function VentasReportesContent() {
                     sale={sale}
                     onClose={() => toggleExpanded(sale.id)}
                     branchTz={branches.find((b) => b.name === sale.branchName)?.timezone || DEFAULT_TIMEZONE}
+                    onCancelSale={canCancelSale ? setCancellingSale : undefined}
                   />
                 ) : null
               }
