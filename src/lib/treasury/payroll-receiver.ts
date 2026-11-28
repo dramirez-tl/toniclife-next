@@ -1,0 +1,156 @@
+// payroll-receiver.ts - Reglas puras (sin red ni React) del panel "Datos del
+// recibo" de Tesorería y del buscador de Bono de Inscripción. El API vuelve a
+// validar todo lo que se guarda.
+
+import type {
+  PayrollReceiver,
+  PayrollReceiverField,
+  PayrollReceiverFieldError,
+  PayrollReceiverInput,
+  PayrollRfcSource,
+} from '@/types/payroll-receiver';
+
+// ---------------- Captura ----------------
+
+export interface PayrollReceiverDraft {
+  rfc: string;
+  curp: string;
+  zipCode: string;
+}
+
+/** Mayúsculas, sin espacios ni guiones (lo típico al pegar desde una constancia). */
+export const cleanFiscalId = (value: string): string => value.toUpperCase().replace(/[\s\-.]/g, '');
+
+/** Solo dígitos, máximo 5. */
+export const cleanZip = (value: string): string => value.replace(/\D/g, '').slice(0, 5);
+
+/** El formulario abre con lo guardado en el perfil de nómina. */
+export function draftFromReceiver(receiver: PayrollReceiver | null | undefined): PayrollReceiverDraft {
+  return {
+    rfc: receiver?.payroll.rfc ?? '',
+    curp: receiver?.payroll.curp ?? '',
+    zipCode: receiver?.payroll.zipCode ?? '',
+  };
+}
+
+/** Lo que cambió respecto de lo guardado (lo único que se manda). Vacío no cambia nada. */
+export function draftChanges(receiver: PayrollReceiver, draft: PayrollReceiverDraft): PayrollReceiverInput {
+  const out: PayrollReceiverInput = {};
+  const rfc = cleanFiscalId(draft.rfc);
+  const curp = cleanFiscalId(draft.curp);
+  const zip = cleanZip(draft.zipCode);
+  if (rfc && rfc !== (receiver.payroll.rfc ?? '')) out.rfc = rfc;
+  if (curp && curp !== (receiver.payroll.curp ?? '')) out.curp = curp;
+  if (zip && zip !== (receiver.payroll.zipCode ?? '')) out.zipCode = zip;
+  return out;
+}
+
+export const hasChanges = (input: PayrollReceiverInput): boolean =>
+  input.rfc !== undefined || input.curp !== undefined || input.zipCode !== undefined;
+
+/** Avisos mientras se teclea (largo de cada dato); el API da el veredicto final. */
+export function draftHints(draft: PayrollReceiverDraft): Partial<Record<PayrollReceiverField, string>> {
+  const hints: Partial<Record<PayrollReceiverField, string>> = {};
+  const rfc = cleanFiscalId(draft.rfc);
+  const curp = cleanFiscalId(draft.curp);
+  const zip = cleanZip(draft.zipCode);
+  if (rfc && rfc.length !== 13) {
+    hints.rfc = rfc.length === 12 ? 'Ese es un RFC de empresa (12). El del distribuidor lleva 13.' : `Lleva ${rfc.length} de 13 caracteres.`;
+  }
+  if (curp && curp.length !== 18) hints.curp = `Lleva ${curp.length} de 18 caracteres.`;
+  if (zip && zip.length !== 5) hints.zipCode = `Lleva ${zip.length} de 5 dígitos.`;
+  return hints;
+}
+
+/** ¿RFC y CURP son de la misma persona? (2 primeras letras y fecha de nacimiento; igual que el API). */
+export function rfcMatchesCurp(rfc: string, curp: string): boolean {
+  const r = cleanFiscalId(rfc);
+  const c = cleanFiscalId(curp);
+  if (r.length !== 13 || c.length !== 18) return false;
+  return r.slice(0, 2) === c.slice(0, 2) && r.slice(4, 10) === c.slice(4, 10);
+}
+
+export interface ReceiverSaveError {
+  /** Mensaje para el aviso. */
+  message: string;
+  /** Detalle por campo, cuando el API lo manda. */
+  errors: PayrollReceiverFieldError[];
+  /** El dato es válido pero hay que confirmar (RFC y CURP no cuadran). */
+  needsConfirm: boolean;
+}
+
+/** Lee el 422 del API ({ message, field, details: { errors, needsConfirm } }). */
+export function readReceiverSaveError(err: unknown, fallback = 'No se pudieron guardar los datos.'): ReceiverSaveError {
+  const body = (err as { response?: { data?: unknown } } | null)?.response?.data as
+    | { message?: unknown; field?: unknown; details?: { errors?: unknown; needsConfirm?: unknown } }
+    | undefined;
+  const message = typeof body?.message === 'string' && body.message.trim() ? body.message : fallback;
+  const raw = Array.isArray(body?.details?.errors) ? (body!.details!.errors as unknown[]) : [];
+  const errors = raw
+    .filter(
+      (e): e is PayrollReceiverFieldError =>
+        !!e &&
+        typeof (e as PayrollReceiverFieldError).message === 'string' &&
+        ['rfc', 'curp', 'zipCode'].includes((e as PayrollReceiverFieldError).field),
+    )
+    .map((e) => ({ field: e.field, message: e.message, ...(e.needsConfirm ? { needsConfirm: true } : {}) }));
+  return { message, errors, needsConfirm: body?.details?.needsConfirm === true };
+}
+
+export const RFC_SOURCE_LABEL: Record<PayrollRfcSource, string> = {
+  payroll: 'RFC de nómina capturado',
+  billing_own: 'RFC de facturación (es el suyo: cuadra con su CURP)',
+  billing_unverified: 'RFC de facturación (sin CURP para comprobar que sea el suyo)',
+};
+
+// ---------------- Buscador de Bono de Inscripción ----------------
+
+/** Minúsculas y sin acentos, para comparar. */
+export const searchFold = (value: string | null | undefined): string =>
+  (value ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+
+/** Cada palabra buscada debe aparecer en alguno de los textos ("juana 2019" encuentra a Juana #2019517). */
+export function matchesSearch(query: string, fields: ReadonlyArray<string | null | undefined>): boolean {
+  const words = searchFold(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const hay = fields.map(searchFold).join(' \u0001 ');
+  return words.every((w) => hay.includes(w));
+}
+
+interface SearchableBonus {
+  sponsorNumber: string;
+  sponsorName: string;
+  buyerNumber: string;
+  buyerName: string;
+  kitCode: string;
+  paymentReference?: string | null;
+}
+
+/** Un bono: por patrocinador, inscrito, clave del kit o referencia del pago. */
+export function bonusRowMatches(query: string, row: SearchableBonus): boolean {
+  return matchesSearch(query, [row.sponsorNumber, row.sponsorName, row.buyerNumber, row.buyerName, row.kitCode, row.paymentReference]);
+}
+
+interface SearchableGroup {
+  sponsorNumber: string;
+  sponsorName: string;
+  paymentReference?: string | null;
+  voucher?: { folio: string | null; uuid: string | null } | null;
+  items: ReadonlyArray<{ buyerNumber: string; buyerName: string; kitCode: string }>;
+}
+
+/** Un patrocinador: por él, por cualquiera de sus inscritos, por el folio de su recibo o la referencia del pago. */
+export function bonusGroupMatches(query: string, group: SearchableGroup): boolean {
+  return matchesSearch(query, [
+    group.sponsorNumber,
+    group.sponsorName,
+    group.paymentReference,
+    group.voucher?.folio,
+    group.voucher?.uuid,
+    ...group.items.flatMap((i) => [i.buyerNumber, i.buyerName, i.kitCode]),
+  ]);
+}

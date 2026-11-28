@@ -22,12 +22,27 @@
 // API lo manda como `paymentStatus: 'held'`, fuera de lo pendiente y sin
 // casilla, con enlace para capturar sus datos en Validación de datos.
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowDownTrayIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MagnifyingGlassIcon,
+  UserPlusIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { TreasuryHeader, TreasuryTabs } from '@/components/admin/treasury';
 import { KitBonusImportDialog } from '@/components/admin/treasury/KitBonusImportDialog';
+import {
+  PayrollReceiverSheet,
+  type PayrollReceiverSheetTab,
+  type PayrollReceiverStampContext,
+} from '@/components/admin/treasury/PayrollReceiverSheet';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { bonusGroupMatches, bonusRowMatches } from '@/lib/treasury/payroll-receiver';
 import { paymentMethodLabel } from '@/lib/delivery-print';
 import {
   useKitBonuses,
@@ -175,9 +190,6 @@ const HOLD_MESSAGES: Record<KitBonusHoldReason, string> = {
     'El patrocinador cobra en México/Frontera y no tiene régimen fiscal asignado: pídele sus datos fiscales (constancia) y asígnalo en Validación de datos. Hasta entonces el bono no se paga.',
 };
 const holdMessage = (reason: KitBonusHoldReason | null) => (reason ? HOLD_MESSAGES[reason] : 'Bono apartado');
-/** Bandeja de Tesorería donde se asigna el régimen de comisión del patrocinador. */
-const fiscalDataHref = (sponsorId: string) => `/admin/tesoreria/validacion-datos?review=${encodeURIComponent(sponsorId)}`;
-
 function HeldPill({ reason }: { reason: KitBonusHoldReason | null }) {
   return (
     <span
@@ -289,13 +301,15 @@ interface VoucherCellProps {
   canPay: boolean;
   busy: boolean;
   onStamp: (g: KitBonusGroup) => void;
+  /** Abre el panel lateral para completar o corregir los datos con que sale el recibo. */
+  onComplete: (g: KitBonusGroup) => void;
   onRegister: (g: KitBonusGroup) => void;
   onUnlink: (g: KitBonusGroup) => void;
   onDownload: (g: KitBonusGroup, ext: 'pdf' | 'xml') => void;
 }
 
 /** Columna "Comprobante": recibo de nómina (ASIMILADOS) o CFDI del distribuidor (RESICO…). */
-function VoucherCell({ g, canPay, busy, onStamp, onRegister, onUnlink, onDownload }: VoucherCellProps) {
+function VoucherCell({ g, canPay, busy, onStamp, onComplete, onRegister, onUnlink, onDownload }: VoucherCellProps) {
   const v: KitBonusGroupVoucher | null = g.voucher;
   if (g.paymentStatus !== 'paid' || !v || v.mode === 'none') {
     return <span className="text-xs text-gray-300">—</span>;
@@ -330,8 +344,20 @@ function VoucherCell({ g, canPay, busy, onStamp, onRegister, onUnlink, onDownloa
         {v.status === 'cancelled' && pill('bg-gray-100 text-gray-600 ring-gray-500/10', 'Recibo cancelado', v.uuid ?? undefined)}
         {v.status === 'not_stamped' && !issues && pill('bg-amber-50 text-amber-700 ring-amber-600/20', 'Sin recibo')}
         {issues && pill('bg-red-50 text-red-700 ring-red-600/20', 'Faltan datos', issues)}
-        {canPay && (
-          <button type="button" onClick={() => onStamp(g)} disabled={busy || !!issues} className={link} title={issues || 'Emitir el recibo de nómina (CFDI) de este pago'}>
+        {/* Sin salir de la pantalla: completar lo que falta (o corregir lo que rechazó el SAT) y timbrar. */}
+        {canPay && (issues || v.status === 'error') && (
+          <button
+            type="button"
+            onClick={() => onComplete(g)}
+            disabled={busy}
+            className="text-xs font-semibold text-[#3E667D] hover:underline disabled:opacity-50"
+            title="Completar o corregir su RFC, CURP y código postal, y timbrar desde ahí"
+          >
+            {issues ? 'Completar datos' : 'Corregir datos'}
+          </button>
+        )}
+        {canPay && !issues && (
+          <button type="button" onClick={() => onStamp(g)} disabled={busy} className={link} title="Emitir el recibo de nómina (CFDI) de este pago">
             {label}
           </button>
         )}
@@ -564,6 +590,9 @@ interface GroupedTableProps {
   /** Comprobante del grupo pagado (recibo de nómina / CFDI recibido). */
   busyKey: string | null;
   onStamp: (g: KitBonusGroup) => void;
+  onComplete: (g: KitBonusGroup) => void;
+  /** Patrocinador apartado (sin régimen): abre el panel en "Régimen y documentos". */
+  onCaptureRegime: (g: KitBonusGroup) => void;
   onRegister: (g: KitBonusGroup) => void;
   onUnlink: (g: KitBonusGroup) => void;
   onDownload: (g: KitBonusGroup, ext: 'pdf' | 'xml') => void;
@@ -583,6 +612,8 @@ function GroupedTable({
   totalLabel,
   busyKey,
   onStamp,
+  onComplete,
+  onCaptureRegime,
   onRegister,
   onUnlink,
   onDownload,
@@ -598,7 +629,7 @@ function GroupedTable({
                 <Checkbox checked={allSelected} onCheckedChange={onToggleAll} disabled={!anyPending} aria-label="Seleccionar todos los patrocinadores pendientes" />
               </TableHead>
             )}
-            {['Estatus', 'ID Upline', 'Upline', 'Canal', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos', 'Comprobante'].map((h) => (
+            {['Estatus', 'ID Upline', 'Upline', 'Comprobante', 'Canal', 'País', 'Régimen', 'Moneda', 'Bonos', 'Suscritos'].map((h) => (
               <TableHead key={h} className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                 {h}
               </TableHead>
@@ -630,6 +661,19 @@ function GroupedTable({
                   <TableCell className="px-4 py-3 whitespace-nowrap"><GroupStatusBadge g={g} /></TableCell>
                   <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap tabular-nums">{g.sponsorNumber}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{g.sponsorName}</TableCell>
+                  {/* Comprobante junto al nombre (Tesorería, 27-nov-2026): es lo que se trabaja renglón por renglón. */}
+                  <TableCell className="px-4 py-3 whitespace-nowrap">
+                    <VoucherCell
+                      g={g}
+                      canPay={canPay}
+                      busy={busyKey !== null}
+                      onStamp={onStamp}
+                      onComplete={onComplete}
+                      onRegister={onRegister}
+                      onUnlink={onUnlink}
+                      onDownload={onDownload}
+                    />
+                  </TableCell>
                   <TableCell className="px-4 py-3 whitespace-nowrap">
                     <GroupChannelBadges items={g.items} />
                   </TableCell>
@@ -642,9 +686,9 @@ function GroupedTable({
                     ) : g.paymentStatus === 'held' ? (
                       <span className="inline-flex items-center gap-2">
                         <span className="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">Sin régimen</span>
-                        <Link href={fiscalDataHref(g.sponsorId)} className="text-xs font-medium text-rose-700 hover:underline" title={holdMessage(g.holdReason)}>
+                        <button type="button" onClick={() => onCaptureRegime(g)} className="text-xs font-medium text-rose-700 hover:underline" title={holdMessage(g.holdReason)}>
                           Capturar datos
-                        </Link>
+                        </button>
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">Sin régimen</span>
@@ -676,17 +720,6 @@ function GroupedTable({
                     onClick={() => onToggleExpand(g.key)}
                   >
                     {g.items.map((i) => i.buyerName).join(', ')}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 whitespace-nowrap">
-                    <VoucherCell
-                      g={g}
-                      canPay={canPay}
-                      busy={busyKey !== null}
-                      onStamp={onStamp}
-                      onRegister={onRegister}
-                      onUnlink={onUnlink}
-                      onDownload={onDownload}
-                    />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-sm text-right text-gray-900 whitespace-nowrap tabular-nums">{formatMoney(g.subtotal, g.currencyCode)}</TableCell>
                   <TableCell className="px-4 py-3 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">{g.isr ? formatAmount(g.isr) : '—'}</TableCell>
@@ -737,19 +770,81 @@ function GroupedTable({
   );
 }
 
+/** Sin valores por defecto en la URL (constante: mantiene estable setParams). */
+const NO_URL_DEFAULTS: Record<string, string> = {};
+const isYmd = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+
+/** A quién se le están completando los datos en el panel lateral. */
+interface FiscalTarget {
+  sponsorId: string;
+  sponsorNumber: string;
+  sponsorName: string;
+  /** Grupo de bonos desde el que se abrió (para ofrecer "timbrar"); null si se abrió desde un bono suelto. */
+  groupKey: string | null;
+  tab: PayrollReceiverSheetTab;
+}
+
+// useQueryFilters lee la URL (useSearchParams): pide un límite de Suspense.
 export default function BonosInscripcionPage() {
+  return (
+    <Suspense fallback={<div className="px-4 py-10 text-sm text-gray-500 sm:px-6 lg:px-8">Cargando…</div>}>
+      <BonosInscripcionContent />
+    </Suspense>
+  );
+}
+
+function BonosInscripcionContent() {
   // Por defecto la semana pasada (lunes→domingo): el legacy lo corría cada lunes.
   const [lastWeekFrom, lastWeekTo] = useMemo(() => weekRange(-1), []);
-  const [dateFrom, setDateFrom] = useState(lastWeekFrom);
-  const [dateTo, setDateTo] = useState(lastWeekTo);
-  const [appliedStart, setAppliedStart] = useState(lastWeekFrom);
-  const [appliedEnd, setAppliedEnd] = useState(lastWeekTo);
+  // Los filtros viven en la URL (Tesorería, 27-nov-2026): al recargar, compartir
+  // el enlace o regresar de otra pantalla no se pierden. Nombres en español:
+  // q, estatus, vista, sucursal, pais, de, hasta.
+  const { get: urlParam, setParams: setUrlParams } = useQueryFilters(NO_URL_DEFAULTS);
+  const [initial] = useState(() => {
+    const de = urlParam('de');
+    const hasta = urlParam('hasta');
+    const okRange =
+      isYmd(de) && isYmd(hasta) && de <= hasta && Math.round((Date.parse(hasta) - Date.parse(de)) / 86_400_000) + 1 <= MAX_RANGE_DAYS;
+    const estatus = urlParam('estatus');
+    const sucursal = urlParam('sucursal');
+    return {
+      from: okRange ? de : lastWeekFrom,
+      to: okRange ? hasta : lastWeekTo,
+      status: (STATUS_FILTERS.some((f) => f.key === estatus) ? estatus : 'all') as StatusFilter,
+      view: urlParam('vista') === 'detail' ? ('detail' as const) : ('grouped' as const),
+      branchType: (BRANCH_TYPE_OPTIONS.some((o) => o.key === sucursal) ? sucursal : 'cedis') as KitBonusBranchType,
+      countries: urlParam('pais')
+        .split(',')
+        .map((c) => c.trim().toUpperCase())
+        .filter((c) => /^[A-Z]{2}$/.test(c)),
+      q: urlParam('q'),
+    };
+  });
+  const [dateFrom, setDateFrom] = useState(initial.from);
+  const [dateTo, setDateTo] = useState(initial.to);
+  const [appliedStart, setAppliedStart] = useState(initial.from);
+  const [appliedEnd, setAppliedEnd] = useState(initial.to);
   const [downloading, setDownloading] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.status);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogMode>(null);
   // Vista compacta por patrocinador (lo que se deposita) o una fila por bono.
-  const [view, setView] = useState<'grouped' | 'detail'>('grouped');
+  const [view, setView] = useState<'grouped' | 'detail'>(initial.view);
+  // Buscador: lo tecleado y, con una pausa corta, lo que de verdad filtra.
+  const [searchInput, setSearchInput] = useState(initial.q);
+  const [search, setSearch] = useState(initial.q.trim());
+  useEffect(() => {
+    const next = searchInput.trim();
+    if (next === search) return;
+    const timer = setTimeout(() => {
+      setSearch(next);
+      // Cambió lo visible: la selección anterior ya no corresponde.
+      setSelected(new Set());
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput, search]);
+  // Panel lateral para completar los datos del recibo sin salir de la pantalla.
+  const [fiscalTarget, setFiscalTarget] = useState<FiscalTarget | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [paidAt, setPaidAt] = useState(() => daysAgo(0));
   const [reference, setReference] = useState('');
@@ -761,7 +856,7 @@ export default function BonosInscripcionPage() {
   }, []);
   // Filtro por país del patrocinador (quien cobra): el API filtra, así los
   // totales y el Excel son solo de ese país y "marcar pagados" no toca otros.
-  const [countries, setCountries] = useState<Set<string>>(new Set());
+  const [countries, setCountries] = useState<Set<string>>(() => new Set(initial.countries));
   const [knownCountries, setKnownCountries] = useState<string[]>([]);
   const countryParam = countries.size ? sortCountries([...countries]).join(',') : undefined;
   const toggleCountry = (code: string) => {
@@ -775,11 +870,24 @@ export default function BonosInscripcionPage() {
   };
 
   // CEDIS / CEDEAS por la sucursal de la venta del kit (se pagan aparte); CEDIS por defecto.
-  const [branchType, setBranchType] = useState<KitBonusBranchType>('cedis');
+  const [branchType, setBranchType] = useState<KitBonusBranchType>(initial.branchType);
   const changeBranchType = (t: KitBonusBranchType) => {
     setBranchType(t);
     setSelected(new Set());
   };
+
+  useEffect(() => {
+    const defaultRange = appliedStart === lastWeekFrom && appliedEnd === lastWeekTo;
+    setUrlParams({
+      q: search || null,
+      estatus: statusFilter === 'all' ? null : statusFilter,
+      vista: view === 'grouped' ? null : view,
+      sucursal: branchType === 'cedis' ? null : branchType,
+      pais: countryParam ?? null,
+      de: defaultRange ? null : appliedStart,
+      hasta: defaultRange ? null : appliedEnd,
+    });
+  }, [setUrlParams, search, statusFilter, view, branchType, countryParam, appliedStart, appliedEnd, lastWeekFrom, lastWeekTo]);
 
   const { data, isLoading, isFetching, error, refetch } = useKitBonuses({
     startDate: appliedStart,
@@ -851,9 +959,23 @@ export default function BonosInscripcionPage() {
   };
 
   const allRows = useMemo(() => data?.rows ?? [], [data]);
+  // Buscador: se decide POR PATROCINADOR (por él, por cualquiera de sus inscritos,
+  // el folio del recibo o la referencia del pago) y las dos vistas enseñan los
+  // mismos bonos. Así "marcar pagados" sin selección toca justo lo que se ve.
+  const searchedGroups = useMemo(
+    () => (search ? (data?.groups ?? []).filter((g) => bonusGroupMatches(search, g)) : (data?.groups ?? [])),
+    [data, search],
+  );
+  const searchedRows = useMemo(() => {
+    if (!search) return allRows;
+    const inGroup = new Set((data?.groups ?? []).flatMap((g) => g.items.map((i) => `${i.source}:${i.itemId}`)));
+    const matched = new Set(searchedGroups.flatMap((g) => g.items.map((i) => `${i.source}:${i.itemId}`)));
+    // Un bono que no viniera en ningún grupo se busca por sus propios datos.
+    return allRows.filter((r) => (inGroup.has(rowKey(r)) ? matched.has(rowKey(r)) : bonusRowMatches(search, r)));
+  }, [allRows, data, search, searchedGroups]);
   const rows = useMemo(
-    () => (statusFilter === 'all' ? allRows : allRows.filter((r) => r.paymentStatus === statusFilter)),
-    [allRows, statusFilter],
+    () => (statusFilter === 'all' ? searchedRows : searchedRows.filter((r) => r.paymentStatus === statusFilter)),
+    [searchedRows, statusFilter],
   );
   const summary = data?.summary;
   const byStatus = summary?.byStatus;
@@ -887,8 +1009,8 @@ export default function BonosInscripcionPage() {
   // Grupos por patrocinador (mismo filtro de estatus). Seleccionar un grupo =
   // seleccionar todos sus bonos pendientes (las claves son las de las filas).
   const groups = useMemo(
-    () => (data?.groups ?? []).filter((g) => statusFilter === 'all' || g.paymentStatus === statusFilter),
-    [data, statusFilter],
+    () => searchedGroups.filter((g) => statusFilter === 'all' || g.paymentStatus === statusFilter),
+    [searchedGroups, statusFilter],
   );
   const groupKeys = (g: KitBonusGroup) => g.items.map((i) => `${i.source}:${i.itemId}`);
   const pendingGroups = groups.filter((g) => g.paymentStatus === 'pending');
@@ -911,7 +1033,7 @@ export default function BonosInscripcionPage() {
       return next;
     });
 
-  const filtersLabel = `${branchTypeShort(branchType)} · ${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}`;
+  const filtersLabel = `${branchTypeShort(branchType)} · ${countryParam ? countryParam.split(',').map((c) => COUNTRY_LABEL[c] ?? c).join(' + ') : 'todos los países'} · ${rangeLabel}${search ? ` · búsqueda "${search}"` : ''}`;
   // Sin selección se marcan los pendientes VISIBLES (respetando país y estatus),
   // nunca todo el rango: cada tesorería marca solo lo que pagó.
   const openMark = (kind: 'paid' | 'excluded') => {
@@ -1145,6 +1267,30 @@ export default function BonosInscripcionPage() {
       toast.error('No se pudo revertir');
     }
   };
+
+  // Panel lateral: el grupo se toma SIEMPRE del reporte vigente (tras guardar o
+  // timbrar se vuelve a pedir y cambian sus datos faltantes y su estatus).
+  const fiscalGroup = fiscalTarget?.groupKey ? ((data?.groups ?? []).find((g) => g.key === fiscalTarget.groupKey) ?? null) : null;
+  const fiscalVoucher = fiscalGroup?.voucher ?? null;
+  const fiscalStamp: PayrollReceiverStampContext | null =
+    fiscalGroup && fiscalVoucher && fiscalVoucher.mode === 'payroll' && fiscalGroup.paymentStatus === 'paid'
+      ? {
+          canStamp:
+            canPay &&
+            (fiscalVoucher.status === 'not_stamped' || fiscalVoucher.status === 'cancelled' || fiscalVoucher.status === 'error') &&
+            groupPaymentIds(fiscalGroup).length === fiscalGroup.items.length,
+          label: fiscalVoucher.status === 'error' ? 'Reintentar' : fiscalVoucher.status === 'cancelled' ? 'Timbrar de nuevo' : 'Timbrar',
+          lastError: fiscalVoucher.status === 'error' ? fiscalVoucher.error : null,
+          facts: [
+            { label: 'Bonos', value: `${fiscalGroup.bonuses} ${fiscalGroup.bonuses === 1 ? 'suscrito' : 'suscritos'}` },
+            { label: 'Pagado el', value: formatDateDisplay(fiscalGroup.paidAt ? fiscalGroup.paidAt.slice(0, 10) : null) || '—' },
+            { label: 'Subtotal', value: formatMoney(fiscalGroup.subtotal, fiscalGroup.currencyCode) },
+            { label: 'ISR retenido', value: formatAmount(fiscalGroup.isr) },
+            { label: 'Neto depositado', value: formatMoney(fiscalGroup.total, fiscalGroup.currencyCode) },
+          ],
+          onStamp: () => stampGroup(fiscalGroup),
+        }
+      : null;
 
   const busy =
     markMutation.isPending ||
@@ -1404,12 +1550,51 @@ export default function BonosInscripcionPage() {
           </div>
         )}
 
+        {/* Buscador (queda en la URL: ?q=) */}
+        {data && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:max-w-md">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Buscar por ID o nombre del patrocinador o del inscrito"
+                aria-label="Buscar en los bonos del periodo"
+                className="pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  aria-label="Quitar la búsqueda"
+                >
+                  <XMarkIcon className="h-4 w-4" aria-hidden />
+                </button>
+              )}
+            </div>
+            {search && (
+              <p className="text-xs text-gray-500" aria-live="polite">
+                {groups.length} {groups.length === 1 ? 'patrocinador' : 'patrocinadores'} · {rows.length} {rows.length === 1 ? 'bono' : 'bonos'} con «{search}».
+                Los totales de arriba siguen siendo los de todo el rango.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Barra de estatus / acciones */}
         {data && (
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
             <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 text-xs font-medium" role="tablist" aria-label="Estatus de pago">
               {STATUS_FILTERS.map((f) => {
-                const n = f.key === 'all' ? allRows.length : (byStatus?.[f.key]?.rows ?? 0);
+                const n = search
+                  ? f.key === 'all'
+                    ? searchedRows.length
+                    : searchedRows.filter((r) => r.paymentStatus === f.key).length
+                  : f.key === 'all'
+                    ? allRows.length
+                    : (byStatus?.[f.key]?.rows ?? 0);
                 return (
                   <button
                     key={f.key}
@@ -1535,6 +1720,12 @@ export default function BonosInscripcionPage() {
               totalLabel={statusFilter === 'all' ? 'TOTAL' : `TOTAL ${STATUS_FILTERS.find((f) => f.key === statusFilter)?.label.toUpperCase()}`}
               busyKey={busy ? (busyKey ?? '*') : null}
               onStamp={(g) => setDialog({ kind: 'stamp', group: g })}
+              onComplete={(g) =>
+                setFiscalTarget({ sponsorId: g.sponsorId, sponsorNumber: g.sponsorNumber, sponsorName: g.sponsorName, groupKey: g.key, tab: 'recibo' })
+              }
+              onCaptureRegime={(g) =>
+                setFiscalTarget({ sponsorId: g.sponsorId, sponsorNumber: g.sponsorNumber, sponsorName: g.sponsorName, groupKey: g.key, tab: 'regimen' })
+              }
               onRegister={(g) => {
                 setNotes('');
                 setXmlFile(null);
@@ -1643,9 +1834,16 @@ export default function BonosInscripcionPage() {
                       {canPay && (
                         <TableCell className="px-4 py-3 whitespace-nowrap">
                           {r.paymentStatus === 'held' ? (
-                            <Link href={fiscalDataHref(r.sponsorId)} className="text-xs font-medium text-rose-700 hover:underline" title={holdMessage(r.holdReason)}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFiscalTarget({ sponsorId: r.sponsorId, sponsorNumber: r.sponsorNumber, sponsorName: r.sponsorName, groupKey: null, tab: 'regimen' })
+                              }
+                              className="text-xs font-medium text-rose-700 hover:underline"
+                              title={holdMessage(r.holdReason)}
+                            >
                               Capturar datos
-                            </Link>
+                            </button>
                           ) : r.paymentStatus !== 'pending' && r.paymentId ? (
                             <button
                               type="button"
@@ -1863,6 +2061,18 @@ export default function BonosInscripcionPage() {
             )}
           </DialogContent>
         </Dialog>
+
+        <PayrollReceiverSheet
+          customerId={fiscalTarget?.sponsorId ?? null}
+          customerNumber={fiscalTarget?.sponsorNumber}
+          customerName={fiscalTarget?.sponsorName}
+          initialTab={fiscalTarget?.tab}
+          stamp={fiscalStamp}
+          readOnly={!canPay}
+          onOpenChange={(open) => {
+            if (!open) setFiscalTarget(null);
+          }}
+        />
       </div>
     </div>
   );

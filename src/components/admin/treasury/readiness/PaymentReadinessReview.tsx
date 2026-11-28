@@ -32,6 +32,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PermissionGuard } from '@/components/auth';
 import { useTaxRegimes } from '@/hooks/useTreasury';
@@ -52,6 +53,7 @@ import type {
   ReadinessDetail,
   RegimeRef,
 } from '@/types/treasury-readiness';
+import { PayrollReceiverPanel } from '../PayrollReceiverPanel';
 import { ReadinessChip } from '../ReadinessChip';
 import { TREASURY_VALIDATE_PERMISSIONS, useTreasuryPermissions } from '../useTreasuryPermissions';
 import { treasuryErrorMessage } from '../treasury-error';
@@ -179,6 +181,8 @@ export function PaymentReadinessReview({
   const [rejectTarget, setRejectTarget] = useState<PaymentDocumentKey | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<PaymentDocumentKey | null>(null);
   const [regimeOpen, setRegimeOpen] = useState(false);
+  // Datos del recibo de nómina: esta revisión era de solo consulta (27-nov-2026).
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [remindOpen, setRemindOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyQuery = useTaxRegimeHistory(customerId, historyOpen);
@@ -559,7 +563,24 @@ export function PaymentReadinessReview({
             </ul>
           </Section>
 
-          <Section title="Datos capturados (coteja con el documento)">
+          <Section
+            title="Datos capturados (coteja con el documento)"
+            action={
+              mx ? (
+                <PermissionGuard permissions={TREASURY_VALIDATE_PERMISSIONS} fallback={<></>}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => setReceiptOpen(true)}
+                    title="Capturar o corregir el RFC, la CURP y el código postal con que sale su recibo de nómina"
+                  >
+                    Completar datos del recibo
+                  </Button>
+                </PermissionGuard>
+              ) : null
+            }
+          >
             <dl className="divide-y divide-border">
               <Field label="Correo" value={detail.captured.email} />
               <Field label="Teléfono" value={detail.captured.phone} />
@@ -806,6 +827,18 @@ export function PaymentReadinessReview({
             }
           }}
         />
+      )}
+      {receiptOpen && (
+        <Dialog open onOpenChange={(o) => !o && setReceiptOpen(false)}>
+          <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+            <DialogTitle>Datos del recibo de nómina</DialogTitle>
+            <DialogDescription>
+              {customerLabel}. El RFC, la CURP y el código postal con que se timbra su recibo de comisiones y de bonos. Se guardan aparte de
+              los datos de facturación de sus compras, así que la lista de arriba puede seguir marcando el RFC general como faltante.
+            </DialogDescription>
+            <PayrollReceiverPanel customerId={customerId} />
+          </DialogContent>
+        </Dialog>
       )}
       {remindOpen && (
         <RemindDialog
