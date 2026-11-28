@@ -50,6 +50,7 @@ import {
   type CommissionsView,
 } from '@/components/admin/treasury/CommissionReceiptsPanel';
 import { isReceiptFilter, receiptBucket, receiptCounts, type ReceiptFilter } from '@/lib/treasury/commission-receipts';
+import { settlementProgress } from '@/lib/treasury/external-settlement';
 import { useActiveCountries } from '@/hooks/useConfig';
 import {
   commissionKeys,
@@ -222,6 +223,8 @@ function ComisionesContent() {
   const receiptRows = receiptsQuery.data?.rows;
   const receiptByCommission = useMemo(() => new Map((receiptRows ?? []).map((r) => [r.commissionId, r])), [receiptRows]);
   const periodReceiptCounts = useMemo(() => (receiptRows ? receiptCounts(receiptRows) : undefined), [receiptRows]);
+  // De las depositadas fuera de lote, cuántas ya pasaron a «Pagada» en el embudo.
+  const settlement = useMemo(() => (receiptRows ? settlementProgress(receiptRows) : undefined), [receiptRows]);
   const showReceipts = view === 'recibos' && receiptsEnabled;
 
   const list = useTreasuryCommissions(filters, listReady && !showReceipts);
@@ -808,6 +811,9 @@ function ComisionesContent() {
           activeFilter={receiptFilter}
           onFilter={(f) => setParams({ vista: 'recibos', recibo: f, page: null })}
           periodName={selectedPeriod?.name ?? 'este periodo'}
+          settlement={settlement}
+          periodId={effectivePeriodId}
+          canSettle={perms.canPay}
         />
       )}
 

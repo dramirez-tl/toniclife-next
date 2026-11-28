@@ -23,6 +23,8 @@ export interface PayrollReceiver {
   countryCode: string | null;
   /** Régimen de comisión asignado (ASIMILADOS, RESICO…) o null. */
   commissionRegime: string | null;
+  /** Para contactarlo y pedirle sus datos (ausente si el servidor aún no lo manda). */
+  contact?: { phone: string | null; email: string | null };
   /** Lo que se captura: RFC, CURP y C.P. propios del distribuidor. */
   payroll: {
     rfc: string | null;

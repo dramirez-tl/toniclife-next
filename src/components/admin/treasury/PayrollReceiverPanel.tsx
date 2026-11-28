@@ -44,6 +44,7 @@ import {
   satRejectionHint,
   type PayrollReceiverDraft,
 } from '@/lib/treasury/payroll-receiver';
+import { hasContact, receiverContactLinks } from '@/lib/treasury/receiver-contact';
 import type { PayrollReceiver, PayrollReceiverField } from '@/types/payroll-receiver';
 
 /** Lo que el panel necesita saber del recibo pendiente para ofrecer "timbrar". */
@@ -94,6 +95,80 @@ function Card({ title, children, tone = 'plain' }: { title: string; children: Re
 }
 
 const missing = <span className="font-normal italic text-gray-400">Sin capturar</span>;
+
+const contactAction = 'text-xs font-medium text-[#3E667D] hover:underline';
+
+/**
+ * Teléfono y correo de la cuenta, para llamarle o escribirle y pedirle sus
+ * datos (Tesorería, 28-nov-2026). No sale si el servidor aún no los manda.
+ */
+function ContactCard({ receiver }: { receiver: PayrollReceiver }) {
+  if (!receiver.contact) return null;
+  const links = receiverContactLinks(receiver.contact, receiver.countryCode);
+  const { phone, email } = links;
+  const copy = async (value: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${what} copiado.`);
+    } catch {
+      toast.error(`No se pudo copiar el ${what.toLowerCase()}.`);
+    }
+  };
+  return (
+    <Card title="Para contactarlo">
+      {hasContact(links) ? (
+        <dl className="divide-y divide-gray-100">
+          <Row label="Teléfono">
+            {phone ? (
+              <span className="inline-flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                {links.phoneHref ? (
+                  <a href={links.phoneHref} className="font-mono hover:underline">
+                    {phone}
+                  </a>
+                ) : (
+                  <span className="font-mono">{phone}</span>
+                )}
+                {links.whatsappHref && (
+                  <a href={links.whatsappHref} target="_blank" rel="noreferrer" className={contactAction}>
+                    WhatsApp
+                  </a>
+                )}
+                <button type="button" onClick={() => void copy(phone, 'Teléfono')} className={contactAction}>
+                  Copiar
+                </button>
+              </span>
+            ) : (
+              missing
+            )}
+          </Row>
+          <Row label="Correo">
+            {email ? (
+              <span className="inline-flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                {links.emailHref ? (
+                  <a href={links.emailHref} className="break-all hover:underline">
+                    {email}
+                  </a>
+                ) : (
+                  <span className="break-all">{email}</span>
+                )}
+                <button type="button" onClick={() => void copy(email, 'Correo')} className={contactAction}>
+                  Copiar
+                </button>
+              </span>
+            ) : (
+              missing
+            )}
+          </Row>
+        </dl>
+      ) : (
+        <p className="text-sm text-gray-600">Su cuenta no tiene teléfono ni correo. Búscalo por medio de su patrocinador o de su CEDEA.</p>
+      )}
+      {!receiver.ready && (
+        <p className="mt-2 text-xs text-gray-500">Pídele su Constancia de Situación Fiscal: de ahí salen el RFC, la CURP y el código postal.</p>
+      )}
+    </Card>
+  );
+}
 
 /** Datos del recibo de UN distribuidor: los pide y, ya cargados, pinta el formulario. */
 export function PayrollReceiverPanel({ customerId, stamp, onStamped, readOnly = false }: PayrollReceiverPanelProps) {
@@ -273,6 +348,8 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
               </div>
             );
           })()}
+
+        <ContactCard receiver={r} />
 
         <Card title="Datos con los que sale su recibo">
           <p className="mb-3 text-sm text-gray-600">
