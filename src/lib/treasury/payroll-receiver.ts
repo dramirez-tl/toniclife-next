@@ -3,6 +3,7 @@
 // validar todo lo que se guarda.
 
 import type {
+  PayrollNameSource,
   PayrollReceiver,
   PayrollReceiverField,
   PayrollReceiverFieldError,
@@ -16,7 +17,20 @@ export interface PayrollReceiverDraft {
   rfc: string;
   curp: string;
   zipCode: string;
+  /** Nombre para el recibo (como en su constancia). */
+  name: string;
 }
+
+/**
+ * El nombre como va en el CFDI: mayúsculas, sin acentos (la Ñ se conserva) y sin
+ * espacios de más. Igual que normalizeLegalName del API.
+ */
+export const cleanReceiptName = (value: string | null | undefined): string =>
+  Array.from((value ?? '').toUpperCase())
+    .map((ch) => (ch === 'Ñ' ? ch : ch.normalize('NFD').replace(/\p{M}/gu, '')))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 /** Mayúsculas, sin espacios ni guiones (lo típico al pegar desde una constancia). */
 export const cleanFiscalId = (value: string): string => value.toUpperCase().replace(/[\s\-.]/g, '');
@@ -30,6 +44,7 @@ export function draftFromReceiver(receiver: PayrollReceiver | null | undefined):
     rfc: receiver?.payroll.rfc ?? '',
     curp: receiver?.payroll.curp ?? '',
     zipCode: receiver?.payroll.zipCode ?? '',
+    name: receiver?.payroll.name ?? '',
   };
 }
 
@@ -42,11 +57,13 @@ export function draftChanges(receiver: PayrollReceiver, draft: PayrollReceiverDr
   if (rfc && rfc !== (receiver.payroll.rfc ?? '')) out.rfc = rfc;
   if (curp && curp !== (receiver.payroll.curp ?? '')) out.curp = curp;
   if (zip && zip !== (receiver.payroll.zipCode ?? '')) out.zipCode = zip;
+  const name = cleanReceiptName(draft.name);
+  if (name && name !== cleanReceiptName(receiver.payroll.name)) out.name = name;
   return out;
 }
 
 export const hasChanges = (input: PayrollReceiverInput): boolean =>
-  input.rfc !== undefined || input.curp !== undefined || input.zipCode !== undefined;
+  input.rfc !== undefined || input.curp !== undefined || input.zipCode !== undefined || input.name !== undefined;
 
 /** Avisos mientras se teclea (largo de cada dato); el API da el veredicto final. */
 export function draftHints(draft: PayrollReceiverDraft): Partial<Record<PayrollReceiverField, string>> {
@@ -59,7 +76,44 @@ export function draftHints(draft: PayrollReceiverDraft): Partial<Record<PayrollR
   }
   if (curp && curp.length !== 18) hints.curp = `Lleva ${curp.length} de 18 caracteres.`;
   if (zip && zip.length !== 5) hints.zipCode = `Lleva ${zip.length} de 5 dígitos.`;
+  const name = cleanReceiptName(draft.name);
+  if (name && name.split(' ').length < 2) hints.name = 'Escribe el nombre completo: nombre(s) y apellidos.';
   return hints;
+}
+
+/** De dónde sale el nombre del recibo, en palabras de Tesorería. */
+export const NAME_SOURCE_LABEL: Record<PayrollNameSource, string> = {
+  payroll: 'Nombre capturado para el recibo',
+  billing: 'Sale de la Razón social de sus datos fiscales',
+  account: 'Sale del nombre de su cuenta',
+};
+
+export interface ReceiptNameSuggestion {
+  source: 'account' | 'billing';
+  /** Con su artículo, para decir "Usar …": "el nombre de su cuenta" | "la razón social de sus datos fiscales". */
+  label: string;
+  name: string;
+}
+
+/**
+ * Nombres que la cuenta ya tiene y que NO son el que hoy saldría en el recibo:
+ * candidatos para capturarlo de un clic cuando el SAT rechazó el otro. Sin
+ * repetidos y sin el que ya está tecleado.
+ */
+export function receiptNameSuggestions(receiver: PayrollReceiver, draftName = ''): ReceiptNameSuggestion[] {
+  const options = receiver.nameOptions;
+  if (!options) return [];
+  const current = cleanReceiptName(receiver.receipt?.name);
+  const typed = cleanReceiptName(draftName);
+  const out: ReceiptNameSuggestion[] = [];
+  const add = (source: ReceiptNameSuggestion['source'], label: string, raw: string | null) => {
+    const name = cleanReceiptName(raw);
+    if (!name || name === current || name === typed || out.some((o) => o.name === name)) return;
+    out.push({ source, label, name });
+  };
+  add('account', 'el nombre de su cuenta', options.account);
+  add('billing', 'la razón social de sus datos fiscales', options.billing);
+  return out;
 }
 
 /** ¿RFC y CURP son de la misma persona? (2 primeras letras y fecha de nacimiento; igual que el API). */
@@ -91,15 +145,15 @@ export function readReceiverSaveError(err: unknown, fallback = 'No se pudieron g
       (e): e is PayrollReceiverFieldError =>
         !!e &&
         typeof (e as PayrollReceiverFieldError).message === 'string' &&
-        ['rfc', 'curp', 'zipCode'].includes((e as PayrollReceiverFieldError).field),
+        ['rfc', 'curp', 'zipCode', 'name'].includes((e as PayrollReceiverFieldError).field),
     )
     .map((e) => ({ field: e.field, message: e.message, ...(e.needsConfirm ? { needsConfirm: true } : {}) }));
   return { message, errors, needsConfirm: body?.details?.needsConfirm === true };
 }
 
-/** Qué dato hay que corregir tras un rechazo del SAT. `name` no se corrige aquí: va en la ficha. */
+/** Qué dato hay que corregir tras un rechazo del SAT. */
 export interface SatRejectionHint {
-  field: PayrollReceiverField | 'name';
+  field: PayrollReceiverField;
   /** En claro, para quien corrige. */
   text: string;
 }
@@ -127,7 +181,7 @@ export function satRejectionHint(error: string | null | undefined): SatRejection
   if (e.includes('nombre del receptor') || e.includes('nombre asociado al rfc')) {
     return {
       field: 'name',
-      text: 'El nombre no coincide con el que el SAT tiene para ese RFC. El nombre se corrige en la ficha del distribuidor (como aparece en su constancia) o el RFC es de otra persona.',
+      text: 'El SAT no reconoce ese nombre para ese RFC: debe ir letra por letra como en su Constancia de Situación Fiscal. Escríbelo en «Nombre en el recibo» (o revisa que el RFC no sea de otra persona).',
     };
   }
   return null;

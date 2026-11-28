@@ -3,6 +3,7 @@ import {
   bonusGroupMatches,
   bonusRowMatches,
   cleanFiscalId,
+  cleanReceiptName,
   cleanZip,
   draftChanges,
   draftFromReceiver,
@@ -10,6 +11,7 @@ import {
   hasChanges,
   matchesSearch,
   readReceiverSaveError,
+  receiptNameSuggestions,
   rfcMatchesCurp,
   satRejectionHint,
 } from './payroll-receiver';
@@ -41,15 +43,15 @@ describe('captura de los datos del recibo', () => {
   });
 
   it('el formulario abre con lo guardado en el perfil de nómina (no con el de facturación)', () => {
-    expect(draftFromReceiver(receiver({ rfc: RFC, zipCode: '36500' }))).toEqual({ rfc: RFC, curp: '', zipCode: '36500' });
-    expect(draftFromReceiver(null)).toEqual({ rfc: '', curp: '', zipCode: '' });
+    expect(draftFromReceiver(receiver({ rfc: RFC, zipCode: '36500' }))).toEqual({ rfc: RFC, curp: '', zipCode: '36500', name: '' });
+    expect(draftFromReceiver(null)).toEqual({ rfc: '', curp: '', zipCode: '', name: '' });
   });
 
   it('solo manda lo que cambió; vacío no cambia nada', () => {
     const saved = receiver({ rfc: RFC, zipCode: '36500' });
-    expect(draftChanges(saved, { rfc: 'pegj850315ab1', curp: '', zipCode: '37000' })).toEqual({ zipCode: '37000' });
-    expect(hasChanges(draftChanges(saved, { rfc: RFC, curp: '', zipCode: '36500' }))).toBe(false);
-    expect(draftChanges(receiver(), { rfc: RFC, curp: CURP.toLowerCase(), zipCode: '36500' })).toEqual({
+    expect(draftChanges(saved, { rfc: 'pegj850315ab1', curp: '', zipCode: '37000', name: '' })).toEqual({ zipCode: '37000' });
+    expect(hasChanges(draftChanges(saved, { rfc: RFC, curp: '', zipCode: '36500', name: '' }))).toBe(false);
+    expect(draftChanges(receiver(), { rfc: RFC, curp: CURP.toLowerCase(), zipCode: '36500', name: '' })).toEqual({
       rfc: RFC,
       curp: CURP,
       zipCode: '36500',
@@ -57,14 +59,14 @@ describe('captura de los datos del recibo', () => {
   });
 
   it('avisa del largo mientras se teclea', () => {
-    expect(draftHints({ rfc: 'PEGJ8503', curp: 'PEGJ', zipCode: '365' })).toEqual({
+    expect(draftHints({ rfc: 'PEGJ8503', curp: 'PEGJ', zipCode: '365', name: '' })).toEqual({
       rfc: 'Lleva 8 de 13 caracteres.',
       curp: 'Lleva 4 de 18 caracteres.',
       zipCode: 'Lleva 3 de 5 dígitos.',
     });
-    expect(draftHints({ rfc: 'ABC850315AB1', curp: '', zipCode: '' }).rfc).toContain('RFC de empresa');
-    expect(draftHints({ rfc: RFC, curp: CURP, zipCode: '36500' })).toEqual({});
-    expect(draftHints({ rfc: '', curp: '', zipCode: '' })).toEqual({});
+    expect(draftHints({ rfc: 'ABC850315AB1', curp: '', zipCode: '', name: '' }).rfc).toContain('RFC de empresa');
+    expect(draftHints({ rfc: RFC, curp: CURP, zipCode: '36500', name: 'JUANA PEREZ GARCIA' })).toEqual({});
+    expect(draftHints({ rfc: '', curp: '', zipCode: '', name: '' })).toEqual({});
   });
 
   it('RFC y CURP de la misma persona: dos primeras letras y fecha de nacimiento', () => {
@@ -139,6 +141,66 @@ describe('rechazos del SAT en claro', () => {
     expect(satRejectionHint('Tiempo de espera agotado con el PAC')).toBeNull();
     expect(satRejectionHint(null)).toBeNull();
     expect(satRejectionHint('')).toBeNull();
+  });
+});
+
+describe('nombre del recibo', () => {
+  const blank = { rfc: '', curp: '', zipCode: '' };
+  // Datos fiscales PROPIOS con la razón social escrita distinto al nombre de la cuenta.
+  const own = (over: Partial<PayrollReceiver> = {}): PayrollReceiver => ({
+    ...receiver({ rfc: RFC }),
+    billing: { rfc: RFC, legalName: 'JUANA PERES GARCIA', zipCode: '36500', isOwn: true },
+    receipt: { rfc: RFC, curp: CURP, name: 'JUANA PERES GARCIA', zipCode: '36500', email: null, rfcSource: 'payroll', nameSource: 'billing' },
+    nameOptions: { account: 'JUANA PEREZ GARCIA', billing: 'JUANA PERES GARCIA' },
+    ...over,
+  });
+
+  it('se limpia como va en el CFDI: mayúsculas, sin acentos, con Ñ y sin espacios de más', () => {
+    expect(cleanReceiptName('  maría   josé muñoz  pérez ')).toBe('MARIA JOSE MUÑOZ PEREZ');
+    expect(cleanReceiptName(null)).toBe('');
+  });
+
+  it('solo se manda si cambió; el mismo nombre escrito de otra forma no es un cambio', () => {
+    expect(draftChanges(own(), { ...blank, name: ' juana pérez garcía ' })).toEqual({ name: 'JUANA PEREZ GARCIA' });
+    expect(draftChanges(own(), { ...blank, name: '' })).toEqual({});
+    const saved = own({ payroll: { rfc: RFC, curp: null, zipCode: null, taxRegimeCode: null, name: 'JUANA PEREZ GARCIA' } });
+    expect(hasChanges(draftChanges(saved, { ...blank, name: 'Juana  Pérez García' }))).toBe(false);
+    expect(draftFromReceiver(saved).name).toBe('JUANA PEREZ GARCIA');
+  });
+
+  it('avisa si solo se tecleó una palabra', () => {
+    expect(draftHints({ ...blank, name: 'JUANA' }).name).toContain('nombre completo');
+    expect(draftHints({ ...blank, name: 'JUANA PEREZ' }).name).toBeUndefined();
+  });
+
+  it('sugiere los nombres que la cuenta ya tiene y que NO son el que hoy saldría', () => {
+    // Hoy sale la razón social (la que rechazó el SAT): se ofrece el de la cuenta.
+    expect(receiptNameSuggestions(own())).toEqual([{ source: 'account', label: 'el nombre de su cuenta', name: 'JUANA PEREZ GARCIA' }]);
+    // Ya tecleado ese mismo: no se repite.
+    expect(receiptNameSuggestions(own(), 'juana pérez garcía')).toEqual([]);
+    // Con el nombre capturado saliendo en el recibo, se ofrece la razón social por si hay que regresar.
+    const captured = own({ receipt: { rfc: RFC, curp: CURP, name: 'JUANA PEREZ GARCIA', zipCode: '36500', email: null, rfcSource: 'payroll', nameSource: 'payroll' } });
+    expect(receiptNameSuggestions(captured).map((o) => o.source)).toEqual(['billing']);
+  });
+
+  it('nunca sugiere la razón social de otra persona, y sin soporte del servidor no sugiere nada', () => {
+    const leader = own({ nameOptions: { account: 'JUANA PEREZ GARCIA', billing: null }, receipt: null });
+    expect(receiptNameSuggestions(leader)).toEqual([{ source: 'account', label: 'el nombre de su cuenta', name: 'JUANA PEREZ GARCIA' }]);
+    expect(receiptNameSuggestions(receiver())).toEqual([]);
+  });
+
+  it('el API puede rechazar el nombre: el error llega a su campo', () => {
+    const read = readReceiverSaveError({
+      response: { data: { message: 'Escribe el nombre completo', details: { errors: [{ field: 'name', message: 'Escribe el nombre completo' }] } } },
+    });
+    expect(read.errors).toEqual([{ field: 'name', message: 'Escribe el nombre completo' }]);
+  });
+
+  it('el rechazo del SAT por nombre manda a corregirlo en «Nombre en el recibo»', () => {
+    const hint = satRejectionHint('El campo Nombre del receptor, debe pertenecer al nombre asociado al RFC registrado en el campo Rfc del Receptor.');
+    expect(hint?.field).toBe('name');
+    expect(hint?.text).toContain('Nombre en el recibo');
+    expect(hint?.text).not.toContain('ficha');
   });
 });
 
