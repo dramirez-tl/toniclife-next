@@ -8,6 +8,28 @@ import type {
   InvitationTicket,
 } from '@/types/event-invitations';
 
+/**
+ * Código del boleto a partir de lo que llega en la liga `/invitacion/<algo>`.
+ *
+ * La plantilla de WhatsApp `evento_invitacion` quedó aprobada por Meta con el
+ * botón "Ver mi boleto" apuntando a `…/invitacion/%7B%7B1%7D%7D{{1}}` (al darla
+ * de alta se tecleó `{{1}}` dentro de la liga y Meta agregó además su propia
+ * variable). A cada invitado le llega entonces `…/invitacion/{{1}}<código>`.
+ * El código es siempre de 32 caracteres hexadecimales: se toma el del final y
+ * se ignora lo que venga antes. Si lo recibido no termina en un código con esa
+ * forma, se deja como llegó (y el API responderá que no existe).
+ */
+export function invitationTokenFromPath(raw: string | null | undefined): string {
+  let value = (raw ?? '').trim();
+  try {
+    value = decodeURIComponent(value);
+  } catch {
+    // Secuencia % incompleta: se usa tal como llegó.
+  }
+  const match = value.match(/[0-9a-f]{32}$/i);
+  return match ? match[0] : value;
+}
+
 /** Parte la lista en tandas del tamaño que admite el API. */
 export function chunkIds(ids: readonly string[], size: number): string[][] {
   const step = Math.max(1, Math.floor(size));
