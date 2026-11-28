@@ -43,6 +43,13 @@ import {
 } from '@/components/ui/DataTable';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { useCommissionReceipts } from '@/hooks/useCommissionReceipts';
+import {
+  CommissionReceiptsPanel,
+  CommissionReceiptsSwitch,
+  type CommissionsView,
+} from '@/components/admin/treasury/CommissionReceiptsPanel';
+import { isReceiptFilter, receiptBucket, receiptCounts, type ReceiptFilter } from '@/lib/treasury/commission-receipts';
 import { useActiveCountries } from '@/hooks/useConfig';
 import {
   commissionKeys,
@@ -146,6 +153,11 @@ function ComisionesContent() {
   const dirParam = get('dir') === 'asc' ? 'asc' : 'desc';
   const page = getNumber('page') || 1;
   const limit = PAGE_SIZE_OPTIONS.includes(getNumber('limit')) ? getNumber('limit') : 20;
+  // Vista "Pagos y recibos de nómina" (28-nov-2026): comisiones de asimilados
+  // depositadas fuera de los lotes. Su filtro también vive en la URL.
+  const view: CommissionsView = get('vista') === 'recibos' ? 'recibos' : 'dispersion';
+  const receiptParam = get('recibo');
+  const receiptFilter: ReceiptFilter = isReceiptFilter(receiptParam) ? receiptParam : 'todas';
 
   const stage = isCommissionStage(stageParam) ? stageParam : undefined;
   const readiness = readinessParam === 'ready' || readinessParam === 'blocked' ? readinessParam : undefined;
@@ -203,7 +215,16 @@ function ComisionesContent() {
   );
 
   const listReady = isAllPeriods || !!effectivePeriodId;
-  const list = useTreasuryCommissions(filters, listReady);
+  // Pagos registrados fuera de lote y su recibo (una llamada por periodo). La
+  // usan las dos vistas: en "Dispersión" marca cada renglón ya depositado.
+  const receiptsEnabled = !isAllPeriods && perms.canValidate;
+  const receiptsQuery = useCommissionReceipts(selectedPeriod?.periodNumber, receiptsEnabled);
+  const receiptRows = receiptsQuery.data?.rows;
+  const receiptByCommission = useMemo(() => new Map((receiptRows ?? []).map((r) => [r.commissionId, r])), [receiptRows]);
+  const periodReceiptCounts = useMemo(() => (receiptRows ? receiptCounts(receiptRows) : undefined), [receiptRows]);
+  const showReceipts = view === 'recibos' && receiptsEnabled;
+
+  const list = useTreasuryCommissions(filters, listReady && !showReceipts);
   const summaryQuery = useTreasurySummary(isAllPeriods ? undefined : effectivePeriodId);
   const summary = summaryQuery.data;
   const { data: countries } = useActiveCountries();
@@ -466,7 +487,43 @@ function ComisionesContent() {
       key: 'status',
       header: 'Etapa',
       sortable: true,
-      render: (c) => <StageBadge stage={c.stage ?? fallbackStage(c)} isEstimate={c.isEstimate} />,
+      render: (c) => {
+        const receipt = receiptByCommission.get(c.id);
+        const bucket = receipt?.payment ? receiptBucket(receipt) : null;
+        return (
+          <div className="space-y-1">
+            <StageBadge stage={c.stage ?? fallbackStage(c)} isEstimate={c.isEstimate} />
+            {/* Depositada fuera de los lotes: la etapa de dispersión no cambió, pero ya está pagada. */}
+            {receipt?.payment && (
+              <button
+                type="button"
+                onClick={() => {
+                  // El buscador y la URL van juntos: la otra vista abre ya filtrada por este distribuidor.
+                  setSearchDraft(c.customerNumber ?? '');
+                  setParams({ vista: 'recibos', recibo: null, search: c.customerNumber ?? null, page: null });
+                }}
+                className="block text-left"
+                title={`Depositada el ${formatDateOnly(receipt.payment.paidAt)} fuera de los lotes de dispersión${receipt.payment.reference ? ` (${receipt.payment.reference})` : ''}. Clic para ver su pago y su recibo.`}
+              >
+                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">
+                  Pagada fuera de lote · {formatDateOnly(receipt.payment.paidAt)}
+                </Badge>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  {bucket === 'stamped'
+                    ? 'Con recibo de nómina'
+                    : bucket === 'rejected'
+                      ? 'Recibo rechazado por el SAT'
+                      : bucket === 'missing_data'
+                        ? 'Sin recibo: faltan datos'
+                        : bucket === 'in_progress'
+                          ? 'Recibo timbrándose'
+                          : 'Sin recibo todavía'}
+                </span>
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'taxRegime',
@@ -741,6 +798,36 @@ function ComisionesContent() {
 
       {!isAllPeriods && summary && <RegimeBreakdown summary={summary} periodId={effectivePeriodId} />}
 
+      {/* Dispersión | Pagos y recibos de nómina */}
+      {receiptsEnabled && (
+        <CommissionReceiptsSwitch
+          view={view}
+          onView={(v) => setParams({ vista: v === 'recibos' ? 'recibos' : null, recibo: null, page: null })}
+          counts={periodReceiptCounts}
+          isLoading={receiptsQuery.isLoading}
+          activeFilter={receiptFilter}
+          onFilter={(f) => setParams({ vista: 'recibos', recibo: f, page: null })}
+          periodName={selectedPeriod?.name ?? 'este periodo'}
+        />
+      )}
+
+      {showReceipts ? (
+        <CommissionReceiptsPanel
+          query={receiptsQuery}
+          periodNumber={selectedPeriod?.periodNumber}
+          periodName={selectedPeriod?.name ?? ''}
+          canValidate={perms.canValidate}
+          searchDraft={searchDraft}
+          onSearchDraft={setSearchDraft}
+          search={search}
+          filter={receiptFilter}
+          page={page}
+          limit={limit}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onParams={setParams}
+        />
+      ) : (
+      <>
       {/* Filtros (URL) */}
       <Card className="mb-6 border-border shadow-sm">
         <CardContent className="p-4">
@@ -944,6 +1031,8 @@ function ComisionesContent() {
           </p>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Diálogos */}
       <ApprovePeriodDialog

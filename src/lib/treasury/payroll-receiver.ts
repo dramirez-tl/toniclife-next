@@ -97,6 +97,42 @@ export function readReceiverSaveError(err: unknown, fallback = 'No se pudieron g
   return { message, errors, needsConfirm: body?.details?.needsConfirm === true };
 }
 
+/** Qué dato hay que corregir tras un rechazo del SAT. `name` no se corrige aquí: va en la ficha. */
+export interface SatRejectionHint {
+  field: PayrollReceiverField | 'name';
+  /** En claro, para quien corrige. */
+  text: string;
+}
+
+/**
+ * Los rechazos del SAT llegan en su idioma ("El campo DomicilioFiscalReceptor
+ * del receptor, debe encontrarse en la lista de RFC inscritos…"). Esto dice
+ * qué dato es y qué hacer; null si el mensaje no es uno de los conocidos.
+ */
+export function satRejectionHint(error: string | null | undefined): SatRejectionHint | null {
+  const e = (error ?? '').toLowerCase();
+  if (!e) return null;
+  if (e.includes('domiciliofiscalreceptor')) {
+    return {
+      field: 'zipCode',
+      text: 'El código postal no es el que el SAT tiene registrado para ese RFC. Corrígelo con el de su Constancia de Situación Fiscal.',
+    };
+  }
+  if (e.includes('receptor.rfc') || (e.includes('rfc inscritos') && !e.includes('nombre'))) {
+    return {
+      field: 'rfc',
+      text: 'El SAT no reconoce ese RFC: no está inscrito o está cancelado. Revísalo contra su constancia (puede traer una letra o un número mal).',
+    };
+  }
+  if (e.includes('nombre del receptor') || e.includes('nombre asociado al rfc')) {
+    return {
+      field: 'name',
+      text: 'El nombre no coincide con el que el SAT tiene para ese RFC. El nombre se corrige en la ficha del distribuidor (como aparece en su constancia) o el RFC es de otra persona.',
+    };
+  }
+  return null;
+}
+
 export const RFC_SOURCE_LABEL: Record<PayrollRfcSource, string> = {
   payroll: 'RFC de nómina capturado',
   billing_own: 'RFC de facturación (es el suyo: cuadra con su CURP)',

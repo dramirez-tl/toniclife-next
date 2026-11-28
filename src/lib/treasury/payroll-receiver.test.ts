@@ -11,6 +11,7 @@ import {
   matchesSearch,
   readReceiverSaveError,
   rfcMatchesCurp,
+  satRejectionHint,
 } from './payroll-receiver';
 import type { PayrollReceiver } from '@/types/payroll-receiver';
 
@@ -118,6 +119,26 @@ describe('lo que contesta el servidor al guardar', () => {
       errors: [],
       needsConfirm: false,
     });
+  });
+});
+
+describe('rechazos del SAT en claro', () => {
+  it('código postal, RFC y nombre: dice qué dato corregir', () => {
+    expect(
+      satRejectionHint('El campo DomicilioFiscalReceptor del receptor, debe encontrarse en la lista de RFC inscritos no cancelados en el SAT. Si el problema persiste contacta a Sistemas.')?.field,
+    ).toBe('zipCode');
+    expect(
+      satRejectionHint("El atributo 'Comprobante.Receptor.Rfc' debe estar en la lista de RFC inscritos no cancelados en el SAT (l_RFC).")?.field,
+    ).toBe('rfc');
+    expect(
+      satRejectionHint('El campo Nombre del receptor, debe pertenecer al nombre asociado al RFC registrado en el campo Rfc del Receptor.')?.field,
+    ).toBe('name');
+  });
+
+  it('un mensaje que no se conoce se deja tal cual (sin inventar)', () => {
+    expect(satRejectionHint('Tiempo de espera agotado con el PAC')).toBeNull();
+    expect(satRejectionHint(null)).toBeNull();
+    expect(satRejectionHint('')).toBeNull();
   });
 });
 
