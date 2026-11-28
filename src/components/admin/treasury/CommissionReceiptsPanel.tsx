@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useStampCommissionReceipt } from '@/hooks/useCommissionReceipts';
 import { apiErrorMessage } from '@/lib/api-error';
+import type { SettlementProgress } from '@/lib/treasury/external-settlement';
 import { satRejectionHint } from '@/lib/treasury/payroll-receiver';
 import {
   MAX_CONSECUTIVE_REJECTIONS,
@@ -54,6 +55,7 @@ import { commissionReceiptsService } from '@/services/commission-receipts.servic
 import type { CommissionReceiptRow, CommissionReceiptsList } from '@/types/commission-receipts';
 import type { PayrollReceiverStampContext } from './PayrollReceiverPanel';
 import { PayrollReceiverSheet } from './PayrollReceiverSheet';
+import { SettlePaidButton } from './SettlePaidDialog';
 import { formatDateOnly, formatInt, formatMoney } from './treasury-format';
 
 const money = (n: number) => formatMoney(n, 'MXN');
@@ -80,10 +82,26 @@ interface CommissionReceiptsSwitchProps {
   activeFilter: ReceiptFilter;
   onFilter: (filter: ReceiptFilter) => void;
   periodName: string;
+  /** Cuántas de las depositadas ya pasaron a «Pagada» en el embudo y cuántas faltan. */
+  settlement?: SettlementProgress;
+  /** Periodo (id) y permiso para pasarlas a «Pagada» (mlm:pay); sin ellos no sale el botón. */
+  periodId?: string | null;
+  canSettle?: boolean;
 }
 
 /** Selector de vista y, si el periodo tiene pagos registrados fuera de lote, el aviso con sus conteos. */
-export function CommissionReceiptsSwitch({ view, onView, counts, isLoading, activeFilter, onFilter, periodName }: CommissionReceiptsSwitchProps) {
+export function CommissionReceiptsSwitch({
+  view,
+  onView,
+  counts,
+  isLoading,
+  activeFilter,
+  onFilter,
+  periodName,
+  settlement,
+  periodId,
+  canSettle = false,
+}: CommissionReceiptsSwitchProps) {
   const tab = (key: CommissionsView, label: string, hint: string) => (
     <button
       type="button"
@@ -97,6 +115,9 @@ export function CommissionReceiptsSwitch({ view, onView, counts, isLoading, acti
     </button>
   );
   const paid = counts?.pagadas ?? 0;
+  // Sin la etapa de cada comisión (servidor anterior) se asume lo de antes: ninguna asentada.
+  const pendingSettle = settlement?.known ? settlement.pending : paid;
+  const allSettled = settlement?.known === true && settlement.pending === 0;
   return (
     <Card className="mb-6 border-border shadow-sm">
       <CardContent className="space-y-3 p-4">
@@ -120,13 +141,24 @@ export function CommissionReceiptsSwitch({ view, onView, counts, isLoading, acti
                 {formatInt(paid)} {paid === 1 ? 'comisión' : 'comisiones'} de asimilados de {periodName} ya {paid === 1 ? 'se depositó' : 'se depositaron'} fuera de
                 los lotes
               </strong>{' '}
-              y {counts.con_recibo === 1 ? '1 ya tiene' : `${formatInt(counts.con_recibo)} ya tienen`} su recibo de nómina. En el embudo siguen como «Calculada» porque
-              no pasaron por dispersión.
+              y {counts.con_recibo === 1 ? '1 ya tiene' : `${formatInt(counts.con_recibo)} ya tienen`} su recibo de nómina.{' '}
+              {allSettled
+                ? 'Ya cuentan como «Pagada» en el embudo y en el panel de cada distribuidor.'
+                : settlement?.known && settlement.settled > 0
+                  ? `${formatInt(settlement.settled)} ya ${settlement.settled === 1 ? 'cuenta' : 'cuentan'} como «Pagada»; ${formatInt(pendingSettle)} ${pendingSettle === 1 ? 'sigue' : 'siguen'} como «Calculada» en el embudo.`
+                  : 'En el embudo siguen como «Calculada» porque no pasaron por dispersión.'}
             </p>
-            <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-900">
-              <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              <span>No las apruebes ni las mandes a un lote de dispersión: se pagarían dos veces.</span>
-            </p>
+            {!allSettled && (
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                <p className="flex items-start gap-1.5 text-xs text-amber-900">
+                  <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>No las apruebes ni las mandes a un lote de dispersión: se pagarían dos veces.</span>
+                </p>
+                {canSettle && periodId && settlement?.known && pendingSettle > 0 && (
+                  <SettlePaidButton periodId={periodId} periodName={periodName} pending={pendingSettle} />
+                )}
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap gap-2">
               {(['con_recibo', 'listas', 'faltan_datos', 'rechazadas', 'sin_pago'] as const).map((f) => (
                 <button

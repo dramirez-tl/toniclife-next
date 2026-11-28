@@ -40,6 +40,12 @@ export interface CommissionReceiptRow {
   customerId: string;
   customerNumber: string | null;
   customerName: string;
+  /**
+   * Etapa en el flujo de dispersión ('calculated' | 'approved' | 'paid'…).
+   * 'paid' = ya cuenta como pagada en el embudo y en el panel del distribuidor.
+   * Ausente si el servidor aún no la manda.
+   */
+  commissionStatus?: string;
   /** Lo calculado por el motor. */
   subtotal: number;
   isr: number;
