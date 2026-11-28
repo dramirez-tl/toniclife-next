@@ -10,12 +10,13 @@ import { CalendarDaysIcon, ClockIcon, MapPinIcon, TicketIcon, XCircleIcon } from
 import { InvitationTicketCard } from '@/components/events/InvitationTicketCard';
 import { usePublicInvitation } from '@/hooks/useEventInvitations';
 import { formatEventDateLong, formatEventSchedule } from '@/lib/events/format';
-import { seatsLabel, ticketState, ticketStateLabel } from '@/lib/events/invitations';
+import { invitationTokenFromPath, seatsLabel, ticketState, ticketStateLabel } from '@/lib/events/invitations';
 import type { PublicInvitation } from '@/types/event-invitations';
 
 export default function InvitacionPublicaPage() {
   const params = useParams();
-  const token = (params?.token as string) || '';
+  // El botón de WhatsApp manda la liga con un `{{1}}` de más antes del código: se limpia.
+  const token = invitationTokenFromPath(params?.token as string | undefined);
   const { data, isLoading, isError, error } = usePublicInvitation(token);
 
   return (

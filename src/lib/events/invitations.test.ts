@@ -3,6 +3,7 @@ import {
   addBatch,
   chunkIds,
   emptyProgress,
+  invitationTokenFromPath,
   progressPercent,
   resultSummary,
   seatsLabel,
@@ -14,6 +15,33 @@ import {
   ticketStateLabel,
 } from './invitations';
 import type { InvitationPreview, InvitationSendResult } from '@/types/event-invitations';
+
+describe('código del boleto a partir de la liga', () => {
+  // Código inventado para la prueba.
+  const TOKEN = '0123456789abcdef0123456789abcdef';
+
+  it('la liga normal (correo, panel, QR) trae solo el código', () => {
+    expect(invitationTokenFromPath(TOKEN)).toBe(TOKEN);
+  });
+
+  it('la liga del botón de WhatsApp trae un {{1}} de más: se ignora', () => {
+    expect(invitationTokenFromPath(`{{1}}${TOKEN}`)).toBe(TOKEN);
+    expect(invitationTokenFromPath(`%7B%7B1%7D%7D${TOKEN}`)).toBe(TOKEN);
+    // Doble codificación (algunos navegadores y vistas previas la hacen).
+    expect(invitationTokenFromPath(`%257B%257B1%257D%257D${TOKEN}`)).toBe(TOKEN);
+  });
+
+  it('respeta mayúsculas y espacios a los lados', () => {
+    expect(invitationTokenFromPath(`  ${TOKEN.toUpperCase()} `)).toBe(TOKEN.toUpperCase());
+  });
+
+  it('si no termina en un código con esa forma, se deja como llegó', () => {
+    expect(invitationTokenFromPath('abc')).toBe('abc');
+    expect(invitationTokenFromPath(`${TOKEN}x`)).toBe(`${TOKEN}x`);
+    expect(invitationTokenFromPath('%E0%A4%A')).toBe('%E0%A4%A');
+    expect(invitationTokenFromPath(undefined)).toBe('');
+  });
+});
 
 const preview = (over: Partial<InvitationPreview> = {}): InvitationPreview => ({
   canSend: true,
