@@ -32,14 +32,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePayrollReceiver, useUpdatePayrollReceiver } from '@/hooks/usePayrollReceiver';
 import { apiErrorMessage } from '@/lib/api-error';
 import {
+  NAME_SOURCE_LABEL,
   RFC_SOURCE_LABEL,
   cleanFiscalId,
+  cleanReceiptName,
   cleanZip,
   draftChanges,
   draftFromReceiver,
   draftHints,
   hasChanges,
   readReceiverSaveError,
+  receiptNameSuggestions,
   rfcMatchesCurp,
   satRejectionHint,
   type PayrollReceiverDraft,
@@ -74,6 +77,7 @@ const FIELD_LABEL: Record<PayrollReceiverField, string> = {
   rfc: 'RFC del distribuidor',
   curp: 'CURP',
   zipCode: 'Código postal fiscal',
+  name: 'Nombre en el recibo',
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -244,9 +248,10 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
   const looksMismatch = rfcForCheck.length === 13 && curpForCheck.length === 18 && !rfcMatchesCurp(rfcForCheck, curpForCheck);
 
   const set = (field: PayrollReceiverField, value: string) => {
-    setDraft((d) => ({ ...d, [field]: field === 'zipCode' ? cleanZip(value) : cleanFiscalId(value) }));
+    // El nombre solo se pasa a mayúsculas al teclear (lleva espacios); lo demás se limpia al comparar y al guardar.
+    setDraft((d) => ({ ...d, [field]: field === 'name' ? value.toUpperCase() : field === 'zipCode' ? cleanZip(value) : cleanFiscalId(value) }));
     setFieldErrors((e) => ({ ...e, [field]: undefined }));
-    if (field !== 'zipCode') {
+    if (field !== 'zipCode' && field !== 'name') {
       setNeedsConfirm(false);
       setConfirmed(false);
     }
@@ -304,6 +309,11 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
   const r = receiver;
   const receipt = r.receipt;
   const canOfferStamp = !!stamp && stamp.canStamp && !readOnly;
+  // El servidor admite capturar el nombre del recibo (manda nameOptions).
+  const canEditName = r.nameOptions !== undefined;
+  const nameSuggestions = canEditName ? receiptNameSuggestions(r, draft.name) : [];
+  const typedName = cleanReceiptName(draft.name);
+  const rejectedByName = satRejectionHint(stamp?.lastError)?.field === 'name';
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-2">
@@ -356,6 +366,56 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
             Captura los datos <span className="font-medium">del propio distribuidor</span>, como aparecen en su Constancia de Situación Fiscal. Un campo vacío no cambia nada.
           </p>
           <div className="space-y-3">
+            {canEditName && (
+              <div className={`space-y-1 ${rejectedByName ? 'rounded-lg border border-red-200 bg-red-50/60 p-3' : ''}`}>
+                <Label htmlFor="payroll-receiver-name">{FIELD_LABEL.name}</Label>
+                <Input
+                  id="payroll-receiver-name"
+                  value={draft.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  disabled={readOnly || busy}
+                  maxLength={200}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={receipt?.name ? `Hoy sale: ${receipt.name}` : 'Nombre(s) y apellidos, como en su constancia'}
+                  aria-invalid={!!fieldErrors.name}
+                  className={`uppercase ${fieldErrors.name ? 'border-red-400 focus-visible:ring-red-200' : ''}`}
+                />
+                {fieldErrors.name ? (
+                  <p className="text-xs text-red-700">{fieldErrors.name}</p>
+                ) : hints.name ? (
+                  <p className="text-xs text-amber-700">{hints.name}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Letra por letra como en su Constancia de Situación Fiscal: el SAT rechaza el recibo si cambia una sola.{' '}
+                    {r.payroll.name
+                      ? 'Este es el que sale en el recibo.'
+                      : receipt?.name
+                        ? `Si lo dejas vacío sale «${receipt.name}».`
+                        : ''}
+                  </p>
+                )}
+                {!readOnly && nameSuggestions.length > 0 && (
+                  <div className="flex flex-col items-start gap-1 pt-1">
+                    {nameSuggestions.map((option) => (
+                      <button
+                        key={option.source}
+                        type="button"
+                        onClick={() => set('name', option.name)}
+                        disabled={busy}
+                        className="text-left text-xs font-medium text-[#3E667D] hover:underline disabled:opacity-50"
+                        title="Copia este nombre al campo; después guarda"
+                      >
+                        Usar {option.label}: «{option.name}»
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {typedName && typedName === cleanReceiptName(receipt?.name) && !r.payroll.name && rejectedByName && (
+                  <p className="text-xs text-amber-700">Ese es el mismo nombre que el SAT acaba de rechazar.</p>
+                )}
+              </div>
+            )}
             {(['rfc', 'curp', 'zipCode'] as const).map((field) => {
               const error = fieldErrors[field];
               const hint = hints[field];
@@ -442,7 +502,10 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
         <Card title="Así saldrá el recibo">
           {receipt ? (
             <dl className="divide-y divide-gray-100">
-              <Row label="Nombre">{receipt.name}</Row>
+              <Row label="Nombre">
+                {receipt.name}
+                {receipt.nameSource && <span className="block text-xs font-normal text-gray-500">{NAME_SOURCE_LABEL[receipt.nameSource]}</span>}
+              </Row>
               <Row label="RFC">
                 <span className="font-mono">{receipt.rfc}</span>
                 <span className="block text-xs font-normal text-gray-500">{RFC_SOURCE_LABEL[receipt.rfcSource]}</span>
@@ -457,14 +520,21 @@ function PayrollReceiverForm({ receiver, stamp, onStamped, readOnly, onRefresh }
           )}
           <p className="mt-3 flex items-start gap-1.5 text-xs text-gray-500">
             <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <span>
-              El nombre sale de la cuenta del distribuidor y el SAT lo compara contra su RFC. Si lo rechaza por nombre, se corrige en{' '}
-              <Link href={`/admin/distribuidores/${r.customerId}`} target="_blank" className="inline-flex items-center gap-0.5 font-medium text-[#3E667D] hover:underline">
-                su ficha
-                <ArrowTopRightOnSquareIcon className="h-3 w-3" aria-hidden />
-              </Link>
-              .
-            </span>
+            {canEditName ? (
+              <span>
+                El SAT compara el nombre contra su RFC letra por letra. Si lo rechaza por el nombre, escríbelo en «Nombre en el recibo» tal como viene en su
+                Constancia de Situación Fiscal: ese es el que manda, sin cambiar su razón social ni el nombre de su cuenta.
+              </span>
+            ) : (
+              <span>
+                El nombre sale de la cuenta del distribuidor y el SAT lo compara contra su RFC. Si lo rechaza por nombre, se corrige en{' '}
+                <Link href={`/admin/distribuidores/${r.customerId}`} target="_blank" className="inline-flex items-center gap-0.5 font-medium text-[#3E667D] hover:underline">
+                  su ficha
+                  <ArrowTopRightOnSquareIcon className="h-3 w-3" aria-hidden />
+                </Link>
+                .
+              </span>
+            )}
           </p>
         </Card>
 

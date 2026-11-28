@@ -4,6 +4,9 @@
 /** De dónde sale el RFC del recibo. */
 export type PayrollRfcSource = 'payroll' | 'billing_own' | 'billing_unverified';
 
+/** De dónde sale el NOMBRE del recibo: capturado para el recibo, razón social propia o nombre de la cuenta. */
+export type PayrollNameSource = 'payroll' | 'billing' | 'account';
+
 /** Así saldría el recibo con lo que hay guardado hoy. */
 export interface PayrollReceiptIdentity {
   rfc: string;
@@ -13,6 +16,8 @@ export interface PayrollReceiptIdentity {
   /** A dónde se manda el PDF (null = no se envía). */
   email: string | null;
   rfcSource: PayrollRfcSource;
+  /** Ausente si el servidor aún no lo manda. */
+  nameSource?: PayrollNameSource;
 }
 
 export interface PayrollReceiver {
@@ -31,7 +36,15 @@ export interface PayrollReceiver {
     curp: string | null;
     zipCode: string | null;
     taxRegimeCode: string | null;
+    /** Nombre capturado para el recibo (null = se decide solo). */
+    name?: string | null;
   };
+  /**
+   * Nombres que ya tiene la cuenta, como irían en el recibo: el de la cuenta y,
+   * solo si sus datos fiscales son los suyos, su razón social. Ausente si el
+   * servidor aún no admite capturar el nombre.
+   */
+  nameOptions?: { account: string | null; billing: string | null };
   /** CURP general de la cuenta (la del alta). */
   generalCurp: string | null;
   /** Perfil de facturación de sus compras: solo de consulta. */
@@ -60,11 +73,13 @@ export interface PayrollReceiverInput {
   rfc?: string;
   curp?: string;
   zipCode?: string;
+  /** Nombre para el recibo, tal como aparece en su Constancia de Situación Fiscal. */
+  name?: string;
   /** Guardar aunque el RFC y la CURP no parezcan de la misma persona. */
   confirmMismatch?: boolean;
 }
 
-export type PayrollReceiverField = 'rfc' | 'curp' | 'zipCode';
+export type PayrollReceiverField = 'rfc' | 'curp' | 'zipCode' | 'name';
 
 export interface PayrollReceiverFieldError {
   field: PayrollReceiverField;
